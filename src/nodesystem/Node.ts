@@ -5,7 +5,6 @@ import type { NodeType } from './NodeType';
 import type { NodeConnectionHandler } from './NodeConnectionHandler';
 
 export class Node {
-
 	constructor(
 		public id: string,
 		public type: NodeType,
@@ -26,8 +25,8 @@ export class Node {
 			fontColor: '#000'
 		}
 	) {
-		inputs.forEach(input => input.setNode(this));
-		outputs.forEach(output => output.setNode(this));
+		inputs.forEach((input, i) => input.setNode(this, i));
+		outputs.forEach((output, i) => output.setNode(this, i));
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -44,33 +43,11 @@ export class Node {
 		ctx.textBaseline = 'middle';
 
 		ctx.beginPath();
-		ctx.moveTo(0, 0);
-		ctx.lineTo(this.width, 0);
-		ctx.lineTo(this.width, this.height);
-		ctx.lineTo(0, this.height);
-		ctx.closePath();
+		ctx.rect(0, 0, this.width, this.height);
 		ctx.fill();
 		ctx.stroke();
 
-		const inputSpacing = this.height / (this.inputs.length + 1);
-		for (let i = 0; i < this.inputs.length; i++) {
-			ctx.moveTo(0, inputSpacing * (i + 1));
-			ctx.beginPath();
-			ctx.ellipse(0, inputSpacing * (i + 1), 5, 5, 0, 0, 2 * Math.PI);
-			ctx.stroke();
-			ctx.fillStyle = this.style.fontColor;
-			ctx.fill();
-		}
-
-		const outputSpacing = this.height / (this.outputs.length + 1);
-		for (let i = 0; i < this.outputs.length; i++) {
-			ctx.moveTo(this.width, outputSpacing * (i + 1));
-			ctx.beginPath();
-			ctx.ellipse(this.width, outputSpacing * (i + 1), 5, 5, 0, 0, 2 * Math.PI);
-			ctx.stroke();
-			ctx.fillStyle = this.style.fontColor;
-			ctx.fill();
-		}
+		this.renderConnectionPoints(ctx);
 
 		ctx.fillStyle = this.style.fontColor;
 		ctx.fillText(this.type.toString(), this.width / 2, this.height / 2);
@@ -78,7 +55,31 @@ export class Node {
 		ctx.restore();
 	}
 
+	renderConnectionPoints(ctx: CanvasRenderingContext2D) {
+		const inputSpacing = this.height / (this.inputs.length + 1);
+		ctx.fillStyle = '#000';
+		for (let i = 0; i < this.inputs.length; i++) {
+			ctx.beginPath();
+			ctx.ellipse(0, inputSpacing * (i + 1), 5, 5, 0, 0, 2 * Math.PI);
+			ctx.stroke();
+			ctx.fill();
+		}
+
+		const outputSpacing = this.height / (this.outputs.length + 1);
+		for (let i = 0; i < this.outputs.length; i++) {
+			ctx.beginPath();
+			ctx.ellipse(this.width, outputSpacing * (i + 1), 5, 5, 0, 0, 2 * Math.PI);
+			ctx.stroke();
+			ctx.fill();
+		}
+	}
+
 	update() {
-		this.outputs.forEach(output => output.setValue(false));
+		this.outputs.forEach((output) => output.setValue(false));
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	onclick(_e: MouseEvent, _pos: { x: number; y: number }) {
+		return true;
 	}
 }
