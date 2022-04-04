@@ -43,8 +43,10 @@ export class NodeConnectionHandler {
 		if (connections) {
 			connections.forEach((input) => {
 				input.setValue(output.value);
-				input.node?.update();
 			});
+            connections.forEach((input) => {
+                input.node?.update();
+            });
 		}
 	}
 

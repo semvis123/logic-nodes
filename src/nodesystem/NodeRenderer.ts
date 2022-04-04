@@ -8,7 +8,8 @@ import { AndNode } from './LogicAndNode';
 import { OrNode } from './LogicOrNode';
 import { NotNode } from './LogicNotNode';
 import { NodeMouseEventHandler } from './NodeMouseEventHandler';
-
+import { HtmlOverlayNode } from './HtmlOverlayNode';
+import { DelayNode } from './DelayNode';
 export class NodeRenderer {
 	ctx: CanvasRenderingContext2D;
 	frame: number;
@@ -18,15 +19,17 @@ export class NodeRenderer {
 
 	constructor(public canvas: HTMLCanvasElement) {
 		this.nodeClickHandler = new NodeMouseEventHandler(this, canvas);
-		this.ctx = canvas.getContext('2d', { alpha: false });
 		this.nodeConnectionHandler = new NodeConnectionHandler();
+		this.ctx = canvas.getContext('2d', { alpha: false });
 		this.nodes = [
 			new ToggleNode(uuid(), 300, 300, this.nodeConnectionHandler),
 			new TimerNode(uuid(), 600, 600, this.nodeConnectionHandler, this, 1000),
 			new AndNode(uuid(), 400, 600, this.nodeConnectionHandler),
 			new OrNode(uuid(), 500, 600, this.nodeConnectionHandler),
 			new NotNode(uuid(), 300, 600, this.nodeConnectionHandler),
-			new DisplayNode(uuid(), 400, 400, this.nodeConnectionHandler)
+			new DisplayNode(uuid(), 400, 400, this.nodeConnectionHandler),
+			new DelayNode(uuid(), 200, 600, this.nodeConnectionHandler, this, 400),
+			new HtmlOverlayNode(uuid(), 500, 400, this.nodeConnectionHandler)
 		];
 		this.nodeConnectionHandler.addConnection(this.nodes[0].outputs[0], this.nodes[2].inputs[0]);
 		this.nodeConnectionHandler.addConnection(this.nodes[1].outputs[0], this.nodes[2].inputs[1]);
