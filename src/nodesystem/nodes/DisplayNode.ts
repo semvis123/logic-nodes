@@ -1,32 +1,21 @@
 import { NodeType } from '../NodeType';
 import { Node } from '../Node';
-import type { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
 import { uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
 import { NodeInput } from '../NodeInput';
+import type { NodeSystem } from '../NodeSystem';
 
 export class DisplayNode extends Node {
-	constructor(id: string, x: number, y: number, nodeConnectionHandler: NodeConnectionHandler) {
-		super(
-			id,
-			NodeType.Input,
-			x,
-			y,
-			40,
-			40,
-			[new NodeInput(uuid(), 'input', NodeValueType.Number)],
-			[],
-			nodeConnectionHandler,
-			{
-				color: '#fff',
-				borderColor: '#000',
-				borderWidth: 1,
-				borderRadius: 0,
-				fontSize: 12,
-				fontFamily: 'Arial',
-				fontColor: '#fff'
-			}
-		);
+	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
+		super(id, NodeType.Input, x, y, 40, 40, [new NodeInput(uuid(), 'input', NodeValueType.Number)], [], nodeSystem, {
+			color: '#fff',
+			borderColor: '#000',
+			borderWidth: 1,
+			borderRadius: 0,
+			fontSize: 12,
+			fontFamily: 'Arial',
+			fontColor: '#fff'
+		});
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -46,7 +35,6 @@ export class DisplayNode extends Node {
 		ctx.rect(0, 0, this.width, this.height);
 		ctx.fill();
 		ctx.stroke();
-		
 
 		ctx.fillStyle = this.inputs[0].value == 0 ? '#aa1111' : '#11aa11';
 		ctx.fillRect(0, 0, this.width, this.height);

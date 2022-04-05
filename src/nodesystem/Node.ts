@@ -2,7 +2,8 @@ import type { NodeInput } from './NodeInput';
 import type { NodeOutput } from './NodeOutput';
 import type { NodeStyle } from './NodeStyle';
 import type { NodeType } from './NodeType';
-import type { NodeConnectionHandler } from './handlers/NodeConnectionHandler';
+import './node.css';
+import type { NodeSystem } from './NodeSystem';
 
 export class Node {
 	constructor(
@@ -14,7 +15,7 @@ export class Node {
 		public height: number,
 		public inputs: NodeInput[],
 		public outputs: NodeOutput[],
-		public nodeConnectionHandler: NodeConnectionHandler,
+		public nodeSystem: NodeSystem,
 		public style: NodeStyle = {
 			color: '#fff',
 			borderColor: '#000',
@@ -34,15 +35,6 @@ export class Node {
 		menu.classList.add('node-context-menu');
 		menu.style.left = `${pageX}px`;
 		menu.style.top = `${pageY}px`;
-		menu.style.position = 'absolute';
-		menu.style.zIndex = '1000';
-		menu.style.backgroundColor = '#fff';
-		menu.style.border = '1px solid #000';
-		menu.style.borderRadius = '5px';
-		menu.style.padding = '5px';
-		menu.style.fontSize = '12px';
-		menu.style.fontFamily = 'Arial';
-		menu.style.color = '#000';
 
 		const menuItems = {
 			delete: {
@@ -59,23 +51,16 @@ export class Node {
 					menu.remove();
 				}
 			}
-		}
+		};
 
 		Object.keys(menuItems).forEach((key) => {
 			const item = document.createElement('div');
 			item.innerText = menuItems[key].text;
 			item.onclick = menuItems[key].onclick;
-			item.style.cursor = 'pointer';
-			item.style.padding = '5px';
-			item.style.borderBottom = '1px solid #000';
-			item.style.borderTop = '1px solid #000';
-			item.style.borderLeft = '1px solid #000';
-			item.style.borderRight = '1px solid #000';	
-			item.style.backgroundColor = '#aaa';
+			item.classList.add('node-context-menu-item');
 
 			menu.appendChild(item);
 		});
-
 
 		document.body.appendChild(menu);
 		return menu;

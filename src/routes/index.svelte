@@ -1,6 +1,6 @@
 <script lang="ts">
+	import { NodeSystem } from '../nodesystem/NodeSystem';
 	import { onMount } from 'svelte';
-	import { NodeRenderer } from '../nodesystem/NodeRenderer';
 
 	let canvas;
 
@@ -10,16 +10,17 @@
 			return false;
 		};
 		let dpi = window.devicePixelRatio;
-		let style_width = +getComputedStyle(canvas).getPropertyValue("width").slice(0, -2);
+		let style_width = +getComputedStyle(canvas).getPropertyValue('width').slice(0, -2);
 		canvas.setAttribute('width', (style_width * dpi).toString());
-		const nodeRenderer = new NodeRenderer(canvas);
-		nodeRenderer.render();
+		const nodeSystem = new NodeSystem(canvas);
+		nodeSystem.nodeRenderer.render();
 	});
 </script>
 
 <svelte:head>
 	<style>
-		html, body {
+		html,
+		body {
 			margin: 0;
 			padding: 0;
 			height: 100%;

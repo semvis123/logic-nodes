@@ -1,6 +1,6 @@
 import type { NodeOutput } from '../NodeOutput';
-import type { NodeRenderer } from '../NodeRenderer';
 import type { Node } from '../Node';
+import type { NodeSystem } from '../NodeSystem';
 
 export class NodeMouseEventHandler {
 	selectedNodes: Node[] | undefined;
@@ -14,16 +14,14 @@ export class NodeMouseEventHandler {
 		mousePos: { x: number; y: number };
 	};
 
-	constructor(private nodeRenderer: NodeRenderer, private canvas: HTMLCanvasElement) {
+	constructor(private nodeSystem: NodeSystem, private canvas: HTMLCanvasElement) {
 		canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
 		canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
 		canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
 	}
 
 	onMouseDown(e: MouseEvent) {
-		// handle right click
 		if (e.button === 2) {
-			console.log('right click');
 			// show context menu
 			const node = this.getNodeAt(e.pageX, e.pageY);
 			if (node) {
@@ -36,11 +34,17 @@ export class NodeMouseEventHandler {
 			return;
 		}
 
+		if (this.contextMenu) {
+			this.contextMenu.remove();
+			this.contextMenu = undefined;
+			return;
+		}
+
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
 
 		// connectors
-		for (const node of this.nodeRenderer.nodes) {
+		for (const node of this.nodeSystem.nodeStorage.nodes) {
 			const inputSpacing = node.height / (node.inputs.length + 1);
 			for (const input of node.inputs) {
 				if (
@@ -50,7 +54,7 @@ export class NodeMouseEventHandler {
 					mouseY <= node.y + inputSpacing * (input.index + 1) + 10
 				) {
 					// break one connection
-					const brokenConnection = this.nodeRenderer.nodeConnectionHandler.removeFirstConnection(input);
+					const brokenConnection = this.nodeSystem.nodeConnectionHandler.removeFirstConnection(input);
 					if (brokenConnection) {
 						const [output] = brokenConnection;
 						const mousePos = { x: mouseX, y: mouseY };
@@ -92,11 +96,11 @@ export class NodeMouseEventHandler {
 				return;
 			}
 			if (!node.onclick(e, { x: mouseX - node.x, y: mouseY - node.y })) {
-				this.nodeRenderer.render();
+				this.nodeSystem.nodeRenderer.render();
 				return;
 			}
 			this.selectedNodes = [node];
-			this.nodeRenderer.render();
+			this.nodeSystem.nodeRenderer.render();
 			return;
 		}
 		this.selectedNodes = undefined;
@@ -115,14 +119,14 @@ export class NodeMouseEventHandler {
 				node.y = node.y - (this.startingMouseMovePosition.y - (e.pageY + this.canvas.offsetTop));
 			});
 			this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
-			this.nodeRenderer.render();
+			this.nodeSystem.nodeRenderer.render();
 		} else if (this.selectionSquare) {
 			this.selectionSquare.width = e.pageX - this.canvas.offsetLeft - this.selectionSquare.x;
 			this.selectionSquare.height = e.pageY - this.canvas.offsetTop - this.selectionSquare.y;
-			this.nodeRenderer.render();
+			this.nodeSystem.nodeRenderer.render();
 		} else if (this.halfConnection) {
 			this.halfConnection.mousePos = { x: e.pageX, y: e.pageY };
-			this.nodeRenderer.render();
+			this.nodeSystem.nodeRenderer.render();
 		}
 	}
 
@@ -142,7 +146,7 @@ export class NodeMouseEventHandler {
 				y1 = y2;
 				y2 = temp;
 			}
-			const nodes = this.nodeRenderer.nodes.filter((node) => {
+			const nodes = this.nodeSystem.nodeStorage.nodes.filter((node) => {
 				return node.x + node.width >= x1 && node.x <= x2 && node.y + node.height >= y1 && node.y <= y2;
 			});
 			this.selectedNodes = nodes;
@@ -153,7 +157,7 @@ export class NodeMouseEventHandler {
 			const mouseY = e.pageY - this.canvas.offsetTop;
 
 			// connectors
-			for (const node of this.nodeRenderer.nodes) {
+			for (const node of this.nodeSystem.nodeStorage.nodes) {
 				const inputSpacing = node.height / (node.inputs.length + 1);
 				for (const input of node.inputs) {
 					if (
@@ -162,7 +166,7 @@ export class NodeMouseEventHandler {
 						mouseY >= node.y + inputSpacing * (input.index + 1) - 5 &&
 						mouseY <= node.y + inputSpacing * (input.index + 1) + 5
 					) {
-						this.nodeRenderer.nodeConnectionHandler.addConnection(this.halfConnection.output, input);
+						this.nodeSystem.nodeConnectionHandler.addConnection(this.halfConnection.output, input);
 					}
 				}
 			}
@@ -170,11 +174,11 @@ export class NodeMouseEventHandler {
 			this.selectedNodes = undefined;
 		}
 		this.halfConnection = undefined;
-		this.nodeRenderer.render();
+		this.nodeSystem.nodeRenderer.render();
 	}
 
 	getNodeAt(x: number, y: number) {
-		for (const node of this.nodeRenderer.nodes) {
+		for (const node of this.nodeSystem.nodeStorage.nodes) {
 			if (x >= node.x && x <= node.x + node.width && y >= node.y && y <= node.y + node.height) {
 				return node;
 			}

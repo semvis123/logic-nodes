@@ -1,34 +1,16 @@
 import { NodeType } from '../NodeType';
 import { Node } from '../Node';
-import type { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
 import { NodeOutput } from '../NodeOutput';
 import { uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
-import type { NodeRenderer } from '../NodeRenderer';
+import type { NodeSystem } from '../NodeSystem';
 
 export class ClockNode extends Node {
 	currentValue = 0;
 	timer: NodeJS.Timer;
 
-	constructor(
-		id: string,
-		x: number,
-		y: number,
-		nodeConnectionHandler: NodeConnectionHandler,
-		public nodeRenderer: NodeRenderer,
-		public interval: number
-	) {
-		super(
-			id,
-			NodeType.Input,
-			x,
-			y,
-			40,
-			40,
-			[],
-			[new NodeOutput(uuid(), 'output', NodeValueType.Number)],
-			nodeConnectionHandler
-		);
+	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, public interval: number) {
+		super(id, NodeType.Input, x, y, 40, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		this.timer = setInterval(() => this.toggle(), interval);
 	}
 
@@ -68,7 +50,7 @@ export class ClockNode extends Node {
 
 	update() {
 		this.outputs[0].setValue(this.currentValue);
-		this.nodeRenderer.render();
+		this.nodeSystem.nodeRenderer.render();
 	}
 
 	toggle() {

@@ -7,16 +7,16 @@ const config = {
 	// for more information about preprocessors
 	compilerOptions: {
 		css: false,
-		hydratable: false,
+		hydratable: false
 	},
 	preprocess: preprocess(),
 	experimental: {
 		useVitePreprocess: true,
-		prebundleSvelteLibraries: true,
+		prebundleSvelteLibraries: true
 	},
 	kit: {
 		adapter: adapter({
-			precompress: true,
+			precompress: true
 		})
 	}
 };

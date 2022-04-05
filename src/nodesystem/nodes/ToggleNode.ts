@@ -1,25 +1,15 @@
 import { NodeType } from '../NodeType';
 import { Node } from '../Node';
-import type { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
 import { NodeOutput } from '../NodeOutput';
 import { uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
+import type { NodeSystem } from '../NodeSystem';
 
 export class ToggleNode extends Node {
 	currentValue = 0;
 
-	constructor(id: string, x: number, y: number, nodeConnectionHandler: NodeConnectionHandler) {
-		super(
-			id,
-			NodeType.Input,
-			x,
-			y,
-			120,
-			40,
-			[],
-			[new NodeOutput(uuid(), 'output', NodeValueType.Number)],
-			nodeConnectionHandler
-		);
+	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
+		super(id, NodeType.Input, x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {

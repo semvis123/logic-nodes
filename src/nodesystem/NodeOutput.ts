@@ -9,7 +9,7 @@ export class NodeOutput {
 
 	setValue(value: string | number | boolean) {
 		this.value = value;
-		this.node.nodeConnectionHandler.updateValue(this);
+		this.node.nodeSystem.nodeConnectionHandler.updateValue(this);
 	}
 
 	setNode(node: Node, index: number) {

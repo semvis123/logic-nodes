@@ -1,13 +1,13 @@
 import { NodeType } from '../NodeType';
 import { Node } from '../Node';
-import type { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
 import { NodeOutput } from '../NodeOutput';
 import { uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
 import { NodeInput } from '../NodeInput';
+import type { NodeSystem } from '../NodeSystem';
 
 export class NotNode extends Node {
-	constructor(id: string, x: number, y: number, nodeConnectionHandler: NodeConnectionHandler) {
+	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
 		super(
 			id,
 			NodeType.Input,
@@ -17,7 +17,7 @@ export class NotNode extends Node {
 			40,
 			[new NodeInput(uuid(), 'a', NodeValueType.Number)],
 			[new NodeOutput(uuid(), 'output', NodeValueType.Number)],
-			nodeConnectionHandler
+			nodeSystem
 		);
 	}
 

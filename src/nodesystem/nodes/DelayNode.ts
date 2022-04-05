@@ -1,14 +1,13 @@
 import { NodeType } from '../NodeType';
 import { Node } from '../Node';
-import type { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
 import { NodeOutput } from '../NodeOutput';
 import { uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
 import { NodeInput } from '../NodeInput';
-import type { NodeRenderer } from '../NodeRenderer';
+import type { NodeSystem } from '../NodeSystem';
 
 export class DelayNode extends Node {
-	constructor(id: string, x: number, y: number, nodeConnectionHandler: NodeConnectionHandler, public nodeRenderer: NodeRenderer, public delay: number) {
+	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem, public delay: number) {
 		super(
 			id,
 			NodeType.Input,
@@ -18,7 +17,7 @@ export class DelayNode extends Node {
 			40,
 			[new NodeInput(uuid(), 'a', NodeValueType.Number)],
 			[new NodeOutput(uuid(), 'delayed output', NodeValueType.Number)],
-			nodeConnectionHandler
+			nodeSystem
 		);
 	}
 
@@ -68,7 +67,7 @@ export class DelayNode extends Node {
 	update() {
 		setTimeout(() => {
 			this.outputs[0].setValue(this.inputs[0].value);
-			this.nodeRenderer.render();
+			this.nodeSystem.nodeRenderer.render();
 		}, this.delay);
 	}
 }

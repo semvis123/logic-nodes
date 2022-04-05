@@ -1,5 +1,5 @@
 export enum NodeType {
-    Unknown = '?',
-    Add = '+',
-    Input = "Input"
+	Unknown = '?',
+	Add = '+',
+	Input = 'Input'
 }

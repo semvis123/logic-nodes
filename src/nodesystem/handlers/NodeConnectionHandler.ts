@@ -44,9 +44,9 @@ export class NodeConnectionHandler {
 			connections.forEach((input) => {
 				input.setValue(output.value);
 			});
-            connections.forEach((input) => {
-                input.node?.update();
-            });
+			connections.forEach((input) => {
+				input.node?.update();
+			});
 		}
 	}
 
