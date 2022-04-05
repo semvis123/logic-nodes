@@ -1,12 +1,12 @@
-import { NodeType } from './NodeType';
-import { Node } from './Node';
-import type { NodeConnectionHandler } from './NodeConnectionHandler';
-import { NodeOutput } from './NodeOutput';
-import { uuid } from './utils';
-import { NodeValueType } from './NodeValueType';
-import { NodeInput } from './NodeInput';
+import { NodeType } from '../NodeType';
+import { Node } from '../Node';
+import type { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
+import { NodeOutput } from '../NodeOutput';
+import { uuid } from '../utils';
+import { NodeValueType } from '../NodeValueType';
+import { NodeInput } from '../NodeInput';
 
-export class AndNode extends Node {
+export class OrNode extends Node {
 	constructor(id: string, x: number, y: number, nodeConnectionHandler: NodeConnectionHandler) {
 		super(
 			id,
@@ -59,11 +59,11 @@ export class AndNode extends Node {
 		}
 
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText(`and`, (this.width * 2) / 4, (this.height * 1) / 3);
+		ctx.fillText(`or`, (this.width * 2) / 4, (this.height * 1) / 3);
 		ctx.restore();
 	}
 
 	update() {
-		this.outputs[0].setValue((this.inputs[0].value as number) & (this.inputs[1].value as number));
+		this.outputs[0].setValue((this.inputs[0].value as number) | (this.inputs[1].value as number));
 	}
 }

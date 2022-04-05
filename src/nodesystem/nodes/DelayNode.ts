@@ -1,13 +1,14 @@
-import { NodeType } from './NodeType';
-import { Node } from './Node';
-import type { NodeConnectionHandler } from './NodeConnectionHandler';
-import { NodeOutput } from './NodeOutput';
-import { uuid } from './utils';
-import { NodeValueType } from './NodeValueType';
-import { NodeInput } from './NodeInput';
+import { NodeType } from '../NodeType';
+import { Node } from '../Node';
+import type { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
+import { NodeOutput } from '../NodeOutput';
+import { uuid } from '../utils';
+import { NodeValueType } from '../NodeValueType';
+import { NodeInput } from '../NodeInput';
+import type { NodeRenderer } from '../NodeRenderer';
 
-export class OrNode extends Node {
-	constructor(id: string, x: number, y: number, nodeConnectionHandler: NodeConnectionHandler) {
+export class DelayNode extends Node {
+	constructor(id: string, x: number, y: number, nodeConnectionHandler: NodeConnectionHandler, public nodeRenderer: NodeRenderer, public delay: number) {
 		super(
 			id,
 			NodeType.Input,
@@ -15,8 +16,8 @@ export class OrNode extends Node {
 			y,
 			40,
 			40,
-			[new NodeInput(uuid(), 'a', NodeValueType.Number), new NodeInput(uuid(), 'b', NodeValueType.Number)],
-			[new NodeOutput(uuid(), 'output', NodeValueType.Number)],
+			[new NodeInput(uuid(), 'a', NodeValueType.Number)],
+			[new NodeOutput(uuid(), 'delayed output', NodeValueType.Number)],
 			nodeConnectionHandler
 		);
 	}
@@ -59,11 +60,15 @@ export class OrNode extends Node {
 		}
 
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText(`or`, (this.width * 2) / 4, (this.height * 1) / 3);
+		ctx.fillText(`delay`, (this.width * 2) / 4, (this.height * 1) / 3);
+		ctx.fillText(`${this.delay}`, (this.width * 2) / 4, (this.height * 2) / 3);
 		ctx.restore();
 	}
 
 	update() {
-		this.outputs[0].setValue((this.inputs[0].value as number) | (this.inputs[1].value as number));
+		setTimeout(() => {
+			this.outputs[0].setValue(this.inputs[0].value);
+			this.nodeRenderer.render();
+		}, this.delay);
 	}
 }

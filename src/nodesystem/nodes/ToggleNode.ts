@@ -1,21 +1,22 @@
-import { NodeType } from './NodeType';
-import { Node } from './Node';
-import type { NodeConnectionHandler } from './NodeConnectionHandler';
-import { NodeOutput } from './NodeOutput';
-import { uuid } from './utils';
-import { NodeValueType } from './NodeValueType';
-import { NodeInput } from './NodeInput';
+import { NodeType } from '../NodeType';
+import { Node } from '../Node';
+import type { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
+import { NodeOutput } from '../NodeOutput';
+import { uuid } from '../utils';
+import { NodeValueType } from '../NodeValueType';
 
-export class NotNode extends Node {
+export class ToggleNode extends Node {
+	currentValue = 0;
+
 	constructor(id: string, x: number, y: number, nodeConnectionHandler: NodeConnectionHandler) {
 		super(
 			id,
 			NodeType.Input,
 			x,
 			y,
+			120,
 			40,
-			40,
-			[new NodeInput(uuid(), 'a', NodeValueType.Number)],
+			[],
 			[new NodeOutput(uuid(), 'output', NodeValueType.Number)],
 			nodeConnectionHandler
 		);
@@ -39,8 +40,6 @@ export class NotNode extends Node {
 		ctx.fill();
 		ctx.stroke();
 
-		ctx.fillStyle = '#000';
-
 		const inputSpacing = this.height / (this.inputs.length + 1);
 		ctx.fillStyle = this.style.fontColor;
 		for (let i = 0; i < this.inputs.length; i++) {
@@ -59,11 +58,28 @@ export class NotNode extends Node {
 		}
 
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText(`not`, (this.width * 2) / 4, (this.height * 1) / 3);
+		ctx.fillText('Switch', (this.width * 3) / 4, this.height / 2);
+
+		ctx.fillStyle = this.currentValue == 0 ? '#a33' : '#3a3';
+		ctx.fillRect(0, 0, this.width / 2, this.height);
+		ctx.strokeStyle = '#222';
+		ctx.lineWidth = 3;
+		ctx.strokeRect(0, 0, this.width / 2, this.height);
 		ctx.restore();
 	}
 
 	update() {
-		this.outputs[0].setValue((this.inputs[0].value as number) === 0 ? 1 : 0);
+		this.outputs[0].setValue(this.currentValue);
+	}
+
+	toggle() {
+		this.currentValue = this.currentValue === 0 ? 1 : 0;
+		this.update();
+	}
+
+	onclick(e: MouseEvent, pos: { x: number; y: number }) {
+		if (pos.x > this.width / 2) return true;
+		this.toggle();
+		return false;
 	}
 }

@@ -1,15 +1,15 @@
 import type { Node } from './Node';
 import { uuid } from './utils';
-import { NodeConnectionHandler } from './NodeConnectionHandler';
-import { ToggleNode } from './ToggleNode';
-import { DisplayNode } from './DisplayNode';
-import { TimerNode } from './TimerNode';
-import { AndNode } from './LogicAndNode';
-import { OrNode } from './LogicOrNode';
-import { NotNode } from './LogicNotNode';
-import { NodeMouseEventHandler } from './NodeMouseEventHandler';
-import { HtmlOverlayNode } from './HtmlOverlayNode';
-import { DelayNode } from './DelayNode';
+import { NodeConnectionHandler } from './handlers/NodeConnectionHandler';
+import { ToggleNode } from './nodes/ToggleNode';
+import { DisplayNode } from './nodes/DisplayNode';
+import { ClockNode } from './nodes/ClockNode';
+import { AndNode } from './nodes/LogicAndNode';
+import { OrNode } from './nodes/LogicOrNode';
+import { NotNode } from './nodes/LogicNotNode';
+import { NodeMouseEventHandler } from './handlers/NodeMouseEventHandler';
+import { HtmlOverlayNode } from './nodes/HtmlOverlayNode';
+import { DelayNode } from './nodes/DelayNode';
 export class NodeRenderer {
 	ctx: CanvasRenderingContext2D;
 	frame: number;
@@ -23,12 +23,13 @@ export class NodeRenderer {
 		this.ctx = canvas.getContext('2d', { alpha: false });
 		this.nodes = [
 			new ToggleNode(uuid(), 300, 300, this.nodeConnectionHandler),
-			new TimerNode(uuid(), 600, 600, this.nodeConnectionHandler, this, 1000),
+			new ClockNode(uuid(), 600, 600, this.nodeConnectionHandler, this, 1000),
 			new AndNode(uuid(), 400, 600, this.nodeConnectionHandler),
 			new OrNode(uuid(), 500, 600, this.nodeConnectionHandler),
 			new NotNode(uuid(), 300, 600, this.nodeConnectionHandler),
 			new DisplayNode(uuid(), 400, 400, this.nodeConnectionHandler),
 			new DelayNode(uuid(), 200, 600, this.nodeConnectionHandler, this, 400),
+			new DelayNode(uuid(), 200, 600, this.nodeConnectionHandler, this, 1000),
 			new HtmlOverlayNode(uuid(), 500, 400, this.nodeConnectionHandler)
 		];
 		this.nodeConnectionHandler.addConnection(this.nodes[0].outputs[0], this.nodes[2].inputs[0]);

@@ -1,8 +1,8 @@
-import { NodeOutput } from "./NodeOutput";
-import { NodeType } from "./NodeType";
-import { NodeValueType } from "./NodeValueType";
-import { uuid } from "./utils";
-import { Node } from "./Node";
+import { NodeOutput } from "../NodeOutput";
+import { NodeType } from "../NodeType";
+import { NodeValueType } from "../NodeValueType";
+import { uuid } from "../utils";
+import { Node } from "../Node";
 
 export class HtmlOverlayNode extends Node {
     htmlElement: HTMLElement;

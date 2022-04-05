@@ -1,12 +1,12 @@
-import { NodeType } from './NodeType';
-import { Node } from './Node';
-import type { NodeConnectionHandler } from './NodeConnectionHandler';
-import { NodeOutput } from './NodeOutput';
-import { uuid } from './utils';
-import { NodeValueType } from './NodeValueType';
-import type { NodeRenderer } from './NodeRenderer';
+import { NodeType } from '../NodeType';
+import { Node } from '../Node';
+import type { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
+import { NodeOutput } from '../NodeOutput';
+import { uuid } from '../utils';
+import { NodeValueType } from '../NodeValueType';
+import type { NodeRenderer } from '../NodeRenderer';
 
-export class TimerNode extends Node {
+export class ClockNode extends Node {
 	currentValue = 0;
 	timer: NodeJS.Timer;
 
@@ -61,7 +61,7 @@ export class TimerNode extends Node {
 		}
 
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText(`timer`, (this.width * 2) / 4, (this.height * 1) / 3);
+		ctx.fillText(`Clock`, (this.width * 2) / 4, (this.height * 1) / 3);
 		ctx.fillText(`${this.interval}`, (this.width * 2) / 4, (this.height * 2) / 3);
 		ctx.restore();
 	}

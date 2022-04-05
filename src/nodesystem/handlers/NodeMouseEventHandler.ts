@@ -1,12 +1,13 @@
-import type { NodeOutput } from './NodeOutput';
-import type { NodeRenderer } from './NodeRenderer';
-import type { Node } from './Node';
+import type { NodeOutput } from '../NodeOutput';
+import type { NodeRenderer } from '../NodeRenderer';
+import type { Node } from '../Node';
 
 export class NodeMouseEventHandler {
 	selectedNodes: Node[] | undefined;
 	selectionSquare: { x: number; y: number; width: number; height: number } | undefined;
 	startingMouseMovePosition: { x: number; y: number } | undefined;
 	selectionStarted: boolean;
+	contextMenu: HTMLDivElement | undefined;
 	halfConnection: {
 		output: NodeOutput;
 		outputPos: { x: number; y: number };
@@ -20,6 +21,21 @@ export class NodeMouseEventHandler {
 	}
 
 	onMouseDown(e: MouseEvent) {
+		// handle right click
+		if (e.button === 2) {
+			console.log('right click');
+			// show context menu
+			const node = this.getNodeAt(e.pageX, e.pageY);
+			if (node) {
+				if (this.contextMenu) {
+					this.contextMenu.remove();
+				}
+				this.contextMenu = node.showContextMenu(e.pageX, e.pageY);
+			}
+
+			return;
+		}
+
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
 
@@ -34,8 +50,7 @@ export class NodeMouseEventHandler {
 					mouseY <= node.y + inputSpacing * (input.index + 1) + 10
 				) {
 					// break one connection
-					const brokenConnection =
-						this.nodeRenderer.nodeConnectionHandler.removeFirstConnection(input);
+					const brokenConnection = this.nodeRenderer.nodeConnectionHandler.removeFirstConnection(input);
 					if (brokenConnection) {
 						const [output] = brokenConnection;
 						const mousePos = { x: mouseX, y: mouseY };
@@ -70,26 +85,19 @@ export class NodeMouseEventHandler {
 			}
 		}
 
-		for (const node of this.nodeRenderer.nodes) {
-			if (
-				mouseX >= node.x &&
-				mouseX <= node.x + node.width &&
-				mouseY >= node.y &&
-				mouseY <= node.y + node.height
-			) {
-				this.startingMouseMovePosition = { x: mouseX, y: mouseY };
-				if (this.selectedNodes) {
-					return;
-				} else {
-					if (!node.onclick(e, { x: mouseX - node.x, y: mouseY - node.y })) {
-						this.nodeRenderer.render();
-						return;
-					}
-					this.selectedNodes = [node];
-					this.nodeRenderer.render();
-				}
+		const node = this.getNodeAt(mouseX, mouseY);
+		if (node) {
+			this.startingMouseMovePosition = { x: mouseX, y: mouseY };
+			if (this.selectedNodes) {
 				return;
 			}
+			if (!node.onclick(e, { x: mouseX - node.x, y: mouseY - node.y })) {
+				this.nodeRenderer.render();
+				return;
+			}
+			this.selectedNodes = [node];
+			this.nodeRenderer.render();
+			return;
 		}
 		this.selectedNodes = undefined;
 		this.selectionSquare = {
@@ -135,9 +143,7 @@ export class NodeMouseEventHandler {
 				y2 = temp;
 			}
 			const nodes = this.nodeRenderer.nodes.filter((node) => {
-				return (
-					node.x + node.width >= x1 && node.x <= x2 && node.y + node.height >= y1 && node.y <= y2
-				);
+				return node.x + node.width >= x1 && node.x <= x2 && node.y + node.height >= y1 && node.y <= y2;
 			});
 			this.selectedNodes = nodes;
 			this.selectionSquare = undefined;
@@ -156,10 +162,7 @@ export class NodeMouseEventHandler {
 						mouseY >= node.y + inputSpacing * (input.index + 1) - 5 &&
 						mouseY <= node.y + inputSpacing * (input.index + 1) + 5
 					) {
-						this.nodeRenderer.nodeConnectionHandler.addConnection(
-							this.halfConnection.output,
-							input
-						);
+						this.nodeRenderer.nodeConnectionHandler.addConnection(this.halfConnection.output, input);
 					}
 				}
 			}
@@ -168,5 +171,14 @@ export class NodeMouseEventHandler {
 		}
 		this.halfConnection = undefined;
 		this.nodeRenderer.render();
+	}
+
+	getNodeAt(x: number, y: number) {
+		for (const node of this.nodeRenderer.nodes) {
+			if (x >= node.x && x <= node.x + node.width && y >= node.y && y <= node.y + node.height) {
+				return node;
+			}
+		}
+		return undefined;
 	}
 }

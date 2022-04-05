@@ -4,7 +4,7 @@ import type { Node } from './Node';
 export class NodeInput {
 	node: Node;
 	index: number;
-	value: number | string | boolean = 0;
+	value: number | string | boolean = false;
 	constructor(public id: string, public name: string, public valueType: NodeValueType) {}
 
 	setNode(node: Node, index: number) {

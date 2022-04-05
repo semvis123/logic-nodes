@@ -1,14 +1,13 @@
-import { NodeType } from './NodeType';
-import { Node } from './Node';
-import type { NodeConnectionHandler } from './NodeConnectionHandler';
-import { NodeOutput } from './NodeOutput';
-import { uuid } from './utils';
-import { NodeValueType } from './NodeValueType';
-import { NodeInput } from './NodeInput';
-import type { NodeRenderer } from './NodeRenderer';
+import { NodeType } from '../NodeType';
+import { Node } from '../Node';
+import type { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
+import { NodeOutput } from '../NodeOutput';
+import { uuid } from '../utils';
+import { NodeValueType } from '../NodeValueType';
+import { NodeInput } from '../NodeInput';
 
-export class DelayNode extends Node {
-	constructor(id: string, x: number, y: number, nodeConnectionHandler: NodeConnectionHandler, public nodeRenderer: NodeRenderer, public delay: number) {
+export class NotNode extends Node {
+	constructor(id: string, x: number, y: number, nodeConnectionHandler: NodeConnectionHandler) {
 		super(
 			id,
 			NodeType.Input,
@@ -17,7 +16,7 @@ export class DelayNode extends Node {
 			40,
 			40,
 			[new NodeInput(uuid(), 'a', NodeValueType.Number)],
-			[new NodeOutput(uuid(), 'delayed output', NodeValueType.Number)],
+			[new NodeOutput(uuid(), 'output', NodeValueType.Number)],
 			nodeConnectionHandler
 		);
 	}
@@ -60,15 +59,11 @@ export class DelayNode extends Node {
 		}
 
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText(`delay`, (this.width * 2) / 4, (this.height * 1) / 3);
-		ctx.fillText(`${this.delay}`, (this.width * 2) / 4, (this.height * 2) / 3);
+		ctx.fillText(`not`, (this.width * 2) / 4, (this.height * 1) / 3);
 		ctx.restore();
 	}
 
 	update() {
-		setTimeout(() => {
-			this.outputs[0].setValue(this.inputs[0].value);
-			this.nodeRenderer.render();
-		}, this.delay);
+		this.outputs[0].setValue((this.inputs[0].value as number) === 0 ? 1 : 0);
 	}
 }

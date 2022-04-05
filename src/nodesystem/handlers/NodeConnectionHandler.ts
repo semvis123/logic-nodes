@@ -1,5 +1,5 @@
-import type { NodeOutput } from './NodeOutput';
-import type { NodeInput } from './NodeInput';
+import type { NodeOutput } from '../NodeOutput';
+import type { NodeInput } from '../NodeInput';
 
 export class NodeConnectionHandler {
 	connections: Map<NodeOutput, NodeInput[]> = new Map();

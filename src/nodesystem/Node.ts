@@ -2,7 +2,7 @@ import type { NodeInput } from './NodeInput';
 import type { NodeOutput } from './NodeOutput';
 import type { NodeStyle } from './NodeStyle';
 import type { NodeType } from './NodeType';
-import type { NodeConnectionHandler } from './NodeConnectionHandler';
+import type { NodeConnectionHandler } from './handlers/NodeConnectionHandler';
 
 export class Node {
 	constructor(
@@ -27,6 +27,58 @@ export class Node {
 	) {
 		inputs.forEach((input, i) => input.setNode(this, i));
 		outputs.forEach((output, i) => output.setNode(this, i));
+	}
+
+	showContextMenu(pageX: number, pageY: number): HTMLDivElement {
+		const menu = document.createElement('div');
+		menu.classList.add('node-context-menu');
+		menu.style.left = `${pageX}px`;
+		menu.style.top = `${pageY}px`;
+		menu.style.position = 'absolute';
+		menu.style.zIndex = '1000';
+		menu.style.backgroundColor = '#fff';
+		menu.style.border = '1px solid #000';
+		menu.style.borderRadius = '5px';
+		menu.style.padding = '5px';
+		menu.style.fontSize = '12px';
+		menu.style.fontFamily = 'Arial';
+		menu.style.color = '#000';
+
+		const menuItems = {
+			delete: {
+				text: 'Delete',
+				onclick: () => {
+					// this.nodeConnectionHandler.removeNode(this);
+					menu.remove();
+				}
+			},
+			duplicate: {
+				text: 'Duplicate',
+				onclick: () => {
+					// this.nodeConnectionHandler.duplicateNode(this);
+					menu.remove();
+				}
+			}
+		}
+
+		Object.keys(menuItems).forEach((key) => {
+			const item = document.createElement('div');
+			item.innerText = menuItems[key].text;
+			item.onclick = menuItems[key].onclick;
+			item.style.cursor = 'pointer';
+			item.style.padding = '5px';
+			item.style.borderBottom = '1px solid #000';
+			item.style.borderTop = '1px solid #000';
+			item.style.borderLeft = '1px solid #000';
+			item.style.borderRight = '1px solid #000';	
+			item.style.backgroundColor = '#aaa';
+
+			menu.appendChild(item);
+		});
+
+
+		document.body.appendChild(menu);
+		return menu;
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {

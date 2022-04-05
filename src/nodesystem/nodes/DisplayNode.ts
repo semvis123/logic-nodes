@@ -1,9 +1,9 @@
-import { NodeType } from './NodeType';
-import { Node } from './Node';
-import type { NodeConnectionHandler } from './NodeConnectionHandler';
-import { uuid } from './utils';
-import { NodeValueType } from './NodeValueType';
-import { NodeInput } from './NodeInput';
+import { NodeType } from '../NodeType';
+import { Node } from '../Node';
+import type { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
+import { uuid } from '../utils';
+import { NodeValueType } from '../NodeValueType';
+import { NodeInput } from '../NodeInput';
 
 export class DisplayNode extends Node {
 	constructor(id: string, x: number, y: number, nodeConnectionHandler: NodeConnectionHandler) {
@@ -46,6 +46,7 @@ export class DisplayNode extends Node {
 		ctx.rect(0, 0, this.width, this.height);
 		ctx.fill();
 		ctx.stroke();
+		
 
 		ctx.fillStyle = this.inputs[0].value == 0 ? '#aa1111' : '#11aa11';
 		ctx.fillRect(0, 0, this.width, this.height);

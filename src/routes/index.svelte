@@ -5,6 +5,13 @@
 	let canvas;
 
 	onMount(() => {
+		document.oncontextmenu = (e) => {
+			e.preventDefault();
+			return false;
+		};
+		let dpi = window.devicePixelRatio;
+		let style_width = +getComputedStyle(canvas).getPropertyValue("width").slice(0, -2);
+		canvas.setAttribute('width', (style_width * dpi).toString());
 		const nodeRenderer = new NodeRenderer(canvas);
 		nodeRenderer.render();
 	});
@@ -12,8 +19,7 @@
 
 <svelte:head>
 	<style>
-		html,
-		body {
+		html, body {
 			margin: 0;
 			padding: 0;
 			height: 100%;
