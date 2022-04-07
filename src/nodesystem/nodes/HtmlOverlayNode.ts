@@ -1,5 +1,4 @@
 import { NodeOutput } from '../NodeOutput';
-import { NodeType } from '../NodeType';
 import { NodeValueType } from '../NodeValueType';
 import { uuid } from '../utils';
 import { Node } from '../Node';
@@ -9,22 +8,36 @@ export class HtmlOverlayNode extends Node {
 	htmlElement: HTMLElement;
 
 	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
-		super(id, NodeType.Input, x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+		super(id, 'Html', x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 	}
 
 	renderNode(ctx): void {
 		super.renderNode(ctx);
 		if (this.htmlElement) {
-			this.htmlElement.style.left = this.x + 'px';
-			this.htmlElement.style.top = this.y + 'px';
+			if (this.nodeSystem.config.hardwareAccelerationHtmlOverlay) {
+				// hardware acceleration
+				this.htmlElement.style.transform = `translate(${this.x}px, ${this.y}px)`;
+			} else {
+				// no hardware acceleration
+				this.htmlElement.style.left = this.x + 'px';
+				this.htmlElement.style.top = this.y + 'px';
+			}
 		} else {
 			this.htmlElement = document.createElement('div');
 			this.htmlElement.style.position = 'absolute';
-			this.htmlElement.style.left = this.x + 'px';
-			this.htmlElement.style.top = this.y + 'px';
+			if (this.nodeSystem.config.hardwareAccelerationHtmlOverlay) {
+				// hardware acceleration
+				this.htmlElement.style.transform = `translate(${this.x}px, ${this.y}px)`;
+				this.htmlElement.style.left = 0 + 'px';
+				this.htmlElement.style.top = 0 + 'px';
+			} else {
+				// no hardware acceleration
+				this.htmlElement.style.left = this.x + 'px';
+				this.htmlElement.style.top = this.y + 'px';
+			}
 			this.htmlElement.style.width = this.width + 'px';
 			this.htmlElement.style.height = this.height + 'px';
-			this.htmlElement.style.color = '#000';
+			this.htmlElement.style.color = this.nodeSystem.config.theme.nodeTextColor;
 			this.htmlElement.style.fontSize = '12px';
 			this.htmlElement.style.fontFamily = 'Arial';
 			this.htmlElement.style.textAlign = 'center';

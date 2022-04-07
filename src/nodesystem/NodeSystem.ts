@@ -8,39 +8,67 @@ import { NotNode } from './nodes/LogicNotNode';
 import { OrNode } from './nodes/LogicOrNode';
 import { ToggleNode } from './nodes/ToggleNode';
 import { NodeStorage } from './NodeStorage';
-import { uuid } from './utils';
 import { NodeRenderer } from './NodeRenderer';
 import { DelayNode } from './nodes/DelayNode';
-
+import { Config } from './Config';
+import { playground } from './example_playground';
+import type { NodeSaveFile } from './NodeSaveFile';
 export class NodeSystem {
 	nodeClickHandler: NodeMouseEventHandler;
 	nodeStorage: NodeStorage;
 	nodeConnectionHandler: NodeConnectionHandler;
 	nodeRenderer: NodeRenderer;
+	config: Config;
 
 	constructor(public canvas: HTMLCanvasElement) {
 		this.nodeConnectionHandler = new NodeConnectionHandler();
 		this.nodeClickHandler = new NodeMouseEventHandler(this, canvas);
 		this.nodeRenderer = new NodeRenderer(canvas, this);
 		this.nodeStorage = new NodeStorage();
+		this.config = new Config();
+		this.config.setConfig(playground.config);
+		this.loadSave(playground);
+	}
 
-		const nodes = [
-			new ToggleNode(uuid(), 300, 300, this),
-			new ClockNode(uuid(), 600, 600, this, 1000),
-			new AndNode(uuid(), 400, 600, this),
-			new OrNode(uuid(), 500, 600, this),
-			new NotNode(uuid(), 300, 600, this),
-			new DisplayNode(uuid(), 400, 400, this),
-			new DelayNode(uuid(), 200, 600, this, 400),
-			new DelayNode(uuid(), 200, 600, this, 1000),
-			new HtmlOverlayNode(uuid(), 500, 400, this)
-		];
-		for (const node of nodes) {
-			this.nodeStorage.addNode(node);
+	loadSave(save: NodeSaveFile) {
+		for (const node of save.nodes) {
+			switch (node.type) {
+				case 'ToggleNode':
+					this.nodeStorage.addNode(new ToggleNode(node.id, node.x, node.y, this, node.defaultValue));
+					break;
+				case 'ClockNode':
+					this.nodeStorage.addNode(new ClockNode(node.id, node.x, node.y, this, node.interval));
+					break;
+				case 'AndNode':
+					this.nodeStorage.addNode(new AndNode(node.id, node.x, node.y, this));
+					break;
+				case 'OrNode':
+					this.nodeStorage.addNode(new OrNode(node.id, node.x, node.y, this));
+					break;
+				case 'NotNode':
+					this.nodeStorage.addNode(new NotNode(node.id, node.x, node.y, this));
+					break;
+				case 'DisplayNode':
+					this.nodeStorage.addNode(new DisplayNode(node.id, node.x, node.y, this));
+					break;
+				case 'DelayNode':
+					this.nodeStorage.addNode(new DelayNode(node.id, node.x, node.y, this, node.delay));
+					break;
+				case 'HtmlOverlayNode':
+					this.nodeStorage.addNode(new HtmlOverlayNode(node.id, node.x, node.y, this));
+					break;
+			}
 		}
 
-		this.nodeConnectionHandler.addConnection(nodes[0].outputs[0], nodes[2].inputs[0]);
-		this.nodeConnectionHandler.addConnection(nodes[1].outputs[0], nodes[2].inputs[1]);
-		this.nodeConnectionHandler.addConnection(nodes[2].outputs[0], nodes[5].inputs[0]);
+		for (const connection of save.connections) {
+			const fromNode = this.nodeStorage.getNodeById(connection.from.nodeId);
+			const toNode = this.nodeStorage.getNodeById(connection.to.nodeId);
+			if (fromNode && toNode) {
+				this.nodeConnectionHandler.addConnection(
+					fromNode.outputs[connection.from.index],
+					toNode.inputs[connection.to.index]
+				);
+			}
+		}
 	}
 }

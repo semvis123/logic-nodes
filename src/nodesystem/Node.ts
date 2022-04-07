@@ -1,14 +1,14 @@
 import type { NodeInput } from './NodeInput';
 import type { NodeOutput } from './NodeOutput';
 import type { NodeStyle } from './NodeStyle';
-import type { NodeType } from './NodeType';
 import './node.css';
 import type { NodeSystem } from './NodeSystem';
+import { roundRect } from './utils';
 
 export class Node {
 	constructor(
 		public id: string,
-		public type: NodeType,
+		public displayName: string,
 		public x: number,
 		public y: number,
 		public width: number,
@@ -17,13 +17,13 @@ export class Node {
 		public outputs: NodeOutput[],
 		public nodeSystem: NodeSystem,
 		public style: NodeStyle = {
-			color: '#fff',
-			borderColor: '#000',
+			color: nodeSystem.config.theme.nodeBackfroundColor,
+			borderColor: nodeSystem.config.theme.nodeBorderColor,
 			borderWidth: 1,
-			borderRadius: 0,
+			borderRadius: nodeSystem.config.theme.nodeBorderRadius,
 			fontSize: 12,
 			fontFamily: 'Arial',
-			fontColor: '#000'
+			fontColor: nodeSystem.config.theme.nodeTextColor
 		}
 	) {
 		inputs.forEach((input, i) => input.setNode(this, i));
@@ -80,25 +80,25 @@ export class Node {
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 
-		ctx.beginPath();
-		ctx.rect(0, 0, this.width, this.height);
-		ctx.fill();
-		ctx.stroke();
+		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
+		ctx.stroke(path);
+		ctx.fill(path);
 
 		this.renderConnectionPoints(ctx);
 
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText(this.type.toString(), this.width / 2, this.height / 2);
+		ctx.fillText(this.displayName, this.width / 2, this.height / 2);
 
 		ctx.restore();
 	}
 
 	renderConnectionPoints(ctx: CanvasRenderingContext2D) {
 		const inputSpacing = this.height / (this.inputs.length + 1);
-		ctx.fillStyle = '#000';
+		ctx.fillStyle = this.nodeSystem.config.theme.nodeTextColor;
+		const radius = this.nodeSystem.config.theme.connectionPointRadius;
 		for (let i = 0; i < this.inputs.length; i++) {
 			ctx.beginPath();
-			ctx.ellipse(0, inputSpacing * (i + 1), 5, 5, 0, 0, 2 * Math.PI);
+			ctx.ellipse(0, inputSpacing * (i + 1), radius, radius, 0, 0, 2 * Math.PI);
 			ctx.stroke();
 			ctx.fill();
 		}
@@ -106,7 +106,7 @@ export class Node {
 		const outputSpacing = this.height / (this.outputs.length + 1);
 		for (let i = 0; i < this.outputs.length; i++) {
 			ctx.beginPath();
-			ctx.ellipse(this.width, outputSpacing * (i + 1), 5, 5, 0, 0, 2 * Math.PI);
+			ctx.ellipse(this.width, outputSpacing * (i + 1), radius, radius, 0, 0, 2 * Math.PI);
 			ctx.stroke();
 			ctx.fill();
 		}

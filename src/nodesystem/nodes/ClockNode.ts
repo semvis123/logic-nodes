@@ -1,7 +1,6 @@
-import { NodeType } from '../NodeType';
 import { Node } from '../Node';
 import { NodeOutput } from '../NodeOutput';
-import { uuid } from '../utils';
+import { roundRect, uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
 import type { NodeSystem } from '../NodeSystem';
 
@@ -10,7 +9,7 @@ export class ClockNode extends Node {
 	timer: NodeJS.Timer;
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, public interval: number) {
-		super(id, NodeType.Input, x, y, 40, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+		super(id, 'Clock', x, y, 40, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		this.timer = setInterval(() => this.toggle(), interval);
 	}
 
@@ -27,20 +26,11 @@ export class ClockNode extends Node {
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 
-		ctx.beginPath();
-		ctx.rect(0, 0, this.width, this.height);
-		ctx.fill();
-		ctx.stroke();
+		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
+		ctx.stroke(path);
+		ctx.fill(path);
 
-		ctx.fillStyle = '#000';
-
-		const outputSpacing = this.height / (this.outputs.length + 1);
-		for (let i = 0; i < this.outputs.length; i++) {
-			ctx.beginPath();
-			ctx.ellipse(this.width, outputSpacing * (i + 1), 5, 5, 0, 0, 2 * Math.PI);
-			ctx.stroke();
-			ctx.fill();
-		}
+		this.renderConnectionPoints(ctx);
 
 		ctx.fillStyle = this.style.fontColor;
 		ctx.fillText(`Clock`, (this.width * 2) / 4, (this.height * 1) / 3);

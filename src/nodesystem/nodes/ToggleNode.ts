@@ -1,15 +1,15 @@
-import { NodeType } from '../NodeType';
 import { Node } from '../Node';
 import { NodeOutput } from '../NodeOutput';
-import { uuid } from '../utils';
+import { roundRect, uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
 import type { NodeSystem } from '../NodeSystem';
 
 export class ToggleNode extends Node {
 	currentValue = 0;
 
-	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
-		super(id, NodeType.Input, x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem, defaultValue = 0) {
+		super(id, 'Not', x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+		this.currentValue = defaultValue;
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -25,35 +25,18 @@ export class ToggleNode extends Node {
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 
-		ctx.beginPath();
-		ctx.rect(0, 0, this.width, this.height);
-		ctx.fill();
-		ctx.stroke();
+		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
+		ctx.stroke(path);
+		ctx.fill(path);
 
-		const inputSpacing = this.height / (this.inputs.length + 1);
-		ctx.fillStyle = this.style.fontColor;
-		for (let i = 0; i < this.inputs.length; i++) {
-			ctx.beginPath();
-			ctx.ellipse(0, inputSpacing * (i + 1), 5, 5, 0, 0, 2 * Math.PI);
-			ctx.stroke();
-			ctx.fill();
-		}
-
-		const outputSpacing = this.height / (this.outputs.length + 1);
-		for (let i = 0; i < this.outputs.length; i++) {
-			ctx.beginPath();
-			ctx.ellipse(this.width, outputSpacing * (i + 1), 5, 5, 0, 0, 2 * Math.PI);
-			ctx.stroke();
-			ctx.fill();
-		}
+		this.renderConnectionPoints(ctx);
 
 		ctx.fillStyle = this.style.fontColor;
 		ctx.fillText('Switch', (this.width * 3) / 4, this.height / 2);
 
 		ctx.fillStyle = this.currentValue == 0 ? '#a33' : '#3a3';
 		ctx.fillRect(0, 0, this.width / 2, this.height);
-		ctx.strokeStyle = '#222';
-		ctx.lineWidth = 3;
+		ctx.strokeStyle = this.nodeSystem.config.theme.nodeBorderColor;
 		ctx.strokeRect(0, 0, this.width / 2, this.height);
 		ctx.restore();
 	}
