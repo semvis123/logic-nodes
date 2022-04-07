@@ -23,14 +23,19 @@ export class NodeMouseEventHandler {
 	onMouseDown(e: MouseEvent) {
 		if (e.button === 2) {
 			// show context menu
+			if (this.selectedNodes) {
+				this.selectedNodes = undefined;
+			}
 			const node = this.getNodeAt(e.pageX, e.pageY);
 			if (node) {
+				this.selectedNodes = [node];
 				if (this.contextMenu) {
 					this.contextMenu.remove();
 				}
 				this.contextMenu = node.showContextMenu(e.pageX, e.pageY);
 			}
 
+			this.nodeSystem.nodeRenderer.render();
 			return;
 		}
 

@@ -50,7 +50,7 @@ export class ClockNode extends Node {
 
 	update() {
 		this.outputs[0].setValue(this.currentValue);
-		this.nodeSystem.nodeRenderer.render();
+		// this.nodeSystem.nodeRenderer.render();
 	}
 
 	toggle() {

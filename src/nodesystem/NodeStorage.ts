@@ -6,6 +6,12 @@ export class NodeStorage {
 		this.nodes.push(node);
 	}
 	removeNode(node: Node) {
+		node.cleanup();
 		this.nodes = this.nodes.filter((n) => n !== node);
 	}
+	// duplicateNode(node: Node) {
+	// 	// const newNode = node.duplicate();
+	// 	// this.addNode(newNode);
+	// 	// return newNode;
+	// }
 }

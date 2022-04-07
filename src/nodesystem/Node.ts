@@ -40,14 +40,15 @@ export class Node {
 			delete: {
 				text: 'Delete',
 				onclick: () => {
-					// this.nodeConnectionHandler.removeNode(this);
+					this.nodeSystem.nodeStorage.removeNode(this);
 					menu.remove();
+					this.nodeSystem.nodeRenderer.render();
 				}
 			},
 			duplicate: {
 				text: 'Duplicate',
 				onclick: () => {
-					// this.nodeConnectionHandler.duplicateNode(this);
+					// this.nodeSystem.nodeStorage.duplicateNode(this);
 					menu.remove();
 				}
 			}
@@ -118,5 +119,12 @@ export class Node {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	onclick(_e: MouseEvent, _pos: { x: number; y: number }) {
 		return true;
+	}
+
+	cleanup() {
+		this.nodeSystem.nodeClickHandler.selectedNodes = this.nodeSystem.nodeClickHandler.selectedNodes?.filter(
+			(node) => node != this
+		);
+		this.nodeSystem.nodeConnectionHandler.removeAllConnections(this);
 	}
 }

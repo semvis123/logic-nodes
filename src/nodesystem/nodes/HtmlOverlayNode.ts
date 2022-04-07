@@ -11,7 +11,8 @@ export class HtmlOverlayNode extends Node {
 	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
 		super(id, NodeType.Input, x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 	}
-	renderNode(ctx) {
+
+	renderNode(ctx): void {
 		super.renderNode(ctx);
 		if (this.htmlElement) {
 			this.htmlElement.style.left = this.x + 'px';
@@ -33,5 +34,13 @@ export class HtmlOverlayNode extends Node {
 			this.htmlElement.innerHTML = 'HtmlOverlay';
 			document.body.appendChild(this.htmlElement);
 		}
+	}
+
+	cleanup(): void {
+		if (this.htmlElement) {
+			this.htmlElement.remove();
+			this.htmlElement = null;
+		}
+		super.cleanup();
 	}
 }

@@ -1,8 +1,21 @@
 import type { NodeOutput } from '../NodeOutput';
 import type { NodeInput } from '../NodeInput';
-
+import type { Node } from '../Node';
 export class NodeConnectionHandler {
 	connections: Map<NodeOutput, NodeInput[]> = new Map();
+
+	removeAllConnections(node: Node) {
+		this.connections.forEach((toInputs, fromOutput) => {
+			for (const toInput of toInputs) {
+				if (toInput.node === node) {
+					if (!this.removeConnection(fromOutput, toInput)) throw 'could not remove connection';
+				}
+			}
+		});
+		for (const output of node.outputs) {
+			this.connections.delete(output);
+		}
+	}
 
 	addConnection(fromOutput: NodeOutput, toInput: NodeInput) {
 		if (!this.connections.has(fromOutput)) {
