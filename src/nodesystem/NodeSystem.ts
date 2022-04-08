@@ -13,21 +13,22 @@ import { DelayNode } from './nodes/DelayNode';
 import { Config } from './Config';
 import { playground } from './example_playground';
 import type { NodeSaveFile } from './NodeSaveFile';
+import { Toolbar } from './toolbar/Toolbar';
 export class NodeSystem {
 	nodeClickHandler: NodeMouseEventHandler;
 	nodeStorage: NodeStorage;
 	nodeConnectionHandler: NodeConnectionHandler;
 	nodeRenderer: NodeRenderer;
 	config: Config;
+	toolbar: Toolbar;
 
 	constructor(public canvas: HTMLCanvasElement) {
-		this.nodeConnectionHandler = new NodeConnectionHandler();
-		this.nodeClickHandler = new NodeMouseEventHandler(this, canvas);
-		this.nodeRenderer = new NodeRenderer(canvas, this);
-		this.nodeStorage = new NodeStorage();
-		this.config = new Config();
+		this.reset();
 		this.config.setConfig(playground.config);
 		this.loadSave(playground);
+	}
+	save() {
+		return { test: 'hoi' };
 	}
 
 	loadSave(save: NodeSaveFile) {
@@ -70,5 +71,31 @@ export class NodeSystem {
 				);
 			}
 		}
+	}
+
+	reset() {
+		if (this.nodeStorage?.nodes?.length > 0) {
+			this.nodeStorage.nodes.forEach((node) => {
+				node.cleanup();
+			});
+		}
+
+		const canvasCopy = this.canvas.cloneNode(true);
+		this.canvas.parentNode.replaceChild(canvasCopy, this.canvas);
+		this.canvas = canvasCopy as HTMLCanvasElement;
+
+		delete this.nodeClickHandler;
+		delete this.nodeConnectionHandler;
+		delete this.nodeStorage;
+		delete this.nodeRenderer;
+		delete this.config;
+		delete this.toolbar;
+
+		this.nodeConnectionHandler = new NodeConnectionHandler();
+		this.nodeClickHandler = new NodeMouseEventHandler(this, this.canvas);
+		this.nodeRenderer = new NodeRenderer(this.canvas, this);
+		this.nodeStorage = new NodeStorage();
+		this.toolbar = new Toolbar(this);
+		this.config = new Config();
 	}
 }

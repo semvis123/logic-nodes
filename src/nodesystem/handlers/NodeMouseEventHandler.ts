@@ -18,27 +18,30 @@ export class NodeMouseEventHandler {
 		canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
 		canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
 		canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+		canvas.addEventListener('contextmenu', (e) => this.onContextMenu(e));
 	}
 
-	onMouseDown(e: MouseEvent) {
-		if (e.button === 2) {
-			// show context menu
-			if (this.selectedNodes) {
-				this.selectedNodes = undefined;
+	onContextMenu(e: MouseEvent) {
+		if (this.contextMenu) {
+			this.contextMenu.remove();
+			this.contextMenu = undefined;
+		}
+		// show context menu
+		if (this.selectedNodes) {
+			this.selectedNodes = undefined;
+		}
+		const node = this.getNodeAt(e.pageX, e.pageY);
+		if (node) {
+			this.selectedNodes = [node];
+			if (this.contextMenu) {
+				this.contextMenu.remove();
 			}
-			const node = this.getNodeAt(e.pageX, e.pageY);
-			if (node) {
-				this.selectedNodes = [node];
-				if (this.contextMenu) {
-					this.contextMenu.remove();
-				}
-				this.contextMenu = node.showContextMenu(e.pageX, e.pageY);
-			}
-
-			this.nodeSystem.nodeRenderer.render();
-			return;
+			this.contextMenu = node.showContextMenu(e.pageX, e.pageY);
 		}
 
+		this.nodeSystem.nodeRenderer.render();
+	}
+	onMouseDown(e: MouseEvent) {
 		if (this.contextMenu) {
 			this.contextMenu.remove();
 			this.contextMenu = undefined;
