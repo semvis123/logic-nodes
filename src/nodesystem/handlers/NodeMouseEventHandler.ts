@@ -22,6 +22,7 @@ export class NodeMouseEventHandler {
 	}
 
 	onContextMenu(e: MouseEvent) {
+		this.startingMouseMovePosition = undefined;
 		if (this.contextMenu) {
 			this.contextMenu.remove();
 			this.contextMenu = undefined;
