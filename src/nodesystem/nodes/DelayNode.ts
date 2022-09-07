@@ -9,7 +9,6 @@ export class DelayNode extends Node {
 	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem, public delay: number) {
 		super(
 			id,
-			'Delay',
 			x,
 			y,
 			40,
@@ -21,9 +20,6 @@ export class DelayNode extends Node {
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
-		ctx.save();
-		ctx.translate(this.x, this.y);
-
 		ctx.fillStyle = this.style.color;
 		ctx.strokeStyle = this.style.borderColor;
 		ctx.lineWidth = this.style.borderWidth;
@@ -42,7 +38,6 @@ export class DelayNode extends Node {
 		ctx.fillStyle = this.style.fontColor;
 		ctx.fillText(`delay`, (this.width * 2) / 4, (this.height * 1) / 3);
 		ctx.fillText(`${this.delay}`, (this.width * 2) / 4, (this.height * 2) / 3);
-		ctx.restore();
 	}
 
 	update() {
@@ -50,5 +45,24 @@ export class DelayNode extends Node {
 			this.outputs[0].setValue(this.inputs[0].value);
 			this.nodeSystem.nodeRenderer.render();
 		}, this.delay);
+	}
+
+	getMetadata() {
+		return {
+			displayName: 'Delay'
+		}
+	}
+
+	static load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new DelayNode(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.delay);
+	}
+
+	save(): any {
+		return {
+			id: this.id,
+			x: this.x,
+			y: this.y,
+			delay: this.delay
+		}
 	}
 }

@@ -6,7 +6,7 @@ import type { NodeSystem } from '../NodeSystem';
 
 export class DisplayNode extends Node {
 	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
-		super(id, 'Input', x, y, 40, 40, [new NodeInput(uuid(), 'input', NodeValueType.Number)], [], nodeSystem);
+		super(id, x, y, 40, 40, [new NodeInput(uuid(), 'input', NodeValueType.Number)], [], nodeSystem);
 	}
 
 	update() {
@@ -14,9 +14,6 @@ export class DisplayNode extends Node {
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
-		ctx.save();
-		ctx.translate(this.x, this.y);
-
 		ctx.fillStyle = this.style.color;
 		ctx.strokeStyle = this.style.borderColor;
 		ctx.lineWidth = this.style.borderWidth;
@@ -34,7 +31,23 @@ export class DisplayNode extends Node {
 		ctx.fillStyle = this.style.fontColor;
 		ctx.fillText(this.inputs[0].value.toString(), (this.width * 1) / 2, this.height / 2);
 		this.renderConnectionPoints(ctx);
+	}
 
-		ctx.restore();
+	getMetadata() {
+		return {
+			displayName: 'Display'
+		}
+	}
+
+	static load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new DisplayNode(saveData.id, saveData.x, saveData.y, nodeSystem);
+	}
+
+	save(): any {
+		return {
+			id: this.id,
+			x: this.x,
+			y: this.y
+		}
 	}
 }

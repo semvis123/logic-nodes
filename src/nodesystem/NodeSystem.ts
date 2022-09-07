@@ -14,6 +14,7 @@ import { Config } from './Config';
 import { playground } from './example_playground';
 import type { NodeSaveFile } from './NodeSaveFile';
 import { Toolbar } from './toolbar/Toolbar';
+
 export class NodeSystem {
 	nodeClickHandler: NodeMouseEventHandler;
 	nodeStorage: NodeStorage;
@@ -22,43 +23,60 @@ export class NodeSystem {
 	config: Config;
 	toolbar: Toolbar;
 
-	constructor(public canvas: HTMLCanvasElement) {
+	constructor(public canvas: HTMLCanvasElement, public htmlCanvasOverlayContainer: HTMLDivElement) {
 		this.reset();
 		this.config.setConfig(playground.config);
 		this.loadSave(playground);
 	}
+
 	save() {
-		return { test: 'hoi' };
+		const save: NodeSaveFile = {
+			nodes: [],
+			connections: [],
+			config: this.config,
+		};
+
+		this.nodeStorage.nodes.forEach((node) => {
+			save.nodes.push({type: node.constructor.name, ...node.save()});
+		});
+
+		this.nodeConnectionHandler.connections.forEach((inputs, output) => {
+			inputs.forEach(input => {				
+				save.connections.push({
+					from: {
+						nodeId: output.node.id,
+						index: output.index,
+					},
+					to: {
+						nodeId: input.node.id,
+						index: input.index,
+					},
+				});
+			})
+		});
+
+		return save;
 	}
 
 	loadSave(save: NodeSaveFile) {
+		const nodeClasses = [
+			ToggleNode,
+			AndNode,
+			ClockNode,
+			OrNode,
+			NotNode,
+			DisplayNode,
+			DelayNode,
+			HtmlOverlayNode
+		]
+		const nodeClassesMap = {};
+		nodeClasses.forEach(nodeClass => {
+			nodeClassesMap[nodeClass.name] = nodeClass;
+		})
+
 		for (const node of save.nodes) {
-			switch (node.type) {
-				case 'ToggleNode':
-					this.nodeStorage.addNode(new ToggleNode(node.id, node.x, node.y, this, node.defaultValue));
-					break;
-				case 'ClockNode':
-					this.nodeStorage.addNode(new ClockNode(node.id, node.x, node.y, this, node.interval));
-					break;
-				case 'AndNode':
-					this.nodeStorage.addNode(new AndNode(node.id, node.x, node.y, this));
-					break;
-				case 'OrNode':
-					this.nodeStorage.addNode(new OrNode(node.id, node.x, node.y, this));
-					break;
-				case 'NotNode':
-					this.nodeStorage.addNode(new NotNode(node.id, node.x, node.y, this));
-					break;
-				case 'DisplayNode':
-					this.nodeStorage.addNode(new DisplayNode(node.id, node.x, node.y, this));
-					break;
-				case 'DelayNode':
-					this.nodeStorage.addNode(new DelayNode(node.id, node.x, node.y, this, node.delay));
-					break;
-				case 'HtmlOverlayNode':
-					this.nodeStorage.addNode(new HtmlOverlayNode(node.id, node.x, node.y, this));
-					break;
-			}
+			const newNode = nodeClassesMap[node.type].load(node, this);
+			this.nodeStorage.addNode(newNode);
 		}
 
 		for (const connection of save.connections) {
@@ -71,6 +89,8 @@ export class NodeSystem {
 				);
 			}
 		}
+
+		this.nodeRenderer.render();
 	}
 
 	reset() {
@@ -79,10 +99,7 @@ export class NodeSystem {
 				node.cleanup();
 			});
 		}
-
-		const canvasCopy = this.canvas.cloneNode(true);
-		this.canvas.parentNode.replaceChild(canvasCopy, this.canvas);
-		this.canvas = canvasCopy as HTMLCanvasElement;
+		if (this.nodeClickHandler) this.nodeClickHandler.removeEventListeners();
 
 		delete this.nodeClickHandler;
 		delete this.nodeConnectionHandler;
@@ -97,5 +114,6 @@ export class NodeSystem {
 		this.nodeStorage = new NodeStorage();
 		this.toolbar = new Toolbar(this);
 		this.config = new Config();
+		this.htmlCanvasOverlayContainer.style.transform = `translate(${0}px, ${0}px)`;
 	}
 }

@@ -9,7 +9,6 @@ export class AndNode extends Node {
 	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
 		super(
 			id,
-			'And',
 			x,
 			y,
 			40,
@@ -22,5 +21,24 @@ export class AndNode extends Node {
 
 	update() {
 		this.outputs[0].setValue((this.inputs[0].value as number) & (this.inputs[1].value as number));
+	}
+
+
+	getMetadata() {
+		return {
+			displayName: 'And'
+		}
+	}
+
+	static load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new AndNode(saveData.id, saveData.x, saveData.y, nodeSystem);
+	}
+
+	save(): any {
+		return {
+			id: this.id,
+			x: this.x,
+			y: this.y,
+		}
 	}
 }

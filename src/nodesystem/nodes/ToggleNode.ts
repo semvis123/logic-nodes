@@ -8,14 +8,11 @@ export class ToggleNode extends Node {
 	currentValue = 0;
 
 	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem, defaultValue = 0) {
-		super(id, 'Not', x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+		super(id, x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		this.currentValue = defaultValue;
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
-		ctx.save();
-		ctx.translate(this.x, this.y);
-
 		ctx.fillStyle = this.style.color;
 		ctx.strokeStyle = this.style.borderColor;
 		ctx.lineWidth = this.style.borderWidth;
@@ -38,7 +35,6 @@ export class ToggleNode extends Node {
 		ctx.fillRect(0, 0, this.width / 2, this.height);
 		ctx.strokeStyle = this.nodeSystem.config.theme.nodeBorderColor;
 		ctx.strokeRect(0, 0, this.width / 2, this.height);
-		ctx.restore();
 	}
 
 	update() {
@@ -54,5 +50,25 @@ export class ToggleNode extends Node {
 		if (pos.x > this.width / 2) return true;
 		this.toggle();
 		return false;
+	}
+
+
+	getMetadata() {
+		return {
+			displayName: 'Toggle'
+		}
+	}
+
+	static load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new ToggleNode(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.defaultValue);
+	}
+
+	save(): any {
+		return {
+			id: this.id,
+			x: this.x,
+			y: this.y,
+			defaultValue: this.currentValue
+		}
 	}
 }

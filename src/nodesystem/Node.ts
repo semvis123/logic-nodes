@@ -2,13 +2,13 @@ import type { NodeInput } from './NodeInput';
 import type { NodeOutput } from './NodeOutput';
 import type { NodeStyle } from './NodeStyle';
 import './node.css';
-import type { NodeSystem } from './NodeSystem';
 import { roundRect } from './utils';
+import type { Metadata } from './Metadata';
+import type { NodeSystem } from './NodeSystem';
 
 export class Node {
 	constructor(
 		public id: string,
-		public displayName: string,
 		public x: number,
 		public y: number,
 		public width: number,
@@ -29,6 +29,7 @@ export class Node {
 		inputs.forEach((input, i) => input.setNode(this, i));
 		outputs.forEach((output, i) => output.setNode(this, i));
 	}
+	
 
 	showContextMenu(pageX: number, pageY: number): HTMLDivElement {
 		const menu = document.createElement('div');
@@ -68,9 +69,6 @@ export class Node {
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
-		ctx.save();
-		ctx.translate(this.x, this.y);
-
 		ctx.fillStyle = this.style.color;
 		ctx.strokeStyle = this.style.borderColor;
 		ctx.lineWidth = this.style.borderWidth;
@@ -87,9 +85,7 @@ export class Node {
 		this.renderConnectionPoints(ctx);
 
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText(this.displayName, this.width / 2, this.height / 2);
-
-		ctx.restore();
+		ctx.fillText(this.getMetadata().displayName, this.width / 2, this.height / 2);
 	}
 
 	renderConnectionPoints(ctx: CanvasRenderingContext2D) {
@@ -126,5 +122,19 @@ export class Node {
 			(node) => node != this
 		);
 		this.nodeSystem.nodeConnectionHandler.removeAllConnections(this);
+	}
+
+	getMetadata(): Metadata {
+		return {
+			displayName: 'Node'
+		}
+	}
+
+	save(): any {
+		return {}
+	}
+
+	load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new Node(saveData.id, saveData.x, saveData.y, saveData.width, saveData.height, [], [], nodeSystem, saveData.nodeStyle);
 	}
 }

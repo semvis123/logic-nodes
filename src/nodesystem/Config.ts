@@ -23,6 +23,16 @@ export class Config {
 		return this;
 	}
 
+	toObject() {
+		const config: unknown = {};
+		for (const key in this) {
+			if (typeof this[key] !== 'function') {
+				config[key] = this[key];
+			}
+		}
+		return config; 
+	}
+
 	setValue(key: string, value: string | number | boolean) {
 		this[key] = value;
 	}

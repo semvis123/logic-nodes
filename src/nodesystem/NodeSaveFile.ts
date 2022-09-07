@@ -30,7 +30,7 @@ export interface NodeSaveFile {
 			connectionPointRadius?: number;
 			nodeBorderRadius?: number;
 		};
-		renderMode?: 'variable';
+		renderMode?: string;
 		hardwareAccelerationHtmlOverlay?: boolean;
 	};
 }

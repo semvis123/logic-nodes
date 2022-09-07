@@ -27,12 +27,14 @@ export class NodeConnectionHandler {
 		this.updateValue(fromOutput);
 	}
 
-	removeConnection(fromOutput, toInput) {
+	removeConnection(fromOutput: NodeOutput, toInput: NodeInput) {
 		const connections = this.connections.get(fromOutput);
 		if (connections) {
 			const index = connections.findIndex((c) => c === toInput);
 			if (index > -1) {
 				connections.splice(index, 1);
+				toInput.setValue(false);
+				toInput.node.update();
 				return true;
 			}
 		}

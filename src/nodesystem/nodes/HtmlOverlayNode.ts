@@ -8,7 +8,7 @@ export class HtmlOverlayNode extends Node {
 	htmlElement: HTMLElement;
 
 	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
-		super(id, 'Html', x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+		super(id, x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 	}
 
 	renderNode(ctx): void {
@@ -45,7 +45,7 @@ export class HtmlOverlayNode extends Node {
 			this.htmlElement.style.pointerEvents = 'none';
 			this.htmlElement.style.zIndex = '1';
 			this.htmlElement.innerHTML = 'HtmlOverlay';
-			document.body.appendChild(this.htmlElement);
+			this.nodeSystem.htmlCanvasOverlayContainer.appendChild(this.htmlElement);
 		}
 	}
 
@@ -55,5 +55,24 @@ export class HtmlOverlayNode extends Node {
 			this.htmlElement = null;
 		}
 		super.cleanup();
+	}
+
+
+	getMetadata() {
+		return {
+			displayName: 'HTML overlay'
+		}
+	}
+
+	static load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new HtmlOverlayNode(saveData.id, saveData.x, saveData.y, nodeSystem);
+	}
+
+	save(): any {
+		return {
+			id: this.id,
+			x: this.x,
+			y: this.y
+		}
 	}
 }

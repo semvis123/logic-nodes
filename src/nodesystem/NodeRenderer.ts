@@ -2,35 +2,54 @@ import type { NodeSystem } from './NodeSystem';
 export class NodeRenderer {
 	ctx: CanvasRenderingContext2D;
 	frame: number;
+	throttleTimer: NodeJS.Timeout = null;
+	shouldRender = false;
+	view: { x: number; y: number; } = {x: 0, y: 0};
 
 	constructor(public canvas: HTMLCanvasElement, private nodeSystem: NodeSystem) {
 		this.ctx = canvas.getContext('2d', { alpha: false });
 	}
 
 	render() {
+		this.shouldRender = true;
+		if (this.throttleTimer == null) {
+			requestAnimationFrame(this.actuallyRender.bind(this));
+			this.throttleTimer = setTimeout(this.actuallyRender.bind(this), 10);
+		}
+	}
+	
+	actuallyRender() {
+		this.throttleTimer = null;
+		if (!this.shouldRender) return;
+		this.shouldRender = false;
 		const theme = this.nodeSystem.config.theme;
 		const clickHandler = this.nodeSystem.nodeClickHandler;
 		const selectionSquare = clickHandler.selectionSquare;
-
+		
 		this.ctx.fillStyle = theme.backgroundColor;
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
+			this.ctx.save();
+			this.ctx.translate(node.x + this.view.x, node.y + this.view.y);
 			node.renderNode(this.ctx);
+			this.ctx.restore();	
 		}
 
-		this.ctx.strokeStyle = theme.connectionColor;
-		this.nodeSystem.nodeConnectionHandler.renderConnections(this.ctx);
-
+		
 		if (selectionSquare) {
 			this.ctx.fillStyle = theme.nodeSelectionSquareColor;
 			this.ctx.lineWidth = 1;
 			this.ctx.fillRect(selectionSquare.x, selectionSquare.y, selectionSquare.width, selectionSquare.height);
 			this.ctx.strokeRect(selectionSquare.x, selectionSquare.y, selectionSquare.width, selectionSquare.height);
 		}
+		this.ctx.save();
+		this.ctx.translate(this.view.x, this.view.y);
+		
+		this.ctx.strokeStyle = theme.connectionColor;
+		this.nodeSystem.nodeConnectionHandler.renderConnections(this.ctx);
 
 		this.ctx.fillStyle = theme.nodeSelectedColor;
 		this.ctx.lineWidth = 1;
-
 		for (const node of clickHandler.selectedNodes || []) {
 			this.ctx.strokeRect(node.x, node.y, node.width, node.height);
 		}
@@ -57,5 +76,6 @@ export class NodeRenderer {
 			);
 			this.ctx.stroke();
 		}
+		this.ctx.restore();
 	}
 }

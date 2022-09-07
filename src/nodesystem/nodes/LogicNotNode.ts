@@ -9,7 +9,6 @@ export class NotNode extends Node {
 	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
 		super(
 			id,
-			'Not',
 			x,
 			y,
 			40,
@@ -22,5 +21,24 @@ export class NotNode extends Node {
 
 	update() {
 		this.outputs[0].setValue((this.inputs[0].value as number) === 0 ? 1 : 0);
+	}
+
+
+	getMetadata() {
+		return {
+			displayName: 'Not'
+		}
+	}
+
+	static load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new NotNode(saveData.id, saveData.x, saveData.y, nodeSystem);
+	}
+
+	save(): any {
+		return {
+			id: this.id,
+			x: this.x,
+			y: this.y,
+		}
 	}
 }

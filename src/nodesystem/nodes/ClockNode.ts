@@ -9,14 +9,11 @@ export class ClockNode extends Node {
 	timer: NodeJS.Timer;
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, public interval: number) {
-		super(id, 'Clock', x, y, 40, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+		super(id, x, y, 40, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		this.timer = setInterval(() => this.toggle(), interval);
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
-		ctx.save();
-		ctx.translate(this.x, this.y);
-
 		ctx.fillStyle = this.style.color;
 		ctx.strokeStyle = this.style.borderColor;
 		ctx.lineWidth = this.style.borderWidth;
@@ -35,7 +32,6 @@ export class ClockNode extends Node {
 		ctx.fillStyle = this.style.fontColor;
 		ctx.fillText(`Clock`, (this.width * 2) / 4, (this.height * 1) / 3);
 		ctx.fillText(`${this.interval}`, (this.width * 2) / 4, (this.height * 2) / 3);
-		ctx.restore();
 	}
 
 	update() {
@@ -46,5 +42,24 @@ export class ClockNode extends Node {
 	toggle() {
 		this.currentValue = this.currentValue === 0 ? 1 : 0;
 		this.update();
+	}
+
+	getMetadata() {
+		return {
+			displayName: 'Clock'
+		}
+	}
+
+	static load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new ClockNode(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.interval);
+	}
+
+	save(): any {
+		return {
+			id: this.id,
+			x: this.x,
+			y: this.y,
+			interval: this.interval
+		}
 	}
 }

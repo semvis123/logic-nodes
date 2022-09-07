@@ -3,6 +3,13 @@ import { ToolbarButton } from './ToolbarButton';
 import { ToolbarDropdownMenu } from './ToolbarDropdownMenu';
 import './toolbar.css';
 import { playground } from '../example_playground';
+import { ClockNode } from '../nodes/ClockNode';
+import { uuid } from '../utils';
+import { AndNode } from '../nodes/LogicAndNode';
+import { OrNode } from '../nodes/LogicOrNode';
+import { NotNode } from '../nodes/LogicNotNode';
+import { ToggleNode } from '../nodes/ToggleNode';
+import { DisplayNode } from '../nodes/DisplayNode';
 
 export class Toolbar {
 	htmlElement: HTMLDivElement;
@@ -12,8 +19,9 @@ export class Toolbar {
 		const fileDropdownMenu = new ToolbarDropdownMenu('File');
 		const newButton = new ToolbarButton('New', () => {
 			this.nodeSystem.reset();
-			this.nodeSystem.config.setConfig(playground.config);
-			this.nodeSystem.loadSave(playground);
+			this.nodeSystem.nodeRenderer.render();
+			// this.nodeSystem.config.setConfig(playground.config);
+			// this.nodeSystem.loadSave(playground);
 		});
 
 		const openButton = new ToolbarButton('Open', () => {
@@ -51,7 +59,37 @@ export class Toolbar {
 		fileDropdownMenu.addButton(openButton);
 		fileDropdownMenu.addButton(saveButton);
 		this.buttons.push(fileDropdownMenu);
+		
+		const addNodeDropdown = new ToolbarDropdownMenu('Add Node');
+
+		const timernode = new ToolbarButton('Clock', () => {
+			// show prompt for the parameters
+			const newNode = new ClockNode(uuid(), window.innerWidth / 2, window.innerHeight / 2, this.nodeSystem, 100);
+			this.nodeSystem.nodeStorage.addNode(newNode);
+			this.nodeSystem.nodeRenderer.render();
+		});
+
+		const noParamNodes = [
+			AndNode,
+			OrNode,
+			NotNode,
+			ToggleNode,
+			DisplayNode
+		];
+
+		noParamNodes.forEach(nodeClass => {
+			const node = new ToolbarButton(nodeClass.prototype.getMetadata().displayName, () => {
+				const newNode = new nodeClass(uuid(), window.innerWidth / 2, window.innerHeight / 2, this.nodeSystem);
+				this.nodeSystem.nodeStorage.addNode(newNode);
+				this.nodeSystem.nodeRenderer.render();
+			});
+			addNodeDropdown.addButton(node);
+		})
+
+
+		addNodeDropdown.addButton(timernode);
 		this.htmlElement.appendChild(fileDropdownMenu.htmlElement);
+		this.htmlElement.appendChild(addNodeDropdown.htmlElement);
 	}
 
 	createHtmlElement(): HTMLDivElement {
@@ -62,7 +100,7 @@ export class Toolbar {
 		});
 
 		// add to DOM
-		document.body.appendChild(this.htmlElement);
+		this.nodeSystem.canvas.parentElement.appendChild(this.htmlElement);
 
 		return this.htmlElement;
 	}
