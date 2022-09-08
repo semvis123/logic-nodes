@@ -3,13 +3,26 @@ import { NodeOutput } from '../NodeOutput';
 import { roundRect, uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
 import type { NodeSystem } from '../NodeSystem';
+import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
 
 export class ToggleNode extends Node {
 	currentValue = 0;
+	parameters: NodeParameter[] = [
+		{
+			name: 'defaultValue',
+			label: 'Default value',
+			value: 1,
+			type: 'number',
+			required: true,
+			min: 0,
+			max: 1
+		}
+	];
 
-	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem, defaultValue = 0) {
+	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(id, x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
-		this.currentValue = defaultValue;
+		this.parameters = parameters ?? this.parameters;
+		this.currentValue = this.getParamValue('defaultValue', 0);
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -39,6 +52,7 @@ export class ToggleNode extends Node {
 
 	update() {
 		this.outputs[0].setValue(this.currentValue);
+		this.nodeSystem.nodeRenderer.render();
 	}
 
 	toggle() {
@@ -55,20 +69,21 @@ export class ToggleNode extends Node {
 
 	getMetadata() {
 		return {
-			displayName: 'Toggle'
+			displayName: 'Toggle',
+			parameters: this.parameters
 		}
 	}
 
-	static load(saveData: any, nodeSystem: NodeSystem): Node {
-		return new ToggleNode(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.defaultValue);
+	static override load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
 	}
 
-	save(): any {
+	override save(): any {
 		return {
 			id: this.id,
 			x: this.x,
 			y: this.y,
-			defaultValue: this.currentValue
-		}
+			parameters: this.parameters
+		};
 	}
 }

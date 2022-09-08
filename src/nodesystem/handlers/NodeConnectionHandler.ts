@@ -3,6 +3,8 @@ import type { NodeInput } from '../NodeInput';
 import type { Node } from '../Node';
 export class NodeConnectionHandler {
 	connections: Map<NodeOutput, NodeInput[]> = new Map();
+	toUpdate: Set<NodeOutput> = new Set();
+	updateTimer: NodeJS.Timeout;
 
 	removeAllConnections(node: Node) {
 		this.connections.forEach((toInputs, fromOutput) => {
@@ -54,15 +56,27 @@ export class NodeConnectionHandler {
 	}
 
 	updateValue(output: NodeOutput) {
-		const connections = this.connections.get(output);
-		if (connections) {
-			connections.forEach((input) => {
-				input.setValue(output.value);
-			});
-			connections.forEach((input) => {
-				input.node?.update();
-			});
-		}
+		this.toUpdate.add(output);
+		if (!this.updateTimer)
+			this.updateTimer = setTimeout(this.updateAllValues.bind(this), 50);
+	}
+
+	updateAllValues() {
+		clearTimeout(this.updateTimer);
+		this.updateTimer = undefined;
+		const updateSnapshot = new Set(this.toUpdate);
+		this.toUpdate.clear();
+		updateSnapshot.forEach(output => {
+			const connections = this.connections.get(output);
+			if (connections) {
+				connections.forEach((input) => {
+					input.setValue(output.value);
+				});
+				connections.forEach((input) => {
+					input.node?.update();
+				});
+			}
+		});
 	}
 
 	renderConnections(ctx: CanvasRenderingContext2D) {

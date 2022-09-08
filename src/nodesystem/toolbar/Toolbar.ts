@@ -2,7 +2,6 @@ import type { NodeSystem } from '../NodeSystem';
 import { ToolbarButton } from './ToolbarButton';
 import { ToolbarDropdownMenu } from './ToolbarDropdownMenu';
 import './toolbar.css';
-import { playground } from '../example_playground';
 import { ClockNode } from '../nodes/ClockNode';
 import { uuid } from '../utils';
 import { AndNode } from '../nodes/LogicAndNode';
@@ -10,6 +9,8 @@ import { OrNode } from '../nodes/LogicOrNode';
 import { NotNode } from '../nodes/LogicNotNode';
 import { ToggleNode } from '../nodes/ToggleNode';
 import { DisplayNode } from '../nodes/DisplayNode';
+import { CounterNode } from '../nodes/CounterNode';
+import { HtmlOverlayNode } from '../nodes/HtmlOverlayNode';
 
 export class Toolbar {
 	htmlElement: HTMLDivElement;
@@ -33,7 +34,7 @@ export class Toolbar {
 				const file = event.target.files[0];
 				if (file) {
 					const reader = new FileReader();
-					reader.onload = (event: any) => {
+					reader.onload = (_event: any) => {
 						const json = JSON.parse(reader.result as string);
 						this.nodeSystem.reset();
 						this.nodeSystem.config.setConfig(json.config);
@@ -62,19 +63,15 @@ export class Toolbar {
 		
 		const addNodeDropdown = new ToolbarDropdownMenu('Add Node');
 
-		const timernode = new ToolbarButton('Clock', () => {
-			// show prompt for the parameters
-			const newNode = new ClockNode(uuid(), window.innerWidth / 2, window.innerHeight / 2, this.nodeSystem, 100);
-			this.nodeSystem.nodeStorage.addNode(newNode);
-			this.nodeSystem.nodeRenderer.render();
-		});
-
 		const noParamNodes = [
 			AndNode,
 			OrNode,
 			NotNode,
 			ToggleNode,
-			DisplayNode
+			ClockNode,
+			DisplayNode,
+			CounterNode,
+			HtmlOverlayNode
 		];
 
 		noParamNodes.forEach(nodeClass => {
@@ -86,8 +83,6 @@ export class Toolbar {
 			addNodeDropdown.addButton(node);
 		})
 
-
-		addNodeDropdown.addButton(timernode);
 		this.htmlElement.appendChild(fileDropdownMenu.htmlElement);
 		this.htmlElement.appendChild(addNodeDropdown.htmlElement);
 	}

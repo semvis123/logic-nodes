@@ -3,12 +3,15 @@ import { NodeValueType } from '../NodeValueType';
 import { uuid } from '../utils';
 import { Node } from '../Node';
 import type { NodeSystem } from '../NodeSystem';
+import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
 
 export class HtmlOverlayNode extends Node {
 	htmlElement: HTMLElement;
+	parameters: NodeParameter[] = [];
 
-	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
+	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(id, x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+		this.parameters = parameters ?? this.parameters;
 	}
 
 	renderNode(ctx): void {
@@ -60,19 +63,21 @@ export class HtmlOverlayNode extends Node {
 
 	getMetadata() {
 		return {
-			displayName: 'HTML overlay'
-		}
+			displayName: 'HTML overlay',
+			parameters: this.parameters
+		};
 	}
 
-	static load(saveData: any, nodeSystem: NodeSystem): Node {
-		return new HtmlOverlayNode(saveData.id, saveData.x, saveData.y, nodeSystem);
+	static override load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
 	}
 
-	save(): any {
+	override save(): any {
 		return {
 			id: this.id,
 			x: this.x,
-			y: this.y
-		}
+			y: this.y,
+			parameters: this.parameters
+		};
 	}
 }

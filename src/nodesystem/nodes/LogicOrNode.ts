@@ -4,9 +4,12 @@ import { uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
 import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
+import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
 
 export class OrNode extends Node {
-	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem) {
+	parameters: NodeParameter[] = [];
+
+	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(
 			id,
 			x,
@@ -17,6 +20,7 @@ export class OrNode extends Node {
 			[new NodeOutput(uuid(), 'output', NodeValueType.Number)],
 			nodeSystem
 		);
+		this.parameters = parameters ?? this.parameters;
 	}
 
 	update() {
@@ -26,19 +30,21 @@ export class OrNode extends Node {
 
 	getMetadata() {
 		return {
-			displayName: 'Or'
-		}
+			displayName: 'Or',
+			parameters: this.parameters
+		};
 	}
 
-	static load(saveData: any, nodeSystem: NodeSystem): Node {
-		return new OrNode(saveData.id, saveData.x, saveData.y, nodeSystem);
+	static override load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
 	}
 
-	save(): any {
+	override save(): any {
 		return {
 			id: this.id,
 			x: this.x,
 			y: this.y,
-		}
+			parameters: this.parameters
+		};
 	}
 }

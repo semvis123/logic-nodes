@@ -2,11 +2,14 @@ import type { NodeInput } from './NodeInput';
 import type { NodeOutput } from './NodeOutput';
 import type { NodeStyle } from './NodeStyle';
 import './node.css';
-import { roundRect } from './utils';
+import { positionNode, roundRect, uuid } from './utils';
 import type { Metadata } from './Metadata';
 import type { NodeSystem } from './NodeSystem';
+import { NodeDetailBox, type NodeParameter } from './nodeDetailBox/NodeDetailBox';
 
 export class Node {
+	public parameters = [];
+
 	constructor(
 		public id: string,
 		public x: number,
@@ -38,6 +41,15 @@ export class Node {
 		menu.style.top = `${pageY}px`;
 
 		const menuItems = {
+			edit: {
+				text: 'Edit',
+				onclick: (async () => {
+					menu.remove();
+					const popup = new NodeDetailBox()
+					this.parameters = await popup.requestParameters('Edit', this.getMetadata().parameters);
+					this.reset();
+				}).bind(this)
+			},
 			delete: {
 				text: 'Delete',
 				onclick: () => {
@@ -48,10 +60,14 @@ export class Node {
 			},
 			duplicate: {
 				text: 'Duplicate',
-				onclick: () => {
-					// this.nodeSystem.nodeStorage.duplicateNode(this);
+				onclick: (() => {
+					const clone = this.save();
+					clone.id = uuid();
+					const cloneNode = Object.getPrototypeOf(this).constructor.load(clone, this.nodeSystem);
+					positionNode(cloneNode, this.nodeSystem.nodeStorage, clone.x, clone.y);
+					this.nodeSystem.nodeStorage.addNode(cloneNode);
 					menu.remove();
-				}
+				}).bind(this)
 			}
 		};
 
@@ -126,15 +142,31 @@ export class Node {
 
 	getMetadata(): Metadata {
 		return {
-			displayName: 'Node'
+			displayName: 'Node',
+			parameters: this.parameters
 		}
+	}
+
+	getParam(key: string): NodeParameter { 
+		for(const param of this.parameters) {
+			if (param.name == key) return param;
+		}
+		throw new Error("param not found");
+	}
+
+	getParamValue<Type>(key: string, defaultvalue: Type): Type {
+		return (this.getParam(key).value as Type) ?? defaultvalue
 	}
 
 	save(): any {
 		return {}
 	}
 
-	load(saveData: any, nodeSystem: NodeSystem): Node {
+	static load(saveData: any, nodeSystem: NodeSystem): Node {
 		return new Node(saveData.id, saveData.x, saveData.y, saveData.width, saveData.height, [], [], nodeSystem, saveData.nodeStyle);
+	}
+
+	reset() {
+		this.nodeSystem.nodeRenderer.render();
 	}
 }

@@ -4,9 +4,23 @@ import { roundRect, uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
 import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
+import type { Metadata } from '../Metadata';
+import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
 
 export class DelayNode extends Node {
-	constructor(id: string, x: number, y: number, nodeSystem: NodeSystem, public delay: number) {
+	parameters: NodeParameter[] = [
+		{
+			name: 'delay',
+			label: 'Delay',
+			value: 100,
+			type: 'number',
+			required: true,
+			min: 10
+		}
+	];
+	delay: NodeJS.Timeout;
+
+	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(
 			id,
 			x,
@@ -17,6 +31,7 @@ export class DelayNode extends Node {
 			[new NodeOutput(uuid(), 'delayed output', NodeValueType.Number)],
 			nodeSystem
 		);
+		this.parameters = parameters ?? this.parameters;
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -37,32 +52,39 @@ export class DelayNode extends Node {
 
 		ctx.fillStyle = this.style.fontColor;
 		ctx.fillText(`delay`, (this.width * 2) / 4, (this.height * 1) / 3);
-		ctx.fillText(`${this.delay}`, (this.width * 2) / 4, (this.height * 2) / 3);
+		ctx.fillText(`${this.getParamValue('delay', 1000)}`, (this.width * 2) / 4, (this.height * 2) / 3);
 	}
 
 	update() {
-		setTimeout(() => {
+		this.delay = setTimeout(() => {
 			this.outputs[0].setValue(this.inputs[0].value);
-			this.nodeSystem.nodeRenderer.render();
-		}, this.delay);
+		}, this.getParamValue('delay', 1000));
 	}
 
-	getMetadata() {
+	reset() {
+		if (this.delay) clearTimeout(this.delay);
+		this.delay = setTimeout(() => {
+			this.outputs[0].setValue(this.inputs[0].value);
+		}, this.getParamValue('delay', 1000));
+	}
+
+	getMetadata(): Metadata {
 		return {
-			displayName: 'Delay'
-		}
+			displayName: 'Delay',
+			parameters: this.parameters
+		};
 	}
 
-	static load(saveData: any, nodeSystem: NodeSystem): Node {
-		return new DelayNode(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.delay);
+	static override load(saveData: any, nodeSystem: NodeSystem): Node {
+		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
 	}
 
-	save(): any {
+	override save(): any {
 		return {
 			id: this.id,
 			x: this.x,
 			y: this.y,
-			delay: this.delay
-		}
+			parameters: this.parameters
+		};
 	}
 }

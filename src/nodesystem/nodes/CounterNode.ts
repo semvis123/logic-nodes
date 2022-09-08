@@ -5,8 +5,9 @@ import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
 
-export class DisplayNode extends Node {
+export class CounterNode extends Node {
 	parameters: NodeParameter[] = [];
+	count = 0;
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(id, x, y, 40, 40, [new NodeInput(uuid(), 'input', NodeValueType.Number)], [], nodeSystem);
@@ -26,21 +27,24 @@ export class DisplayNode extends Node {
 		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
 		ctx.stroke(path);
 
-		ctx.fillStyle = this.inputs[0].value == 0 ? '#aa1111' : '#11aa11';
+		ctx.fillStyle = '#4494a6';
 		ctx.fill(path);
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText((this.inputs[0].value == 0) ? '0' : '1', (this.width * 1) / 2, this.height / 2);
+		ctx.fillText(this.count.toString(), (this.width * 1) / 2, this.height / 2);
 		this.renderConnectionPoints(ctx);
 	}
 
 	getMetadata() {
 		return {
-			displayName: 'Display',
+			displayName: 'Counter',
 			parameters: this.parameters
 		};
 	}
 
 	update() {
+		if (this.inputs[0].value == 1) {
+			this.count++;
+		}
 		this.nodeSystem.nodeRenderer.render();
 	}
 

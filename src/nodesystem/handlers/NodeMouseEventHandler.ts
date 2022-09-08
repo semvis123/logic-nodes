@@ -1,6 +1,7 @@
 import type { NodeOutput } from '../NodeOutput';
 import type { Node } from '../Node';
 import type { NodeSystem } from '../NodeSystem';
+import { positionNode } from '../utils';
 
 export class NodeMouseEventHandler {
 	selectedNodes: Node[] | undefined;
@@ -21,7 +22,7 @@ export class NodeMouseEventHandler {
 		this.onMouseMove = this.onMouseMove.bind(this);
 		this.onMouseUp = this.onMouseUp.bind(this);
 		this.onContextMenu = this.onContextMenu.bind(this);
-		window.addEventListener('mousedown',  this.onMouseDown);
+		window.addEventListener('mousedown', this.onMouseDown);
 		window.addEventListener('mousemove', this.onMouseMove);
 		window.addEventListener('mouseup', this.onMouseUp);
 		window.addEventListener('contextmenu', this.onContextMenu);
@@ -35,6 +36,12 @@ export class NodeMouseEventHandler {
 	}
 
 	onContextMenu(e: MouseEvent) {
+		const mouseX = e.pageX - this.canvas.offsetLeft;
+		const mouseY = e.pageY - this.canvas.offsetTop;
+
+		const pannedMouseX = mouseX - this.nodeSystem.nodeRenderer.view.x;
+		const pannedMouseY = mouseY - this.nodeSystem.nodeRenderer.view.y;
+
 		this.startingMouseMovePosition = undefined;
 		if (this.contextMenu) {
 			this.contextMenu.remove();
@@ -44,29 +51,38 @@ export class NodeMouseEventHandler {
 		if (this.selectedNodes) {
 			this.selectedNodes = undefined;
 		}
-		const node = this.getNodeAt(e.pageX, e.pageY);
+		const node = this.getNodeAt(pannedMouseX, pannedMouseY);
 		if (node) {
 			this.selectedNodes = [node];
 			if (this.contextMenu) {
 				this.contextMenu.remove();
 			}
-			this.contextMenu = node.showContextMenu(e.pageX, e.pageY);
+			this.contextMenu = node.showContextMenu(mouseX, mouseY);
 		}
 
 		this.nodeSystem.nodeRenderer.render();
 	}
+
 	onMouseDown(e: MouseEvent) {
-		if (this.contextMenu) {
+		const ctxMBounds = this.contextMenu?.getBoundingClientRect();
+		if (
+			this.contextMenu &&
+			!(
+				e.x > ctxMBounds.x &&
+				e.x - ctxMBounds.width < ctxMBounds.x &&
+				e.y > ctxMBounds.y &&
+				e.y - ctxMBounds.height < ctxMBounds.y
+			)
+		) {
 			this.contextMenu.remove();
 			this.contextMenu = undefined;
 			return;
 		}
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
-	
+
 		const pannedMouseX = mouseX - this.nodeSystem.nodeRenderer.view.x;
 		const pannedMouseY = mouseY - this.nodeSystem.nodeRenderer.view.y;
-		
 
 		if (e.button == 1) {
 			this.startingMouseMovePosition = { x: mouseX, y: mouseY };
@@ -125,7 +141,7 @@ export class NodeMouseEventHandler {
 		const node = this.getNodeAt(pannedMouseX, pannedMouseY);
 		if (node) {
 			this.startingMouseMovePosition = { x: mouseX, y: mouseY };
-			if (this.selectedNodes) {
+			if (this.selectedNodes?.length) {
 				return;
 			}
 			if (!node.onclick(e, { x: pannedMouseX - node.x, y: pannedMouseY - node.y })) {
@@ -146,9 +162,11 @@ export class NodeMouseEventHandler {
 	}
 
 	onMouseMove(e: MouseEvent) {
+		if (this.contextMenu) return;
+
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
-	
+
 		const pannedMouseX = mouseX - this.nodeSystem.nodeRenderer.view.x;
 		const pannedMouseY = mouseY - this.nodeSystem.nodeRenderer.view.y;
 
@@ -156,12 +174,11 @@ export class NodeMouseEventHandler {
 			// pan
 			const view = {
 				x: this.nodeSystem.nodeRenderer.view.x - (this.startingMouseMovePosition.x - mouseX),
-				y: this.nodeSystem.nodeRenderer.view.y - (this.startingMouseMovePosition.y - mouseY),
-			}
+				y: this.nodeSystem.nodeRenderer.view.y - (this.startingMouseMovePosition.y - mouseY)
+			};
 
 			this.nodeSystem.nodeRenderer.view = view;
 			this.nodeSystem.htmlCanvasOverlayContainer.style.transform = `translate(${view.x}px, ${view.y}px)`;
-
 
 			this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
 			this.nodeSystem.nodeRenderer.render();
@@ -235,6 +252,11 @@ export class NodeMouseEventHandler {
 				}
 			}
 		} else {
+			if (this.selectedNodes) {
+				this.selectedNodes.forEach(node => {
+					positionNode(node, this.nodeSystem.nodeStorage, node.x, node.y);
+				});
+			}
 			this.selectedNodes = undefined;
 		}
 		this.halfConnection = undefined;
