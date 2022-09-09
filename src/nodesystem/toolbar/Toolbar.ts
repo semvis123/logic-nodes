@@ -101,7 +101,6 @@ export class Toolbar {
 	}
 
 	closeAll() {
-		console.log('aaa')
 		this.buttons.forEach(dropdown => {
 			if (!(dropdown instanceof ToolbarDropdownMenu)) return;
 			dropdown.close();			
