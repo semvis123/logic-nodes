@@ -5,9 +5,17 @@ import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
 import type { Metadata } from '../Metadata';
+import type { NodeSaveData } from '../NodeSaveData';
 
 export class DisplayNode extends Node {
-	parameters: NodeParameter[] = [];
+	parameters: NodeParameter[] = [
+		{
+			name: 'showValue',
+			label: 'Show Value',
+			checked: false,
+			type: 'checkbox'
+		}
+	];
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(id, x, y, 40, 40, [new NodeInput(uuid(), 'input', NodeValueType.Number)], [], nodeSystem);
@@ -30,7 +38,9 @@ export class DisplayNode extends Node {
 		ctx.fillStyle = this.inputs[0].value == 0 ? '#aa1111' : '#11aa11';
 		ctx.fill(path);
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText((this.inputs[0].value == 0) ? '0' : '1', (this.width * 1) / 2, this.height / 2);
+		if (this.getParamValue('showValue', false)) {
+			ctx.fillText((this.inputs[0].value == 0) ? '0' : '1', (this.width * 1) / 2, this.height / 2);
+		}
 		this.renderConnectionPoints(ctx);
 	}
 
@@ -45,11 +55,15 @@ export class DisplayNode extends Node {
 	update() {//
 	}
 
-	static override load(saveData: any, nodeSystem: NodeSystem): Node {
+	reset(): void {
+		this.nodeSystem.nodeRenderer.render();
+	}
+
+	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
 		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
 	}
 
-	override save(): any {
+	override save(): NodeSaveData {
 		return {
 			id: this.id,
 			x: this.x,

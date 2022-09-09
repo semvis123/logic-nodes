@@ -23,8 +23,8 @@ export class NodeRenderer {
 		if (!this.shouldRender) return;
 		this.shouldRender = false;
 		const theme = this.nodeSystem.config.theme;
-		const clickHandler = this.nodeSystem.nodeClickHandler;
-		const selectionSquare = clickHandler.selectionSquare;
+		const eventHandler = this.nodeSystem.eventHandler;
+		const selectionSquare = eventHandler.selectionSquare;
 		
 		this.ctx.fillStyle = theme.backgroundColor;
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -45,24 +45,24 @@ export class NodeRenderer {
 		this.ctx.save();
 		this.ctx.translate(this.view.x, this.view.y);
 		
-		this.nodeSystem.nodeConnectionHandler.renderConnections(this.ctx);
+		this.nodeSystem.nodeConnectionHandler.renderConnections(this.ctx, this.nodeSystem.config);
 		this.ctx.strokeStyle = theme.connectionColor;
 
 		this.ctx.fillStyle = theme.nodeSelectedColor;
 		this.ctx.lineWidth = 1;
-		for (const node of clickHandler.selectedNodes || []) {
+		for (const node of eventHandler.selectedNodes || []) {
 			this.ctx.strokeRect(node.x, node.y, node.width, node.height);
 		}
-		for (const node of clickHandler.selectedNodes || []) {
+		for (const node of eventHandler.selectedNodes || []) {
 			this.ctx.fillRect(node.x, node.y, node.width, node.height);
 		}
 
-		if (clickHandler.halfConnection) {
-			const toX = clickHandler.halfConnection.mousePos.x;
-			const toY = clickHandler.halfConnection.mousePos.y;
-			const fromX = clickHandler.halfConnection.outputPos.x;
-			const fromY = clickHandler.halfConnection.outputPos.y;
-			const controlOffsetX = -(fromX - toX) / 3 + clickHandler.halfConnection.output.node.width / 2;
+		if (eventHandler.halfConnection) {
+			const toX = eventHandler.halfConnection.mousePos.x;
+			const toY = eventHandler.halfConnection.mousePos.y;
+			const fromX = eventHandler.halfConnection.outputPos.x;
+			const fromY = eventHandler.halfConnection.outputPos.y;
+			const controlOffsetX = -(fromX - toX) / 3 + eventHandler.halfConnection.output.node.width / 2;
 			const controlOffsetY = -(fromY - toY) / 3;
 			this.ctx.beginPath();
 			this.ctx.moveTo(fromX, fromY);

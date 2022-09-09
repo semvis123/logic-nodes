@@ -1,3 +1,24 @@
+export type ThemeConfig = {
+	backgroundColor: string,
+	nodeBackfroundColor: string,
+	nodeBorderColor: string,
+	nodeTextColor: string,
+	connectionColor: string,
+	nodeSelectedColor: string,
+	nodeSelectionSquareColor: string,
+	connectionPointRadius: number,
+	nodeBorderRadius: number,
+	nodeHighColor: string,
+	nodeLowColor: string,
+}
+
+export type ConfigType = {
+	theme: ThemeConfig,
+	renderMode: 'variable',
+	hardwareAccelerationHtmlOverlay: boolean;
+	colorConnectionLines: boolean;
+}
+
 export class Config {
 	theme = {
 		backgroundColor: '#1D1E20',
@@ -8,10 +29,13 @@ export class Config {
 		nodeSelectedColor: 'rgba(0, 30, 120, 0.5)',
 		nodeSelectionSquareColor: 'rgba(0, 0, 0, 0.2)',
 		connectionPointRadius: 3,
-		nodeBorderRadius: 3
+		nodeBorderRadius: 3,
+		nodeHighColor: "#372",
+		nodeLowColor: "#f23"
 	};
 	renderMode = 'variable';
 	hardwareAccelerationHtmlOverlay = true;
+	colorConnectionLines = true;
 
 	setConfig(config: object) {
 		for (const key in config) {
@@ -23,14 +47,14 @@ export class Config {
 		return this;
 	}
 
-	toObject() {
+	toObject(): ConfigType {
 		const config: unknown = {};
 		for (const key in this) {
 			if (typeof this[key] !== 'function') {
 				config[key] = this[key];
 			}
 		}
-		return config; 
+		return (config as ConfigType); 
 	}
 
 	setValue(key: string, value: string | number | boolean) {

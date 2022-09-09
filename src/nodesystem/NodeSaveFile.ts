@@ -1,12 +1,13 @@
+import type { ConfigType } from './Config';
+import type { NodeParameter } from './nodeDetailBox/NodeDetailBox';
+
 export interface NodeSaveFile {
 	nodes: {
 		id: string;
 		type: string;
 		x: number;
 		y: number;
-		interval?: number;
-		defaultValue?: number;
-		delay?: number;
+		parameters: NodeParameter[];
 	}[];
 	connections: {
 		from: {
@@ -18,19 +19,5 @@ export interface NodeSaveFile {
 			index: number;
 		};
 	}[];
-	config?: {
-		theme?: {
-			backgroundColor?: string;
-			nodeBackfroundColor?: string;
-			nodeBorderColor?: string;
-			nodeTextColor?: string;
-			connectionColor?: string;
-			nodeSelectedColor?: string;
-			nodeSelectionSquareColor?: string;
-			connectionPointRadius?: number;
-			nodeBorderRadius?: number;
-		};
-		renderMode?: string;
-		hardwareAccelerationHtmlOverlay?: boolean;
-	};
+	config?: ConfigType;
 }

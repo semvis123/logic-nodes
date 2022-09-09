@@ -5,6 +5,7 @@ import { NodeValueType } from '../NodeValueType';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
 import type { Metadata } from '../Metadata';
+import type { NodeSaveData } from '../NodeSaveData';
 
 export class ButtonNode extends Node {
 	padding = 7;
@@ -61,6 +62,7 @@ export class ButtonNode extends Node {
 		this.update();
 		if (this.timer) {
 			clearTimeout(this.timer);
+			this.timer = null;
 		}
 	}
 
@@ -68,6 +70,7 @@ export class ButtonNode extends Node {
 		if ((pos.x < this.padding || pos.x > this.width - this.padding) ||
 			(pos.y < this.padding || pos.y > this.height - this.padding)
 		) return true;
+		if (this.timer) return false;
 		this.toggle();
 		this.timer = setTimeout(() => {
 			this.toggle();
@@ -84,11 +87,11 @@ export class ButtonNode extends Node {
 		}
 	}
 
-	static override load(saveData: any, nodeSystem: NodeSystem): Node {
+	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
 		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
 	}
 
-	override save(): any {
+	override save(): NodeSaveData {
 		return {
 			id: this.id,
 			x: this.x,

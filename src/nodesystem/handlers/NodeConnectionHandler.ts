@@ -1,6 +1,7 @@
 import type { NodeOutput } from '../NodeOutput';
 import type { NodeInput } from '../NodeInput';
 import type { Node } from '../Node';
+import type { Config } from '../Config';
 export class NodeConnectionHandler {
 	connections: Map<NodeOutput, NodeInput[]> = new Map();
 	toUpdate: Set<NodeOutput> = new Set();
@@ -58,7 +59,7 @@ export class NodeConnectionHandler {
 	updateValue(output: NodeOutput) {
 		this.toUpdate.add(output);
 		if (!this.updateTimer)
-			this.updateTimer = setTimeout(this.updateAllValues.bind(this), 100);
+			this.updateTimer = setTimeout(this.updateAllValues.bind(this), 10);
 	}
 
 	updateAllValues() {
@@ -83,16 +84,19 @@ export class NodeConnectionHandler {
 		}
 	}
 
-	renderConnections(ctx: CanvasRenderingContext2D) {
+	renderConnections(ctx: CanvasRenderingContext2D, config: Config) {
 		this.connections.forEach((toInputs, fromOutput) => {
 			toInputs.forEach((toInput) => {
 				if (toInput === undefined) return;
 				ctx.beginPath();
-				ctx.strokeStyle = fromOutput.value ? "#372" : "#f23";
-				const toX = toInput.node.x;
+				if (config.colorConnectionLines)
+					ctx.strokeStyle = fromOutput.value ? config.theme.nodeHighColor : config.theme.nodeLowColor;
+				else
+					ctx.strokeStyle = config.theme.connectionColor
+				const toX = toInput.node.x - config.theme.connectionPointRadius;
 				const inputOffset = (toInput.node.height / (toInput.node.inputs.length + 1)) * (toInput.index + 1);
 				const toY = toInput.node.y + inputOffset;
-				const fromX = fromOutput.node.x + fromOutput.node.width;
+				const fromX = fromOutput.node.x + fromOutput.node.width + config.theme.connectionPointRadius;
 				const outputOffset = (fromOutput.node.height / (fromOutput.node.outputs.length + 1)) * (fromOutput.index + 1);
 				const fromY = fromOutput.node.y + outputOffset;
 				ctx.moveTo(fromX, fromY);

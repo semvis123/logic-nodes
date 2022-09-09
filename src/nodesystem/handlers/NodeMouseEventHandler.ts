@@ -3,7 +3,7 @@ import type { Node } from '../Node';
 import type { NodeSystem } from '../NodeSystem';
 import { positionNode } from '../utils';
 
-export class NodeMouseEventHandler {
+export class NodesystemEventHandler {
 	selectedNodes: Node[] | undefined;
 	selectionSquare: { x: number; y: number; width: number; height: number } | undefined;
 	startingMouseMovePosition: { x: number; y: number } | undefined;

@@ -6,6 +6,7 @@ import { positionNode, roundRect, uuid } from './utils';
 import type { Metadata } from './Metadata';
 import type { NodeSystem } from './NodeSystem';
 import { NodeDetailBox, type NodeParameter } from './nodeDetailBox/NodeDetailBox';
+import type { NodeSaveData } from './NodeSaveData';
 
 export class Node {
 	public parameters = [];
@@ -112,6 +113,7 @@ export class Node {
 			ctx.ellipse(0, inputSpacing * (i + 1), radius, radius, 0, 0, 2 * Math.PI);
 			ctx.stroke();
 			ctx.fill();
+			ctx.closePath();
 		}
 
 		const outputSpacing = this.height / (this.outputs.length + 1);
@@ -120,6 +122,7 @@ export class Node {
 			ctx.ellipse(this.width, outputSpacing * (i + 1), radius, radius, 0, 0, 2 * Math.PI);
 			ctx.stroke();
 			ctx.fill();
+			ctx.closePath();
 		}
 	}
 
@@ -133,7 +136,7 @@ export class Node {
 	}
 
 	cleanup() {
-		this.nodeSystem.nodeClickHandler.selectedNodes = this.nodeSystem.nodeClickHandler.selectedNodes?.filter(
+		this.nodeSystem.eventHandler.selectedNodes = this.nodeSystem.eventHandler.selectedNodes?.filter(
 			(node) => node != this
 		);
 		this.nodeSystem.nodeConnectionHandler.removeAllConnections(this);
@@ -150,29 +153,35 @@ export class Node {
 		for (const param of this.parameters) {
 			if (param.name == key) return param;
 		}
-		throw new Error('param not found');
 	}
 
 	getParamValue<Type>(key: string, defaultvalue: Type): Type {
-		return (this.getParam(key).value as Type) ?? defaultvalue;
+		if (this.getParam(key)?.type === 'checkbox') {
+			return (this.getParam(key)?.checked as Type) ?? defaultvalue;
+		}
+		return (this.getParam(key)?.value as Type) ?? defaultvalue;
 	}
 
-	save(): any {
-		return {};
+	save(): NodeSaveData {
+		return {
+			id: this.id,
+			type: 'Node',
+			x: this.x,
+			y: this.y,
+			parameters: this.parameters
+		};
 	}
 
-	static load(saveData: any, nodeSystem: NodeSystem): Node {
-		return new Node(
-			saveData.id,
-			saveData.x,
-			saveData.y,
-			saveData.width,
-			saveData.height,
-			[],
-			[],
-			nodeSystem,
-			saveData.nodeStyle
-		);
+	static load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
+		return new Node(saveData.id, saveData.x, saveData.y, 0, 0, [], [], nodeSystem, {
+			color: '',
+			borderColor: '',
+			borderWidth: 0,
+			borderRadius: 0,
+			fontSize: 0,
+			fontFamily: '',
+			fontColor: ''
+		});
 	}
 
 	reset() {

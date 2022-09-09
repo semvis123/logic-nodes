@@ -1,5 +1,5 @@
 import { NodeConnectionHandler } from './handlers/NodeConnectionHandler';
-import { NodeMouseEventHandler } from './handlers/NodeMouseEventHandler';
+import { NodesystemEventHandler } from './handlers/NodeMouseEventHandler';
 import { NodeStorage } from './NodeStorage';
 import { NodeRenderer } from './NodeRenderer';
 import { Config } from './Config';
@@ -9,7 +9,7 @@ import { Toolbar } from './toolbar/Toolbar';
 import { nodeClassesMap } from './nodes/nodes';
 
 export class NodeSystem {
-	nodeClickHandler: NodeMouseEventHandler;
+	eventHandler: NodesystemEventHandler;
 	nodeStorage: NodeStorage;
 	nodeConnectionHandler: NodeConnectionHandler;
 	nodeRenderer: NodeRenderer;
@@ -26,7 +26,7 @@ export class NodeSystem {
 		const save: NodeSaveFile = {
 			nodes: [],
 			connections: [],
-			config: this.config,
+			config: this.config.toObject(),
 		};
 
 		this.nodeStorage.nodes.forEach((node) => {
@@ -77,9 +77,9 @@ export class NodeSystem {
 				node.cleanup();
 			});
 		}
-		if (this.nodeClickHandler) this.nodeClickHandler.removeEventListeners();
+		if (this.eventHandler) this.eventHandler.removeEventListeners();
 
-		delete this.nodeClickHandler;
+		delete this.eventHandler;
 		delete this.nodeConnectionHandler;
 		delete this.nodeStorage;
 		delete this.nodeRenderer;
@@ -87,7 +87,7 @@ export class NodeSystem {
 		delete this.toolbar;
 
 		this.nodeConnectionHandler = new NodeConnectionHandler();
-		this.nodeClickHandler = new NodeMouseEventHandler(this, this.canvas);
+		this.eventHandler = new NodesystemEventHandler(this, this.canvas);
 		this.nodeRenderer = new NodeRenderer(this.canvas, this);
 		this.nodeStorage = new NodeStorage();
 		this.toolbar = new Toolbar(this);

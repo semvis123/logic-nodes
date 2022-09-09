@@ -6,6 +6,7 @@ import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
 import type { Metadata } from '../Metadata';
+import type { NodeSaveData } from '../NodeSaveData';
 
 export class AndNode extends Node {
 	parameters: NodeParameter[] = [
@@ -63,11 +64,11 @@ export class AndNode extends Node {
 		};
 	}
 
-	static override load(saveData: any, nodeSystem: NodeSystem): Node {
+	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
 		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
 	}
 
-	override save(): any {
+	override save(): NodeSaveData {
 		return {
 			id: this.id,
 			x: this.x,

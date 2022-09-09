@@ -47,7 +47,10 @@ export class NodeDetailBox {
 				paramEl.appendChild(paramInputContainer);
                 paramEl.className = 'parameter';
 				paramInput.onchange = (e) => {
-					param.value = (e.currentTarget as HTMLInputElement).value;
+                    if (param.type == 'checkbox')
+					    param.checked = (e.currentTarget as HTMLInputElement).checked;
+                    else
+					    param.value = (e.currentTarget as HTMLInputElement).value;
 				};
 				this.popupElement.appendChild(paramEl);
 			});

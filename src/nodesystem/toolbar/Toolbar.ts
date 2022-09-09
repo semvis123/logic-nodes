@@ -4,8 +4,9 @@ import { ToolbarDropdownMenu } from './ToolbarDropdownMenu';
 import { metadataCategories } from '../Metadata';
 import { ToolbarButton } from './ToolbarButton';
 import { nodeClasses } from '../nodes/nodes';
-import { uuid } from '../utils';
+import { positionNode, uuid } from '../utils';
 import './toolbar.css';
+import { NodeDetailBox } from '../nodeDetailBox/NodeDetailBox';
 
 export class Toolbar {
 	htmlElement: HTMLDivElement;
@@ -25,8 +26,8 @@ export class Toolbar {
 			const openDialog = document.createElement('input');
 			openDialog.type = 'file';
 			openDialog.accept = '.json';
-			openDialog.onchange = (event: any) => {
-				const file = event.target.files[0];
+			openDialog.onchange = (event: Event) => {
+				const file = (event.target as HTMLInputElement).files[0];
 				if (file) {
 					const reader = new FileReader();
 					reader.onload = () => {
@@ -51,9 +52,26 @@ export class Toolbar {
 			a.download = 'save.json';
 			a.click();
 		});
+
+
+		const settingsButton = new ToolbarButton('Settings', async () => {
+			// show setting popup
+			const popup = new NodeDetailBox();
+			const parameters = await popup.requestParameters('Settings', [{
+				name: 'colorConnectionLines',
+				label: 'Change connection line color based on value.',
+				checked: this.nodeSystem.config.colorConnectionLines,
+				type: 'checkbox'
+			}]);
+			parameters.forEach(param => {
+				this.nodeSystem.config[param.name] = param.type == 'checkbox' ? param.checked : param.value;
+			})
+		});
+
 		fileDropdownMenu.addButton(newButton);
 		fileDropdownMenu.addButton(openButton);
 		fileDropdownMenu.addButton(saveButton);
+		fileDropdownMenu.addButton(settingsButton);
 		this.buttons.push(fileDropdownMenu);
 		
 		const createNodeDropdowns = new Map<MetadataCategory, ToolbarDropdownMenu>();
@@ -63,7 +81,8 @@ export class Toolbar {
 
 		nodeClasses.forEach(nodeClass => {
 			const node = new ToolbarButton(nodeClass.prototype.getMetadata().displayName, () => {
-				const newNode = new nodeClass(uuid(), window.innerWidth / 2, window.innerHeight / 2, this.nodeSystem);
+				const newNode = new nodeClass(uuid(), 0, 0, this.nodeSystem);
+				positionNode(newNode, this.nodeSystem.nodeStorage, window.innerWidth / 2, window.innerHeight / 2);
 				this.nodeSystem.nodeStorage.addNode(newNode);
 				this.nodeSystem.nodeRenderer.render();
 			});
