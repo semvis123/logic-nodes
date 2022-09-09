@@ -72,8 +72,10 @@ export class Toolbar {
 		fileDropdownMenu.addButton(openButton);
 		fileDropdownMenu.addButton(saveButton);
 		fileDropdownMenu.addButton(settingsButton);
+		fileDropdownMenu.onOpen = this.closeAll.bind(this);
 		this.buttons.push(fileDropdownMenu);
-		
+		this.htmlElement.appendChild(fileDropdownMenu.htmlElement);
+
 		const createNodeDropdowns = new Map<MetadataCategory, ToolbarDropdownMenu>();
 		metadataCategories.forEach(category => {
 			createNodeDropdowns.set(category, new ToolbarDropdownMenu(category));
@@ -89,11 +91,21 @@ export class Toolbar {
 			createNodeDropdowns.get(nodeClass.prototype.getMetadata().category ?? 'Misc').addButton(node);
 		})
 
-		this.htmlElement.appendChild(fileDropdownMenu.htmlElement);
 		createNodeDropdowns.forEach(dropdown => {
-			if (dropdown.buttons.length > 0)
+			if (dropdown.buttons.length > 0) {
+				this.buttons.push(dropdown)
 				this.htmlElement.appendChild(dropdown.htmlElement);
+				dropdown.onOpen = this.closeAll.bind(this);
+			}
 		})
+	}
+
+	closeAll() {
+		console.log('aaa')
+		this.buttons.forEach(dropdown => {
+			if (!(dropdown instanceof ToolbarDropdownMenu)) return;
+			dropdown.close();			
+		});
 	}
 
 	createHtmlElement(): HTMLDivElement {
