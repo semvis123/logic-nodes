@@ -45,8 +45,8 @@ export class NodeRenderer {
 		this.ctx.save();
 		this.ctx.translate(this.view.x, this.view.y);
 		
-		this.ctx.strokeStyle = theme.connectionColor;
 		this.nodeSystem.nodeConnectionHandler.renderConnections(this.ctx);
+		this.ctx.strokeStyle = theme.connectionColor;
 
 		this.ctx.fillStyle = theme.nodeSelectedColor;
 		this.ctx.lineWidth = 1;

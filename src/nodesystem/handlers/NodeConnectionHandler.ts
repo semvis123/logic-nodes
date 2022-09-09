@@ -58,25 +58,29 @@ export class NodeConnectionHandler {
 	updateValue(output: NodeOutput) {
 		this.toUpdate.add(output);
 		if (!this.updateTimer)
-			this.updateTimer = setTimeout(this.updateAllValues.bind(this), 50);
+			this.updateTimer = setTimeout(this.updateAllValues.bind(this), 100);
 	}
 
 	updateAllValues() {
 		clearTimeout(this.updateTimer);
 		this.updateTimer = undefined;
-		const updateSnapshot = new Set(this.toUpdate);
+		const updateSnapshot = Array.from(this.toUpdate);
 		this.toUpdate.clear();
+
 		updateSnapshot.forEach(output => {
 			const connections = this.connections.get(output);
 			if (connections) {
 				connections.forEach((input) => {
-					input.setValue(output.value);
-				});
-				connections.forEach((input) => {
-					input.node?.update();
+					if (input.value != output.value) {
+						input.setValue(output.value);
+						input.node?.update();
+					}
 				});
 			}
 		});
+		if (updateSnapshot.length > 0) {
+			updateSnapshot[0].node.nodeSystem.nodeRenderer.render();
+		}
 	}
 
 	renderConnections(ctx: CanvasRenderingContext2D) {
@@ -84,6 +88,7 @@ export class NodeConnectionHandler {
 			toInputs.forEach((toInput) => {
 				if (toInput === undefined) return;
 				ctx.beginPath();
+				ctx.strokeStyle = fromOutput.value ? "#372" : "#f23";
 				const toX = toInput.node.x;
 				const inputOffset = (toInput.node.height / (toInput.node.inputs.length + 1)) * (toInput.index + 1);
 				const toY = toInput.node.y + inputOffset;

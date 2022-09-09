@@ -5,6 +5,7 @@ import { NodeValueType } from '../NodeValueType';
 import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
+import type { Metadata } from '../Metadata';
 
 export class NotNode extends Node {
 	parameters: NodeParameter[] = [];
@@ -24,13 +25,14 @@ export class NotNode extends Node {
 	}
 
 	update() {
-		this.outputs[0].setValue((this.inputs[0].value as number) === 0 ? 1 : 0);
+		this.outputs[0].setValue(!(this.inputs[0].value));
 	}
 
 
-	getMetadata() {
+	getMetadata(): Metadata {
 		return {
 			displayName: 'Not',
+			category: 'Logic',
 			parameters: this.parameters
 		};
 	}

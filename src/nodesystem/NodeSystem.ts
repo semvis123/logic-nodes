@@ -1,19 +1,12 @@
 import { NodeConnectionHandler } from './handlers/NodeConnectionHandler';
 import { NodeMouseEventHandler } from './handlers/NodeMouseEventHandler';
-import { ClockNode } from './nodes/ClockNode';
-import { DisplayNode } from './nodes/DisplayNode';
-import { HtmlOverlayNode } from './nodes/HtmlOverlayNode';
-import { AndNode } from './nodes/LogicAndNode';
-import { NotNode } from './nodes/LogicNotNode';
-import { OrNode } from './nodes/LogicOrNode';
-import { ToggleNode } from './nodes/ToggleNode';
 import { NodeStorage } from './NodeStorage';
 import { NodeRenderer } from './NodeRenderer';
-import { DelayNode } from './nodes/DelayNode';
 import { Config } from './Config';
 import { playground } from './example_playground';
 import type { NodeSaveFile } from './NodeSaveFile';
 import { Toolbar } from './toolbar/Toolbar';
+import { nodeClassesMap } from './nodes/nodes';
 
 export class NodeSystem {
 	nodeClickHandler: NodeMouseEventHandler;
@@ -59,21 +52,6 @@ export class NodeSystem {
 	}
 
 	loadSave(save: NodeSaveFile) {
-		const nodeClasses = [
-			ToggleNode,
-			AndNode,
-			ClockNode,
-			OrNode,
-			NotNode,
-			DisplayNode,
-			DelayNode,
-			HtmlOverlayNode
-		]
-		const nodeClassesMap = {};
-		nodeClasses.forEach(nodeClass => {
-			nodeClassesMap[nodeClass.name] = nodeClass;
-		})
-
 		for (const node of save.nodes) {
 			const newNode = nodeClassesMap[node.type].load(node, this);
 			this.nodeStorage.addNode(newNode);

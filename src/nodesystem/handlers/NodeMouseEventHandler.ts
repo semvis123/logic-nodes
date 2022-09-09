@@ -22,10 +22,12 @@ export class NodeMouseEventHandler {
 		this.onMouseMove = this.onMouseMove.bind(this);
 		this.onMouseUp = this.onMouseUp.bind(this);
 		this.onContextMenu = this.onContextMenu.bind(this);
+		this.onKeyDown = this.onKeyDown.bind(this);
 		window.addEventListener('mousedown', this.onMouseDown);
 		window.addEventListener('mousemove', this.onMouseMove);
 		window.addEventListener('mouseup', this.onMouseUp);
 		window.addEventListener('contextmenu', this.onContextMenu);
+		window.addEventListener('keydown', this.onKeyDown);
 	}
 
 	removeEventListeners() {
@@ -33,6 +35,18 @@ export class NodeMouseEventHandler {
 		window.removeEventListener('mousemove', this.onMouseMove);
 		window.removeEventListener('mouseup', this.onMouseUp);
 		window.removeEventListener('contextmenu', this.onContextMenu);
+		window.removeEventListener('keydown', this.onKeyDown);
+	}
+
+	onKeyDown(e: KeyboardEvent) {
+		if (e.code == 'Delete') {
+			if (this.selectedNodes) {
+				this.selectedNodes.forEach((node) => {
+					this.nodeSystem.nodeStorage.removeNode(node);
+				});
+				this.nodeSystem.nodeRenderer.render();
+			}
+		}
 	}
 
 	onContextMenu(e: MouseEvent) {
@@ -253,7 +267,7 @@ export class NodeMouseEventHandler {
 			}
 		} else {
 			if (this.selectedNodes) {
-				this.selectedNodes.forEach(node => {
+				this.selectedNodes.forEach((node) => {
 					positionNode(node, this.nodeSystem.nodeStorage, node.x, node.y);
 				});
 			}

@@ -4,6 +4,7 @@ import { NodeValueType } from '../NodeValueType';
 import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
+import type { Metadata } from '../Metadata';
 
 export class DisplayNode extends Node {
 	parameters: NodeParameter[] = [];
@@ -33,15 +34,15 @@ export class DisplayNode extends Node {
 		this.renderConnectionPoints(ctx);
 	}
 
-	getMetadata() {
+	getMetadata(): Metadata {
 		return {
 			displayName: 'Display',
+			category: 'Output',
 			parameters: this.parameters
 		};
 	}
 
-	update() {
-		this.nodeSystem.nodeRenderer.render();
+	update() {//
 	}
 
 	static override load(saveData: any, nodeSystem: NodeSystem): Node {

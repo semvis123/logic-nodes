@@ -4,13 +4,23 @@ import { NodeValueType } from '../NodeValueType';
 import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
+import type { Metadata } from '../Metadata';
 
 export class CounterNode extends Node {
 	parameters: NodeParameter[] = [];
 	count = 0;
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
-		super(id, x, y, 40, 40, [new NodeInput(uuid(), 'input', NodeValueType.Number)], [], nodeSystem);
+		super(
+			id,
+			x,
+			y,
+			40,
+			40,
+			[new NodeInput(uuid(), 'input', NodeValueType.Number), new NodeInput(uuid(), 'reset', NodeValueType.Number)],
+			[],
+			nodeSystem
+		);
 		this.parameters = parameters ?? this.parameters;
 	}
 
@@ -34,9 +44,10 @@ export class CounterNode extends Node {
 		this.renderConnectionPoints(ctx);
 	}
 
-	getMetadata() {
+	getMetadata(): Metadata {
 		return {
 			displayName: 'Counter',
+			category: 'Output',
 			parameters: this.parameters
 		};
 	}
@@ -45,7 +56,10 @@ export class CounterNode extends Node {
 		if (this.inputs[0].value == 1) {
 			this.count++;
 		}
-		this.nodeSystem.nodeRenderer.render();
+		if (this.inputs[1].value == 1) {
+			this.count = 0;
+		}
+		//
 	}
 
 	static override load(saveData: any, nodeSystem: NodeSystem): Node {

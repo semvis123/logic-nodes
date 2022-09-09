@@ -4,6 +4,7 @@ import { uuid } from '../utils';
 import { Node } from '../Node';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
+import type { Metadata } from '../Metadata';
 
 export class HtmlOverlayNode extends Node {
 	htmlElement: HTMLElement;
@@ -61,9 +62,10 @@ export class HtmlOverlayNode extends Node {
 	}
 
 
-	getMetadata() {
+	getMetadata(): Metadata {
 		return {
 			displayName: 'HTML overlay',
+			category: 'Misc',
 			parameters: this.parameters
 		};
 	}

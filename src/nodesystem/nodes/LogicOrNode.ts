@@ -5,6 +5,7 @@ import { NodeValueType } from '../NodeValueType';
 import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
+import type { Metadata } from '../Metadata';
 
 export class OrNode extends Node {
 	parameters: NodeParameter[] = [];
@@ -28,9 +29,10 @@ export class OrNode extends Node {
 	}
 
 
-	getMetadata() {
+	getMetadata(): Metadata {
 		return {
 			displayName: 'Or',
+			category: 'Logic',
 			parameters: this.parameters
 		};
 	}

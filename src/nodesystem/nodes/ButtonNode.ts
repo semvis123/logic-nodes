@@ -6,24 +6,25 @@ import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
 import type { Metadata } from '../Metadata';
 
-export class ToggleNode extends Node {
+export class ButtonNode extends Node {
+	padding = 7;
 	currentValue = 0;
+	timer: NodeJS.Timeout;
+
 	parameters: NodeParameter[] = [
 		{
-			name: 'defaultValue',
-			label: 'Default value',
-			value: 1,
+			name: 'delay',
+			label: 'Delay',
+			value: 1000,
 			type: 'number',
 			required: true,
-			min: 0,
-			max: 1
+			min: 50
 		}
 	];
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
-		super(id, x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+		super(id, x, y, 40, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		this.parameters = parameters ?? this.parameters;
-		this.currentValue = this.getParamValue('defaultValue', 0);
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -42,13 +43,13 @@ export class ToggleNode extends Node {
 
 		this.renderConnectionPoints(ctx);
 
-		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText('Switch', (this.width * 3) / 4, this.height / 2);
+		// ctx.fillStyle = this.style.fontColor;
+		// ctx.fillText('Switch', (this.width * 3) / 4, this.height / 2);
 
 		ctx.fillStyle = this.currentValue == 0 ? '#a33' : '#3a3';
-		ctx.fillRect(0, 0, this.width / 2, this.height);
+		ctx.fillRect(this.padding, this.padding, this.width - this.padding * 2, this.height - this.padding * 2);
 		ctx.strokeStyle = this.nodeSystem.config.theme.nodeBorderColor;
-		ctx.strokeRect(0, 0, this.width / 2, this.height);
+		ctx.strokeRect(this.padding, this.padding, this.width - this.padding * 2, this.height - this.padding * 2);
 	}
 
 	update() {
@@ -58,18 +59,26 @@ export class ToggleNode extends Node {
 	toggle() {
 		this.currentValue = this.currentValue === 0 ? 1 : 0;
 		this.update();
+		if (this.timer) {
+			clearTimeout(this.timer);
+		}
 	}
 
 	onclick(e: MouseEvent, pos: { x: number; y: number }) {
-		if (pos.x > this.width / 2) return true;
+		if ((pos.x < this.padding || pos.x > this.width - this.padding) ||
+			(pos.y < this.padding || pos.y > this.height - this.padding)
+		) return true;
 		this.toggle();
+		this.timer = setTimeout(() => {
+			this.toggle();
+		}, this.getParamValue('delay', 1000));
 		return false;
 	}
 
 
 	getMetadata(): Metadata {
 		return {
-			displayName: 'Toggle',
+			displayName: 'Button',
 			category: 'Input',
 			parameters: this.parameters
 		}

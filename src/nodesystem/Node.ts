@@ -32,7 +32,6 @@ export class Node {
 		inputs.forEach((input, i) => input.setNode(this, i));
 		outputs.forEach((output, i) => output.setNode(this, i));
 	}
-	
 
 	showContextMenu(pageX: number, pageY: number): HTMLDivElement {
 		const menu = document.createElement('div');
@@ -45,7 +44,7 @@ export class Node {
 				text: 'Edit',
 				onclick: (async () => {
 					menu.remove();
-					const popup = new NodeDetailBox()
+					const popup = new NodeDetailBox();
 					this.parameters = await popup.requestParameters('Edit', this.getMetadata().parameters);
 					this.reset();
 				}).bind(this)
@@ -144,26 +143,36 @@ export class Node {
 		return {
 			displayName: 'Node',
 			parameters: this.parameters
-		}
+		};
 	}
 
-	getParam(key: string): NodeParameter { 
-		for(const param of this.parameters) {
+	getParam(key: string): NodeParameter {
+		for (const param of this.parameters) {
 			if (param.name == key) return param;
 		}
-		throw new Error("param not found");
+		throw new Error('param not found');
 	}
 
 	getParamValue<Type>(key: string, defaultvalue: Type): Type {
-		return (this.getParam(key).value as Type) ?? defaultvalue
+		return (this.getParam(key).value as Type) ?? defaultvalue;
 	}
 
 	save(): any {
-		return {}
+		return {};
 	}
 
 	static load(saveData: any, nodeSystem: NodeSystem): Node {
-		return new Node(saveData.id, saveData.x, saveData.y, saveData.width, saveData.height, [], [], nodeSystem, saveData.nodeStyle);
+		return new Node(
+			saveData.id,
+			saveData.x,
+			saveData.y,
+			saveData.width,
+			saveData.height,
+			[],
+			[],
+			nodeSystem,
+			saveData.nodeStyle
+		);
 	}
 
 	reset() {

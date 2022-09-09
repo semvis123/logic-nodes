@@ -43,7 +43,7 @@ export class ClockNode extends Node {
 		this.renderConnectionPoints(ctx);
 
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText(`Clock`, (this.width * 2) / 4, (this.height * 1) / 3);
+		ctx.fillText(this.getMetadata().displayName, (this.width * 2) / 4, (this.height * 1) / 3);
 		ctx.fillText(`${this.getParamValue('interval', 1000)}`, (this.width * 2) / 4, (this.height * 2) / 3);
 	}
 
@@ -56,7 +56,6 @@ export class ClockNode extends Node {
 
 	update() {
 		this.outputs[0].setValue(this.currentValue);
-		this.nodeSystem.nodeRenderer.render();
 	}
 
 	toggle() {
@@ -66,7 +65,8 @@ export class ClockNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
-			displayName: 'Clock',
+			displayName: 'Interval',
+			category: 'Misc',
 			parameters: this.parameters
 		};
 	}

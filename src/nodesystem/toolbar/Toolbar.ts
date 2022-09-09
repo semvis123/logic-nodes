@@ -1,16 +1,11 @@
 import type { NodeSystem } from '../NodeSystem';
-import { ToolbarButton } from './ToolbarButton';
+import type { MetadataCategory } from '../Metadata';
 import { ToolbarDropdownMenu } from './ToolbarDropdownMenu';
-import './toolbar.css';
-import { ClockNode } from '../nodes/ClockNode';
+import { metadataCategories } from '../Metadata';
+import { ToolbarButton } from './ToolbarButton';
+import { nodeClasses } from '../nodes/nodes';
 import { uuid } from '../utils';
-import { AndNode } from '../nodes/LogicAndNode';
-import { OrNode } from '../nodes/LogicOrNode';
-import { NotNode } from '../nodes/LogicNotNode';
-import { ToggleNode } from '../nodes/ToggleNode';
-import { DisplayNode } from '../nodes/DisplayNode';
-import { CounterNode } from '../nodes/CounterNode';
-import { HtmlOverlayNode } from '../nodes/HtmlOverlayNode';
+import './toolbar.css';
 
 export class Toolbar {
 	htmlElement: HTMLDivElement;
@@ -34,7 +29,7 @@ export class Toolbar {
 				const file = event.target.files[0];
 				if (file) {
 					const reader = new FileReader();
-					reader.onload = (_event: any) => {
+					reader.onload = () => {
 						const json = JSON.parse(reader.result as string);
 						this.nodeSystem.reset();
 						this.nodeSystem.config.setConfig(json.config);
@@ -61,30 +56,25 @@ export class Toolbar {
 		fileDropdownMenu.addButton(saveButton);
 		this.buttons.push(fileDropdownMenu);
 		
-		const addNodeDropdown = new ToolbarDropdownMenu('Add Node');
+		const createNodeDropdowns = new Map<MetadataCategory, ToolbarDropdownMenu>();
+		metadataCategories.forEach(category => {
+			createNodeDropdowns.set(category, new ToolbarDropdownMenu(category));
+		});
 
-		const noParamNodes = [
-			AndNode,
-			OrNode,
-			NotNode,
-			ToggleNode,
-			ClockNode,
-			DisplayNode,
-			CounterNode,
-			HtmlOverlayNode
-		];
-
-		noParamNodes.forEach(nodeClass => {
+		nodeClasses.forEach(nodeClass => {
 			const node = new ToolbarButton(nodeClass.prototype.getMetadata().displayName, () => {
 				const newNode = new nodeClass(uuid(), window.innerWidth / 2, window.innerHeight / 2, this.nodeSystem);
 				this.nodeSystem.nodeStorage.addNode(newNode);
 				this.nodeSystem.nodeRenderer.render();
 			});
-			addNodeDropdown.addButton(node);
+			createNodeDropdowns.get(nodeClass.prototype.getMetadata().category ?? 'Misc').addButton(node);
 		})
 
 		this.htmlElement.appendChild(fileDropdownMenu.htmlElement);
-		this.htmlElement.appendChild(addNodeDropdown.htmlElement);
+		createNodeDropdowns.forEach(dropdown => {
+			if (dropdown.buttons.length > 0)
+				this.htmlElement.appendChild(dropdown.htmlElement);
+		})
 	}
 
 	createHtmlElement(): HTMLDivElement {

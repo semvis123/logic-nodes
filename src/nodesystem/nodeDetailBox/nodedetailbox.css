@@ -31,3 +31,6 @@
     align-items: center;
     padding-left: 10px;
 }
+.parameter > div > input {
+    min-width: 5rem;
+}
