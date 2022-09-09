@@ -140,7 +140,7 @@ export class NodesystemEventHandler {
 						pannedMouseY >= node.y + outputSpacing * (output.index + 1) - 10 &&
 						pannedMouseY <= node.y + outputSpacing * (output.index + 1) + 10
 					) {
-						const mousePos = { x: mouseX, y: mouseY };
+						const mousePos = { x: pannedMouseX, y: pannedMouseY };
 						const outputPos = {
 							x: output.node.x + output.node.width,
 							y: output.node.y + outputSpacing * (output.index + 1)
