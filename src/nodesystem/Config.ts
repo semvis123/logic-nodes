@@ -45,7 +45,7 @@ export class Config {
 		for (const key in config) {
 			if (typeof this[key] == 'object') {
 				for (const nestedKey in config[key]) {
-					this[key][nestedKey] = config[key][nestedKey]
+					this[key][nestedKey] = config[key][nestedKey];
 				}
 			} else {
 				this[key] = config[key];
