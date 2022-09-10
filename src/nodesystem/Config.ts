@@ -43,7 +43,13 @@ export class Config {
 
 	setConfig(config: object) {
 		for (const key in config) {
-			this[key] = config[key];
+			if (typeof this[key] == 'object') {
+				for (const nestedKey in config[key]) {
+					this[key][nestedKey] = config[key][nestedKey]
+				}
+			} else {
+				this[key] = config[key];
+			}
 		}
 	}
 

@@ -28,6 +28,9 @@ export class FullscreenPrompt {
 		this.popupElement.className = 'popup';
 		this.htmlElement.appendChild(this.popupElement);
 		window.document.body.appendChild(this.htmlElement);
+		// this.popupElement.onclick = (e: Event) => {
+		// 	e.preventDefault();
+		// }
 	}
 
 	requestParameters(title, parameters: NodeParameter[]): Promise<NodeParameter[]> {
@@ -61,10 +64,10 @@ export class FullscreenPrompt {
 				this.htmlElement.remove();
 				resolve(parameters);
 			};
-			this.htmlElement.onclick = () => {
-				this.htmlElement.remove();
-				reject();
-			};
+			// this.htmlElement.onclick = () => {
+			// 	this.htmlElement.remove();
+			// 	reject();
+			// };
 			this.popupElement.appendChild(submitBtn);
 		});
 	}
@@ -89,10 +92,10 @@ export class FullscreenPrompt {
 				listEl.appendChild(paramEl);
 			});
 
-			this.htmlElement.onclick = () => {
-				this.htmlElement.remove();
-				reject();
-			};
+			// this.htmlElement.onclick = () => {
+			// 	this.htmlElement.remove();
+			// 	reject();
+			// };
 
 			this.popupElement.appendChild(listEl);
 		});

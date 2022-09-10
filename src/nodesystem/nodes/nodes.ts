@@ -8,14 +8,20 @@ import { DelayNode } from './DelayNode';
 import { HtmlOverlayNode } from './HtmlOverlayNode';
 import { CounterNode } from './CounterNode';
 import { ButtonNode } from './ButtonNode';
+import { XorNode } from './LogicXorNode';
+import { NandNode } from './LogicNandNode';
+import { NorNode } from './LogicNorNode';
 
 export const nodeClasses = [
 	ToggleNode,
 	AndNode,
+    NorNode,
+	OrNode,
+    XorNode,
+    NandNode,
+	NotNode,
 	ClockNode,
 	CounterNode,
-	OrNode,
-	NotNode,
 	DisplayNode,
 	DelayNode,
 	HtmlOverlayNode,
