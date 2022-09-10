@@ -26,26 +26,26 @@ export class NodeSystem {
 		const save: NodeSaveFile = {
 			nodes: [],
 			connections: [],
-			config: this.config.toObject(),
+			config: this.config.toObject()
 		};
 
 		this.nodeStorage.nodes.forEach((node) => {
-			save.nodes.push({type: node.constructor.name, ...node.save()});
+			save.nodes.push({ type: node.constructor.name, ...node.save() });
 		});
 
 		this.nodeConnectionHandler.connections.forEach((inputs, output) => {
-			inputs.forEach(input => {				
+			inputs.forEach((input) => {
 				save.connections.push({
 					from: {
 						nodeId: output.node.id,
-						index: output.index,
+						index: output.index
 					},
 					to: {
 						nodeId: input.node.id,
-						index: input.index,
-					},
+						index: input.index
+					}
 				});
-			})
+			});
 		});
 
 		return save;

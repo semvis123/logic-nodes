@@ -1,4 +1,4 @@
-import './nodedetailbox.css'
+import './nodedetailbox.css';
 
 export type NodeParameter = {
 	name: string;
@@ -18,51 +18,49 @@ export type NodeParameter = {
 
 export class NodeDetailBox {
 	htmlElement: HTMLDivElement;
-    popupElement: HTMLDivElement;
+	popupElement: HTMLDivElement;
 
 	constructor() {
 		this.htmlElement = document.createElement('div');
-        this.htmlElement.className = "popup-container";
+		this.htmlElement.className = 'popup-container';
 		this.popupElement = document.createElement('div');
-        this.popupElement.className = "popup";
-        this.htmlElement.appendChild(this.popupElement);
+		this.popupElement.className = 'popup';
+		this.htmlElement.appendChild(this.popupElement);
 		window.document.body.appendChild(this.htmlElement);
 	}
 
 	requestParameters(title, parameters: NodeParameter[]): Promise<NodeParameter[]> {
-		return new Promise(((resolve) => {
+		return new Promise((resolve) => {
 			const titleEl = document.createElement('h1');
 			titleEl.innerText = title;
-            this.popupElement.appendChild(titleEl);
-            parameters = parameters.map((param)=>Object.assign({}, param));
+			this.popupElement.appendChild(titleEl);
+			parameters = parameters.map((param) => Object.assign({}, param));
 			parameters.forEach((param) => {
 				const paramEl = document.createElement('div');
 				const paramLabel = document.createElement('p');
 				const paramInput = document.createElement('input');
-                const paramInputContainer = document.createElement('div');
+				const paramInputContainer = document.createElement('div');
 				paramLabel.innerText = param.label;
 				Object.assign(paramInput, param);
-                paramInputContainer.appendChild(paramInput);
+				paramInputContainer.appendChild(paramInput);
 				paramEl.appendChild(paramLabel);
 				paramEl.appendChild(paramInputContainer);
-                paramEl.className = 'parameter';
+				paramEl.className = 'parameter';
 				paramInput.onchange = (e) => {
-                    if (param.type == 'checkbox')
-					    param.checked = (e.currentTarget as HTMLInputElement).checked;
-                    else
-					    param.value = (e.currentTarget as HTMLInputElement).value;
+					if (param.type == 'checkbox') param.checked = (e.currentTarget as HTMLInputElement).checked;
+					else param.value = (e.currentTarget as HTMLInputElement).value;
 				};
 				this.popupElement.appendChild(paramEl);
 			});
 
 			const submitBtn = document.createElement('input');
-            submitBtn.type = 'button';
-            submitBtn.value = 'Save'
+			submitBtn.type = 'button';
+			submitBtn.value = 'Save';
 			submitBtn.onclick = () => {
-                this.htmlElement.remove();
+				this.htmlElement.remove();
 				resolve(parameters);
 			};
-            this.popupElement.appendChild(submitBtn);
-		}));
+			this.popupElement.appendChild(submitBtn);
+		});
 	}
 }

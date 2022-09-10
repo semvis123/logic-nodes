@@ -1,3 +1,4 @@
+import type { Config } from './Config';
 import type { Node } from './Node';
 import type { NodeStorage } from './NodeStorage';
 
@@ -18,7 +19,13 @@ export const roundRect = (x: number, y: number, w: number, h: number, r: number)
 	return path;
 };
 
-export const positionNode = (node: Node, nodeStorage: NodeStorage, x: number, y: number) => {
+export const positionNode = (node: Node, x: number, y: number, nodeStorage: NodeStorage, config: Config) => {
+	if (config.nodesCanOverlap) {
+		node.x = x;
+		node.y = y;
+		return;
+	}
+
 	const directions = [
 		[0, -1],
 		[0, 1],
@@ -29,7 +36,7 @@ export const positionNode = (node: Node, nodeStorage: NodeStorage, x: number, y:
 		[1, -1],
 		[1, 1]
 	];
-	const padding = 10;
+	const padding = config.nodeSpacing;
 	let found = false;
 	let d = -1;
 	let dir: number[];

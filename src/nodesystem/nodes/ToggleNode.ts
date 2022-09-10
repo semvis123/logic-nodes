@@ -67,13 +67,12 @@ export class ToggleNode extends Node {
 		return false;
 	}
 
-
 	getMetadata(): Metadata {
 		return {
 			displayName: 'Toggle',
 			category: 'Input',
 			parameters: this.parameters
-		}
+		};
 	}
 
 	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {

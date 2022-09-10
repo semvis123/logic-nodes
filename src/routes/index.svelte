@@ -8,7 +8,7 @@
 	let height = 500;
 	let nodeSystem = null;
 	let overlayContainer = null;
-	$: (width, height), resize()
+	$: (width, height), resize();
 
 	onMount(() => {
 		nodeSystem = new NodeSystem(canvas, overlayContainer);
@@ -21,7 +21,7 @@
 	const resize = () => {
 		if (nodeSystem == null) return;
 		nodeSystem.nodeRenderer.render();
-	}
+	};
 </script>
 
 <svelte:head>
@@ -43,14 +43,10 @@
 			top: 0;
 			left: 0;
 		}
-
 	</style>
 </svelte:head>
 
-<div
-  class="container"
-  bind:clientWidth={width}
-  bind:clientHeight={height}>
-	<canvas bind:this={canvas} {width} {height}></canvas>
-	<div class="overlayContainer" bind:this={overlayContainer}></div>
+<div class="container" bind:clientWidth={width} bind:clientHeight={height}>
+	<canvas bind:this={canvas} {width} {height} />
+	<div class="overlayContainer" bind:this={overlayContainer} />
 </div>

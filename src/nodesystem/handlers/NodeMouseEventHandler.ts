@@ -268,7 +268,7 @@ export class NodesystemEventHandler {
 		} else {
 			if (this.selectedNodes) {
 				this.selectedNodes.forEach((node) => {
-					positionNode(node, this.nodeSystem.nodeStorage, node.x, node.y);
+					positionNode(node, node.x, node.y, this.nodeSystem.nodeStorage, this.nodeSystem.config);
 				});
 			}
 			this.selectedNodes = undefined;

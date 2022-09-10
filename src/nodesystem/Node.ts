@@ -64,7 +64,7 @@ export class Node {
 					const clone = this.save();
 					clone.id = uuid();
 					const cloneNode = Object.getPrototypeOf(this).constructor.load(clone, this.nodeSystem);
-					positionNode(cloneNode, this.nodeSystem.nodeStorage, clone.x, clone.y);
+					positionNode(cloneNode, clone.x, clone.y, this.nodeSystem.nodeStorage, this.nodeSystem.config);
 					this.nodeSystem.nodeStorage.addNode(cloneNode);
 					menu.remove();
 				}).bind(this)

@@ -58,8 +58,7 @@ export class NodeConnectionHandler {
 
 	updateValue(output: NodeOutput) {
 		this.toUpdate.add(output);
-		if (!this.updateTimer)
-			this.updateTimer = setTimeout(this.updateAllValues.bind(this), 10);
+		if (!this.updateTimer) this.updateTimer = setTimeout(this.updateAllValues.bind(this), 10);
 	}
 
 	updateAllValues() {
@@ -68,7 +67,7 @@ export class NodeConnectionHandler {
 		const updateSnapshot = Array.from(this.toUpdate);
 		this.toUpdate.clear();
 
-		updateSnapshot.forEach(output => {
+		updateSnapshot.forEach((output) => {
 			const connections = this.connections.get(output);
 			if (connections) {
 				connections.forEach((input) => {
@@ -91,8 +90,7 @@ export class NodeConnectionHandler {
 				ctx.beginPath();
 				if (config.colorConnectionLines)
 					ctx.strokeStyle = fromOutput.value ? config.theme.nodeHighColor : config.theme.nodeLowColor;
-				else
-					ctx.strokeStyle = config.theme.connectionColor
+				else ctx.strokeStyle = config.theme.connectionColor;
 				const toX = toInput.node.x - config.theme.connectionPointRadius;
 				const inputOffset = (toInput.node.height / (toInput.node.inputs.length + 1)) * (toInput.index + 1);
 				const toY = toInput.node.y + inputOffset;
@@ -100,8 +98,8 @@ export class NodeConnectionHandler {
 				const outputOffset = (fromOutput.node.height / (fromOutput.node.outputs.length + 1)) * (fromOutput.index + 1);
 				const fromY = fromOutput.node.y + outputOffset;
 				ctx.moveTo(fromX, fromY);
-				const controlOffsetX = -(fromOutput.node.x - toInput.node.x) / 3 + fromOutput.node.width / 2;
-				const controlOffsetY = -(fromOutput.node.y - toInput.node.y) / 3;
+				const controlOffsetX = -(fromOutput.node.x - toInput.node.x) / 5;
+				const controlOffsetY = -(fromOutput.node.y - toInput.node.y) / 5;
 				ctx.bezierCurveTo(
 					fromX + controlOffsetX,
 					fromY + controlOffsetY,

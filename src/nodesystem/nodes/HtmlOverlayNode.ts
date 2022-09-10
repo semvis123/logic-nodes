@@ -62,7 +62,6 @@ export class HtmlOverlayNode extends Node {
 		super.cleanup();
 	}
 
-
 	getMetadata(): Metadata {
 		return {
 			displayName: 'HTML overlay',

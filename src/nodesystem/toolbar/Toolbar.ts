@@ -53,19 +53,20 @@ export class Toolbar {
 			a.click();
 		});
 
-
 		const settingsButton = new ToolbarButton('Settings', async () => {
 			// show setting popup
 			const popup = new NodeDetailBox();
-			const parameters = await popup.requestParameters('Settings', [{
-				name: 'colorConnectionLines',
-				label: 'Change connection line color based on value.',
-				checked: this.nodeSystem.config.colorConnectionLines,
-				type: 'checkbox'
-			}]);
-			parameters.forEach(param => {
+			const parameters = await popup.requestParameters('Settings', [
+				{
+					name: 'colorConnectionLines',
+					label: 'Change connection line color based on value.',
+					checked: this.nodeSystem.config.colorConnectionLines,
+					type: 'checkbox'
+				}
+			]);
+			parameters.forEach((param) => {
 				this.nodeSystem.config[param.name] = param.type == 'checkbox' ? param.checked : param.value;
-			})
+			});
 		});
 
 		fileDropdownMenu.addButton(newButton);
@@ -77,33 +78,39 @@ export class Toolbar {
 		this.htmlElement.appendChild(fileDropdownMenu.htmlElement);
 
 		const createNodeDropdowns = new Map<MetadataCategory, ToolbarDropdownMenu>();
-		metadataCategories.forEach(category => {
+		metadataCategories.forEach((category) => {
 			createNodeDropdowns.set(category, new ToolbarDropdownMenu(category));
 		});
 
-		nodeClasses.forEach(nodeClass => {
+		nodeClasses.forEach((nodeClass) => {
 			const node = new ToolbarButton(nodeClass.prototype.getMetadata().displayName, () => {
 				const newNode = new nodeClass(uuid(), 0, 0, this.nodeSystem);
-				positionNode(newNode, this.nodeSystem.nodeStorage, window.innerWidth / 2, window.innerHeight / 2);
+				positionNode(
+					newNode,
+					window.innerWidth / 2,
+					window.innerHeight / 2,
+					this.nodeSystem.nodeStorage,
+					this.nodeSystem.config
+				);
 				this.nodeSystem.nodeStorage.addNode(newNode);
 				this.nodeSystem.nodeRenderer.render();
 			});
 			createNodeDropdowns.get(nodeClass.prototype.getMetadata().category ?? 'Misc').addButton(node);
-		})
+		});
 
-		createNodeDropdowns.forEach(dropdown => {
+		createNodeDropdowns.forEach((dropdown) => {
 			if (dropdown.buttons.length > 0) {
-				this.buttons.push(dropdown)
+				this.buttons.push(dropdown);
 				this.htmlElement.appendChild(dropdown.htmlElement);
 				dropdown.onOpen = this.closeAll.bind(this);
 			}
-		})
+		});
 	}
 
 	closeAll() {
-		this.buttons.forEach(dropdown => {
+		this.buttons.forEach((dropdown) => {
 			if (!(dropdown instanceof ToolbarDropdownMenu)) return;
-			dropdown.close();			
+			dropdown.close();
 		});
 	}
 

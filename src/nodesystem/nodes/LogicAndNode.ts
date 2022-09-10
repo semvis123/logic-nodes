@@ -37,10 +37,10 @@ export class AndNode extends Node {
 	reset() {
 		while (this.inputs.length > this.getParamValue('inputs', 2)) {
 			// remove inputs
-			this.nodeSystem.nodeConnectionHandler.removeFirstConnection(this.inputs[this.inputs.length - 1])
+			this.nodeSystem.nodeConnectionHandler.removeFirstConnection(this.inputs[this.inputs.length - 1]);
 		}
 		while (this.inputs.length < this.getParamValue('inputs', 2)) {
-			this.inputs.push(new NodeInput(uuid(), '-', NodeValueType.Number))
+			this.inputs.push(new NodeInput(uuid(), '-', NodeValueType.Number));
 		}
 		this.inputs.forEach((input, i) => input.setNode(this, i));
 		this.height = Math.max(this.inputs.length * 20, 40);
@@ -48,13 +48,12 @@ export class AndNode extends Node {
 
 	update() {
 		let value = 1;
-		this.inputs.forEach(input => {
-			value &= (input.value as number);
-		})
+		this.inputs.forEach((input) => {
+			value &= input.value as number;
+		});
 
 		this.outputs[0].setValue(value);
 	}
-
 
 	getMetadata(): Metadata {
 		return {

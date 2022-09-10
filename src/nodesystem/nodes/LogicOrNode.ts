@@ -29,7 +29,6 @@ export class OrNode extends Node {
 		this.outputs[0].setValue((this.inputs[0].value as number) | (this.inputs[1].value as number));
 	}
 
-
 	getMetadata(): Metadata {
 		return {
 			displayName: 'Or',

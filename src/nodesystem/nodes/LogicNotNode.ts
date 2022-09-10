@@ -26,9 +26,8 @@ export class NotNode extends Node {
 	}
 
 	update() {
-		this.outputs[0].setValue(!(this.inputs[0].value));
+		this.outputs[0].setValue(!this.inputs[0].value);
 	}
-
 
 	getMetadata(): Metadata {
 		return {

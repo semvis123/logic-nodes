@@ -3,7 +3,7 @@ import type { ToolbarButton } from './ToolbarButton';
 export class ToolbarDropdownMenu {
 	htmlElement: HTMLDivElement;
 	isOpen: boolean;
-	onOpen: ()=>void;
+	onOpen: () => void;
 
 	constructor(public name: string, public buttons: ToolbarButton[] = []) {
 		this.createHtmlElement();
@@ -19,10 +19,8 @@ export class ToolbarDropdownMenu {
 		this.htmlElement.onclick = (event) => {
 			if (!this.isOpen && this.onOpen) this.onOpen();
 			event.stopPropagation();
-			if (this.isOpen)
-				this.close();
-			else
-				this.open();
+			if (this.isOpen) this.close();
+			else this.open();
 		};
 
 		return this.htmlElement;

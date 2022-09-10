@@ -1,36 +1,36 @@
 .popup-container {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100vw;
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: #101010db;
-    z-index: 100;
-    color: #fff;
-    font: normal normal normal 14px/1.4em 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 100vw;
+	height: 100vh;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	background: #101010db;
+	z-index: 100;
+	color: #fff;
+	font: normal normal normal 14px/1.4em 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 .popup {
-    background: #060606;
-    padding: 2em;
-    padding-top: 0.5em;
-    border-radius: 12px;
-    border: solid 1px rgb(133, 133, 133);
+	background: #060606;
+	padding: 2em;
+	padding-top: 0.5em;
+	border-radius: 12px;
+	border: solid 1px rgb(133, 133, 133);
 }
 
-.parameter { 
-    display: flex;
-    flex-flow: row;
+.parameter {
+	display: flex;
+	flex-flow: row;
 }
 
 .parameter > div {
-    display: flex;
-    align-items: center;
-    padding-left: 10px;
+	display: flex;
+	align-items: center;
+	padding-left: 10px;
 }
 .parameter > div > input {
-    min-width: 5rem;
+	min-width: 5rem;
 }

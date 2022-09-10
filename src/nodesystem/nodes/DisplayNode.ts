@@ -39,7 +39,7 @@ export class DisplayNode extends Node {
 		ctx.fill(path);
 		ctx.fillStyle = this.style.fontColor;
 		if (this.getParamValue('showValue', false)) {
-			ctx.fillText((this.inputs[0].value == 0) ? '0' : '1', (this.width * 1) / 2, this.height / 2);
+			ctx.fillText(this.inputs[0].value == 0 ? '0' : '1', (this.width * 1) / 2, this.height / 2);
 		}
 		this.renderConnectionPoints(ctx);
 	}
@@ -52,7 +52,8 @@ export class DisplayNode extends Node {
 		};
 	}
 
-	update() {//
+	update() {
+		//
 	}
 
 	reset(): void {

@@ -1,23 +1,25 @@
 export type ThemeConfig = {
-	backgroundColor: string,
-	nodeBackfroundColor: string,
-	nodeBorderColor: string,
-	nodeTextColor: string,
-	connectionColor: string,
-	nodeSelectedColor: string,
-	nodeSelectionSquareColor: string,
-	connectionPointRadius: number,
-	nodeBorderRadius: number,
-	nodeHighColor: string,
-	nodeLowColor: string,
-}
+	backgroundColor: string;
+	nodeBackfroundColor: string;
+	nodeBorderColor: string;
+	nodeTextColor: string;
+	connectionColor: string;
+	nodeSelectedColor: string;
+	nodeSelectionSquareColor: string;
+	connectionPointRadius: number;
+	nodeBorderRadius: number;
+	nodeHighColor: string;
+	nodeLowColor: string;
+};
 
 export type ConfigType = {
-	theme: ThemeConfig,
-	renderMode: 'variable',
+	theme: ThemeConfig;
+	renderMode: 'variable';
 	hardwareAccelerationHtmlOverlay: boolean;
 	colorConnectionLines: boolean;
-}
+	nodeSpacing: number;
+	nodesCanOverlap: boolean;
+};
 
 export class Config {
 	theme = {
@@ -30,12 +32,14 @@ export class Config {
 		nodeSelectionSquareColor: 'rgba(0, 0, 0, 0.2)',
 		connectionPointRadius: 3,
 		nodeBorderRadius: 3,
-		nodeHighColor: "#372",
-		nodeLowColor: "#f23"
+		nodeHighColor: '#372',
+		nodeLowColor: '#f23'
 	};
 	renderMode = 'variable';
 	hardwareAccelerationHtmlOverlay = true;
 	colorConnectionLines = true;
+	nodeSpacing = 5;
+	nodesCanOverlap = false;
 
 	setConfig(config: object) {
 		for (const key in config) {
@@ -54,7 +58,7 @@ export class Config {
 				config[key] = this[key];
 			}
 		}
-		return (config as ConfigType); 
+		return config as ConfigType;
 	}
 
 	setValue(key: string, value: string | number | boolean) {

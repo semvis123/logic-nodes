@@ -67,9 +67,13 @@ export class ButtonNode extends Node {
 	}
 
 	onclick(e: MouseEvent, pos: { x: number; y: number }) {
-		if ((pos.x < this.padding || pos.x > this.width - this.padding) ||
-			(pos.y < this.padding || pos.y > this.height - this.padding)
-		) return true;
+		if (
+			pos.x < this.padding ||
+			pos.x > this.width - this.padding ||
+			pos.y < this.padding ||
+			pos.y > this.height - this.padding
+		)
+			return true;
 		if (this.timer) return false;
 		this.toggle();
 		this.timer = setTimeout(() => {
@@ -78,13 +82,12 @@ export class ButtonNode extends Node {
 		return false;
 	}
 
-
 	getMetadata(): Metadata {
 		return {
 			displayName: 'Button',
 			category: 'Input',
 			parameters: this.parameters
-		}
+		};
 	}
 
 	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
