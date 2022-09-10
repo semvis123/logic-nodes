@@ -34,3 +34,32 @@
 .parameter > div > input {
 	min-width: 5rem;
 }
+
+ul {
+	padding-left: 0;
+	margin-right: 0.67em;
+	margin-left: 0;
+	margin-bottom: 0;
+}
+
+.list-item {
+	background: #0e0e0e;
+	list-style-type: none;
+	border-color: #fff;
+	border-width: 1px;
+	border-style: solid;
+	border-radius: 6px;
+	width: 100%;
+	text-align: center;
+	margin-top: 4px;
+	cursor: pointer;
+}
+
+.list-item:hover {
+	background: #1b1b1b;
+	border-color: #fff;
+	font-weight: bold;
+}
+
+button {
+}

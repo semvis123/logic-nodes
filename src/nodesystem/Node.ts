@@ -5,7 +5,7 @@ import './node.css';
 import { positionNode, roundRect, uuid } from './utils';
 import type { Metadata } from './Metadata';
 import type { NodeSystem } from './NodeSystem';
-import { NodeDetailBox, type NodeParameter } from './nodeDetailBox/NodeDetailBox';
+import { FullscreenPrompt, type NodeParameter } from './fullscreenPrompt/FullscreenPrompt';
 import type { NodeSaveData } from './NodeSaveData';
 
 export class Node {
@@ -45,7 +45,7 @@ export class Node {
 				text: 'Edit',
 				onclick: (async () => {
 					menu.remove();
-					const popup = new NodeDetailBox();
+					const popup = new FullscreenPrompt();
 					this.parameters = await popup.requestParameters('Edit', this.getMetadata().parameters);
 					this.reset();
 				}).bind(this)

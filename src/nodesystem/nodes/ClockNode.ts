@@ -4,7 +4,7 @@ import { roundRect, uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
 import type { NodeSystem } from '../NodeSystem';
 import type { Metadata } from '../Metadata';
-import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
+import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { NodeSaveData } from '../NodeSaveData';
 
 export class ClockNode extends Node {

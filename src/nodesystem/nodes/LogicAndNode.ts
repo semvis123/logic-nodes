@@ -4,7 +4,7 @@ import { uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
 import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
-import type { NodeParameter } from '../nodeDetailBox/NodeDetailBox';
+import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
 import type { NodeSaveData } from '../NodeSaveData';
 

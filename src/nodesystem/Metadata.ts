@@ -1,4 +1,4 @@
-import type { NodeParameter } from './nodeDetailBox/NodeDetailBox';
+import type { NodeParameter } from './fullscreenPrompt/FullscreenPrompt';
 
 export const metadataCategories = ['Logic', 'Input', 'Output', 'Generators', 'Misc'] as const;
 

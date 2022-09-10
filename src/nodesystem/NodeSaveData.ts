@@ -1,4 +1,4 @@
-import type { NodeParameter } from './nodeDetailBox/NodeDetailBox';
+import type { NodeParameter } from './fullscreenPrompt/FullscreenPrompt';
 
 export type NodeSaveData = {
 	id: string;

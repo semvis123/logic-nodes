@@ -1,5 +1,5 @@
 import type { ConfigType } from './Config';
-import type { NodeParameter } from './nodeDetailBox/NodeDetailBox';
+import type { NodeParameter } from './fullscreenPrompt/FullscreenPrompt';
 
 export interface NodeSaveFile {
 	nodes: {
