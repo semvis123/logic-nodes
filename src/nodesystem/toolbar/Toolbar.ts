@@ -75,6 +75,7 @@ export class Toolbar {
 			window.localStorage.setItem('save_' + newSaveId, saveData);
 			this.nodeSystem.saveId = newSaveId;
 			this.nodeSystem.filename = filename;
+			this.nodeSystem.displayFileInfo();
 		};
 
 		const importAction = () => {
