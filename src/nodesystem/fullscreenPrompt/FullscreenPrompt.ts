@@ -34,6 +34,22 @@ export class FullscreenPrompt {
 		return new Promise((resolve, reject) => {
 			const titleEl = document.createElement('h1');
 			titleEl.innerText = title;
+			const submitBtn = document.createElement('input');
+			submitBtn.type = 'button';
+			submitBtn.value = 'Save';
+			submitBtn.onclick = () => {
+				this.htmlElement.remove();
+				resolve(parameters);
+			};
+			
+			const cancelBtn = document.createElement('input');
+			cancelBtn.type = 'button';
+			cancelBtn.value = 'x';
+			cancelBtn.className = 'cancelbtn';
+			cancelBtn.onclick = () => {
+				this.htmlElement.remove();
+				reject();
+			};
 			this.popupElement.appendChild(titleEl);
 			parameters = parameters.map((param) => Object.assign({}, param));
 			parameters.forEach((param) => {
@@ -52,25 +68,12 @@ export class FullscreenPrompt {
 					if (param.type == 'checkbox') param.checked = (e.currentTarget as HTMLInputElement).checked;
 					else param.value = (e.currentTarget as HTMLInputElement).value;
 				};
+				paramInput.onkeydown = (e: KeyboardEvent) => {
+					if (e.code == 'Enter') submitBtn.click();
+				}
 				this.popupElement.appendChild(paramEl);
 			});
 
-			const submitBtn = document.createElement('input');
-			submitBtn.type = 'button';
-			submitBtn.value = 'Save';
-			submitBtn.onclick = () => {
-				this.htmlElement.remove();
-				resolve(parameters);
-			};
-			
-			const cancelBtn = document.createElement('input');
-			cancelBtn.type = 'button';
-			cancelBtn.value = 'x';
-			cancelBtn.className = 'cancelbtn';
-			cancelBtn.onclick = () => {
-				this.htmlElement.remove();
-				reject();
-			};
 			
 			this.popupElement.appendChild(cancelBtn);
 			this.popupElement.appendChild(submitBtn);

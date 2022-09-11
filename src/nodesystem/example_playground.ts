@@ -28,7 +28,7 @@ export const playground: NodeSaveFile = {
 				{
 					name: 'interval',
 					label: 'Interval',
-					value: 100,
+					value: 1000,
 					type: 'number',
 					required: true,
 					min: 10

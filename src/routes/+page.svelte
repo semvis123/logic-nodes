@@ -3,8 +3,8 @@
 	import { NodeSystem } from '../nodesystem/NodeSystem';
 	import { onMount } from 'svelte';
 
-	export const csr = true;
-	export const prerender = false;
+	export const csr = false;
+	export const prerender = true;
 
 	let canvas: HTMLCanvasElement;
 
