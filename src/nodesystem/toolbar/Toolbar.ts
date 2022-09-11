@@ -9,6 +9,8 @@ import './toolbar.css';
 import { FullscreenPrompt } from '../fullscreenPrompt/FullscreenPrompt';
 import type { NodeSaveFile } from '../NodeSaveFile';
 
+type SaveMetadata = { id: number; filename: string };
+
 export class Toolbar {
 	htmlElement: HTMLDivElement;
 	buttons: (ToolbarButton | ToolbarDropdownMenu)[] = [];
@@ -35,9 +37,7 @@ export class Toolbar {
 			const save: NodeSaveFile = JSON.parse(window.localStorage.getItem('save_' + saveMetaData.id));
 			this.nodeSystem.reset();
 			this.nodeSystem.config.setConfig(save.config);
-			this.nodeSystem.loadSave(save);
-			this.nodeSystem.saveId = saveMetaData.id;
-			this.nodeSystem.filename = saveMetaData.filename;
+			this.nodeSystem.loadSave(save, saveMetaData.filename, saveMetaData.id);
 			this.nodeSystem.nodeRenderer.render();
 		};
 
@@ -68,7 +68,6 @@ export class Toolbar {
 			]);
 			const filename = params[0].value as string;
 
-			type SaveMetadata = { id: number; filename: string };
 			const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
 			saves.push({ id: newSaveId, filename });
 			window.localStorage.setItem('saves', JSON.stringify(saves));
@@ -91,7 +90,7 @@ export class Toolbar {
 						const json = JSON.parse(reader.result as string);
 						this.nodeSystem.reset();
 						this.nodeSystem.config.setConfig(json.config);
-						this.nodeSystem.loadSave(json);
+						this.nodeSystem.loadSave(json, 'Unsaved import', -1);
 					};
 					reader.readAsText(file);
 				}
@@ -126,7 +125,11 @@ export class Toolbar {
 					label: 'Current savefile',
 					value: 'Delete',
 					onclick: () => {
-						//
+						const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
+						const newSaves = saves.filter((value) => value.id != this.nodeSystem.saveId);
+						window.localStorage.setItem('saves', JSON.stringify(newSaves));
+						window.localStorage.removeItem('save_' + this.nodeSystem.saveId);
+						this.htmlElement.remove();
 					}
 				}
 			]);

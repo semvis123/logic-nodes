@@ -6,38 +6,30 @@ import { roundRect, textColor } from '../utils';
 
 export class LabelNode extends Node {
 	padding = 5;
-	parameters: NodeParameter[] = [{
-		name: 'text',
-		label: 'Text',
-		value: 'Label',
-		type: 'text'
-	},
-	{
-		name: 'bgcolor',
-		label: 'Background color',
-		value: '#fff',
-		type: 'color'
-	},
-	{
-		name: 'fontsize',
-		label: 'Font size',
-		value: 12,
-		type: 'number',
-		step: 1
-	}
-];
+	parameters: NodeParameter[] = [
+		{
+			name: 'text',
+			label: 'Text',
+			value: 'Label',
+			type: 'text'
+		},
+		{
+			name: 'bgcolor',
+			label: 'Background color',
+			value: '#fff',
+			type: 'color'
+		},
+		{
+			name: 'fontsize',
+			label: 'Font size',
+			value: 12,
+			type: 'number',
+			step: 1
+		}
+	];
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
-		super(
-			id,
-			x,
-			y,
-			40,
-			20,
-			[],
-			[],
-			nodeSystem
-		);
+		super(id, x, y, 40, 20, [], [], nodeSystem);
 		this.parameters[1].value = this.style.color;
 		this.parameters[2].value = this.style.fontSize;
 		this.importParams(parameters);
@@ -65,7 +57,7 @@ export class LabelNode extends Node {
 		ctx.fillStyle = textColor(bgColor);
 		ctx.fillText(this.getParamValue('text', 'Label'), this.width / 2, this.height / 2);
 	}
-	
+
 	reset(): void {
 		this.nodeSystem.nodeRenderer.render();
 	}

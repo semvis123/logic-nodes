@@ -23,7 +23,7 @@ export class OrNode extends Node {
 		);
 		this.importParams(parameters);
 	}
-	
+
 	getMetadata(): Metadata {
 		return {
 			nodeName: 'OrNode',

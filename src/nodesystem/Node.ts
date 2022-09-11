@@ -95,7 +95,7 @@ export abstract class Node {
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 		ctx.font = `${this.style.fontSize}px ${this.style.fontFamily}`;
-		
+
 		// scale font down if text exceeds width
 		const textMetrics = ctx.measureText(this.getMetadata().displayName);
 		let width = textMetrics.width + textPadding * 2;
@@ -177,10 +177,10 @@ export abstract class Node {
 	}
 
 	importParams(params: NodeParameter[]) {
-		params?.forEach(param => {
+		params?.forEach((param) => {
 			const existingParam = this.getParam(param.name);
 			if (!existingParam) {
-				this.parameters.push(param)
+				this.parameters.push(param);
 				return;
 			}
 
@@ -189,7 +189,7 @@ export abstract class Node {
 					existingParam[key] = param[key];
 				}
 			}
-		})
+		});
 	}
 
 	save(): NodeSaveData {
@@ -203,7 +203,13 @@ export abstract class Node {
 	}
 
 	static load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
-		return new (this as unknown as NodeConstructor)(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
+		return new (this as unknown as NodeConstructor)(
+			saveData.id,
+			saveData.x,
+			saveData.y,
+			nodeSystem,
+			saveData.parameters
+		);
 	}
 
 	reset() {

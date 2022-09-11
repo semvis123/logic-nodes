@@ -23,7 +23,7 @@ export class NotNode extends Node {
 		);
 		this.importParams(parameters);
 	}
-	
+
 	getMetadata(): Metadata {
 		return {
 			nodeName: 'NotNode',
@@ -32,7 +32,7 @@ export class NotNode extends Node {
 			parameters: this.parameters
 		};
 	}
-	
+
 	update() {
 		this.outputs[0].setValue(!this.inputs[0].value);
 	}

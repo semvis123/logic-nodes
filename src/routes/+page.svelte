@@ -10,11 +10,12 @@
 	let width = 500;
 	let height = 500;
 	let nodeSystem = null;
-	let overlayContainer = null;
+	let canvasOverlayContainer: HTMLDivElement;
+	let overlayContainer: HTMLDivElement;
 	$: (width, height), resize();
 
 	onMount(() => {
-		nodeSystem = new NodeSystem(canvas, overlayContainer);
+		nodeSystem = new NodeSystem(canvas, canvasOverlayContainer, overlayContainer);
 		document.oncontextmenu = (e) => {
 			e.preventDefault();
 			return false;
@@ -45,11 +46,14 @@
 			position: absolute;
 			top: 0;
 			left: 0;
+			height: 100vh;
+			width: 100vw;
 		}
 	</style>
 </svelte:head>
 
 <div class="container" bind:clientWidth={width} bind:clientHeight={height}>
 	<canvas bind:this={canvas} {width} {height} />
+	<div class="overlayContainer" bind:this={canvasOverlayContainer} />
 	<div class="overlayContainer" bind:this={overlayContainer} />
 </div>

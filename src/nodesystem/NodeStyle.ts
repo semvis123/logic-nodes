@@ -1,4 +1,4 @@
-export interface NodeStyle {
+export type NodeStyle = {
 	color: string;
 	borderColor: string;
 	borderWidth: number;
@@ -6,4 +6,4 @@ export interface NodeStyle {
 	fontSize: number;
 	fontFamily: string;
 	fontColor: string;
-}
+};

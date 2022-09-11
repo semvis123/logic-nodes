@@ -1,7 +1,7 @@
 import type { ConfigType } from './Config';
 import type { NodeParameter } from './fullscreenPrompt/FullscreenPrompt';
 
-export interface NodeSaveFile {
+export type NodeSaveFile = {
 	nodes: {
 		id: string;
 		type: string;
@@ -20,4 +20,4 @@ export interface NodeSaveFile {
 		};
 	}[];
 	config?: ConfigType;
-}
+};
