@@ -5,7 +5,6 @@ import { NodeValueType } from '../NodeValueType';
 import type { NodeSystem } from '../NodeSystem';
 import type { Metadata } from '../Metadata';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
-import type { NodeSaveData } from '../NodeSaveData';
 
 export class ClockNode extends Node {
 	currentValue = 0;
@@ -23,8 +22,17 @@ export class ClockNode extends Node {
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(id, x, y, 40, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
-		this.parameters = parameters ?? this.parameters;
+		this.importParams(parameters);
 		this.timer = setInterval(() => this.toggle(), this.getParamValue('interval', 1000));
+	}
+
+	getMetadata(): Metadata {
+		return {
+			nodeName: 'ClockNode',
+			displayName: 'Interval',
+			category: 'Misc',
+			parameters: this.parameters
+		};
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -62,27 +70,5 @@ export class ClockNode extends Node {
 	toggle() {
 		this.currentValue = this.currentValue === 0 ? 1 : 0;
 		this.update();
-	}
-
-	getMetadata(): Metadata {
-		return {
-			nodeName: 'ClockNode',
-			displayName: 'Interval',
-			category: 'Misc',
-			parameters: this.parameters
-		};
-	}
-
-	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
-		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
-	}
-
-	override save(): NodeSaveData {
-		return {
-			id: this.id,
-			x: this.x,
-			y: this.y,
-			parameters: this.parameters
-		};
 	}
 }

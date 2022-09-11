@@ -6,7 +6,6 @@ import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
-import type { NodeSaveData } from '../NodeSaveData';
 
 export class AndNode extends Node {
 	parameters: NodeParameter[] = [
@@ -31,7 +30,16 @@ export class AndNode extends Node {
 			[new NodeOutput(uuid(), 'output', NodeValueType.Number)],
 			nodeSystem
 		);
-		this.parameters = parameters ?? this.parameters;
+		this.importParams(parameters);
+	}
+
+	getMetadata(): Metadata {
+		return {
+			nodeName: 'AndNode',
+			displayName: 'AND',
+			category: 'Logic',
+			parameters: this.parameters
+		};
 	}
 
 	reset() {
@@ -53,27 +61,5 @@ export class AndNode extends Node {
 		});
 
 		this.outputs[0].setValue(value);
-	}
-
-	getMetadata(): Metadata {
-		return {
-			nodeName: 'AndNode',
-			displayName: 'And',
-			category: 'Logic',
-			parameters: this.parameters
-		};
-	}
-
-	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
-		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
-	}
-
-	override save(): NodeSaveData {
-		return {
-			id: this.id,
-			x: this.x,
-			y: this.y,
-			parameters: this.parameters
-		};
 	}
 }

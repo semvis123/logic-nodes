@@ -5,7 +5,6 @@ import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
-import type { NodeSaveData } from '../NodeSaveData';
 
 export class CounterNode extends Node {
 	parameters: NodeParameter[] = [];
@@ -22,7 +21,16 @@ export class CounterNode extends Node {
 			[],
 			nodeSystem
 		);
-		this.parameters = parameters ?? this.parameters;
+		this.importParams(parameters);
+	}
+
+	getMetadata(): Metadata {
+		return {
+			nodeName: 'CounterNode',
+			displayName: 'Counter',
+			category: 'Output',
+			parameters: this.parameters
+		};
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -45,15 +53,6 @@ export class CounterNode extends Node {
 		this.renderConnectionPoints(ctx);
 	}
 
-	getMetadata(): Metadata {
-		return {
-			nodeName: 'CounterNode',
-			displayName: 'Counter',
-			category: 'Output',
-			parameters: this.parameters
-		};
-	}
-
 	update() {
 		if (this.inputs[0].value == 1) {
 			this.count++;
@@ -61,19 +60,5 @@ export class CounterNode extends Node {
 		if (this.inputs[1].value == 1) {
 			this.count = 0;
 		}
-		//
-	}
-
-	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
-		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
-	}
-
-	override save(): NodeSaveData {
-		return {
-			id: this.id,
-			x: this.x,
-			y: this.y,
-			parameters: this.parameters
-		};
 	}
 }

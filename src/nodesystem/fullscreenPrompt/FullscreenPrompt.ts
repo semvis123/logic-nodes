@@ -3,7 +3,7 @@ import './fullscreenPrompt.css';
 export type NodeParameter = {
 	name: string;
 	label?: string;
-	type?: 'number' | 'text' | 'checkbox' | 'button';
+	type?: 'number' | 'text' | 'checkbox' | 'button' | 'color';
 	value?: string | number;
 	step?: number;
 	readonly?: boolean;

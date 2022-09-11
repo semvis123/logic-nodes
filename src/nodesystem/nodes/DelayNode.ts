@@ -6,7 +6,6 @@ import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { Metadata } from '../Metadata';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
-import type { NodeSaveData } from '../NodeSaveData';
 
 export class DelayNode extends Node {
 	parameters: NodeParameter[] = [
@@ -32,7 +31,16 @@ export class DelayNode extends Node {
 			[new NodeOutput(uuid(), 'delayed output', NodeValueType.Number)],
 			nodeSystem
 		);
-		this.parameters = parameters ?? this.parameters;
+		this.importParams(parameters);
+	}
+
+	getMetadata(): Metadata {
+		return {
+			nodeName: 'DelayNode',
+			displayName: 'Delay',
+			category: 'Misc',
+			parameters: this.parameters
+		};
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -67,27 +75,5 @@ export class DelayNode extends Node {
 		this.delay = setTimeout(() => {
 			this.outputs[0].setValue(this.inputs[0].value);
 		}, this.getParamValue('delay', 1000));
-	}
-
-	getMetadata(): Metadata {
-		return {
-			nodeName: 'DelayNode',
-			displayName: 'Delay',
-			category: 'Misc',
-			parameters: this.parameters
-		};
-	}
-
-	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
-		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
-	}
-
-	override save(): NodeSaveData {
-		return {
-			id: this.id,
-			x: this.x,
-			y: this.y,
-			parameters: this.parameters
-		};
 	}
 }

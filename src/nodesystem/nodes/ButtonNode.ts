@@ -5,7 +5,6 @@ import { NodeValueType } from '../NodeValueType';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
-import type { NodeSaveData } from '../NodeSaveData';
 
 export class ButtonNode extends Node {
 	padding = 7;
@@ -25,7 +24,16 @@ export class ButtonNode extends Node {
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(id, x, y, 40, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
-		this.parameters = parameters ?? this.parameters;
+		this.importParams(parameters);
+	}
+
+	getMetadata(): Metadata {
+		return {
+			nodeName: 'ButtonNode',
+			displayName: 'Button',
+			category: 'Input',
+			parameters: this.parameters
+		};
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -43,9 +51,6 @@ export class ButtonNode extends Node {
 		ctx.fill(path);
 
 		this.renderConnectionPoints(ctx);
-
-		// ctx.fillStyle = this.style.fontColor;
-		// ctx.fillText('Switch', (this.width * 3) / 4, this.height / 2);
 
 		ctx.fillStyle = this.currentValue == 0 ? '#a33' : '#3a3';
 		ctx.fillRect(this.padding, this.padding, this.width - this.padding * 2, this.height - this.padding * 2);
@@ -80,27 +85,5 @@ export class ButtonNode extends Node {
 			this.toggle();
 		}, this.getParamValue('delay', 1000));
 		return false;
-	}
-
-	getMetadata(): Metadata {
-		return {
-			nodeName: 'ButtonNode',
-			displayName: 'Button',
-			category: 'Input',
-			parameters: this.parameters
-		};
-	}
-
-	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
-		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
-	}
-
-	override save(): NodeSaveData {
-		return {
-			id: this.id,
-			x: this.x,
-			y: this.y,
-			parameters: this.parameters
-		};
 	}
 }

@@ -5,7 +5,6 @@ import { NodeValueType } from '../NodeValueType';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
-import type { NodeSaveData } from '../NodeSaveData';
 
 export class ToggleNode extends Node {
 	currentValue = 0;
@@ -23,8 +22,17 @@ export class ToggleNode extends Node {
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(id, x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
-		this.parameters = parameters ?? this.parameters;
+		this.importParams(parameters);
 		this.currentValue = this.getParamValue('defaultValue', 0);
+	}
+
+	getMetadata(): Metadata {
+		return {
+			nodeName: 'ToggleNode',
+			displayName: 'Toggle',
+			category: 'Input',
+			parameters: this.parameters
+		};
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -65,27 +73,5 @@ export class ToggleNode extends Node {
 		if (pos.x > this.width / 2) return true;
 		this.toggle();
 		return false;
-	}
-
-	getMetadata(): Metadata {
-		return {
-			nodeName: 'ToggleNode',
-			displayName: 'Toggle',
-			category: 'Input',
-			parameters: this.parameters
-		};
-	}
-
-	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
-		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
-	}
-
-	override save(): NodeSaveData {
-		return {
-			id: this.id,
-			x: this.x,
-			y: this.y,
-			parameters: this.parameters
-		};
 	}
 }

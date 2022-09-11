@@ -7,8 +7,9 @@ import type { Metadata } from './Metadata';
 import type { NodeSystem } from './NodeSystem';
 import { FullscreenPrompt, type NodeParameter } from './fullscreenPrompt/FullscreenPrompt';
 import type { NodeSaveData } from './NodeSaveData';
+import type { NodeConstructor } from './NodeConstructor';
 
-export class Node {
+export abstract class Node {
 	public parameters = [];
 
 	constructor(
@@ -85,14 +86,26 @@ export class Node {
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
+		const textPadding = 5;
 		ctx.fillStyle = this.style.color;
 		ctx.strokeStyle = this.style.borderColor;
 		ctx.lineWidth = this.style.borderWidth;
 		ctx.lineJoin = 'round';
 		ctx.lineCap = 'round';
-		ctx.font = `${this.style.fontSize}px ${this.style.fontFamily}`;
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
+		ctx.font = `${this.style.fontSize}px ${this.style.fontFamily}`;
+		
+		// scale font down if text exceeds width
+		const textMetrics = ctx.measureText(this.getMetadata().displayName);
+		let width = textMetrics.width + textPadding * 2;
+		while (Math.floor(width) > this.width) {
+			const textMetrics = ctx.measureText(this.getMetadata().displayName);
+			width = textMetrics.width + textPadding * 2;
+			const ratio = this.width / width;
+			this.style.fontSize = this.style.fontSize * ratio;
+			ctx.font = `${this.style.fontSize}px ${this.style.fontFamily}`;
+		}
 
 		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
 		ctx.stroke(path);
@@ -163,10 +176,26 @@ export class Node {
 		return (this.getParam(key)?.value as Type) ?? defaultvalue;
 	}
 
+	importParams(params: NodeParameter[]) {
+		params?.forEach(param => {
+			const existingParam = this.getParam(param.name);
+			if (!existingParam) {
+				this.parameters.push(param)
+				return;
+			}
+
+			for (const key of ['value', 'checked']) {
+				if (Object.hasOwn(param, key)) {
+					existingParam[key] = param[key];
+				}
+			}
+		})
+	}
+
 	save(): NodeSaveData {
 		return {
 			id: this.id,
-			type: 'Node',
+			type: this.getMetadata().nodeName,
 			x: this.x,
 			y: this.y,
 			parameters: this.parameters
@@ -174,15 +203,7 @@ export class Node {
 	}
 
 	static load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
-		return new Node(saveData.id, saveData.x, saveData.y, 0, 0, [], [], nodeSystem, {
-			color: '',
-			borderColor: '',
-			borderWidth: 0,
-			borderRadius: 0,
-			fontSize: 0,
-			fontFamily: '',
-			fontColor: ''
-		});
+		return new (this as unknown as NodeConstructor)(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
 	}
 
 	reset() {

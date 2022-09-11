@@ -5,7 +5,6 @@ import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
-import type { NodeSaveData } from '../NodeSaveData';
 
 export class DisplayNode extends Node {
 	parameters: NodeParameter[] = [
@@ -19,7 +18,16 @@ export class DisplayNode extends Node {
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(id, x, y, 40, 40, [new NodeInput(uuid(), 'input', NodeValueType.Number)], [], nodeSystem);
-		this.parameters = parameters ?? this.parameters;
+		this.importParams(parameters);
+	}
+
+	getMetadata(): Metadata {
+		return {
+			nodeName: 'DisplayNode',
+			displayName: 'Display',
+			category: 'Output',
+			parameters: this.parameters
+		};
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -44,33 +52,7 @@ export class DisplayNode extends Node {
 		this.renderConnectionPoints(ctx);
 	}
 
-	getMetadata(): Metadata {
-		return {
-			nodeName: 'DisplayNode',
-			displayName: 'Display',
-			category: 'Output',
-			parameters: this.parameters
-		};
-	}
-
-	update() {
-		//
-	}
-
 	reset(): void {
 		this.nodeSystem.nodeRenderer.render();
-	}
-
-	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
-		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
-	}
-
-	override save(): NodeSaveData {
-		return {
-			id: this.id,
-			x: this.x,
-			y: this.y,
-			parameters: this.parameters
-		};
 	}
 }

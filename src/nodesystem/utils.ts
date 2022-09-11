@@ -6,6 +6,15 @@ export const uuid = () => {
 	return crypto.getRandomValues(new Uint32Array(4)).join('-');
 };
 
+export const textColor = (bgColor: string): string => {
+	let color = (bgColor.charAt(0) === '#') ? bgColor.substring(1, 7) : bgColor;
+	color = (color.length == 3) ? color[0].repeat(1) + color[1].repeat(1) + color[2].repeat(1) : color
+	const r = parseInt(color.substring(0, 2), 16);
+	const g = parseInt(color.substring(2, 4), 16);
+	const b = parseInt(color.substring(4, 6), 16);
+	return (((r * 0.299) + (g * 0.587) + (b * 0.114)) > 186) ?'#000' : '#fff';
+  }
+
 export const roundRect = (x: number, y: number, w: number, h: number, r: number) => {
 	const path = new Path2D();
 	if (w < 2 * r) r = w / 2;

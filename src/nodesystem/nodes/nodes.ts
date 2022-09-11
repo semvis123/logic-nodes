@@ -11,6 +11,7 @@ import { ButtonNode } from './ButtonNode';
 import { XorNode } from './LogicXorNode';
 import { NandNode } from './LogicNandNode';
 import { NorNode } from './LogicNorNode';
+import { LabelNode } from './LabelNode';
 
 export const nodeClasses = [
 	ToggleNode,
@@ -25,7 +26,8 @@ export const nodeClasses = [
 	DisplayNode,
 	DelayNode,
 	HtmlOverlayNode,
-	ButtonNode
+	ButtonNode,
+	LabelNode
 ];
 
 export const nodeClassesMap = {};

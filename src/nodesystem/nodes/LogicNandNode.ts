@@ -6,7 +6,6 @@ import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
-import type { NodeSaveData } from '../NodeSaveData';
 
 export class NandNode extends Node {
 	parameters: NodeParameter[] = [
@@ -31,7 +30,16 @@ export class NandNode extends Node {
 			[new NodeOutput(uuid(), 'output', NodeValueType.Number)],
 			nodeSystem
 		);
-		this.parameters = parameters ?? this.parameters;
+		this.importParams(parameters);
+	}
+
+	getMetadata(): Metadata {
+		return {
+			nodeName: 'NandNode',
+			displayName: 'NAND',
+			category: 'Logic',
+			parameters: this.parameters
+		};
 	}
 
 	reset() {
@@ -53,27 +61,5 @@ export class NandNode extends Node {
 		});
 
 		this.outputs[0].setValue(1 - value);
-	}
-
-	getMetadata(): Metadata {
-		return {
-			nodeName: 'NandNode',
-			displayName: 'Nand',
-			category: 'Logic',
-			parameters: this.parameters
-		};
-	}
-
-	static override load(saveData: NodeSaveData, nodeSystem: NodeSystem): Node {
-		return new this(saveData.id, saveData.x, saveData.y, nodeSystem, saveData.parameters);
-	}
-
-	override save(): NodeSaveData {
-		return {
-			id: this.id,
-			x: this.x,
-			y: this.y,
-			parameters: this.parameters
-		};
 	}
 }
