@@ -15,6 +15,8 @@ export class NodeSystem {
 	nodeRenderer: NodeRenderer;
 	config: Config;
 	toolbar: Toolbar;
+	saveId = -1;
+	filename = 'Example'
 
 	constructor(public canvas: HTMLCanvasElement, public htmlCanvasOverlayContainer: HTMLDivElement) {
 		this.reset();
@@ -86,6 +88,9 @@ export class NodeSystem {
 		delete this.config;
 		delete this.toolbar;
 
+
+		this.saveId = -1;
+		this.filename = 'Example'
 		this.nodeConnectionHandler = new NodeConnectionHandler();
 		this.eventHandler = new NodesystemEventHandler(this, this.canvas);
 		this.nodeRenderer = new NodeRenderer(this.canvas, this);

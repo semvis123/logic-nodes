@@ -14,33 +14,43 @@ export class Toolbar {
 	buttons: (ToolbarButton | ToolbarDropdownMenu)[] = [];
 	constructor(public nodeSystem: NodeSystem) {
 		this.createHtmlElement();
-		const fileDropdownMenu = new ToolbarDropdownMenu('File');
-		const newButton = new ToolbarButton('New', () => {
+
+		const newAction = () => {
 			this.nodeSystem.reset();
 			this.nodeSystem.nodeRenderer.render();
-			// this.nodeSystem.config.setConfig(playground.config);
-			// this.nodeSystem.loadSave(playground);
-		});
+			this.nodeSystem.filename = 'Unititled';
+		};
 
-		const openButton = new ToolbarButton('Load', async () => {
+		const loadAction = async () => {
 			// show savefile dialog
 			type SaveMetadata = { id: number; filename: string };
 			const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
-			const saveId =
+			const saveMetaData =
 				saves[
 					await new FullscreenPrompt().requestSelectionFromList(
 						'Select savefile:',
 						saves.map((x) => x.filename)
 					)
-				].id;
-			const save: NodeSaveFile = JSON.parse(window.localStorage.getItem('save_' + saveId));
+				];
+			const save: NodeSaveFile = JSON.parse(window.localStorage.getItem('save_' + saveMetaData.id));
 			this.nodeSystem.reset();
 			this.nodeSystem.config.setConfig(save.config);
 			this.nodeSystem.loadSave(save);
+			this.nodeSystem.saveId = saveMetaData.id;
+			this.nodeSystem.filename = saveMetaData.filename;
 			this.nodeSystem.nodeRenderer.render();
-		});
+		};
 
-		const saveButton = new ToolbarButton('Save', async () => {
+		const saveAction = async () => {
+			if (this.nodeSystem.saveId == -1) return saveAsAction();
+			// save to localstorage
+			const save = this.nodeSystem.save();
+			const saveData = JSON.stringify(save);
+
+			window.localStorage.setItem('save_' + this.nodeSystem.saveId, saveData);
+		};
+
+		const saveAsAction = async () => {
 			// save to localstorage
 			const save = this.nodeSystem.save();
 			const saveData = JSON.stringify(save);
@@ -64,9 +74,11 @@ export class Toolbar {
 			window.localStorage.setItem('saves', JSON.stringify(saves));
 			window.localStorage.setItem('lastSaveId', newSaveId.toString());
 			window.localStorage.setItem('save_' + newSaveId, saveData);
-		});
+			this.nodeSystem.saveId = newSaveId;
+			this.nodeSystem.filename = filename;
+		};
 
-		const importButton = new ToolbarButton('Import', () => {
+		const importAction = () => {
 			// show open dialog
 			const openDialog = document.createElement('input');
 			openDialog.type = 'file';
@@ -85,9 +97,9 @@ export class Toolbar {
 				}
 			};
 			openDialog.click();
-		});
+		};
 
-		const exportButton = new ToolbarButton('Export', () => {
+		const exportAction = () => {
 			// download save
 			const save = this.nodeSystem.save();
 			const blob = new Blob([JSON.stringify(save)], { type: 'application/json' });
@@ -96,9 +108,9 @@ export class Toolbar {
 			a.href = url;
 			a.download = 'save.json';
 			a.click();
-		});
+		};
 
-		const settingsButton = new ToolbarButton('Settings', async () => {
+		const settingsAction = async () => {
 			// show setting popup
 			const popup = new FullscreenPrompt();
 			const parameters = await popup.requestParameters('Settings', [
@@ -108,27 +120,42 @@ export class Toolbar {
 					checked: this.nodeSystem.config.colorConnectionLines,
 					type: 'checkbox'
 				},
-				{
+				(this.nodeSystem.saveId != -1) && {
 					name: 'delete',
 					type: 'button',
 					label: 'Current savefile',
 					value: 'Delete',
 					onclick: () => {
-						console.log('deleting current save');
+						//
 					}
 				}
 			]);
 			parameters.forEach((param) => {
 				this.nodeSystem.config[param.name] = param.type == 'checkbox' ? param.checked : param.value;
 			});
-		});
+		};
 
-		fileDropdownMenu.addButton(newButton);
-		fileDropdownMenu.addButton(openButton);
-		fileDropdownMenu.addButton(saveButton);
-		fileDropdownMenu.addButton(importButton);
-		fileDropdownMenu.addButton(exportButton);
-		fileDropdownMenu.addButton(settingsButton);
+		const fileDropdownMenu = new ToolbarDropdownMenu('File');
+		const newButton = new ToolbarButton('New', newAction);
+		const openButton = new ToolbarButton('Load', loadAction);
+		const saveButton = new ToolbarButton('Save', saveAction);
+		const saveAsButton = new ToolbarButton('Save As', saveAsAction);
+		const importButton = new ToolbarButton('Import', importAction);
+		const exportButton = new ToolbarButton('Export', exportAction);
+		const settingsButton = new ToolbarButton('Settings', settingsAction);
+
+		for (const button of [
+			newButton,
+			openButton,
+			saveButton,
+			saveAsButton,
+			importButton,
+			exportButton,
+			settingsButton
+		]) {
+			fileDropdownMenu.addButton(button);
+		}
+
 		fileDropdownMenu.onOpen = this.closeAll.bind(this);
 		this.buttons.push(fileDropdownMenu);
 		this.htmlElement.appendChild(fileDropdownMenu.htmlElement);

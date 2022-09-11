@@ -28,9 +28,6 @@ export class FullscreenPrompt {
 		this.popupElement.className = 'popup';
 		this.htmlElement.appendChild(this.popupElement);
 		window.document.body.appendChild(this.htmlElement);
-		// this.popupElement.onclick = (e: Event) => {
-		// 	e.preventDefault();
-		// }
 	}
 
 	requestParameters(title, parameters: NodeParameter[]): Promise<NodeParameter[]> {
@@ -40,6 +37,7 @@ export class FullscreenPrompt {
 			this.popupElement.appendChild(titleEl);
 			parameters = parameters.map((param) => Object.assign({}, param));
 			parameters.forEach((param) => {
+				if (Object.keys(param).length == 0) return;
 				const paramEl = document.createElement('div');
 				const paramLabel = document.createElement('p');
 				const paramInput = document.createElement('input');
@@ -64,10 +62,17 @@ export class FullscreenPrompt {
 				this.htmlElement.remove();
 				resolve(parameters);
 			};
-			// this.htmlElement.onclick = () => {
-			// 	this.htmlElement.remove();
-			// 	reject();
-			// };
+			
+			const cancelBtn = document.createElement('input');
+			cancelBtn.type = 'button';
+			cancelBtn.value = 'x';
+			cancelBtn.className = 'cancelbtn';
+			cancelBtn.onclick = () => {
+				this.htmlElement.remove();
+				reject();
+			};
+			
+			this.popupElement.appendChild(cancelBtn);
 			this.popupElement.appendChild(submitBtn);
 		});
 	}
@@ -91,12 +96,17 @@ export class FullscreenPrompt {
 				paramEl.appendChild(paramLabel);
 				listEl.appendChild(paramEl);
 			});
+			
+			const cancelBtn = document.createElement('input');
+			cancelBtn.type = 'button';
+			cancelBtn.value = 'x';
+			cancelBtn.className = 'cancelbtn';
+			cancelBtn.onclick = () => {
+				this.htmlElement.remove();
+				reject();
+			};
 
-			// this.htmlElement.onclick = () => {
-			// 	this.htmlElement.remove();
-			// 	reject();
-			// };
-
+			this.popupElement.appendChild(cancelBtn);
 			this.popupElement.appendChild(listEl);
 		});
 	}
