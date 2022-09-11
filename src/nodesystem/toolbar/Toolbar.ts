@@ -120,7 +120,7 @@ export class Toolbar {
 					checked: this.nodeSystem.config.colorConnectionLines,
 					type: 'checkbox'
 				},
-				(this.nodeSystem.saveId != -1) && {
+				this.nodeSystem.saveId != -1 && {
 					name: 'delete',
 					type: 'button',
 					label: 'Current savefile',

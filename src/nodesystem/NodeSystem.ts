@@ -1,5 +1,5 @@
 import { NodeConnectionHandler } from './handlers/NodeConnectionHandler';
-import { NodesystemEventHandler } from './handlers/NodeMouseEventHandler';
+import { NodesystemEventHandler } from './handlers/NodesystemEventHandler';
 import { NodeStorage } from './NodeStorage';
 import { NodeRenderer } from './NodeRenderer';
 import { Config } from './Config';
@@ -16,7 +16,7 @@ export class NodeSystem {
 	config: Config;
 	toolbar: Toolbar;
 	saveId = -1;
-	filename = 'Example'
+	filename = 'Example';
 
 	constructor(public canvas: HTMLCanvasElement, public htmlCanvasOverlayContainer: HTMLDivElement) {
 		this.reset();
@@ -53,7 +53,7 @@ export class NodeSystem {
 		return save;
 	}
 
-	loadSave(save: NodeSaveFile) {		
+	loadSave(save: NodeSaveFile) {
 		for (const node of save.nodes) {
 			const newNode = nodeClassesMap[node.type].load(node, this);
 			this.nodeStorage.addNode(newNode);
@@ -88,9 +88,8 @@ export class NodeSystem {
 		delete this.config;
 		delete this.toolbar;
 
-
 		this.saveId = -1;
-		this.filename = 'Example'
+		this.filename = 'Example';
 		this.nodeConnectionHandler = new NodeConnectionHandler();
 		this.eventHandler = new NodesystemEventHandler(this, this.canvas);
 		this.nodeRenderer = new NodeRenderer(this.canvas, this);

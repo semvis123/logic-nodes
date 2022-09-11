@@ -41,7 +41,7 @@ export class FullscreenPrompt {
 				this.htmlElement.remove();
 				resolve(parameters);
 			};
-			
+
 			const cancelBtn = document.createElement('input');
 			cancelBtn.type = 'button';
 			cancelBtn.value = 'x';
@@ -70,11 +70,10 @@ export class FullscreenPrompt {
 				};
 				paramInput.onkeydown = (e: KeyboardEvent) => {
 					if (e.code == 'Enter') submitBtn.click();
-				}
+				};
 				this.popupElement.appendChild(paramEl);
 			});
 
-			
 			this.popupElement.appendChild(cancelBtn);
 			this.popupElement.appendChild(submitBtn);
 		});
@@ -99,7 +98,7 @@ export class FullscreenPrompt {
 				paramEl.appendChild(paramLabel);
 				listEl.appendChild(paramEl);
 			});
-			
+
 			const cancelBtn = document.createElement('input');
 			cancelBtn.type = 'button';
 			cancelBtn.value = 'x';

@@ -15,10 +15,10 @@ import { NorNode } from './LogicNorNode';
 export const nodeClasses = [
 	ToggleNode,
 	AndNode,
-    NorNode,
+	NorNode,
 	OrNode,
-    XorNode,
-    NandNode,
+	XorNode,
+	NandNode,
 	NotNode,
 	ClockNode,
 	CounterNode,

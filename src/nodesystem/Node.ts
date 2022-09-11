@@ -60,14 +60,14 @@ export class Node {
 			},
 			duplicate: {
 				text: 'Duplicate',
-				onclick: (() => {
+				onclick: () => {
 					const clone = this.save();
 					clone.id = uuid();
 					const cloneNode = Object.getPrototypeOf(this).constructor.load(clone, this.nodeSystem);
 					positionNode(cloneNode, clone.x, clone.y, this.nodeSystem.nodeStorage, this.nodeSystem.config);
 					this.nodeSystem.nodeStorage.addNode(cloneNode);
 					menu.remove();
-				}).bind(this)
+				}
 			}
 		};
 
@@ -106,7 +106,7 @@ export class Node {
 
 	renderConnectionPoints(ctx: CanvasRenderingContext2D) {
 		const inputSpacing = this.height / (this.inputs.length + 1);
-		ctx.fillStyle = this.nodeSystem.config.theme.nodeTextColor;
+		ctx.fillStyle = this.style.fontColor;
 		const radius = this.nodeSystem.config.theme.connectionPointRadius;
 		for (let i = 0; i < this.inputs.length; i++) {
 			ctx.beginPath();
@@ -144,6 +144,7 @@ export class Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'Node',
 			displayName: 'Node',
 			parameters: this.parameters
 		};

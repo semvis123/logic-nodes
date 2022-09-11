@@ -1,4 +1,3 @@
-
 <script lang="ts">
 	import { NodeSystem } from '../nodesystem/NodeSystem';
 	import { onMount } from 'svelte';

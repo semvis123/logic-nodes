@@ -13,7 +13,7 @@ const config = {
 		experimental: {
 			useVitePreprocess: true,
 			prebundleSvelteLibraries: true
-		},
+		}
 	},
 	kit: {
 		adapter: adapter({
