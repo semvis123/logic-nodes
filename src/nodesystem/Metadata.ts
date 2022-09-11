@@ -5,6 +5,7 @@ export const metadataCategories = ['Logic', 'Input', 'Output', 'Generators', 'Mi
 export type MetadataCategory = typeof metadataCategories[number];
 
 export type Metadata = {
+	nodeName: string;
 	displayName: string;
 	category?: MetadataCategory;
 	parameters: NodeParameter[];

@@ -89,7 +89,7 @@ export class FullscreenPrompt {
 				const paramLabel = document.createElement('p');
 				paramLabel.innerText = item;
 				paramEl.className = 'list-item';
-				paramEl.onclick = (e) => {
+				paramEl.onclick = () => {
 					this.htmlElement.remove();
 					resolve(index);
 				};

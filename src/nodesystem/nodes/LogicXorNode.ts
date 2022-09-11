@@ -31,6 +31,7 @@ export class XorNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'XorNode',
 			displayName: 'Xor',
 			category: 'Logic',
 			parameters: this.parameters

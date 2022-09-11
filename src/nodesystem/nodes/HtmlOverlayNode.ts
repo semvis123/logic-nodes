@@ -64,6 +64,7 @@ export class HtmlOverlayNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'HtmlOverlayNode',
 			displayName: 'HTML overlay',
 			category: 'Misc',
 			parameters: this.parameters

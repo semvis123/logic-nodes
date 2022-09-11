@@ -15,10 +15,10 @@ import { NorNode } from './LogicNorNode';
 export const nodeClasses = [
 	ToggleNode,
 	AndNode,
-	NorNode,
+    NorNode,
 	OrNode,
-	XorNode,
-	NandNode,
+    XorNode,
+    NandNode,
 	NotNode,
 	ClockNode,
 	CounterNode,
@@ -31,5 +31,5 @@ export const nodeClasses = [
 export const nodeClassesMap = {};
 
 nodeClasses.forEach((nodeClass) => {
-	nodeClassesMap[nodeClass.name] = nodeClass;
+	nodeClassesMap[nodeClass.prototype.getMetadata().nodeName] = nodeClass;
 });

@@ -66,6 +66,7 @@ export class ClockNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'ClockNode',
 			displayName: 'Interval',
 			category: 'Misc',
 			parameters: this.parameters

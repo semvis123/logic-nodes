@@ -31,6 +31,7 @@ export class NorNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'NorNode',
 			displayName: 'Nor',
 			category: 'Logic',
 			parameters: this.parameters

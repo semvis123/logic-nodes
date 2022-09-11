@@ -57,6 +57,7 @@ export class AndNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'AndNode',
 			displayName: 'And',
 			category: 'Logic',
 			parameters: this.parameters

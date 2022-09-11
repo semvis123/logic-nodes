@@ -47,6 +47,7 @@ export class CounterNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'CounterNode',
 			displayName: 'Counter',
 			category: 'Output',
 			parameters: this.parameters

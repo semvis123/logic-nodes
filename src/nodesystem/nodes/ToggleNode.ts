@@ -69,6 +69,7 @@ export class ToggleNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'ToggleNode',
 			displayName: 'Toggle',
 			category: 'Input',
 			parameters: this.parameters

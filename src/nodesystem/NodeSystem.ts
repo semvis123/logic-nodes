@@ -53,7 +53,7 @@ export class NodeSystem {
 		return save;
 	}
 
-	loadSave(save: NodeSaveFile) {
+	loadSave(save: NodeSaveFile) {		
 		for (const node of save.nodes) {
 			const newNode = nodeClassesMap[node.type].load(node, this);
 			this.nodeStorage.addNode(newNode);

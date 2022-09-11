@@ -46,6 +46,7 @@ export class DisplayNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'DisplayNode',
 			displayName: 'Display',
 			category: 'Output',
 			parameters: this.parameters

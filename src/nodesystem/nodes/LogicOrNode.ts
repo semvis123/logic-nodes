@@ -31,6 +31,7 @@ export class OrNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'OrNode',
 			displayName: 'Or',
 			category: 'Logic',
 			parameters: this.parameters

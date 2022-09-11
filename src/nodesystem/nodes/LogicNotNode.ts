@@ -31,6 +31,7 @@ export class NotNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'NotNode',
 			displayName: 'Not',
 			category: 'Logic',
 			parameters: this.parameters

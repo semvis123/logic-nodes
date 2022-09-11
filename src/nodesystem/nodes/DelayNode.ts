@@ -71,6 +71,7 @@ export class DelayNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'DelayNode',
 			displayName: 'Delay',
 			category: 'Misc',
 			parameters: this.parameters

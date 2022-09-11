@@ -6,13 +6,14 @@ const config = {
 	// Consult https://github.com/sveltejs/svelte-preprocess
 	// for more information about preprocessors
 	compilerOptions: {
-		css: false,
-		hydratable: false
+		css: false
 	},
 	preprocess: preprocess(),
-	experimental: {
-		useVitePreprocess: true,
-		prebundleSvelteLibraries: true
+	vitePlugin: {
+		experimental: {
+			useVitePreprocess: true,
+			prebundleSvelteLibraries: true
+		},
 	},
 	kit: {
 		adapter: adapter({

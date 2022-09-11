@@ -57,6 +57,7 @@ export class NandNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'NandNode',
 			displayName: 'Nand',
 			category: 'Logic',
 			parameters: this.parameters

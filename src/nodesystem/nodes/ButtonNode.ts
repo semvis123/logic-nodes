@@ -84,6 +84,7 @@ export class ButtonNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
+			nodeName: 'ButtonNode',
 			displayName: 'Button',
 			category: 'Input',
 			parameters: this.parameters
