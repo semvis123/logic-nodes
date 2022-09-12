@@ -1,7 +1,9 @@
 import type { NodeOutput } from '../NodeOutput';
 import type { Node } from '../Node';
 import type { NodeSystem } from '../NodeSystem';
-import { positionNode } from '../utils';
+import type { NodeSaveData } from '../NodeSaveData';
+import { positionNode, uuid } from '../utils';
+import { nodeClassesMap } from '../nodes/nodes';
 
 export class NodesystemEventHandler {
 	selectedNodes: Node[] | undefined;
@@ -23,11 +25,15 @@ export class NodesystemEventHandler {
 		this.onMouseUp = this.onMouseUp.bind(this);
 		this.onContextMenu = this.onContextMenu.bind(this);
 		this.onKeyDown = this.onKeyDown.bind(this);
+		this.onCopy = this.onCopy.bind(this);
+		this.onPaste = this.onPaste.bind(this);
 		window.addEventListener('mousedown', this.onMouseDown);
 		window.addEventListener('mousemove', this.onMouseMove);
 		window.addEventListener('mouseup', this.onMouseUp);
 		window.addEventListener('contextmenu', this.onContextMenu);
 		window.addEventListener('keydown', this.onKeyDown);
+		window.addEventListener('copy', this.onCopy);
+		window.addEventListener('paste', this.onPaste);
 	}
 
 	removeEventListeners() {
@@ -36,6 +42,8 @@ export class NodesystemEventHandler {
 		window.removeEventListener('mouseup', this.onMouseUp);
 		window.removeEventListener('contextmenu', this.onContextMenu);
 		window.removeEventListener('keydown', this.onKeyDown);
+		window.removeEventListener('copy', this.onCopy);
+		window.removeEventListener('paste', this.onPaste);
 	}
 
 	onKeyDown(e: KeyboardEvent) {
@@ -275,6 +283,76 @@ export class NodesystemEventHandler {
 		}
 		this.halfConnection = undefined;
 		this.nodeSystem.nodeRenderer.render();
+	}
+
+	async onCopy() {
+		const data = { nodes: [], connections: [] };
+		const nodes = new Map<string, NodeSaveData>();
+		const inputsAndOutputs: Set<string> = new Set();
+		this.selectedNodes.forEach((node) => {
+			const nodeSave = node.save();
+			nodeSave.id = uuid();
+			data.nodes.push(nodeSave);
+			nodes.set(node.id, nodeSave);
+			node.inputs.forEach((input) => {
+				inputsAndOutputs.add(input.id);
+			});
+			node.outputs.forEach((output) => {
+				inputsAndOutputs.add(output.id);
+			});
+		});
+
+		this.nodeSystem.nodeConnectionHandler.connections.forEach((toInputs, fromOutput) => {
+			if (inputsAndOutputs.has(fromOutput.id)) {
+				// save the connection
+				toInputs.forEach((input) => {
+					if (inputsAndOutputs.has(input.id)) {
+						// data.connections.push({fromOutput.node.id, input.node.id})
+						const fromNodeId = nodes.get(fromOutput.node.id).id;
+						const fromIdx = fromOutput.index;
+						const toNodeId = nodes.get(input.node.id).id;
+						const toIdx = input.index;
+						data.connections.push({
+							from: { nodeId: fromNodeId, index: fromIdx },
+							to: { nodeId: toNodeId, index: toIdx }
+						});
+					}
+				});
+			}
+		});
+
+		await navigator.clipboard.writeText(JSON.stringify(data));
+	}
+
+	onPaste(e: ClipboardEvent) {
+		console.log(e.clipboardData.getData('nodeData'));
+		try {
+			const data = JSON.parse(e.clipboardData.getData('text'));
+			const nodes: NodeSaveData[] = data['nodes'];
+			const pastedNodes: Node[] = [];
+			nodes.forEach((node) => {
+				const newNode = nodeClassesMap[node.type].load(node, this.nodeSystem);
+				this.nodeSystem.nodeStorage.addNode(newNode);
+				console.log(node);
+				pastedNodes.push(newNode);
+			});
+
+			for (const connection of data.connections) {
+				console.log(connection);
+				const fromNode = this.nodeSystem.nodeStorage.getNodeById(connection.from.nodeId);
+				const toNode = this.nodeSystem.nodeStorage.getNodeById(connection.to.nodeId);
+				if (fromNode && toNode) {
+					this.nodeSystem.nodeConnectionHandler.addConnection(
+						fromNode.outputs[connection.from.index],
+						toNode.inputs[connection.to.index]
+					);
+				}
+			}
+			this.selectedNodes = pastedNodes;
+		} catch (e) {
+			console.log('incorrect data');
+			console.log(e);
+		}
 	}
 
 	getNodeAt(x: number, y: number) {
