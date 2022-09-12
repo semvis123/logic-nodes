@@ -1,9 +1,8 @@
 import type { NodeOutput } from '../NodeOutput';
-import type { Node } from '../Node';
 import type { NodeSystem } from '../NodeSystem';
-import type { NodeSaveData } from '../NodeSaveData';
-import { positionNode, uuid } from '../utils';
-import { nodeClassesMap } from '../nodes/nodes';
+import { positionNode, getBoundingBoxOfMultipleNodes } from '../utils';
+import { ContextMenu } from '../ContextMenu';
+import type { Node } from '../Node';
 
 export class NodesystemEventHandler {
 	selectedNodes: Node[] | undefined;
@@ -70,17 +69,13 @@ export class NodesystemEventHandler {
 			this.contextMenu = undefined;
 		}
 		// show context menu
-		if (this.selectedNodes) {
-			this.selectedNodes = undefined;
-		}
 		const node = this.getNodeAt(pannedMouseX, pannedMouseY);
-		if (node) {
-			this.selectedNodes = [node];
-			if (this.contextMenu) {
-				this.contextMenu.remove();
-			}
-			this.contextMenu = node.showContextMenu(mouseX, mouseY);
+		if (node) if (!this.selectedNodes?.includes(node)) this.selectedNodes = [node];
+
+		if (this.contextMenu) {
+			this.contextMenu.remove();
 		}
+		this.contextMenu = new ContextMenu(mouseX, mouseY, this.selectedNodes, this.nodeSystem).show();
 
 		this.nodeSystem.nodeRenderer.render();
 	}
@@ -113,6 +108,7 @@ export class NodesystemEventHandler {
 		}
 
 		if (e.button == 0) this.leftMouseDown = true;
+		if (e.button == 2) return;
 
 		// connectors
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
@@ -230,6 +226,8 @@ export class NodesystemEventHandler {
 		} else if (e.button == 1) {
 			this.middleMouseDown = false;
 			return;
+		} else if (e.button == 2) {
+			if (this.contextMenu) return;
 		}
 
 		if (this.selectionSquare) {
@@ -275,8 +273,18 @@ export class NodesystemEventHandler {
 			}
 		} else {
 			if (this.selectedNodes) {
+				const box = getBoundingBoxOfMultipleNodes(this.selectedNodes);
+				const translation = positionNode(
+					box,
+					box.x,
+					box.y,
+					this.nodeSystem.nodeStorage,
+					this.nodeSystem.config,
+					this.selectedNodes
+				);
 				this.selectedNodes.forEach((node) => {
-					positionNode(node, node.x, node.y, this.nodeSystem.nodeStorage, this.nodeSystem.config);
+					node.x += translation.x;
+					node.y += translation.y;
 				});
 			}
 			this.selectedNodes = undefined;
@@ -286,69 +294,14 @@ export class NodesystemEventHandler {
 	}
 
 	async onCopy() {
-		const data = { nodes: [], connections: [] };
-		const nodes = new Map<string, NodeSaveData>();
-		const inputsAndOutputs: Set<string> = new Set();
-		this.selectedNodes.forEach((node) => {
-			const nodeSave = node.save();
-			nodeSave.id = uuid();
-			data.nodes.push(nodeSave);
-			nodes.set(node.id, nodeSave);
-			node.inputs.forEach((input) => {
-				inputsAndOutputs.add(input.id);
-			});
-			node.outputs.forEach((output) => {
-				inputsAndOutputs.add(output.id);
-			});
-		});
-
-		this.nodeSystem.nodeConnectionHandler.connections.forEach((toInputs, fromOutput) => {
-			if (inputsAndOutputs.has(fromOutput.id)) {
-				// save the connection
-				toInputs.forEach((input) => {
-					if (inputsAndOutputs.has(input.id)) {
-						// data.connections.push({fromOutput.node.id, input.node.id})
-						const fromNodeId = nodes.get(fromOutput.node.id).id;
-						const fromIdx = fromOutput.index;
-						const toNodeId = nodes.get(input.node.id).id;
-						const toIdx = input.index;
-						data.connections.push({
-							from: { nodeId: fromNodeId, index: fromIdx },
-							to: { nodeId: toNodeId, index: toIdx }
-						});
-					}
-				});
-			}
-		});
-
+		const data = this.nodeSystem.exportNodes(this.selectedNodes, true);
 		await navigator.clipboard.writeText(JSON.stringify(data));
 	}
 
 	onPaste(e: ClipboardEvent) {
-		console.log(e.clipboardData.getData('nodeData'));
 		try {
 			const data = JSON.parse(e.clipboardData.getData('text'));
-			const nodes: NodeSaveData[] = data['nodes'];
-			const pastedNodes: Node[] = [];
-			nodes.forEach((node) => {
-				const newNode = nodeClassesMap[node.type].load(node, this.nodeSystem);
-				this.nodeSystem.nodeStorage.addNode(newNode);
-				console.log(node);
-				pastedNodes.push(newNode);
-			});
-
-			for (const connection of data.connections) {
-				console.log(connection);
-				const fromNode = this.nodeSystem.nodeStorage.getNodeById(connection.from.nodeId);
-				const toNode = this.nodeSystem.nodeStorage.getNodeById(connection.to.nodeId);
-				if (fromNode && toNode) {
-					this.nodeSystem.nodeConnectionHandler.addConnection(
-						fromNode.outputs[connection.from.index],
-						toNode.inputs[connection.to.index]
-					);
-				}
-			}
-			this.selectedNodes = pastedNodes;
+			this.nodeSystem.importNodes(data, true);
 		} catch (e) {
 			console.log('incorrect data');
 			console.log(e);

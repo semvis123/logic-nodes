@@ -28,11 +28,19 @@ export const roundRect = (x: number, y: number, w: number, h: number, r: number)
 	return path;
 };
 
-export const positionNode = (node: Node, x: number, y: number, nodeStorage: NodeStorage, config: Config) => {
+type sizePos = { x: number; y: number; width: number; height: number };
+export const positionNode = (
+	node: sizePos,
+	x: number,
+	y: number,
+	nodeStorage: NodeStorage,
+	config: Config,
+	nodes: Node[] = []
+): { x: number; y: number } => {
 	if (config.nodesCanOverlap) {
 		node.x = x;
 		node.y = y;
-		return;
+		return { x: 0, y: 0 };
 	}
 
 	const directions = [
@@ -57,12 +65,13 @@ export const positionNode = (node: Node, x: number, y: number, nodeStorage: Node
 			let overlap = false;
 			for (const n of nodeStorage.nodes) {
 				if (node == n) continue;
+				if (nodes.includes(n)) continue;
 				if (
 					!(
-						n.x + n.width + padding < left ||
-						n.y + n.height + padding < top ||
-						n.x > left + padding + node.width ||
-						n.y > top + padding + node.height
+						n.x + n.width + padding <= left ||
+						n.y + n.height + padding <= top ||
+						n.x >= left + padding + node.width ||
+						n.y >= top + padding + node.height
 					)
 				) {
 					overlap = true;
@@ -74,6 +83,22 @@ export const positionNode = (node: Node, x: number, y: number, nodeStorage: Node
 			}
 		}
 	}
+	const diffX = x + dir[0] * d - node.x;
+	const diffY = y + dir[1] * d - node.y;
 	node.x = x + dir[0] * d;
 	node.y = y + dir[1] * d;
+	return { x: diffX, y: diffY };
+};
+
+export const getBoundingBoxOfMultipleNodes = (nodes: Node[]) => {
+	let x: number, y: number, maxX: number, maxY: number;
+	nodes.forEach((node) => {
+		x = Math.min(x ?? node.x, node.x);
+		y = Math.min(y ?? node.y, node.y);
+		maxX = Math.max(maxX ?? node.x + node.width, node.x + node.width);
+		maxY = Math.max(maxY ?? node.y + node.height, node.y + node.height);
+	});
+	const width = maxX - x;
+	const height = maxY - y;
+	return { x, y, width, height };
 };

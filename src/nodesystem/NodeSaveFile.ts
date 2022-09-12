@@ -1,14 +1,8 @@
 import type { ConfigType } from './Config';
-import type { NodeParameter } from './fullscreenPrompt/FullscreenPrompt';
+import type { NodeSaveData } from './NodeSaveData';
 
 export type NodeSaveFile = {
-	nodes: {
-		id: string;
-		type: string;
-		x: number;
-		y: number;
-		parameters: NodeParameter[];
-	}[];
+	nodes: NodeSaveData[];
 	connections: {
 		from: {
 			nodeId: string;
