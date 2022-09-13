@@ -3,6 +3,7 @@ import type { NodeSystem } from '../NodeSystem';
 import { positionNode, getBoundingBoxOfMultipleNodes } from '../utils';
 import { ContextMenu } from '../ContextMenu';
 import type { Node } from '../Node';
+import { ToastMessage } from '../toastmessage/ToastMessage';
 
 export class NodesystemEventHandler {
 	selectedNodes: Node[] | undefined;
@@ -78,6 +79,12 @@ export class NodesystemEventHandler {
 		this.contextMenu = new ContextMenu(mouseX, mouseY, this.selectedNodes, this.nodeSystem).show();
 
 		this.nodeSystem.nodeRenderer.render();
+		this.selectionSquare = {
+			x: mouseX,
+			y: mouseY,
+			width: 0,
+			height: 0
+		};
 	}
 
 	onMouseDown(e: MouseEvent) {
@@ -226,10 +233,11 @@ export class NodesystemEventHandler {
 		} else if (e.button == 1) {
 			this.middleMouseDown = false;
 			return;
-		} else if (e.button == 2) {
-			if (this.contextMenu) return;
 		}
-
+		if (this.contextMenu) {
+			this.selectionSquare = undefined;
+			return;
+		}
 		if (this.selectionSquare) {
 			let x1 = this.selectionSquare.x - this.nodeSystem.nodeRenderer.view.x;
 			let y1 = this.selectionSquare.y - this.nodeSystem.nodeRenderer.view.y;
@@ -294,17 +302,18 @@ export class NodesystemEventHandler {
 	}
 
 	async onCopy() {
-		const data = this.nodeSystem.exportNodes(this.selectedNodes, true);
+		const data = this.nodeSystem.exportNodes(this.selectedNodes);
 		await navigator.clipboard.writeText(JSON.stringify(data));
 	}
 
 	onPaste(e: ClipboardEvent) {
 		try {
 			const data = JSON.parse(e.clipboardData.getData('text'));
-			this.nodeSystem.importNodes(data, true);
+			this.nodeSystem.importNodes(data, true, true);
 		} catch (e) {
 			console.log('incorrect data');
 			console.log(e);
+			new ToastMessage('Unable to paste nodes', 'danger').show();
 		}
 	}
 

@@ -11,6 +11,7 @@ import './nodesystem.css';
 import type { NodeSaveData } from './NodeSaveData';
 import { getBoundingBoxOfMultipleNodes, positionNode, uuid } from './utils';
 import type { Node } from './Node';
+import { ToastMessage } from './toastmessage/ToastMessage';
 export class NodeSystem {
 	eventHandler: NodesystemEventHandler;
 	nodeStorage: NodeStorage;
@@ -28,7 +29,7 @@ export class NodeSystem {
 	) {
 		this.reset();
 		this.config.setConfig(playground.config);
-		this.loadSave(playground, 'Untitled', -1);
+		this.loadSave(playground, 'Untitled', -1, true);
 	}
 
 	save() {
@@ -40,12 +41,19 @@ export class NodeSystem {
 		return save;
 	}
 
-	loadSave(save: NodeSaveFile, filename: string, saveId: number) {
-		this.importNodes(save);
+	loadSave(save: NodeSaveFile, filename: string, saveId: number, silent=false) {
+		try {
+			this.importNodes(save);
+		} catch {
+			new ToastMessage('Failed to load save', 'danger').show();
+			this.reset();
+			return;
+		}
 		this.nodeRenderer.render();
 		this.filename = filename;
 		this.saveId = saveId;
 		this.displayFileInfo();
+		if (!silent) new ToastMessage('Loaded save: ' + filename).show();
 	}
 
 	reset() {
@@ -85,21 +93,16 @@ export class NodeSystem {
 
 	exportNodes(
 		nodesToExport: Node[],
-		rename = false
 	): {
 		nodes: NodeSaveData[];
 		connections: NodeSaveFile['connections'];
 	} {
 		const data = { nodes: [], connections: [] };
-		const nodes = new Map<string, NodeSaveData>();
 		const inputsAndOutputs: Set<string> = new Set();
 		nodesToExport.forEach((node) => {
 			const nodeSave = node.save();
 
-			if (rename) nodeSave.id = uuid();
-
 			data.nodes.push(nodeSave);
-			nodes.set(node.id, nodeSave);
 			node.inputs.forEach((input) => {
 				inputsAndOutputs.add(input.id);
 			});
@@ -113,9 +116,9 @@ export class NodeSystem {
 				// save the connection
 				toInputs.forEach((input) => {
 					if (inputsAndOutputs.has(input.id)) {
-						const fromNodeId = nodes.get(fromOutput.node.id).id;
+						const fromNodeId = fromOutput.node.id;
 						const fromIdx = fromOutput.index;
-						const toNodeId = nodes.get(input.node.id).id;
+						const toNodeId = input.node.id;
 						const toIdx = input.index;
 						data.connections.push({
 							from: { nodeId: fromNodeId, index: fromIdx },
@@ -133,19 +136,23 @@ export class NodeSystem {
 			nodes: NodeSaveData[];
 			connections: NodeSaveFile['connections'];
 		},
-		addSelection = false
+		addSelection = false,
+		rename = false,
 	) {
 		const nodes: NodeSaveData[] = data.nodes;
+		const nodeNames = new Map<string, string>();
 		const pastedNodes: Node[] = [];
 		nodes.forEach((node) => {
 			const newNode = nodeClassesMap[node.type].load(node, this);
+			if (rename) newNode.id = uuid();
+			nodeNames.set(node.id, newNode.id);
 			this.nodeStorage.addNode(newNode);
 			pastedNodes.push(newNode);
 		});
 
 		for (const connection of data.connections) {
-			const fromNode = this.nodeStorage.getNodeById(connection.from.nodeId);
-			const toNode = this.nodeStorage.getNodeById(connection.to.nodeId);
+			const fromNode = this.nodeStorage.getNodeById(nodeNames.get(connection.from.nodeId));
+			const toNode = this.nodeStorage.getNodeById(nodeNames.get(connection.to.nodeId));
 			if (fromNode && toNode) {
 				this.nodeConnectionHandler.addConnection(
 					fromNode.outputs[connection.from.index],
