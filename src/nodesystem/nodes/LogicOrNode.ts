@@ -8,8 +8,16 @@ import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
 
 export class OrNode extends Node {
-	parameters: NodeParameter[] = [];
-
+	parameters: NodeParameter[] = [
+		{
+			name: 'inputs',
+			label: 'Inputs',
+			value: 2,
+			type: 'number',
+			required: true,
+			min: 1
+		}
+	];
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(
 			id,
@@ -49,6 +57,10 @@ export class OrNode extends Node {
 	}
 
 	update() {
-		this.outputs[0].setValue((this.inputs[0].value as number) | (this.inputs[1].value as number));
+		let value = 0;
+		this.inputs.forEach((input) => {
+			value |= input.value as number;
+		});
+		this.outputs[0].setValue(value);
 	}
 }

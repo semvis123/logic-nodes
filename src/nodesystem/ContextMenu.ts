@@ -1,6 +1,8 @@
 import { FullscreenPrompt } from './fullscreenPrompt/FullscreenPrompt';
 import type { Node } from './Node';
 import type { NodeSystem } from './NodeSystem';
+import { ToastMessage } from './toastmessage/ToastMessage';
+import { getBoundingBoxOfMultipleNodes } from './utils';
 
 export class ContextMenu {
 	menu: HTMLDivElement;
@@ -58,7 +60,12 @@ export class ContextMenu {
 		const node = this.selectedNodes[0];
 		this.menu.remove();
 		const popup = new FullscreenPrompt();
-		node.parameters = await popup.requestParameters('Edit', node.getMetadata().parameters);
+		this.nodeSystem.eventHandler.removeEventListeners();
+		try {
+			node.parameters = await popup.requestParameters('Edit', node.getMetadata().parameters);
+		} finally {
+			this.nodeSystem.eventHandler.addEventListeners();
+		}
 		node.reset();
 		this.nodeSystem.nodeRenderer.render();
 	}
@@ -72,7 +79,7 @@ export class ContextMenu {
 	}
 
 	async copyAction() {
-		const nodeData = JSON.stringify(this.nodeSystem.exportNodes(this.selectedNodes, true));
+		const nodeData = JSON.stringify(this.nodeSystem.exportNodes(this.selectedNodes));
 		await navigator.clipboard.writeText(nodeData);
 		this.menu.remove();
 	}
@@ -84,21 +91,38 @@ export class ContextMenu {
 		} catch (e) {
 			console.log('invalid data');
 			console.log(e);
+			new ToastMessage('Unable to paste nodes', 'danger').show();
 		}
 		this.menu.remove();
 	}
 
 	duplicateAction() {
-		const nodeData = this.nodeSystem.exportNodes(this.selectedNodes, true);
-		this.nodeSystem.importNodes(nodeData, true);
+		const nodeData = this.nodeSystem.exportNodes(this.selectedNodes);
+		this.nodeSystem.importNodes(nodeData, true, true);
 		this.menu.remove();
 	}
 	alignAction() {
-		const gridsize = 40 + this.nodeSystem.config.nodeSpacing;
+		const { x, y } = getBoundingBoxOfMultipleNodes(this.selectedNodes);
+		const padding = this.nodeSystem.config.nodeSpacing;
+		// width += padding * 2;
+		// height += padding * 2;
+		// const totalArea = width * height;
+		// const rows = height / 50;
+		// const columns = width / 50;
+		let smallestWidth: number;
+		let smallestHeight: number;
 		this.selectedNodes.forEach((node) => {
-			node.x = Math.round(node.x / gridsize) * gridsize;
-			node.y = Math.round(node.y / gridsize) * gridsize;
+			smallestWidth = Math.min(smallestWidth ?? node.width, node.width);
+			smallestHeight = Math.min(smallestHeight ?? node.height, node.height);
 		});
+		const gridSizeX = smallestWidth + padding;
+		const gridSizeY = smallestHeight + padding;
+
+		this.selectedNodes.forEach((node) => {
+			node.x = Math.round((node.x - x) / gridSizeX) * gridSizeX + x;
+			node.y = Math.round((node.y - y) / gridSizeY) * gridSizeY + y;
+		});
+		this.nodeSystem.eventHandler.selectedNodes = undefined;
 		this.menu.remove();
 	}
 }

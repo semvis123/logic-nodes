@@ -31,6 +31,7 @@ export class AndNode extends Node {
 			nodeSystem
 		);
 		this.importParams(parameters);
+		this.reset();
 	}
 
 	getMetadata(): Metadata {
