@@ -8,6 +8,7 @@ import { positionNode, uuid } from '../utils';
 import './toolbar.css';
 import { FullscreenPrompt } from '../fullscreenPrompt/FullscreenPrompt';
 import type { NodeSaveFile } from '../NodeSaveFile';
+import { exampleSaves } from '../examples/exampleSaves';
 
 type SaveMetadata = { id: number; filename: string };
 
@@ -27,18 +28,24 @@ export class Toolbar {
 			// show savefile dialog
 			type SaveMetadata = { id: number; filename: string };
 			const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
-			const saveMetaData =
-				saves[
-					await new FullscreenPrompt().requestSelectionFromList(
-						'Select savefile:',
-						saves.map((x) => x.filename)
-					)
-				];
-			const save: NodeSaveFile = JSON.parse(window.localStorage.getItem('save_' + saveMetaData.id));
-			this.nodeSystem.reset();
-			this.nodeSystem.config.setConfig(save.config);
-			this.nodeSystem.loadSave(save, saveMetaData.filename, saveMetaData.id);
-			this.nodeSystem.nodeRenderer.render();
+
+			this.nodeSystem.eventHandler.removeEventListeners();
+			try {
+				const saveMetaData =
+					saves[
+						await new FullscreenPrompt().requestSelectionFromList(
+							'Select savefile:',
+							saves.map((x) => x.filename)
+						)
+					];
+				const save: NodeSaveFile = JSON.parse(window.localStorage.getItem('save_' + saveMetaData.id));
+				this.nodeSystem.reset();
+				this.nodeSystem.config.setConfig(save.config);
+				this.nodeSystem.loadSave(save, saveMetaData.filename, saveMetaData.id);
+				this.nodeSystem.nodeRenderer.render();
+			} finally {
+				this.nodeSystem.eventHandler.addEventListeners();
+			}
 		};
 
 		const saveAction = async () => {
@@ -57,25 +64,31 @@ export class Toolbar {
 			const newSaveId: number = parseInt(window.localStorage.getItem('lastSaveId') ?? '0') + 1;
 
 			const dialog = new FullscreenPrompt();
-			const params = await dialog.requestParameters('Save', [
-				{
-					name: 'filename',
-					label: 'Filename',
-					value: 'save ' + newSaveId,
-					type: 'text',
-					required: true
-				}
-			]);
-			const filename = params[0].value as string;
 
-			const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
-			saves.push({ id: newSaveId, filename });
-			window.localStorage.setItem('saves', JSON.stringify(saves));
-			window.localStorage.setItem('lastSaveId', newSaveId.toString());
-			window.localStorage.setItem('save_' + newSaveId, saveData);
-			this.nodeSystem.saveId = newSaveId;
-			this.nodeSystem.filename = filename;
-			this.nodeSystem.displayFileInfo();
+			this.nodeSystem.eventHandler.removeEventListeners();
+			try {
+				const params = await dialog.requestParameters('Save', [
+					{
+						name: 'filename',
+						label: 'Filename',
+						value: 'save ' + newSaveId,
+						type: 'text',
+						required: true
+					}
+				]);
+				const filename = params[0].value as string;
+
+				const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
+				saves.push({ id: newSaveId, filename });
+				window.localStorage.setItem('saves', JSON.stringify(saves));
+				window.localStorage.setItem('lastSaveId', newSaveId.toString());
+				window.localStorage.setItem('save_' + newSaveId, saveData);
+				this.nodeSystem.saveId = newSaveId;
+				this.nodeSystem.filename = filename;
+				this.nodeSystem.displayFileInfo();
+			} finally {
+				this.nodeSystem.eventHandler.addEventListeners();
+			}
 		};
 
 		const importAction = () => {
@@ -113,33 +126,39 @@ export class Toolbar {
 		const settingsAction = async () => {
 			// show setting popup
 			const popup = new FullscreenPrompt();
-			const parameters = await popup.requestParameters('Settings', [
-				{
-					name: 'colorConnectionLines',
-					label: 'Change connection line color based on value.',
-					checked: this.nodeSystem.config.colorConnectionLines,
-					type: 'checkbox'
-				},
-				this.nodeSystem.saveId != -1 && {
-					name: 'delete',
-					type: 'button',
-					label: 'Current savefile',
-					value: 'Delete',
-					onclick: () => {
-						const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
-						const newSaves = saves.filter((value) => value.id != this.nodeSystem.saveId);
-						window.localStorage.setItem('saves', JSON.stringify(newSaves));
-						window.localStorage.removeItem('save_' + this.nodeSystem.saveId);
-						this.htmlElement.remove();
+			this.nodeSystem.eventHandler.removeEventListeners();
+			try {
+				const parameters = await popup.requestParameters('Settings', [
+					{
+						name: 'colorConnectionLines',
+						label: 'Change connection line color based on value.',
+						checked: this.nodeSystem.config.colorConnectionLines,
+						type: 'checkbox'
+					},
+					this.nodeSystem.saveId != -1 && {
+						name: 'delete',
+						type: 'button',
+						label: 'Current savefile',
+						value: 'Delete',
+						onclick: () => {
+							const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
+							const newSaves = saves.filter((value) => value.id != this.nodeSystem.saveId);
+							window.localStorage.setItem('saves', JSON.stringify(newSaves));
+							window.localStorage.removeItem('save_' + this.nodeSystem.saveId);
+							this.htmlElement.remove();
+						}
 					}
-				}
-			]);
-			parameters.forEach((param) => {
-				this.nodeSystem.config[param.name] = param.type == 'checkbox' ? param.checked : param.value;
-			});
+				]);
+				parameters.forEach((param) => {
+					this.nodeSystem.config[param.name] = param.type == 'checkbox' ? param.checked : param.value;
+				});
+			} finally {
+				this.nodeSystem.eventHandler.addEventListeners();
+			}
 		};
 
 		const fileDropdownMenu = new ToolbarDropdownMenu('File');
+
 		const newButton = new ToolbarButton('New', newAction);
 		const openButton = new ToolbarButton('Load', loadAction);
 		const saveButton = new ToolbarButton('Save', saveAction);
@@ -159,6 +178,19 @@ export class Toolbar {
 		]) {
 			fileDropdownMenu.addButton(button);
 		}
+		const examplesDropdownMenu = new ToolbarDropdownMenu('Examples', [], true);
+
+		exampleSaves.forEach(({ filename, save }) => {
+			examplesDropdownMenu.addButton(
+				new ToolbarButton(filename, () => {
+					this.nodeSystem.reset();
+					this.nodeSystem.config.setConfig(save.config);
+					this.nodeSystem.loadSave(save, filename, -1);
+				})
+			);
+		});
+
+		fileDropdownMenu.addButton(examplesDropdownMenu);
 
 		fileDropdownMenu.onOpen = this.closeAll.bind(this);
 		this.buttons.push(fileDropdownMenu);

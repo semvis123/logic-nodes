@@ -1,0 +1,892 @@
+{
+	"nodes": [
+		{
+			"id": "3446800067-2098519852-2200352036-684094316",
+			"type": "ToggleNode",
+			"x": 177.5,
+			"y": 523,
+			"parameters": [
+				{
+					"name": "defaultValue",
+					"label": "Default value",
+					"value": "0",
+					"type": "number",
+					"required": true,
+					"min": 0,
+					"max": 1
+				}
+			]
+		},
+		{
+			"id": "1429762276-3666586962-1816522032-4191936527",
+			"type": "DisplayNode",
+			"x": 974.5,
+			"y": 472,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "1017755270-263309342-3151606860-4116194871",
+			"type": "DisplayNode",
+			"x": 974.5,
+			"y": 427,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "2761524108-1666060322-3051371737-1457373756",
+			"type": "DisplayNode",
+			"x": 1019.5,
+			"y": 517,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "2289469833-3578984599-409074293-2363435452",
+			"type": "DisplayNode",
+			"x": 1064.5,
+			"y": 382,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "3795645761-1828892776-4267167945-474172821",
+			"type": "DisplayNode",
+			"x": 1019.5,
+			"y": 382,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "2309536442-2581561376-2456976103-1211335621",
+			"type": "DisplayNode",
+			"x": 1109.5,
+			"y": 427,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "996451922-3896911386-4151652441-189051485",
+			"type": "DisplayNode",
+			"x": 1064.5,
+			"y": 517,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "1189582060-2840317501-3330945736-3041148495",
+			"type": "DisplayNode",
+			"x": 974.5,
+			"y": 607,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "1319947314-418812406-2985037699-1520847020",
+			"type": "DisplayNode",
+			"x": 974.5,
+			"y": 562,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "4136436902-3758441770-707263368-3280028859",
+			"type": "DisplayNode",
+			"x": 1019.5,
+			"y": 652,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "2554386995-1199886503-3919092999-3494126796",
+			"type": "DisplayNode",
+			"x": 1109.5,
+			"y": 562,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "3842888856-1360578973-1309707553-1884451351",
+			"type": "DisplayNode",
+			"x": 1109.5,
+			"y": 607,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "598953560-649842220-501465698-2304810821",
+			"type": "DisplayNode",
+			"x": 1064.5,
+			"y": 652,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "3982137022-3387801565-2593500067-147879018",
+			"type": "DisplayNode",
+			"x": 1109.5,
+			"y": 472,
+			"parameters": [{ "name": "showValue", "label": "Show Value", "checked": false, "type": "checkbox" }]
+		},
+		{
+			"id": "2848540776-2606738668-2174000974-3542617472",
+			"type": "ToggleNode",
+			"x": 177.5,
+			"y": 568,
+			"parameters": [
+				{
+					"name": "defaultValue",
+					"label": "Default value",
+					"value": "0",
+					"type": "number",
+					"required": true,
+					"min": 0,
+					"max": 1
+				}
+			]
+		},
+		{
+			"id": "4252714777-216283721-4133855629-357837144",
+			"type": "ToggleNode",
+			"x": 177.5,
+			"y": 433,
+			"parameters": [
+				{
+					"name": "defaultValue",
+					"label": "Default value",
+					"value": "0",
+					"type": "number",
+					"required": true,
+					"min": 0,
+					"max": 1
+				}
+			]
+		},
+		{
+			"id": "3627139249-735345796-2138423873-753303529",
+			"type": "ToggleNode",
+			"x": 177.5,
+			"y": 478,
+			"parameters": [
+				{
+					"name": "defaultValue",
+					"label": "Default value",
+					"value": "0",
+					"type": "number",
+					"required": true,
+					"min": 0,
+					"max": 1
+				}
+			]
+		},
+		{
+			"id": "394250547-2565074108-679320676-2732314524",
+			"type": "LabelNode",
+			"x": 151.5,
+			"y": 439,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "1", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#ffd500", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "3041011916-1492522744-1657160630-4164721875",
+			"type": "LabelNode",
+			"x": 152.5,
+			"y": 484,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "2", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#ffd500", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "4005220254-3649250889-3940280453-2722717635",
+			"type": "LabelNode",
+			"x": 152.5,
+			"y": 530,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "4", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#ffd500", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "2555359810-1645459390-888384753-926310193",
+			"type": "LabelNode",
+			"x": 152.5,
+			"y": 574,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "8", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#ffd500", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "370475627-2332979220-993417037-2727969261",
+			"type": "OrNode",
+			"x": 813.5,
+			"y": 456,
+			"parameters": [
+				{ "name": "inputs", "label": "Inputs", "value": "4", "type": "number", "required": true, "min": 1 }
+			]
+		},
+		{
+			"id": "2845146167-1197672148-2492533594-574668467",
+			"type": "OrNode",
+			"x": 813.5,
+			"y": 636,
+			"parameters": [
+				{ "name": "inputs", "label": "Inputs", "value": "3", "type": "number", "required": true, "min": 1 }
+			]
+		},
+		{
+			"id": "2080103471-1907955420-2452768582-675653570",
+			"type": "OrNode",
+			"x": 564.5,
+			"y": 401,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "3091303605-2538389864-2696439065-2413706875",
+			"type": "OrNode",
+			"x": 814.5,
+			"y": 266,
+			"parameters": [
+				{ "name": "inputs", "label": "Inputs", "value": "4", "type": "number", "required": true, "min": 1 }
+			]
+		},
+		{
+			"id": "1618545400-1581621521-861692277-418675350",
+			"type": "OrNode",
+			"x": 813.5,
+			"y": 546,
+			"parameters": [
+				{ "name": "inputs", "label": "Inputs", "value": "3", "type": "number", "required": true, "min": 1 }
+			]
+		},
+		{
+			"id": "997268612-174386765-3242791576-2138202502",
+			"type": "LabelNode",
+			"x": 776.5,
+			"y": 465,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "C", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "825974027-2084698734-3019449909-938411526",
+			"type": "LabelNode",
+			"x": 774.5,
+			"y": 300,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "A", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "3472847304-3111186717-2818258552-410519730",
+			"type": "LabelNode",
+			"x": 777.5,
+			"y": 552,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "D", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "1566403995-1254072703-3192338687-1277805422",
+			"type": "LabelNode",
+			"x": 776.5,
+			"y": 386,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "B", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "2447268111-714589429-3661562848-2608857130",
+			"type": "LabelNode",
+			"x": 775.5,
+			"y": 644,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "E", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "2440664310-1940613514-426384264-1455847623",
+			"type": "LabelNode",
+			"x": 778.5,
+			"y": 727,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "F", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "374098317-1255392628-2437106412-648096601",
+			"type": "LabelNode",
+			"x": 774.5,
+			"y": 819,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "G", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "2550007824-393340428-2206576940-2522345122",
+			"type": "LabelNode",
+			"x": 1170.5,
+			"y": 591,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "C", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "1722199871-3728037143-909320245-3132498706",
+			"type": "LabelNode",
+			"x": 1047.5,
+			"y": 340,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "A", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "2313649714-259214510-3343127435-1069636526",
+			"type": "LabelNode",
+			"x": 1052.5,
+			"y": 711,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "D", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "765816015-1342531327-2988810139-2100107753",
+			"type": "LabelNode",
+			"x": 1166.5,
+			"y": 454,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "B", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "2484543721-2887201667-1503874975-2536506622",
+			"type": "LabelNode",
+			"x": 939.5,
+			"y": 594,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "E", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "954823590-3547820054-3353614286-3531942950",
+			"type": "LabelNode",
+			"x": 939.5,
+			"y": 457,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "F", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "2341272939-3967732724-2058366031-2739323519",
+			"type": "LabelNode",
+			"x": 1051.5,
+			"y": 485,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "G", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008bf5", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "16", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "865016600-2262479396-3922763343-1197526670",
+			"type": "OrNode",
+			"x": 544.5,
+			"y": 802,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "3241893111-3728650374-1222104467-3440280967",
+			"type": "OrNode",
+			"x": 813.5,
+			"y": 719,
+			"parameters": [
+				{ "name": "inputs", "label": "Inputs", "value": "3", "type": "number", "required": true, "min": 1 }
+			]
+		},
+		{
+			"id": "1683838971-3832598845-581799714-773341931",
+			"type": "AndNode",
+			"x": 658,
+			"y": 604,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{ "id": "398720965-753740710-3559070469-797740559", "type": "NotNode", "x": 555.5, "y": 591, "parameters": [] },
+		{
+			"id": "1168516380-1508901924-1366687482-4104731776",
+			"type": "OrNode",
+			"x": 486,
+			"y": 430,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "3424424790-2443354534-4257540388-3641464592",
+			"type": "AndNode",
+			"x": 374.5,
+			"y": 329,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "718846772-4225276834-246595691-2113292213",
+			"type": "NandNode",
+			"x": 369,
+			"y": 403,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "1433789670-894443669-2885726054-3270621392",
+			"type": "AndNode",
+			"x": 657,
+			"y": 379,
+			"parameters": [
+				{ "name": "inputs", "label": "Inputs", "value": "3", "type": "number", "required": true, "min": 1 }
+			]
+		},
+		{ "id": "2644329612-1223390603-706732348-99951724", "type": "NotNode", "x": 486, "y": 524, "parameters": [] },
+		{
+			"id": "3556099398-838869832-4056029312-2998375352",
+			"type": "NandNode",
+			"x": 561,
+			"y": 458,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "583697028-4013309698-3516386805-3372831919",
+			"type": "OrNode",
+			"x": 814,
+			"y": 362,
+			"parameters": [
+				{ "name": "inputs", "label": "Inputs", "value": "4", "type": "number", "required": true, "min": 1 }
+			]
+		},
+		{
+			"id": "2144454643-2429490528-1183124206-801075330",
+			"type": "AndNode",
+			"x": 369,
+			"y": 465,
+			"parameters": [
+				{ "name": "inputs", "label": "Inputs", "value": "3", "type": "number", "required": true, "min": 1 }
+			]
+		},
+		{
+			"id": "3202616177-2152221520-789129965-3011178238",
+			"type": "AndNode",
+			"x": 658,
+			"y": 714,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{ "id": "586538305-1434781958-332918284-212544687", "type": "NotNode", "x": 555, "y": 692, "parameters": [] },
+		{
+			"id": "2630431800-2027638776-1822747006-2530177869",
+			"type": "AndNode",
+			"x": 658,
+			"y": 802,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "1300364701-4090836925-441177879-384733742",
+			"type": "OrNode",
+			"x": 814,
+			"y": 812,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "2847480549-342116988-2798334658-481010015",
+			"type": "OrNode",
+			"x": 558.5,
+			"y": 535,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "3202559519-1697064322-1929254431-982342506",
+			"type": "AndNode",
+			"x": 658,
+			"y": 541,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "999517365-132693208-421184316-2573963419",
+			"type": "AndNode",
+			"x": 657,
+			"y": 649,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "548065496-1280159950-1389091260-55012425",
+			"type": "NandNode",
+			"x": 486,
+			"y": 655,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "798078518-2995511827-704012349-2429366068",
+			"type": "OrNode",
+			"x": 354,
+			"y": 699,
+			"parameters": [
+				{ "name": "inputs", "label": "Inputs", "value": "4", "type": "number", "required": true, "min": 1 }
+			]
+		},
+		{ "id": "2214140090-1025368639-3323151012-1932902808", "type": "NorNode", "x": 486, "y": 742, "parameters": [] },
+		{
+			"id": "843406377-3298127056-1030119851-3636798606",
+			"type": "LabelNode",
+			"x": 497.5,
+			"y": 192.5,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "7 Segment display", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#004c9e", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "30", "type": "number", "step": 1 }
+			]
+		}
+	],
+	"connections": [
+		{
+			"from": { "nodeId": "370475627-2332979220-993417037-2727969261", "index": 0 },
+			"to": { "nodeId": "2554386995-1199886503-3919092999-3494126796", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "370475627-2332979220-993417037-2727969261", "index": 0 },
+			"to": { "nodeId": "3842888856-1360578973-1309707553-1884451351", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2080103471-1907955420-2452768582-675653570", "index": 0 },
+			"to": { "nodeId": "1433789670-894443669-2885726054-3270621392", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "3091303605-2538389864-2696439065-2413706875", "index": 0 },
+			"to": { "nodeId": "3795645761-1828892776-4267167945-474172821", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "3091303605-2538389864-2696439065-2413706875", "index": 0 },
+			"to": { "nodeId": "2289469833-3578984599-409074293-2363435452", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "1618545400-1581621521-861692277-418675350", "index": 0 },
+			"to": { "nodeId": "4136436902-3758441770-707263368-3280028859", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "1618545400-1581621521-861692277-418675350", "index": 0 },
+			"to": { "nodeId": "598953560-649842220-501465698-2304810821", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2845146167-1197672148-2492533594-574668467", "index": 0 },
+			"to": { "nodeId": "1189582060-2840317501-3330945736-3041148495", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2845146167-1197672148-2492533594-574668467", "index": 0 },
+			"to": { "nodeId": "1319947314-418812406-2985037699-1520847020", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "3241893111-3728650374-1222104467-3440280967", "index": 0 },
+			"to": { "nodeId": "1429762276-3666586962-1816522032-4191936527", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "3241893111-3728650374-1222104467-3440280967", "index": 0 },
+			"to": { "nodeId": "1017755270-263309342-3151606860-4116194871", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "865016600-2262479396-3922763343-1197526670", "index": 0 },
+			"to": { "nodeId": "2630431800-2027638776-1822747006-2530177869", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "4252714777-216283721-4133855629-357837144", "index": 0 },
+			"to": { "nodeId": "2080103471-1907955420-2452768582-675653570", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "4252714777-216283721-4133855629-357837144", "index": 0 },
+			"to": { "nodeId": "398720965-753740710-3559070469-797740559", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "4252714777-216283721-4133855629-357837144", "index": 0 },
+			"to": { "nodeId": "3424424790-2443354534-4257540388-3641464592", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "4252714777-216283721-4133855629-357837144", "index": 0 },
+			"to": { "nodeId": "718846772-4225276834-246595691-2113292213", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "4252714777-216283721-4133855629-357837144", "index": 0 },
+			"to": { "nodeId": "2144454643-2429490528-1183124206-801075330", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "4252714777-216283721-4133855629-357837144", "index": 0 },
+			"to": { "nodeId": "548065496-1280159950-1389091260-55012425", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "4252714777-216283721-4133855629-357837144", "index": 0 },
+			"to": { "nodeId": "370475627-2332979220-993417037-2727969261", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "4252714777-216283721-4133855629-357837144", "index": 0 },
+			"to": { "nodeId": "798078518-2995511827-704012349-2429366068", "index": 2 }
+		},
+		{
+			"from": { "nodeId": "3627139249-735345796-2138423873-753303529", "index": 0 },
+			"to": { "nodeId": "865016600-2262479396-3922763343-1197526670", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "3627139249-735345796-2138423873-753303529", "index": 0 },
+			"to": { "nodeId": "1683838971-3832598845-581799714-773341931", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "3627139249-735345796-2138423873-753303529", "index": 0 },
+			"to": { "nodeId": "1168516380-1508901924-1366687482-4104731776", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "3627139249-735345796-2138423873-753303529", "index": 0 },
+			"to": { "nodeId": "3556099398-838869832-4056029312-2998375352", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "3627139249-735345796-2138423873-753303529", "index": 0 },
+			"to": { "nodeId": "2144454643-2429490528-1183124206-801075330", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "3627139249-735345796-2138423873-753303529", "index": 0 },
+			"to": { "nodeId": "2847480549-342116988-2798334658-481010015", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "3627139249-735345796-2138423873-753303529", "index": 0 },
+			"to": { "nodeId": "3091303605-2538389864-2696439065-2413706875", "index": 2 }
+		},
+		{
+			"from": { "nodeId": "3627139249-735345796-2138423873-753303529", "index": 0 },
+			"to": { "nodeId": "798078518-2995511827-704012349-2429366068", "index": 3 }
+		},
+		{
+			"from": { "nodeId": "1683838971-3832598845-581799714-773341931", "index": 0 },
+			"to": { "nodeId": "2845146167-1197672148-2492533594-574668467", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "398720965-753740710-3559070469-797740559", "index": 0 },
+			"to": { "nodeId": "1683838971-3832598845-581799714-773341931", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "1168516380-1508901924-1366687482-4104731776", "index": 0 },
+			"to": { "nodeId": "2080103471-1907955420-2452768582-675653570", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "3446800067-2098519852-2200352036-684094316", "index": 0 },
+			"to": { "nodeId": "1168516380-1508901924-1366687482-4104731776", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "3446800067-2098519852-2200352036-684094316", "index": 0 },
+			"to": { "nodeId": "3424424790-2443354534-4257540388-3641464592", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "3446800067-2098519852-2200352036-684094316", "index": 0 },
+			"to": { "nodeId": "718846772-4225276834-246595691-2113292213", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "3446800067-2098519852-2200352036-684094316", "index": 0 },
+			"to": { "nodeId": "3556099398-838869832-4056029312-2998375352", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "3446800067-2098519852-2200352036-684094316", "index": 0 },
+			"to": { "nodeId": "2144454643-2429490528-1183124206-801075330", "index": 2 }
+		},
+		{
+			"from": { "nodeId": "3446800067-2098519852-2200352036-684094316", "index": 0 },
+			"to": { "nodeId": "3202616177-2152221520-789129965-3011178238", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "3446800067-2098519852-2200352036-684094316", "index": 0 },
+			"to": { "nodeId": "865016600-2262479396-3922763343-1197526670", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "3446800067-2098519852-2200352036-684094316", "index": 0 },
+			"to": { "nodeId": "798078518-2995511827-704012349-2429366068", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "3446800067-2098519852-2200352036-684094316", "index": 0 },
+			"to": { "nodeId": "370475627-2332979220-993417037-2727969261", "index": 2 }
+		},
+		{
+			"from": { "nodeId": "3424424790-2443354534-4257540388-3641464592", "index": 0 },
+			"to": { "nodeId": "3091303605-2538389864-2696439065-2413706875", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "718846772-4225276834-246595691-2113292213", "index": 0 },
+			"to": { "nodeId": "1433789670-894443669-2885726054-3270621392", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "718846772-4225276834-246595691-2113292213", "index": 0 },
+			"to": { "nodeId": "2644329612-1223390603-706732348-99951724", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "1433789670-894443669-2885726054-3270621392", "index": 0 },
+			"to": { "nodeId": "583697028-4013309698-3516386805-3372831919", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2644329612-1223390603-706732348-99951724", "index": 0 },
+			"to": { "nodeId": "2847480549-342116988-2798334658-481010015", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "3556099398-838869832-4056029312-2998375352", "index": 0 },
+			"to": { "nodeId": "1433789670-894443669-2885726054-3270621392", "index": 2 }
+		},
+		{
+			"from": { "nodeId": "583697028-4013309698-3516386805-3372831919", "index": 0 },
+			"to": { "nodeId": "2309536442-2581561376-2456976103-1211335621", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "583697028-4013309698-3516386805-3372831919", "index": 0 },
+			"to": { "nodeId": "3982137022-3387801565-2593500067-147879018", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2144454643-2429490528-1183124206-801075330", "index": 0 },
+			"to": { "nodeId": "586538305-1434781958-332918284-212544687", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2144454643-2429490528-1183124206-801075330", "index": 0 },
+			"to": { "nodeId": "583697028-4013309698-3516386805-3372831919", "index": 2 }
+		},
+		{
+			"from": { "nodeId": "3202616177-2152221520-789129965-3011178238", "index": 0 },
+			"to": { "nodeId": "3241893111-3728650374-1222104467-3440280967", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "586538305-1434781958-332918284-212544687", "index": 0 },
+			"to": { "nodeId": "3202616177-2152221520-789129965-3011178238", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "586538305-1434781958-332918284-212544687", "index": 0 },
+			"to": { "nodeId": "2630431800-2027638776-1822747006-2530177869", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "586538305-1434781958-332918284-212544687", "index": 0 },
+			"to": { "nodeId": "3202559519-1697064322-1929254431-982342506", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "2630431800-2027638776-1822747006-2530177869", "index": 0 },
+			"to": { "nodeId": "1300364701-4090836925-441177879-384733742", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "1300364701-4090836925-441177879-384733742", "index": 0 },
+			"to": { "nodeId": "2761524108-1666060322-3051371737-1457373756", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "1300364701-4090836925-441177879-384733742", "index": 0 },
+			"to": { "nodeId": "996451922-3896911386-4151652441-189051485", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2847480549-342116988-2798334658-481010015", "index": 0 },
+			"to": { "nodeId": "3202559519-1697064322-1929254431-982342506", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "3202559519-1697064322-1929254431-982342506", "index": 0 },
+			"to": { "nodeId": "1618545400-1581621521-861692277-418675350", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2848540776-2606738668-2174000974-3542617472", "index": 0 },
+			"to": { "nodeId": "1300364701-4090836925-441177879-384733742", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "2848540776-2606738668-2174000974-3542617472", "index": 0 },
+			"to": { "nodeId": "3241893111-3728650374-1222104467-3440280967", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "2848540776-2606738668-2174000974-3542617472", "index": 0 },
+			"to": { "nodeId": "1618545400-1581621521-861692277-418675350", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "2848540776-2606738668-2174000974-3542617472", "index": 0 },
+			"to": { "nodeId": "370475627-2332979220-993417037-2727969261", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "2848540776-2606738668-2174000974-3542617472", "index": 0 },
+			"to": { "nodeId": "583697028-4013309698-3516386805-3372831919", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "2848540776-2606738668-2174000974-3542617472", "index": 0 },
+			"to": { "nodeId": "3091303605-2538389864-2696439065-2413706875", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "2848540776-2606738668-2174000974-3542617472", "index": 0 },
+			"to": { "nodeId": "999517365-132693208-421184316-2573963419", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2848540776-2606738668-2174000974-3542617472", "index": 0 },
+			"to": { "nodeId": "548065496-1280159950-1389091260-55012425", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "2848540776-2606738668-2174000974-3542617472", "index": 0 },
+			"to": { "nodeId": "798078518-2995511827-704012349-2429366068", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "999517365-132693208-421184316-2573963419", "index": 0 },
+			"to": { "nodeId": "2845146167-1197672148-2492533594-574668467", "index": 2 }
+		},
+		{
+			"from": { "nodeId": "548065496-1280159950-1389091260-55012425", "index": 0 },
+			"to": { "nodeId": "999517365-132693208-421184316-2573963419", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "798078518-2995511827-704012349-2429366068", "index": 0 },
+			"to": { "nodeId": "2214140090-1025368639-3323151012-1932902808", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2214140090-1025368639-3323151012-1932902808", "index": 0 },
+			"to": { "nodeId": "2845146167-1197672148-2492533594-574668467", "index": 1 }
+		},
+		{
+			"from": { "nodeId": "2214140090-1025368639-3323151012-1932902808", "index": 0 },
+			"to": { "nodeId": "3091303605-2538389864-2696439065-2413706875", "index": 3 }
+		},
+		{
+			"from": { "nodeId": "2214140090-1025368639-3323151012-1932902808", "index": 0 },
+			"to": { "nodeId": "583697028-4013309698-3516386805-3372831919", "index": 3 }
+		},
+		{
+			"from": { "nodeId": "2214140090-1025368639-3323151012-1932902808", "index": 0 },
+			"to": { "nodeId": "370475627-2332979220-993417037-2727969261", "index": 3 }
+		},
+		{
+			"from": { "nodeId": "2214140090-1025368639-3323151012-1932902808", "index": 0 },
+			"to": { "nodeId": "3241893111-3728650374-1222104467-3440280967", "index": 2 }
+		},
+		{
+			"from": { "nodeId": "2214140090-1025368639-3323151012-1932902808", "index": 0 },
+			"to": { "nodeId": "1618545400-1581621521-861692277-418675350", "index": 2 }
+		}
+	],
+	"config": {
+		"theme": {
+			"backgroundColor": "#1D1E20",
+			"nodeBackfroundColor": "#161618",
+			"nodeBorderColor": "#FFF",
+			"nodeTextColor": "#FFF",
+			"connectionColor": "#FFF",
+			"nodeSelectedColor": "rgba(0, 30, 120, 0.5)",
+			"nodeSelectionSquareColor": "rgba(0, 0, 0, 0.2)",
+			"connectionPointRadius": 3,
+			"nodeBorderRadius": 3,
+			"nodeHighColor": "#372",
+			"nodeLowColor": "#f23"
+		},
+		"renderMode": "variable",
+		"hardwareAccelerationHtmlOverlay": true,
+		"colorConnectionLines": true,
+		"nodeSpacing": 5,
+		"nodesCanOverlap": false
+	}
+}

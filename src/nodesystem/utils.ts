@@ -1,6 +1,7 @@
 import type { Config } from './Config';
 import type { Node } from './Node';
 import type { NodeStorage } from './NodeStorage';
+import { ToastMessage } from './toastmessage/ToastMessage';
 
 export const uuid = () => {
 	return crypto.getRandomValues(new Uint32Array(4)).join('-');
@@ -57,7 +58,8 @@ export const positionNode = (
 	let found = false;
 	let d = -1;
 	let dir: number[];
-	while (!found) {
+	let tryLimit = 1000;
+	while (!found && tryLimit-- > 1) {
 		d++;
 		for (dir of directions) {
 			const left = x + dir[0] * d;
@@ -82,6 +84,10 @@ export const positionNode = (
 				break;
 			}
 		}
+	}
+	if (tryLimit <= 1) {
+		console.log([node, x, y, nodeStorage, config, nodes]);
+		new ToastMessage('Could not position nodes', 'danger').show();
 	}
 	const diffX = x + dir[0] * d - node.x;
 	const diffY = y + dir[1] * d - node.y;

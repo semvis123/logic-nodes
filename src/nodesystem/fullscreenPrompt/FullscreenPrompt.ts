@@ -30,7 +30,7 @@ export class FullscreenPrompt {
 		window.document.body.appendChild(this.htmlElement);
 	}
 
-	requestParameters(title, parameters: NodeParameter[]): Promise<NodeParameter[]> {
+	requestParameters(title: string, parameters: NodeParameter[]): Promise<NodeParameter[]> {
 		return new Promise((resolve, reject) => {
 			const titleEl = document.createElement('h1');
 			titleEl.innerText = title;
@@ -69,7 +69,7 @@ export class FullscreenPrompt {
 					else param.value = (e.currentTarget as HTMLInputElement).value;
 				};
 				paramInput.onkeydown = (e: KeyboardEvent) => {
-					if (e.code == 'Enter') submitBtn.click();
+					if (e.key == 'Enter') submitBtn.click();
 				};
 				this.popupElement.appendChild(paramEl);
 			});

@@ -47,8 +47,13 @@ export abstract class Node {
 				onclick: (async () => {
 					menu.remove();
 					const popup = new FullscreenPrompt();
-					this.parameters = await popup.requestParameters('Edit', this.getMetadata().parameters);
-					this.reset();
+					this.nodeSystem.eventHandler.removeEventListeners();
+					try {
+						this.parameters = await popup.requestParameters('Edit', this.getMetadata().parameters);
+						this.reset();
+					} finally {
+						this.nodeSystem.eventHandler.addEventListeners();
+					}
 				}).bind(this)
 			},
 			delete: {
