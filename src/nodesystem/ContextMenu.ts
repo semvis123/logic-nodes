@@ -60,6 +60,7 @@ export class ContextMenu {
 		const popup = new FullscreenPrompt();
 		node.parameters = await popup.requestParameters('Edit', node.getMetadata().parameters);
 		node.reset();
+		this.nodeSystem.nodeRenderer.render();
 	}
 
 	deleteAction() {

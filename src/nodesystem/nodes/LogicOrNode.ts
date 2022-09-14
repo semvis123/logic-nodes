@@ -22,6 +22,21 @@ export class OrNode extends Node {
 			nodeSystem
 		);
 		this.importParams(parameters);
+		this.reset();
+	}
+
+	reset() {
+		while (this.inputs.length > this.getParamValue('inputs', 2)) {
+			// remove inputs
+			this.nodeSystem.nodeConnectionHandler.removeFirstConnection(this.inputs.pop());
+		}
+
+		while (this.inputs.length < this.getParamValue('inputs', 2)) {
+			this.inputs.push(new NodeInput(uuid(), '-', NodeValueType.Number));
+		}
+
+		this.inputs.forEach((input, i) => input.setNode(this, i));
+		this.height = Math.max(this.inputs.length * 20, 40);
 	}
 
 	getMetadata(): Metadata {

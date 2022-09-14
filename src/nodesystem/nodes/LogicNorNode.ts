@@ -8,7 +8,16 @@ import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
 
 export class NorNode extends Node {
-	parameters: NodeParameter[] = [];
+	parameters: NodeParameter[] = [
+		{
+			name: 'inputs',
+			label: 'Inputs',
+			value: 2,
+			type: 'number',
+			required: true,
+			min: 1
+		}
+	];
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(
@@ -33,7 +42,25 @@ export class NorNode extends Node {
 		};
 	}
 
+	reset() {
+		while (this.inputs.length > this.getParamValue('inputs', 2)) {
+			// remove inputs
+			this.nodeSystem.nodeConnectionHandler.removeFirstConnection(this.inputs.pop());
+		}
+
+		while (this.inputs.length < this.getParamValue('inputs', 2)) {
+			this.inputs.push(new NodeInput(uuid(), '-', NodeValueType.Number));
+		}
+
+		this.inputs.forEach((input, i) => input.setNode(this, i));
+		this.height = Math.max(this.inputs.length * 20, 40);
+	}
+
 	update() {
-		this.outputs[0].setValue(1 - ((this.inputs[0].value as number) | (this.inputs[1].value as number)));
+		let value = 0;
+		this.inputs.forEach((input) => {
+			value |= input.value as number;
+		});
+		this.outputs[0].setValue(1 - value);
 	}
 }

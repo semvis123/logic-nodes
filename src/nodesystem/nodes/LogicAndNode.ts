@@ -45,7 +45,7 @@ export class AndNode extends Node {
 	reset() {
 		while (this.inputs.length > this.getParamValue('inputs', 2)) {
 			// remove inputs
-			this.nodeSystem.nodeConnectionHandler.removeFirstConnection(this.inputs[this.inputs.length - 1]);
+			this.nodeSystem.nodeConnectionHandler.removeFirstConnection(this.inputs.pop());
 		}
 		while (this.inputs.length < this.getParamValue('inputs', 2)) {
 			this.inputs.push(new NodeInput(uuid(), '-', NodeValueType.Number));
