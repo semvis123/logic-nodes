@@ -53,5 +53,5 @@
 	<canvas bind:this={canvas} {width} {height} />
 	<div class="overlayContainer" bind:this={canvasOverlayContainer} />
 	<div class="overlayContainer" bind:this={overlayContainer} />
-	<div class="toast-message-container" id="toast-container"/>
+	<div class="toast-message-container" id="toast-container" />
 </div>

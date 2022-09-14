@@ -59,7 +59,7 @@ export const positionNode = (
 	let d = -1;
 	let dir: number[];
 	let tryLimit = 1000;
-	while (!found && tryLimit --> 1) {
+	while (!found && tryLimit-- > 1) {
 		d++;
 		for (dir of directions) {
 			const left = x + dir[0] * d;
@@ -86,7 +86,7 @@ export const positionNode = (
 		}
 	}
 	if (tryLimit <= 1) {
-		console.log([node, x, y, nodeStorage, config, nodes])
+		console.log([node, x, y, nodeStorage, config, nodes]);
 		new ToastMessage('Could not position nodes', 'danger').show();
 	}
 	const diffX = x + dir[0] * d - node.x;

@@ -60,7 +60,12 @@ export class ContextMenu {
 		const node = this.selectedNodes[0];
 		this.menu.remove();
 		const popup = new FullscreenPrompt();
-		node.parameters = await popup.requestParameters('Edit', node.getMetadata().parameters);
+		this.nodeSystem.eventHandler.removeEventListeners();
+		try {
+			node.parameters = await popup.requestParameters('Edit', node.getMetadata().parameters);
+		} finally {
+			this.nodeSystem.eventHandler.addEventListeners();
+		}
 		node.reset();
 	}
 
@@ -96,7 +101,7 @@ export class ContextMenu {
 		this.menu.remove();
 	}
 	alignAction() {
-		const {x, y} = getBoundingBoxOfMultipleNodes(this.selectedNodes);
+		const { x, y } = getBoundingBoxOfMultipleNodes(this.selectedNodes);
 		const padding = this.nodeSystem.config.nodeSpacing;
 		// width += padding * 2;
 		// height += padding * 2;

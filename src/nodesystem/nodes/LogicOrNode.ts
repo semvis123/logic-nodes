@@ -8,8 +8,16 @@ import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
 
 export class OrNode extends Node {
-	parameters: NodeParameter[] = [];
-
+	parameters: NodeParameter[] = [
+		{
+			name: 'inputs',
+			label: 'Inputs',
+			value: 2,
+			type: 'number',
+			required: true,
+			min: 1
+		}
+	];
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(
 			id,
@@ -22,6 +30,19 @@ export class OrNode extends Node {
 			nodeSystem
 		);
 		this.importParams(parameters);
+		this.reset();
+	}
+
+	reset() {
+		while (this.inputs.length > this.getParamValue('inputs', 2)) {
+			// remove inputs
+			this.nodeSystem.nodeConnectionHandler.removeFirstConnection(this.inputs[this.inputs.length - 1]);
+		}
+		while (this.inputs.length < this.getParamValue('inputs', 2)) {
+			this.inputs.push(new NodeInput(uuid(), '-', NodeValueType.Number));
+		}
+		this.inputs.forEach((input, i) => input.setNode(this, i));
+		this.height = Math.max(this.inputs.length * 20, 40);
 	}
 
 	getMetadata(): Metadata {
@@ -34,6 +55,10 @@ export class OrNode extends Node {
 	}
 
 	update() {
-		this.outputs[0].setValue((this.inputs[0].value as number) | (this.inputs[1].value as number));
+		let value = 0;
+		this.inputs.forEach((input) => {
+			value |= input.value as number;
+		});
+		this.outputs[0].setValue(value);
 	}
 }

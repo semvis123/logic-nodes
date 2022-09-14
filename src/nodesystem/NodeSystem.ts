@@ -41,11 +41,12 @@ export class NodeSystem {
 		return save;
 	}
 
-	loadSave(save: NodeSaveFile, filename: string, saveId: number, silent=false) {
+	loadSave(save: NodeSaveFile, filename: string, saveId: number, silent = false) {
 		try {
 			this.importNodes(save);
-		} catch {
+		} catch (e) {
 			new ToastMessage('Failed to load save', 'danger').show();
+			console.error(e);
 			this.reset();
 			return;
 		}
@@ -91,9 +92,7 @@ export class NodeSystem {
 		this.htmlOverlayContainer.appendChild(filenameEl);
 	}
 
-	exportNodes(
-		nodesToExport: Node[],
-	): {
+	exportNodes(nodesToExport: Node[]): {
 		nodes: NodeSaveData[];
 		connections: NodeSaveFile['connections'];
 	} {
@@ -137,7 +136,7 @@ export class NodeSystem {
 			connections: NodeSaveFile['connections'];
 		},
 		addSelection = false,
-		rename = false,
+		rename = false
 	) {
 		const nodes: NodeSaveData[] = data.nodes;
 		const nodeNames = new Map<string, string>();

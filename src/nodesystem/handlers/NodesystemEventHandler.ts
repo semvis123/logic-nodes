@@ -18,6 +18,7 @@ export class NodesystemEventHandler {
 		outputPos: { x: number; y: number };
 		mousePos: { x: number; y: number };
 	};
+	hasEventListeners = false;
 
 	constructor(private nodeSystem: NodeSystem, private canvas: HTMLCanvasElement) {
 		this.onMouseDown = this.onMouseDown.bind(this);
@@ -27,16 +28,24 @@ export class NodesystemEventHandler {
 		this.onKeyDown = this.onKeyDown.bind(this);
 		this.onCopy = this.onCopy.bind(this);
 		this.onPaste = this.onPaste.bind(this);
-		window.addEventListener('mousedown', this.onMouseDown);
-		window.addEventListener('mousemove', this.onMouseMove);
-		window.addEventListener('mouseup', this.onMouseUp);
-		window.addEventListener('contextmenu', this.onContextMenu);
-		window.addEventListener('keydown', this.onKeyDown);
-		window.addEventListener('copy', this.onCopy);
-		window.addEventListener('paste', this.onPaste);
+		this.addEventListeners();
+	}
+
+	addEventListeners() {
+		if (!this.hasEventListeners) {
+			window.addEventListener('mousedown', this.onMouseDown);
+			window.addEventListener('mousemove', this.onMouseMove);
+			window.addEventListener('mouseup', this.onMouseUp);
+			window.addEventListener('contextmenu', this.onContextMenu);
+			window.addEventListener('keydown', this.onKeyDown);
+			window.addEventListener('copy', this.onCopy);
+			window.addEventListener('paste', this.onPaste);
+			this.hasEventListeners = true;
+		}
 	}
 
 	removeEventListeners() {
+		this.hasEventListeners = false;
 		window.removeEventListener('mousedown', this.onMouseDown);
 		window.removeEventListener('mousemove', this.onMouseMove);
 		window.removeEventListener('mouseup', this.onMouseUp);
@@ -44,10 +53,15 @@ export class NodesystemEventHandler {
 		window.removeEventListener('keydown', this.onKeyDown);
 		window.removeEventListener('copy', this.onCopy);
 		window.removeEventListener('paste', this.onPaste);
+		this.startingMouseMovePosition = undefined;
+		this.halfConnection = undefined;
+		this.selectionSquare = undefined;
+		this.leftMouseDown = false;
+		this.middleMouseDown = false;
 	}
 
 	onKeyDown(e: KeyboardEvent) {
-		if (e.code == 'Delete') {
+		if (e.code == 'Delete' || e.code == 'Backspace') {
 			if (this.selectedNodes) {
 				this.selectedNodes.forEach((node) => {
 					this.nodeSystem.nodeStorage.removeNode(node);
@@ -89,17 +103,18 @@ export class NodesystemEventHandler {
 
 	onMouseDown(e: MouseEvent) {
 		const ctxMBounds = this.contextMenu?.getBoundingClientRect();
-		if (
-			this.contextMenu &&
-			!(
-				e.x > ctxMBounds.x &&
-				e.x - ctxMBounds.width < ctxMBounds.x &&
-				e.y > ctxMBounds.y &&
-				e.y - ctxMBounds.height < ctxMBounds.y
-			)
-		) {
-			this.contextMenu.remove();
-			this.contextMenu = undefined;
+		if (this.contextMenu) {
+			if (
+				!(
+					e.x > ctxMBounds.x &&
+					e.x - ctxMBounds.width < ctxMBounds.x &&
+					e.y > ctxMBounds.y &&
+					e.y - ctxMBounds.height < ctxMBounds.y
+				)
+			) {
+				this.contextMenu.remove();
+				this.contextMenu = undefined;
+			}
 			return;
 		}
 		const mouseX = e.pageX - this.canvas.offsetLeft;
@@ -280,7 +295,7 @@ export class NodesystemEventHandler {
 				}
 			}
 		} else {
-			if (this.selectedNodes) {
+			if (this.selectedNodes?.length) {
 				const box = getBoundingBoxOfMultipleNodes(this.selectedNodes);
 				const translation = positionNode(
 					box,

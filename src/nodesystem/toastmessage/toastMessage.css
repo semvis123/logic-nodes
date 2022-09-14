@@ -1,80 +1,80 @@
 :root {
-    --toast-bg: #fff;
-    --toast-font: #000;
-    --toast-accent: #000;
+	--toast-bg: #fff;
+	--toast-font: #000;
+	--toast-accent: #000;
 }
 
 .toast-message-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    display: flex;
-    flex-direction: column-reverse;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	display: flex;
+	flex-direction: column-reverse;
 }
 
 .toast-message[data-type='info'] {
-    --toast-bg: rgb(0, 114, 162);
-    --toast-font: #fff;
-    --toast-accent: rgb(255, 255, 255);
+	--toast-bg: rgb(0, 114, 162);
+	--toast-font: #fff;
+	--toast-accent: rgb(255, 255, 255);
 }
 
-
 .toast-message[data-type='danger'] {
-    --toast-bg: rgb(218, 47, 0);
-    --toast-font: #fff;
-    --toast-accent: rgb(255, 255, 255);
+	--toast-bg: rgb(218, 47, 0);
+	--toast-font: #fff;
+	--toast-accent: rgb(255, 255, 255);
 }
 
 .toast-message[data-type='warning'] {
-    --toast-bg: rgb(255, 196, 0);
-    --toast-font: #000;
-    --toast-accent: rgb(0, 0, 0);
+	--toast-bg: rgb(255, 196, 0);
+	--toast-font: #000;
+	--toast-accent: rgb(0, 0, 0);
 }
 
 .toast-message[data-type='success'] {
-    --toast-bg: rgb(0, 164, 46);
-    --toast-font: #fff;
-    --toast-accent: rgb(254, 254, 254);
+	--toast-bg: rgb(0, 164, 46);
+	--toast-font: #fff;
+	--toast-accent: rgb(254, 254, 254);
 }
 
 .toast-message-icon {
-    font-size: 1.3rem;
+	font-size: 1.3rem;
 }
 
 .toast-message > * {
-    margin: 0;
+	margin: 0;
 }
 
 .toast-message-close-icon {
-    cursor: pointer;
+	cursor: pointer;
 }
 
 .toast-message {
-    background-color: var(--toast-bg);
-    color: var(--toast-font);
-    border-color: var(--toast-accent);
-    border-radius: 10px;
-    border-width: 1px;
-    border-style: solid;
-    padding: 1rem;
-    margin-bottom: 0.5rem;
-    width: 20rem;
-    align-self: center;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-    box-shadow: rgba(0, 0, 0, 0.414) 3px 3px 3px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    transition: all 0.3s ease;
+	background-color: var(--toast-bg);
+	color: var(--toast-font);
+	border-color: var(--toast-accent);
+	border-radius: 10px;
+	border-width: 1px;
+	border-style: solid;
+	padding: 1rem;
+	margin-bottom: 0.5rem;
+	width: 20rem;
+	align-self: center;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans',
+		'Helvetica Neue', sans-serif;
+	box-shadow: rgba(0, 0, 0, 0.414) 3px 3px 3px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	transition: all 0.3s ease;
 }
 
 .toast-message-disappearing {
-    opacity: 0;
-    height: 0;
-    font-size: 0;
-    margin-bottom: 0rem;
-    padding: 0;
-    border-width: 0px;
+	opacity: 0;
+	height: 0;
+	font-size: 0;
+	margin-bottom: 0rem;
+	padding: 0;
+	border-width: 0px;
 }

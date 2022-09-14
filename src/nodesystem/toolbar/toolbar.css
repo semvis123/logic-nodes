@@ -20,6 +20,18 @@
 .toolbar-dropdown-menu > .toolbar-button {
 	display: none;
 }
+.toolbar-dropdown-menu > .toolbar-dropdown-menu {
+	display: none;
+}
+.toolbar-dropdown-menu > .toolbar-dropdown-menu > .toolbar-button {
+	margin-left: 100px;
+	margin-right: -100px;
+	margin-top: -30px;
+	margin-bottom: 30px;
+}
+.toolbar-dropdown-menu.toolbar-dropdown-menu-button-open {
+	display: block;
+}
 
 .toolbar-dropdown-menu-name {
 	box-sizing: border-box;
@@ -42,7 +54,7 @@
 	border: solid 1px rgb(133, 133, 133);
 	color: #fff;
 	width: 98px;
-	height: 30px;
+	min-height: 30px;
 	text-align: center;
 	line-height: 28px;
 }
