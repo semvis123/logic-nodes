@@ -4,7 +4,7 @@ export class NodeRenderer {
 	frame: number;
 	throttleTimer: NodeJS.Timeout = null;
 	shouldRender = false;
-	view: { x: number; y: number } = { x: 0, y: 0 };
+	view: { x: number; y: number, zoom: number} = { x: 0, y: 0, zoom: 1 };
 
 	constructor(public canvas: HTMLCanvasElement, private nodeSystem: NodeSystem) {
 		this.ctx = canvas.getContext('2d', { alpha: false });
@@ -30,6 +30,7 @@ export class NodeRenderer {
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
 			this.ctx.save();
+			this.ctx.scale(this.view.zoom, this.view.zoom);
 			this.ctx.translate(node.x + this.view.x, node.y + this.view.y);
 			node.renderNode(this.ctx);
 			this.ctx.restore();
@@ -42,6 +43,7 @@ export class NodeRenderer {
 			this.ctx.strokeRect(selectionSquare.x, selectionSquare.y, selectionSquare.width, selectionSquare.height);
 		}
 		this.ctx.save();
+		this.ctx.scale(this.view.zoom, this.view.zoom);
 		this.ctx.translate(this.view.x, this.view.y);
 
 		this.nodeSystem.nodeConnectionHandler.renderConnections(this.ctx, this.nodeSystem.config);
@@ -76,5 +78,34 @@ export class NodeRenderer {
 			this.ctx.stroke();
 		}
 		this.ctx.restore();
+	}
+
+	panView(deltaX: number, deltaY: number) {
+		const view = {
+			x: this.view.x + (deltaX / this.view.zoom),
+			y: this.view.y + (deltaY / this.view.zoom),
+			zoom: this.view.zoom
+		};
+
+		this.view = view;
+		this.transformOverlay();
+		this.render();
+	}
+	
+	zoomView(deltaY: number, mouseX: number, mouseY: number) {
+		const zoomDelta = ((deltaY < 0) ? 1.15 : 1/1.15);
+		const oldZoom = this.view.zoom;
+		const newZoom = this.view.zoom * zoomDelta;
+		this.view = {
+			x: this.view.x + (mouseX / newZoom) - (mouseX / oldZoom),
+			y: this.view.y + (mouseY / newZoom) - (mouseY / oldZoom),
+			zoom: newZoom
+		};
+		this.transformOverlay();
+		this.render();
+	}
+
+	transformOverlay() {
+		this.nodeSystem.htmlCanvasOverlayContainer.style.transform = `translate(-50%, -50%) scale(${this.view.zoom}) translate(50%, 50%) translate(${this.view.x}px, ${this.view.y}px)`;
 	}
 }

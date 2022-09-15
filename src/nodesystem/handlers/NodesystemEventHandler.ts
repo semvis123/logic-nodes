@@ -28,18 +28,20 @@ export class NodesystemEventHandler {
 		this.onKeyDown = this.onKeyDown.bind(this);
 		this.onCopy = this.onCopy.bind(this);
 		this.onPaste = this.onPaste.bind(this);
+		this.onWheel = this.onWheel.bind(this);
 		this.addEventListeners();
 	}
 
 	addEventListeners() {
 		if (!this.hasEventListeners) {
-			window.addEventListener('mousedown', this.onMouseDown);
-			window.addEventListener('mousemove', this.onMouseMove);
-			window.addEventListener('mouseup', this.onMouseUp);
+			window.addEventListener('pointerdown', this.onMouseDown);
+			window.addEventListener('pointermove', this.onMouseMove);
+			window.addEventListener('pointerup', this.onMouseUp);
 			window.addEventListener('contextmenu', this.onContextMenu);
 			window.addEventListener('keydown', this.onKeyDown);
 			window.addEventListener('copy', this.onCopy);
 			window.addEventListener('paste', this.onPaste);
+			window.addEventListener('wheel', this.onWheel, { passive: false });
 			this.hasEventListeners = true;
 		}
 	}
@@ -53,11 +55,25 @@ export class NodesystemEventHandler {
 		window.removeEventListener('keydown', this.onKeyDown);
 		window.removeEventListener('copy', this.onCopy);
 		window.removeEventListener('paste', this.onPaste);
+		window.removeEventListener('wheel', this.onWheel);
 		this.startingMouseMovePosition = undefined;
 		this.halfConnection = undefined;
 		this.selectionSquare = undefined;
 		this.leftMouseDown = false;
 		this.middleMouseDown = false;
+	}
+
+	onWheel(e: WheelEvent) {
+		e.preventDefault();
+		if (this.middleMouseDown) return;
+		if (e.ctrlKey) {
+			// zoom
+			this.nodeSystem.nodeRenderer.zoomView(e.deltaY, e.pageX, e.pageY);
+			return
+		}
+		this.nodeSystem.nodeRenderer.panView(-e.deltaX, -e.deltaY);
+		this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
+
 	}
 
 	onKeyDown(e: KeyboardEvent) {
@@ -97,8 +113,9 @@ export class NodesystemEventHandler {
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
 
-		const pannedMouseX = mouseX - this.nodeSystem.nodeRenderer.view.x;
-		const pannedMouseY = mouseY - this.nodeSystem.nodeRenderer.view.y;
+		const { view: {x, y, zoom} } = this.nodeSystem.nodeRenderer;
+		const pannedMouseX = mouseX/zoom - x;
+		const pannedMouseY = mouseY/zoom - y;
 
 		this.startingMouseMovePosition = undefined;
 		if (this.contextMenu) {
@@ -107,7 +124,12 @@ export class NodesystemEventHandler {
 		}
 		// show context menu
 		const node = this.getNodeAt(pannedMouseX, pannedMouseY);
-		if (node) if (!this.selectedNodes?.includes(node)) this.selectedNodes = [node];
+		if (node) {
+			if (!this.selectedNodes?.includes(node))
+				this.selectedNodes = [node];
+		} else {
+			this.selectedNodes = [];
+		}
 
 		if (this.contextMenu) {
 			this.contextMenu.remove();
@@ -142,8 +164,9 @@ export class NodesystemEventHandler {
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
 
-		const pannedMouseX = mouseX - this.nodeSystem.nodeRenderer.view.x;
-		const pannedMouseY = mouseY - this.nodeSystem.nodeRenderer.view.y;
+		const { view: {x, y, zoom} } = this.nodeSystem.nodeRenderer;
+		const pannedMouseX = mouseX/zoom - x;
+		const pannedMouseY = mouseY/zoom - y;
 
 		if (e.button == 1) {
 			this.startingMouseMovePosition = { x: mouseX, y: mouseY };
@@ -230,26 +253,23 @@ export class NodesystemEventHandler {
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
 
-		const pannedMouseX = mouseX - this.nodeSystem.nodeRenderer.view.x;
-		const pannedMouseY = mouseY - this.nodeSystem.nodeRenderer.view.y;
+		const { view: {x, y, zoom} } = this.nodeSystem.nodeRenderer;
+		const pannedMouseX = mouseX/zoom - x;
+		const pannedMouseY = mouseY/zoom - y;
+	
 
 		if (this.middleMouseDown && this.startingMouseMovePosition) {
 			// pan
-			const view = {
-				x: this.nodeSystem.nodeRenderer.view.x - (this.startingMouseMovePosition.x - mouseX),
-				y: this.nodeSystem.nodeRenderer.view.y - (this.startingMouseMovePosition.y - mouseY)
-			};
-
-			this.nodeSystem.nodeRenderer.view = view;
-			this.nodeSystem.htmlCanvasOverlayContainer.style.transform = `translate(${view.x}px, ${view.y}px)`;
-
+			this.nodeSystem.nodeRenderer.panView(
+				-(this.startingMouseMovePosition.x - mouseX),
+				-(this.startingMouseMovePosition.y - mouseY)
+			);
 			this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
-			this.nodeSystem.nodeRenderer.render();
 		} else if (this.leftMouseDown && this.selectedNodes && this.startingMouseMovePosition) {
 			// move selection
 			this.selectedNodes.forEach((node) => {
-				node.x = node.x - (this.startingMouseMovePosition.x - mouseX);
-				node.y = node.y - (this.startingMouseMovePosition.y - mouseY);
+				node.x = node.x - (this.startingMouseMovePosition.x - mouseX)/zoom;
+				node.y = node.y - (this.startingMouseMovePosition.y - mouseY)/zoom;
 			});
 			this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
 			this.nodeSystem.nodeRenderer.render();
@@ -277,10 +297,11 @@ export class NodesystemEventHandler {
 			return;
 		}
 		if (this.selectionSquare) {
-			let x1 = this.selectionSquare.x - this.nodeSystem.nodeRenderer.view.x;
-			let y1 = this.selectionSquare.y - this.nodeSystem.nodeRenderer.view.y;
-			let x2 = this.selectionSquare.x + this.selectionSquare.width - this.nodeSystem.nodeRenderer.view.x;
-			let y2 = this.selectionSquare.y + this.selectionSquare.height - this.nodeSystem.nodeRenderer.view.y;
+			const { view: {x, y, zoom} } = this.nodeSystem.nodeRenderer;
+			let x1 = this.selectionSquare.x / zoom - x;
+			let y1 = this.selectionSquare.y / zoom - y;
+			let x2 = (this.selectionSquare.x + this.selectionSquare.width) / zoom - x;
+			let y2 = (this.selectionSquare.y + this.selectionSquare.height) / zoom - y;
 			// [x1, x2] = [x1, x2].sort();
 			// [y1, y2] = [y1, y2].sort();
 			if (x1 > x2) {
@@ -300,18 +321,21 @@ export class NodesystemEventHandler {
 			this.selectionSquare = undefined;
 			this.startingMouseMovePosition = undefined;
 		} else if (this.halfConnection) {
-			const mouseX = e.pageX - this.canvas.offsetLeft - this.nodeSystem.nodeRenderer.view.x;
-			const mouseY = e.pageY - this.canvas.offsetTop - this.nodeSystem.nodeRenderer.view.y;
+			const mouseX = e.pageX - this.canvas.offsetLeft;
+			const mouseY = e.pageY - this.canvas.offsetTop;
+			const { view: {x, y, zoom} } = this.nodeSystem.nodeRenderer;
+			const pannedMouseX = mouseX/zoom - x;
+			const pannedMouseY = mouseY/zoom - y;
 
 			// connectors
 			for (const node of this.nodeSystem.nodeStorage.nodes) {
 				const inputSpacing = node.height / (node.inputs.length + 1);
 				for (const input of node.inputs) {
 					if (
-						mouseX >= node.x - 5 &&
-						mouseX <= node.x + 5 &&
-						mouseY >= node.y + inputSpacing * (input.index + 1) - 5 &&
-						mouseY <= node.y + inputSpacing * (input.index + 1) + 5
+						pannedMouseX >= node.x - 5 &&
+						pannedMouseX <= node.x + 5 &&
+						pannedMouseY >= node.y + inputSpacing * (input.index + 1) - 5 &&
+						pannedMouseY <= node.y + inputSpacing * (input.index + 1) + 5
 					) {
 						this.nodeSystem.nodeConnectionHandler.addConnection(this.halfConnection.output, input);
 						this.nodeSystem.autoSave();
