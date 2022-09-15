@@ -61,13 +61,35 @@ export class NodesystemEventHandler {
 	}
 
 	onKeyDown(e: KeyboardEvent) {
-		if (e.code == 'Delete' || e.code == 'Backspace') {
-			if (this.selectedNodes) {
-				this.selectedNodes.forEach((node) => {
-					this.nodeSystem.nodeStorage.removeNode(node);
-				});
-				this.nodeSystem.nodeRenderer.render();
-			}
+		switch (e.code) {
+			case 'Delete':
+			case 'Backspace':
+				if (this.selectedNodes) {
+					this.selectedNodes.forEach((node) => {
+						this.nodeSystem.nodeStorage.removeNode(node);
+					});
+					this.nodeSystem.nodeRenderer.render();
+				}
+				e.preventDefault();
+				break;
+			case 'KeyZ':
+				if (e.ctrlKey || e.metaKey) {
+					if (e.shiftKey) {
+						this.nodeSystem.redo();
+					} else {
+						this.nodeSystem.undo();
+					}
+					e.preventDefault();
+				}
+				break;
+			case 'KeyY':
+				if (e.ctrlKey || e.metaKey) {
+					this.nodeSystem.redo();
+				}
+				e.preventDefault();
+				break;
+			default:
+				break;
 		}
 	}
 
@@ -153,6 +175,7 @@ export class NodesystemEventHandler {
 							y: output.node.y + outputSpacing * (output.index + 1)
 						};
 						this.halfConnection = { output, outputPos, mousePos };
+						this.nodeSystem.autoSave();
 						return;
 					}
 				}
@@ -291,6 +314,7 @@ export class NodesystemEventHandler {
 						mouseY <= node.y + inputSpacing * (input.index + 1) + 5
 					) {
 						this.nodeSystem.nodeConnectionHandler.addConnection(this.halfConnection.output, input);
+						this.nodeSystem.autoSave();
 					}
 				}
 			}
@@ -309,6 +333,7 @@ export class NodesystemEventHandler {
 					node.x += translation.x;
 					node.y += translation.y;
 				});
+				this.nodeSystem.autoSave();
 			}
 			this.selectedNodes = undefined;
 		}

@@ -68,6 +68,7 @@ export class ContextMenu {
 		}
 		node.reset();
 		this.nodeSystem.nodeRenderer.render();
+		this.nodeSystem.autoSave();
 	}
 
 	deleteAction() {
@@ -76,6 +77,7 @@ export class ContextMenu {
 			this.nodeSystem.nodeRenderer.render();
 		});
 		this.menu.remove();
+		this.nodeSystem.autoSave();
 	}
 
 	async copyAction() {
@@ -101,6 +103,7 @@ export class ContextMenu {
 		this.nodeSystem.importNodes(nodeData, true, true);
 		this.menu.remove();
 	}
+
 	alignAction() {
 		const { x, y } = getBoundingBoxOfMultipleNodes(this.selectedNodes);
 		const padding = this.nodeSystem.config.nodeSpacing;
@@ -124,5 +127,6 @@ export class ContextMenu {
 		});
 		this.nodeSystem.eventHandler.selectedNodes = undefined;
 		this.menu.remove();
+		this.nodeSystem.autoSave();
 	}
 }

@@ -12,6 +12,9 @@ import type { NodeSaveData } from './NodeSaveData';
 import { getBoundingBoxOfMultipleNodes, positionNode, uuid } from './utils';
 import type { Node } from './Node';
 import { ToastMessage } from './toastmessage/ToastMessage';
+
+const maxUndoHistory = 5000;
+
 export class NodeSystem {
 	eventHandler: NodesystemEventHandler;
 	nodeStorage: NodeStorage;
@@ -21,6 +24,9 @@ export class NodeSystem {
 	toolbar: Toolbar;
 	saveId = -1;
 	filename = 'Example';
+	history = [];
+	historyLevel = -1;
+	restoringHistory = false;
 
 	constructor(
 		public canvas: HTMLCanvasElement,
@@ -41,6 +47,56 @@ export class NodeSystem {
 		return save;
 	}
 
+	autoSave() {
+		if (this.restoringHistory) return; // we don't want autosave during a autosave.
+
+		const save = this.save();
+		while (this.history.length -1 != this.historyLevel) {
+			// overwrite the existing history
+			this.history.pop();
+		}
+		if (this.history.length > maxUndoHistory) {
+			this.history.shift();
+			this.historyLevel--;
+		}
+		this.history.push(save);
+		this.historyLevel++;
+	}
+
+	undo() {
+		if (this.historyLevel <= 0) {
+			new ToastMessage('Cannot undo', 'warning', 1500).show();
+			return;
+		}
+		this.restoringHistory = true;
+		try {
+			this.historyLevel--;
+			this.reset(false);
+			this.loadSave(this.history[this.historyLevel], this.filename, this.saveId, true);
+	
+			new ToastMessage(`Undo ${this.historyLevel}/${this.history.length - 1}`, 'info', 1000).show();
+		} finally {
+			this.restoringHistory = false;
+		}
+	}
+
+	redo() {
+		if (this.historyLevel == this.history.length - 1) {
+			new ToastMessage('Cannot redo', 'warning', 1500).show();
+			return;
+		}
+
+		this.restoringHistory = true;
+		try {
+			this.historyLevel++;
+			this.reset(false);
+			this.loadSave(this.history[this.historyLevel], this.filename, this.saveId, true);
+			new ToastMessage(`Redo ${this.historyLevel}/${this.history.length - 1}`, 'info', 1000).show();
+		} finally {
+			this.restoringHistory = false;
+		}
+	}
+
 	loadSave(save: NodeSaveFile, filename: string, saveId: number, silent = false) {
 		try {
 			this.importNodes(save);
@@ -57,30 +113,38 @@ export class NodeSystem {
 		if (!silent) new ToastMessage('Loaded save: ' + filename).show();
 	}
 
-	reset() {
+	reset(full=true) {
 		if (this.nodeStorage?.nodes?.length > 0) {
 			this.nodeStorage.nodes.forEach((node) => {
 				node.cleanup();
 			});
 		}
-		if (this.eventHandler) this.eventHandler.removeEventListeners();
 
-		delete this.eventHandler;
+		if (full) {
+			if (this.eventHandler) this.eventHandler.removeEventListeners();
+	
+			delete this.eventHandler;
+			delete this.nodeRenderer;
+			delete this.config;
+			delete this.toolbar;
+		}
+
 		delete this.nodeConnectionHandler;
 		delete this.nodeStorage;
-		delete this.nodeRenderer;
-		delete this.config;
-		delete this.toolbar;
 
 		this.saveId = -1;
 		this.filename = 'Untitled';
+
 		this.nodeConnectionHandler = new NodeConnectionHandler();
-		this.eventHandler = new NodesystemEventHandler(this, this.canvas);
-		this.nodeRenderer = new NodeRenderer(this.canvas, this);
 		this.nodeStorage = new NodeStorage();
-		this.toolbar = new Toolbar(this);
-		this.config = new Config();
-		this.htmlCanvasOverlayContainer.style.transform = `translate(${0}px, ${0}px)`;
+
+		if (full) {
+			this.eventHandler = new NodesystemEventHandler(this, this.canvas);
+			this.nodeRenderer = new NodeRenderer(this.canvas, this);
+			this.toolbar = new Toolbar(this);
+			this.config = new Config();
+			this.htmlCanvasOverlayContainer.style.transform = `translate(${0}px, ${0}px)`;
+		}
 		this.displayFileInfo();
 	}
 
@@ -176,5 +240,6 @@ export class NodeSystem {
 				node.y += translation.y;
 			});
 		}
+		this.autoSave();
 	}
 }
