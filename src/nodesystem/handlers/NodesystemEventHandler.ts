@@ -48,9 +48,9 @@ export class NodesystemEventHandler {
 
 	removeEventListeners() {
 		this.hasEventListeners = false;
-		window.removeEventListener('mousedown', this.onMouseDown);
-		window.removeEventListener('mousemove', this.onMouseMove);
-		window.removeEventListener('mouseup', this.onMouseUp);
+		window.removeEventListener('pointerdown', this.onMouseDown);
+		window.removeEventListener('pointermove', this.onMouseMove);
+		window.removeEventListener('pointerup', this.onMouseUp);
 		window.removeEventListener('contextmenu', this.onContextMenu);
 		window.removeEventListener('keydown', this.onKeyDown);
 		window.removeEventListener('copy', this.onCopy);
