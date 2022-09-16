@@ -113,7 +113,11 @@ export class NodeSystem {
 		this.filename = filename;
 		this.saveId = saveId;
 		this.displayFileInfo();
-		if (!silent) new ToastMessage('Loaded save: ' + filename).show();
+		if (!silent) {
+			new ToastMessage('Loaded save: ' + filename).show();
+			this.history = [save];
+			this.historyLevel = 0;
+		}
 	}
 
 	reset(full=true) {
