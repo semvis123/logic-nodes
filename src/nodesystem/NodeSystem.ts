@@ -12,6 +12,7 @@ import type { NodeSaveData } from './NodeSaveData';
 import { getBoundingBoxOfMultipleNodes, positionNode, uuid } from './utils';
 import type { Node } from './Node';
 import { ToastMessage } from './toastmessage/ToastMessage';
+import { BottomToolbar } from './toolbar/BottomToolbar';
 
 const maxUndoHistory = 5000;
 
@@ -22,11 +23,13 @@ export class NodeSystem {
 	nodeRenderer: NodeRenderer;
 	config: Config;
 	toolbar: Toolbar;
+	bottomToolbar: BottomToolbar;
 	saveId = -1;
 	filename = 'Example';
 	history = [];
 	historyLevel = -1;
 	restoringHistory = false;
+
 
 	constructor(
 		public canvas: HTMLCanvasElement,
@@ -127,6 +130,7 @@ export class NodeSystem {
 			delete this.nodeRenderer;
 			delete this.config;
 			delete this.toolbar;
+			delete this.bottomToolbar;
 		}
 
 		delete this.nodeConnectionHandler;
@@ -142,6 +146,7 @@ export class NodeSystem {
 			this.eventHandler = new NodesystemEventHandler(this, this.canvas);
 			this.nodeRenderer = new NodeRenderer(this.canvas, this);
 			this.toolbar = new Toolbar(this);
+			this.bottomToolbar = new BottomToolbar(this);
 			this.config = new Config();
 			this.htmlCanvasOverlayContainer.style.transform = `translate(${0}px, ${0}px)`;
 		}
@@ -149,11 +154,7 @@ export class NodeSystem {
 	}
 
 	displayFileInfo() {
-		this.htmlOverlayContainer.textContent = '';
-		const filenameEl = document.createElement('p');
-		filenameEl.className = 'filename';
-		filenameEl.innerText = this.filename;
-		this.htmlOverlayContainer.appendChild(filenameEl);
+		this.bottomToolbar.setFileName(this.filename)
 	}
 
 	exportNodes(nodesToExport: Node[]): {

@@ -264,7 +264,7 @@ export class NodesystemEventHandler {
 				-(this.startingMouseMovePosition.x - mouseX),
 				-(this.startingMouseMovePosition.y - mouseY)
 			);
-			this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
+			this.startingMouseMovePosition = { x: mouseX, y: mouseY };
 		} else if (this.leftMouseDown && this.selectedNodes && this.startingMouseMovePosition) {
 			// move selection
 			this.selectedNodes.forEach((node) => {

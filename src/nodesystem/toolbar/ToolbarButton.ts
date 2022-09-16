@@ -10,4 +10,8 @@ export class ToolbarButton {
 		button.addEventListener('click', this.clickHandler);
 		return button;
 	}
+
+	setText(text: string) {
+		this.htmlElement.innerHTML = `<i>${text}</i>`;
+	}
 }

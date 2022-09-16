@@ -1,20 +1,22 @@
 import type { NodeSystem } from './NodeSystem';
+import { getBoundingBoxOfMultipleNodes } from './utils';
 export class NodeRenderer {
 	ctx: CanvasRenderingContext2D;
 	frame: number;
 	throttleTimer: NodeJS.Timeout = null;
 	shouldRender = false;
-	view: { x: number; y: number, zoom: number} = { x: 0, y: 0, zoom: 1 };
+	view: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 };
 
 	constructor(public canvas: HTMLCanvasElement, private nodeSystem: NodeSystem) {
 		this.ctx = canvas.getContext('2d', { alpha: false });
+		this.actuallyRender = this.actuallyRender.bind(this);
 	}
 
 	render() {
 		this.shouldRender = true;
 		if (this.throttleTimer == null) {
-			requestAnimationFrame(this.actuallyRender.bind(this));
-			this.throttleTimer = setTimeout(this.actuallyRender.bind(this), 10);
+			requestAnimationFrame(this.actuallyRender);
+			this.throttleTimer = setTimeout(this.actuallyRender, 10);
 		}
 	}
 
@@ -28,13 +30,15 @@ export class NodeRenderer {
 
 		this.ctx.fillStyle = theme.backgroundColor;
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		this.ctx.save();
+		this.ctx.scale(this.view.zoom, this.view.zoom);
+		this.ctx.translate(this.view.x, this.view.y);
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
-			this.ctx.save();
-			this.ctx.scale(this.view.zoom, this.view.zoom);
-			this.ctx.translate(node.x + this.view.x, node.y + this.view.y);
+			this.ctx.translate(node.x, node.y);
 			node.renderNode(this.ctx);
-			this.ctx.restore();
+			this.ctx.translate(-node.x, -node.y);
 		}
+		this.ctx.restore();
 
 		if (selectionSquare) {
 			this.ctx.fillStyle = theme.nodeSelectionSquareColor;
@@ -78,30 +82,48 @@ export class NodeRenderer {
 			this.ctx.stroke();
 		}
 		this.ctx.restore();
+		this.transformOverlay();
 	}
 
 	panView(deltaX: number, deltaY: number) {
 		const view = {
-			x: this.view.x + (deltaX / this.view.zoom),
-			y: this.view.y + (deltaY / this.view.zoom),
+			x: this.view.x + deltaX / this.view.zoom,
+			y: this.view.y + deltaY / this.view.zoom,
 			zoom: this.view.zoom
 		};
 
 		this.view = view;
-		this.transformOverlay();
 		this.render();
 	}
-	
+
+
 	zoomView(deltaY: number, mouseX: number, mouseY: number) {
-		const zoomDelta = ((deltaY < 0) ? 1.15 : 1/1.15);
-		const oldZoom = this.view.zoom;
+		const zoomSpeed = Math.min(Math.abs(deltaY) * 0.02, 0.40); // 0.52, 0.02
+		const zoomDelta = deltaY < 0 ? 1 + zoomSpeed : 1 / (1 + zoomSpeed);
 		const newZoom = this.view.zoom * zoomDelta;
+		this.setZoom(newZoom, mouseX, mouseY);
+	}
+
+	setZoom(newZoom: number, mouseX: number = this.canvas.width / 2, mouseY: number = this.canvas.height / 2) {
+		const oldZoom = this.view.zoom;
 		this.view = {
-			x: this.view.x + (mouseX / newZoom) - (mouseX / oldZoom),
-			y: this.view.y + (mouseY / newZoom) - (mouseY / oldZoom),
+			x: this.view.x + mouseX / newZoom - mouseX / oldZoom,
+			y: this.view.y + mouseY / newZoom - mouseY / oldZoom,
 			zoom: newZoom
 		};
-		this.transformOverlay();
+		this.render();
+		this.nodeSystem.bottomToolbar.setZoom(newZoom);
+	}
+
+	zoomToFit() {
+		const boundingBox = getBoundingBoxOfMultipleNodes(this.nodeSystem.nodeStorage.nodes);
+		const padding = 100;
+		const zoomX = this.canvas.width / (boundingBox.width + padding);
+		const zoomY = this.canvas.height / (boundingBox.height + padding);
+		const zoom = Math.min(zoomX, zoomY);
+		this.setZoom(zoom, 0, 0);
+		this.view.x = -boundingBox.x + (this.canvas.width - zoom * boundingBox.width) / 2 / zoom;
+		this.view.y = -boundingBox.y + (this.canvas.height - zoom * boundingBox.height) / 2 / zoom;
 		this.render();
 	}
 

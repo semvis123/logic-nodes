@@ -10,6 +10,36 @@
 	display: flex;
 }
 
+.bottom-toolbar {
+	top: unset;
+	bottom: 0px;
+	left: 0px;
+}
+
+.toolbar > .toolbar-button {
+	margin-top: 1px;
+	font: normal normal normal 14px/1.4em 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	cursor: pointer;
+	display: block;
+	box-sizing: border-box;
+	background-color: #060606;
+	border: solid 1px rgb(133, 133, 133);
+	color: #fff;
+	min-width: 100px;
+	padding-left: 10px;
+	padding-right: 10px;
+	height: 30px;
+	text-align: center;
+	line-height: 28px;
+}
+
+
+.toolbar > .toolbar-text {
+	background-color: #222222;
+	cursor: default;
+}
+
+
 .toolbar-dropdown-menu {
 	margin-top: 1px;
 	font: normal normal normal 14px/1.4em 'Helvetica Neue', Helvetica, Arial, sans-serif;
