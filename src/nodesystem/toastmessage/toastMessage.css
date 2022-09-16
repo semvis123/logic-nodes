@@ -68,6 +68,7 @@
 	justify-content: space-between;
 	align-items: center;
 	transition: all 0.3s ease;
+	z-index: 3;
 }
 
 .toast-message-disappearing {

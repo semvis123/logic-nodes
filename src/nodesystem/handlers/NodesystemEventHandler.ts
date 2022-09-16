@@ -65,7 +65,7 @@ export class NodesystemEventHandler {
 
 	onWheel(e: WheelEvent) {
 		e.preventDefault();
-		if (this.middleMouseDown) return;
+		if (this.middleMouseDown||this.contextMenu) return;
 		if (e.ctrlKey) {
 			// zoom
 			this.nodeSystem.nodeRenderer.zoomView(e.deltaY, e.pageX, e.pageY);
