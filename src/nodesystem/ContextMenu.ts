@@ -68,7 +68,7 @@ export class ContextMenu {
 		}
 		node.reset();
 		this.nodeSystem.nodeRenderer.render();
-		this.nodeSystem.autoSave();
+		this.nodeSystem.snapshot();
 	}
 
 	deleteAction() {
@@ -77,7 +77,7 @@ export class ContextMenu {
 			this.nodeSystem.nodeRenderer.render();
 		});
 		this.menu.remove();
-		this.nodeSystem.autoSave();
+		this.nodeSystem.snapshot();
 	}
 
 	async copyAction() {
@@ -127,6 +127,6 @@ export class ContextMenu {
 		});
 		this.nodeSystem.eventHandler.selectedNodes = undefined;
 		this.menu.remove();
-		this.nodeSystem.autoSave();
+		this.nodeSystem.snapshot();
 	}
 }

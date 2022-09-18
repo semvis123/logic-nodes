@@ -198,7 +198,7 @@ export class NodesystemEventHandler {
 							y: output.node.y + outputSpacing * (output.index + 1)
 						};
 						this.halfConnection = { output, outputPos, mousePos };
-						this.nodeSystem.autoSave();
+						this.nodeSystem.snapshot();
 						return;
 					}
 				}
@@ -338,7 +338,7 @@ export class NodesystemEventHandler {
 						pannedMouseY <= node.y + inputSpacing * (input.index + 1) + 5
 					) {
 						this.nodeSystem.nodeConnectionHandler.addConnection(this.halfConnection.output, input);
-						this.nodeSystem.autoSave();
+						this.nodeSystem.snapshot();
 					}
 				}
 			}
@@ -357,7 +357,7 @@ export class NodesystemEventHandler {
 					node.x += translation.x;
 					node.y += translation.y;
 				});
-				this.nodeSystem.autoSave();
+				this.nodeSystem.snapshot();
 			}
 			this.selectedNodes = undefined;
 		}

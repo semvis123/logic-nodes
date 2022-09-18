@@ -50,8 +50,8 @@ export class NodeSystem {
 		return save;
 	}
 
-	autoSave() {
-		if (this.restoringHistory) return; // we don't want autosave during a autosave.
+	snapshot() {
+		if (this.restoringHistory) return; // we don't want a snapshot during a snapshot restore.
 
 		const save = this.save();
 		while (this.history.length -1 != this.historyLevel) {
@@ -245,6 +245,6 @@ export class NodeSystem {
 				node.y += translation.y;
 			});
 		}
-		this.autoSave();
+		this.snapshot();
 	}
 }
