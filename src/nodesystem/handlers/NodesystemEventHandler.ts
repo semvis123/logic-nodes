@@ -3,9 +3,9 @@ import type { NodeSystem } from '../NodeSystem';
 import { positionNode, getBoundingBoxOfMultipleNodes } from '../utils';
 import { ContextMenu } from '../ContextMenu';
 import type { Node } from '../Node';
-import { ToastMessage } from '../toastmessage/ToastMessage';
+import { ToastMessage } from '../toastMessage/ToastMessage';
 
-export class NodesystemEventHandler {
+export class NodeSystemEventHandler {
 	selectedNodes: Node[] | undefined;
 	selectionSquare: { x: number; y: number; width: number; height: number } | undefined;
 	startingMouseMovePosition: { x: number; y: number } | undefined;
@@ -65,15 +65,14 @@ export class NodesystemEventHandler {
 
 	onWheel(e: WheelEvent) {
 		e.preventDefault();
-		if (this.middleMouseDown||this.contextMenu) return;
+		if (this.middleMouseDown || this.contextMenu) return;
 		if (e.ctrlKey) {
 			// zoom
 			this.nodeSystem.nodeRenderer.zoomView(e.deltaY, e.pageX, e.pageY);
-			return
+			return;
 		}
 		this.nodeSystem.nodeRenderer.panView(-e.deltaX, -e.deltaY);
 		this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
-
 	}
 
 	onKeyDown(e: KeyboardEvent) {
@@ -84,7 +83,9 @@ export class NodesystemEventHandler {
 					this.selectedNodes.forEach((node) => {
 						this.nodeSystem.nodeStorage.removeNode(node);
 					});
+					this.selectedNodes = undefined;
 					this.nodeSystem.nodeRenderer.render();
+					this.nodeSystem.snapshot();
 				}
 				e.preventDefault();
 				break;
@@ -113,9 +114,11 @@ export class NodesystemEventHandler {
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
 
-		const { view: {x, y, zoom} } = this.nodeSystem.nodeRenderer;
-		const pannedMouseX = mouseX/zoom - x;
-		const pannedMouseY = mouseY/zoom - y;
+		const {
+			view: { x, y, zoom }
+		} = this.nodeSystem.nodeRenderer;
+		const pannedMouseX = mouseX / zoom - x;
+		const pannedMouseY = mouseY / zoom - y;
 
 		this.startingMouseMovePosition = undefined;
 		if (this.contextMenu) {
@@ -125,8 +128,7 @@ export class NodesystemEventHandler {
 		// show context menu
 		const node = this.getNodeAt(pannedMouseX, pannedMouseY);
 		if (node) {
-			if (!this.selectedNodes?.includes(node))
-				this.selectedNodes = [node];
+			if (!this.selectedNodes?.includes(node)) this.selectedNodes = [node];
 		} else {
 			this.selectedNodes = [];
 		}
@@ -164,9 +166,11 @@ export class NodesystemEventHandler {
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
 
-		const { view: {x, y, zoom} } = this.nodeSystem.nodeRenderer;
-		const pannedMouseX = mouseX/zoom - x;
-		const pannedMouseY = mouseY/zoom - y;
+		const {
+			view: { x, y, zoom }
+		} = this.nodeSystem.nodeRenderer;
+		const pannedMouseX = mouseX / zoom - x;
+		const pannedMouseY = mouseY / zoom - y;
 
 		if (e.button == 1) {
 			this.startingMouseMovePosition = { x: mouseX, y: mouseY };
@@ -253,10 +257,11 @@ export class NodesystemEventHandler {
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
 
-		const { view: {x, y, zoom} } = this.nodeSystem.nodeRenderer;
-		const pannedMouseX = mouseX/zoom - x;
-		const pannedMouseY = mouseY/zoom - y;
-	
+		const {
+			view: { x, y, zoom }
+		} = this.nodeSystem.nodeRenderer;
+		const pannedMouseX = mouseX / zoom - x;
+		const pannedMouseY = mouseY / zoom - y;
 
 		if (this.middleMouseDown && this.startingMouseMovePosition) {
 			// pan
@@ -268,8 +273,8 @@ export class NodesystemEventHandler {
 		} else if (this.leftMouseDown && this.selectedNodes && this.startingMouseMovePosition) {
 			// move selection
 			this.selectedNodes.forEach((node) => {
-				node.x = node.x - (this.startingMouseMovePosition.x - mouseX)/zoom;
-				node.y = node.y - (this.startingMouseMovePosition.y - mouseY)/zoom;
+				node.x = node.x - (this.startingMouseMovePosition.x - mouseX) / zoom;
+				node.y = node.y - (this.startingMouseMovePosition.y - mouseY) / zoom;
 			});
 			this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
 			this.nodeSystem.nodeRenderer.render();
@@ -297,7 +302,9 @@ export class NodesystemEventHandler {
 			return;
 		}
 		if (this.selectionSquare) {
-			const { view: {x, y, zoom} } = this.nodeSystem.nodeRenderer;
+			const {
+				view: { x, y, zoom }
+			} = this.nodeSystem.nodeRenderer;
 			let x1 = this.selectionSquare.x / zoom - x;
 			let y1 = this.selectionSquare.y / zoom - y;
 			let x2 = (this.selectionSquare.x + this.selectionSquare.width) / zoom - x;
@@ -323,9 +330,11 @@ export class NodesystemEventHandler {
 		} else if (this.halfConnection) {
 			const mouseX = e.pageX - this.canvas.offsetLeft;
 			const mouseY = e.pageY - this.canvas.offsetTop;
-			const { view: {x, y, zoom} } = this.nodeSystem.nodeRenderer;
-			const pannedMouseX = mouseX/zoom - x;
-			const pannedMouseY = mouseY/zoom - y;
+			const {
+				view: { x, y, zoom }
+			} = this.nodeSystem.nodeRenderer;
+			const pannedMouseX = mouseX / zoom - x;
+			const pannedMouseY = mouseY / zoom - y;
 
 			// connectors
 			for (const node of this.nodeSystem.nodeStorage.nodes) {

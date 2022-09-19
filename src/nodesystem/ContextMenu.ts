@@ -1,7 +1,7 @@
 import { FullscreenPrompt } from './fullscreenPrompt/FullscreenPrompt';
 import type { Node } from './Node';
 import type { NodeSystem } from './NodeSystem';
-import { ToastMessage } from './toastmessage/ToastMessage';
+import { ToastMessage } from './toastMessage/ToastMessage';
 import { getBoundingBoxOfMultipleNodes } from './utils';
 
 export class ContextMenu {

@@ -1,5 +1,5 @@
 import { NodeConnectionHandler } from './handlers/NodeConnectionHandler';
-import { NodesystemEventHandler } from './handlers/NodesystemEventHandler';
+import { NodeSystemEventHandler } from './handlers/NodesystemEventHandler';
 import { NodeStorage } from './NodeStorage';
 import { NodeRenderer } from './NodeRenderer';
 import { Config } from './Config';
@@ -7,17 +7,18 @@ import { playground } from './example_playground';
 import type { NodeSaveFile } from './NodeSaveFile';
 import { Toolbar } from './toolbar/Toolbar';
 import { nodeClassesMap } from './nodes/nodes';
-import './nodesystem.css';
+import './nodeSystem.css';
 import type { NodeSaveData } from './NodeSaveData';
 import { getBoundingBoxOfMultipleNodes, positionNode, uuid } from './utils';
 import type { Node } from './Node';
-import { ToastMessage } from './toastmessage/ToastMessage';
+import { ToastMessage } from './toastMessage/ToastMessage';
 import { BottomToolbar } from './toolbar/BottomToolbar';
+import { SaveManager } from './SaveManager';
 
 const maxUndoHistory = 5000;
 
 export class NodeSystem {
-	eventHandler: NodesystemEventHandler;
+	eventHandler: NodeSystemEventHandler;
 	nodeStorage: NodeStorage;
 	nodeConnectionHandler: NodeConnectionHandler;
 	nodeRenderer: NodeRenderer;
@@ -29,7 +30,8 @@ export class NodeSystem {
 	history = [];
 	historyLevel = -1;
 	restoringHistory = false;
-
+	snapshotTimer: NodeJS.Timeout;
+	saveManager: SaveManager;
 
 	constructor(
 		public canvas: HTMLCanvasElement,
@@ -37,24 +39,23 @@ export class NodeSystem {
 		public htmlOverlayContainer: HTMLDivElement
 	) {
 		this.reset();
-		this.config.setConfig(playground.config);
-		this.loadSave(playground, 'Untitled', -1, true);
-	}
-
-	save() {
-		const save: NodeSaveFile = {
-			...this.exportNodes(this.nodeStorage.nodes),
-			config: this.config.toObject()
-		};
-
-		return save;
+		this.saveManager.loadSaveFile(playground, 'Untitled', -1, true);
 	}
 
 	snapshot() {
 		if (this.restoringHistory) return; // we don't want a snapshot during a snapshot restore.
 
-		const save = this.save();
-		while (this.history.length -1 != this.historyLevel) {
+		const save = this.saveManager.createSaveFile();
+		if (!this.snapshotTimer) {
+			this.snapshotTimer = setTimeout(() => {
+				// autosave
+				this.saveManager.saveToLocalStorage(save, this.filename, this.saveId, true);
+				new ToastMessage('Autosaved', 'info', 500).show();
+				this.snapshotTimer = undefined;
+			}, 10000);
+		}
+
+		while (this.history.length - 1 != this.historyLevel) {
 			// overwrite the existing history
 			this.history.pop();
 		}
@@ -75,8 +76,8 @@ export class NodeSystem {
 		try {
 			this.historyLevel--;
 			this.reset(false);
-			this.loadSave(this.history[this.historyLevel], this.filename, this.saveId, true);
-	
+			this.saveManager.loadSaveFile(this.history[this.historyLevel], this.filename, this.saveId, true);
+
 			new ToastMessage(`Undo ${this.historyLevel}/${this.history.length - 1}`, 'info', 1000).show();
 		} finally {
 			this.restoringHistory = false;
@@ -93,34 +94,19 @@ export class NodeSystem {
 		try {
 			this.historyLevel++;
 			this.reset(false);
-			this.loadSave(this.history[this.historyLevel], this.filename, this.saveId, true);
+			this.saveManager.loadSaveFile(this.history[this.historyLevel], this.filename, this.saveId, true);
 			new ToastMessage(`Redo ${this.historyLevel}/${this.history.length - 1}`, 'info', 1000).show();
 		} finally {
 			this.restoringHistory = false;
 		}
 	}
 
-	loadSave(save: NodeSaveFile, filename: string, saveId: number, silent = false) {
-		try {
-			this.importNodes(save);
-		} catch (e) {
-			new ToastMessage('Failed to load save', 'danger').show();
-			console.error(e);
-			this.reset();
-			return;
+	reset(full = true) {
+		if (this.snapshotTimer) {
+			clearTimeout(this.snapshotTimer);
+			this.snapshotTimer = undefined;
 		}
-		this.nodeRenderer.render();
-		this.filename = filename;
-		this.saveId = saveId;
-		this.displayFileInfo();
-		if (!silent) {
-			new ToastMessage('Loaded save: ' + filename).show();
-			this.history = [save];
-			this.historyLevel = 0;
-		}
-	}
 
-	reset(full=true) {
 		if (this.nodeStorage?.nodes?.length > 0) {
 			this.nodeStorage.nodes.forEach((node) => {
 				node.cleanup();
@@ -129,7 +115,7 @@ export class NodeSystem {
 
 		if (full) {
 			if (this.eventHandler) this.eventHandler.removeEventListeners();
-	
+
 			delete this.eventHandler;
 			delete this.nodeRenderer;
 			delete this.config;
@@ -139,15 +125,17 @@ export class NodeSystem {
 
 		delete this.nodeConnectionHandler;
 		delete this.nodeStorage;
+		delete this.saveManager;
 
 		this.saveId = -1;
 		this.filename = 'Untitled';
 
 		this.nodeConnectionHandler = new NodeConnectionHandler();
 		this.nodeStorage = new NodeStorage();
+		this.saveManager = new SaveManager(this);
 
 		if (full) {
-			this.eventHandler = new NodesystemEventHandler(this, this.canvas);
+			this.eventHandler = new NodeSystemEventHandler(this, this.canvas);
 			this.nodeRenderer = new NodeRenderer(this.canvas, this);
 			this.toolbar = new Toolbar(this);
 			this.bottomToolbar = new BottomToolbar(this);
@@ -158,7 +146,7 @@ export class NodeSystem {
 	}
 
 	displayFileInfo() {
-		this.bottomToolbar.setFileName(this.filename)
+		this.bottomToolbar.setFileName(this.filename);
 	}
 
 	exportNodes(nodesToExport: Node[]): {

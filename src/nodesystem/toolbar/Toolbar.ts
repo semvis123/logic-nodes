@@ -9,8 +9,7 @@ import './toolbar.css';
 import { FullscreenPrompt } from '../fullscreenPrompt/FullscreenPrompt';
 import type { NodeSaveFile } from '../NodeSaveFile';
 import { exampleSaves } from '../examples/exampleSaves';
-
-type SaveMetadata = { id: number; filename: string };
+import type { SaveMetadata } from '../SaveManager';
 
 export class Toolbar {
 	htmlElement: HTMLDivElement;
@@ -21,27 +20,32 @@ export class Toolbar {
 		const newAction = () => {
 			this.nodeSystem.reset();
 			this.nodeSystem.nodeRenderer.render();
-			this.nodeSystem.filename = 'Unititled';
+			this.nodeSystem.filename = 'Untitled';
 		};
 
 		const loadAction = async () => {
-			// show savefile dialog
-			type SaveMetadata = { id: number; filename: string };
-			const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
+			// show save file dialog
+			const saves: SaveMetadata[] = this.nodeSystem.saveManager.getSaves();
 
 			this.nodeSystem.eventHandler.removeEventListeners();
 			try {
 				const saveMetaData =
 					saves[
 						await new FullscreenPrompt().requestSelectionFromList(
-							'Select savefile:',
-							saves.map((x) => x.filename)
+							'Select save:',
+							saves.map((x) => {
+								if (x.isAutosave) {
+									return 'Autosave - ' + x.filename;
+								}
+								return x.filename;
+							})
 						)
 					];
-				const save: NodeSaveFile = JSON.parse(window.localStorage.getItem('save_' + saveMetaData.id));
+				const save: NodeSaveFile = JSON.parse(
+					this.nodeSystem.saveManager.getSaveFile(saveMetaData.id, saveMetaData.isAutosave)
+				);
 				this.nodeSystem.reset();
-				this.nodeSystem.config.setConfig(save.config);
-				this.nodeSystem.loadSave(save, saveMetaData.filename, saveMetaData.id);
+				this.nodeSystem.saveManager.loadSaveFile(save, saveMetaData.filename, saveMetaData.id);
 				this.nodeSystem.nodeRenderer.render();
 			} finally {
 				this.nodeSystem.eventHandler.addEventListeners();
@@ -50,18 +54,15 @@ export class Toolbar {
 
 		const saveAction = async () => {
 			if (this.nodeSystem.saveId == -1) return saveAsAction();
-			// save to localstorage
-			const save = this.nodeSystem.save();
-			const saveData = JSON.stringify(save);
-
-			window.localStorage.setItem('save_' + this.nodeSystem.saveId, saveData);
+			// save to localStorage
+			const save = this.nodeSystem.saveManager.createSaveFile();
+			this.nodeSystem.saveManager.saveToLocalStorage(save, this.nodeSystem.filename, this.nodeSystem.saveId);
 		};
 
 		const saveAsAction = async () => {
-			// save to localstorage
-			const save = this.nodeSystem.save();
-			const saveData = JSON.stringify(save);
-			const newSaveId: number = parseInt(window.localStorage.getItem('lastSaveId') ?? '0') + 1;
+			// save to localStorage
+			const save = this.nodeSystem.saveManager.createSaveFile();
+			const newSaveId: number = this.nodeSystem.saveManager.lastSaveId() + 1;
 
 			const dialog = new FullscreenPrompt();
 
@@ -77,12 +78,7 @@ export class Toolbar {
 					}
 				]);
 				const filename = params[0].value as string;
-
-				const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
-				saves.push({ id: newSaveId, filename });
-				window.localStorage.setItem('saves', JSON.stringify(saves));
-				window.localStorage.setItem('lastSaveId', newSaveId.toString());
-				window.localStorage.setItem('save_' + newSaveId, saveData);
+				this.nodeSystem.saveManager.saveToLocalStorage(save, filename, newSaveId);
 				this.nodeSystem.saveId = newSaveId;
 				this.nodeSystem.filename = filename;
 				this.nodeSystem.displayFileInfo();
@@ -103,8 +99,7 @@ export class Toolbar {
 					reader.onload = () => {
 						const json = JSON.parse(reader.result as string);
 						this.nodeSystem.reset();
-						this.nodeSystem.config.setConfig(json.config);
-						this.nodeSystem.loadSave(json, 'Unsaved import', -1);
+						this.nodeSystem.saveManager.loadSaveFile(json, 'Unsaved import', -1);
 					};
 					reader.readAsText(file);
 				}
@@ -114,7 +109,7 @@ export class Toolbar {
 
 		const exportAction = () => {
 			// download save
-			const save = this.nodeSystem.save();
+			const save = this.nodeSystem.saveManager.createSaveFile();
 			const blob = new Blob([JSON.stringify(save)], { type: 'application/json' });
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement('a');
@@ -145,6 +140,8 @@ export class Toolbar {
 							const newSaves = saves.filter((value) => value.id != this.nodeSystem.saveId);
 							window.localStorage.setItem('saves', JSON.stringify(newSaves));
 							window.localStorage.removeItem('save_' + this.nodeSystem.saveId);
+							window.localStorage.removeItem('autosave_' + this.nodeSystem.saveId);
+							this.nodeSystem.reset();
 							this.htmlElement.remove();
 						}
 					}
@@ -184,8 +181,7 @@ export class Toolbar {
 			examplesDropdownMenu.addButton(
 				new ToolbarButton(filename, () => {
 					this.nodeSystem.reset();
-					this.nodeSystem.config.setConfig(save.config);
-					this.nodeSystem.loadSave(save, filename, -1);
+					this.nodeSystem.saveManager.loadSaveFile(save, filename, -1);
 				})
 			);
 		});

@@ -1,7 +1,7 @@
 import type { Config } from './Config';
 import type { Node } from './Node';
 import type { NodeStorage } from './NodeStorage';
-import { ToastMessage } from './toastmessage/ToastMessage';
+import { ToastMessage } from './toastMessage/ToastMessage';
 
 export const uuid = () => {
 	return crypto.getRandomValues(new Uint32Array(4)).join('-');

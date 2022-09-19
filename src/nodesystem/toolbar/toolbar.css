@@ -34,12 +34,10 @@
 	line-height: 28px;
 }
 
-
 .toolbar > .toolbar-text {
 	background-color: #222222;
 	cursor: default;
 }
-
 
 .toolbar-dropdown-menu {
 	margin-top: 1px;

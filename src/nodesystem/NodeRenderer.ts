@@ -96,9 +96,8 @@ export class NodeRenderer {
 		this.render();
 	}
 
-
 	zoomView(deltaY: number, mouseX: number, mouseY: number) {
-		const zoomSpeed = Math.min(Math.abs(deltaY) * 0.02, 0.40);
+		const zoomSpeed = Math.min(Math.abs(deltaY) * 0.02, 0.4);
 		const zoomDelta = deltaY < 0 ? 1 + zoomSpeed : 1 / (1 + zoomSpeed);
 		const newZoom = this.view.zoom * zoomDelta;
 		this.setZoom(newZoom, mouseX, mouseY);
