@@ -31,7 +31,7 @@ export const roundRect = (x: number, y: number, w: number, h: number, r: number)
 
 type sizePos = { x: number; y: number; width: number; height: number };
 export const positionNode = (
-	node: sizePos,
+	boundingBox: sizePos,
 	x: number,
 	y: number,
 	nodeStorage: NodeStorage,
@@ -39,10 +39,22 @@ export const positionNode = (
 	nodes: Node[] = []
 ): { x: number; y: number } => {
 	if (config.nodesCanOverlap) {
-		node.x = x;
-		node.y = y;
-		return { x: 0, y: 0 };
+		boundingBox.x = x;
+		boundingBox.y = y;
+		return { x: x- boundingBox.x, y: y -boundingBox.y };
 	}
+
+	const padding = config.nodeSpacing;
+
+	// check if current location is valid
+	const overlapping = nodes.filter(node => nodesOverlap(node, nodeStorage.nodes, padding, nodes));
+	console.log(overlapping);
+	if (overlapping.length == 0) {
+		boundingBox.x = x;
+		boundingBox.y = y;
+		return { x: x- boundingBox.x, y: y -boundingBox.y };
+	}
+
 
 	const directions = [
 		[0, -1],
@@ -54,7 +66,6 @@ export const positionNode = (
 		[1, -1],
 		[1, 1]
 	];
-	const padding = config.nodeSpacing;
 	let found = false;
 	let d = -1;
 	let dir: number[];
@@ -66,14 +77,14 @@ export const positionNode = (
 			const top = y + dir[1] * d;
 			let overlap = false;
 			for (const n of nodeStorage.nodes) {
-				if (node == n) continue;
+				if (boundingBox == n) continue;
 				if (nodes.includes(n)) continue;
 				if (
 					!(
 						n.x + n.width + padding <= left ||
 						n.y + n.height + padding <= top ||
-						n.x >= left + padding + node.width ||
-						n.y >= top + padding + node.height
+						n.x >= left + padding + boundingBox.width ||
+						n.y >= top + padding + boundingBox.height
 					)
 				) {
 					overlap = true;
@@ -86,15 +97,37 @@ export const positionNode = (
 		}
 	}
 	if (tryLimit <= 1) {
-		console.log([node, x, y, nodeStorage, config, nodes]);
+		console.log([boundingBox, x, y, nodeStorage, config, nodes]);
 		new ToastMessage('Could not position nodes', 'danger').show();
 	}
-	const diffX = x + dir[0] * d - node.x;
-	const diffY = y + dir[1] * d - node.y;
-	node.x = x + dir[0] * d;
-	node.y = y + dir[1] * d;
+	const diffX = x + dir[0] * d - boundingBox.x;
+	const diffY = y + dir[1] * d - boundingBox.y;
+	boundingBox.x = x + dir[0] * d;
+	boundingBox.y = y + dir[1] * d;
 	return { x: diffX, y: diffY };
 };
+
+const nodesOverlap = (node, nodesToCheck, padding, excludedNodes) => {
+	let overlap = false;
+	const {x, y, width, height} = node;
+	for (const n of nodesToCheck) {
+		if (node == n) continue;
+		if (excludedNodes.includes(n)) continue;
+		if (
+			!(
+				n.x + n.width + padding <= x ||
+				n.y + n.height + padding <= y ||
+				n.x >= x + padding + width ||
+				n.y >= y + padding + height
+			)
+		) {
+			overlap = true;
+			break;
+		}
+	}
+	return overlap;
+}
+
 
 export const getBoundingBoxOfMultipleNodes = (nodes: Node[]) => {
 	let x: number, y: number, maxX: number, maxY: number;
