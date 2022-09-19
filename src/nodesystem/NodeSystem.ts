@@ -45,15 +45,9 @@ export class NodeSystem {
 	snapshot() {
 		if (this.restoringHistory) return; // we don't want a snapshot during a snapshot restore.
 
+		this.autoSave();
+
 		const save = this.saveManager.createSaveFile();
-		if (!this.snapshotTimer) {
-			this.snapshotTimer = setTimeout(() => {
-				// autosave
-				this.saveManager.saveToLocalStorage(save, this.filename, this.saveId, true);
-				new ToastMessage('Autosaved', 'info', 500).show();
-				this.snapshotTimer = undefined;
-			}, 10000);
-		}
 
 		while (this.history.length - 1 != this.historyLevel) {
 			// overwrite the existing history
@@ -67,6 +61,20 @@ export class NodeSystem {
 		this.historyLevel++;
 	}
 
+
+	autoSave() {
+		const save = this.saveManager.createSaveFile();
+		if (!this.snapshotTimer) {
+			this.snapshotTimer = setTimeout(() => {
+				// autosave
+				this.saveManager.saveToLocalStorage(save, this.filename, this.saveId, true);
+				new ToastMessage('Autosaved', 'info', 500).show();
+				this.snapshotTimer = undefined;
+			}, 10000);
+		}
+	}
+
+
 	undo() {
 		if (this.historyLevel <= 0) {
 			new ToastMessage('Cannot undo', 'warning', 1500).show();
@@ -79,6 +87,7 @@ export class NodeSystem {
 			this.saveManager.loadSaveFile(this.history[this.historyLevel], this.filename, this.saveId, true);
 
 			new ToastMessage(`Undo ${this.historyLevel}/${this.history.length - 1}`, 'info', 1000).show();
+			this.autoSave();
 		} finally {
 			this.restoringHistory = false;
 		}
@@ -96,6 +105,7 @@ export class NodeSystem {
 			this.reset(false);
 			this.saveManager.loadSaveFile(this.history[this.historyLevel], this.filename, this.saveId, true);
 			new ToastMessage(`Redo ${this.historyLevel}/${this.history.length - 1}`, 'info', 1000).show();
+			this.autoSave();
 		} finally {
 			this.restoringHistory = false;
 		}

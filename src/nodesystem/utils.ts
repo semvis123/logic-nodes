@@ -48,7 +48,6 @@ export const positionNode = (
 
 	// check if current location is valid
 	const overlapping = nodes.filter(node => nodesOverlap(node, nodeStorage.nodes, padding, nodes));
-	console.log(overlapping);
 	if (overlapping.length == 0) {
 		boundingBox.x = x;
 		boundingBox.y = y;
