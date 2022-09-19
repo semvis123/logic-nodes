@@ -12,6 +12,9 @@ import { XorNode } from './LogicXorNode';
 import { NandNode } from './LogicNandNode';
 import { NorNode } from './LogicNorNode';
 import { LabelNode } from './LabelNode';
+import { InputNode } from './InputNode';
+import { OutputNode } from './OutputNode';
+import { CombinationNode } from './CombinationNode';
 
 export const nodeClasses = [
 	ToggleNode,
@@ -20,6 +23,9 @@ export const nodeClasses = [
 	OrNode,
 	XorNode,
 	NandNode,
+	InputNode,
+	OutputNode,
+	CombinationNode,
 	NotNode,
 	ClockNode,
 	CounterNode,

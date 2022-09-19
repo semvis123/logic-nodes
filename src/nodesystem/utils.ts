@@ -41,19 +41,18 @@ export const positionNode = (
 	if (config.nodesCanOverlap) {
 		boundingBox.x = x;
 		boundingBox.y = y;
-		return { x: x- boundingBox.x, y: y -boundingBox.y };
+		return { x: x - boundingBox.x, y: y - boundingBox.y };
 	}
 
 	const padding = config.nodeSpacing;
 
 	// check if current location is valid
-	const overlapping = nodes.filter(node => nodesOverlap(node, nodeStorage.nodes, padding, nodes));
+	const overlapping = nodes.filter((node) => nodesOverlap(node, nodeStorage.nodes, padding, nodes));
 	if (overlapping.length == 0) {
 		boundingBox.x = x;
 		boundingBox.y = y;
-		return { x: x- boundingBox.x, y: y -boundingBox.y };
+		return { x: x - boundingBox.x, y: y - boundingBox.y };
 	}
-
 
 	const directions = [
 		[0, -1],
@@ -108,7 +107,7 @@ export const positionNode = (
 
 const nodesOverlap = (node, nodesToCheck, padding, excludedNodes) => {
 	let overlap = false;
-	const {x, y, width, height} = node;
+	const { x, y, width, height } = node;
 	for (const n of nodesToCheck) {
 		if (node == n) continue;
 		if (excludedNodes.includes(n)) continue;
@@ -125,8 +124,7 @@ const nodesOverlap = (node, nodesToCheck, padding, excludedNodes) => {
 		}
 	}
 	return overlap;
-}
-
+};
 
 export const getBoundingBoxOfMultipleNodes = (nodes: Node[]) => {
 	let x: number, y: number, maxX: number, maxY: number;

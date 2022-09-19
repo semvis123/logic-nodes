@@ -153,10 +153,12 @@ export abstract class Node {
 		return true;
 	}
 
-	cleanup() {
-		this.nodeSystem.eventHandler.selectedNodes = this.nodeSystem.eventHandler.selectedNodes?.filter(
-			(node) => node != this
-		);
+	cleanup(removeEvents = true) {
+		if (removeEvents) {
+			this.nodeSystem.eventHandler.selectedNodes = this.nodeSystem.eventHandler.selectedNodes?.filter(
+				(node) => node != this
+			);
+		}
 		this.nodeSystem.nodeConnectionHandler.removeAllConnections(this);
 	}
 

@@ -1,5 +1,5 @@
 import { NodeConnectionHandler } from './handlers/NodeConnectionHandler';
-import { NodeSystemEventHandler } from './handlers/NodesystemEventHandler';
+import { NodeSystemEventHandler } from './handlers/NodeSystemEventHandler';
 import { NodeStorage } from './NodeStorage';
 import { NodeRenderer } from './NodeRenderer';
 import { Config } from './Config';
@@ -21,7 +21,7 @@ export class NodeSystem {
 	eventHandler: NodeSystemEventHandler;
 	nodeStorage: NodeStorage;
 	nodeConnectionHandler: NodeConnectionHandler;
-	nodeRenderer: NodeRenderer;
+	nodeRenderer?: NodeRenderer;
 	config: Config;
 	toolbar: Toolbar;
 	bottomToolbar: BottomToolbar;
@@ -61,7 +61,6 @@ export class NodeSystem {
 		this.historyLevel++;
 	}
 
-
 	autoSave() {
 		const save = this.saveManager.createSaveFile();
 		if (!this.snapshotTimer) {
@@ -73,7 +72,6 @@ export class NodeSystem {
 			}, 10000);
 		}
 	}
-
 
 	undo() {
 		if (this.historyLevel <= 0) {
