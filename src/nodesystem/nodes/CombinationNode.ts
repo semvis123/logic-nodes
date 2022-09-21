@@ -14,13 +14,14 @@ import { nodeClassesMap } from './nodes';
 import { Config } from '../Config';
 import type { OutputNode } from './OutputNode';
 import type { InputNode } from './InputNode';
+import type { SaveManager } from '../SaveManager';
 
 export class CombinationNode extends Node {
 	padding = 7;
 	currentValue = 0;
 	nodeStorage: NodeStorage;
 	nodeConnectionHandler: NodeConnectionHandler;
-
+	saveManager: SaveManager;
 	inputNodes: InputNode[];
 	outputNodes: OutputNode[];
 	config: Config;
@@ -36,6 +37,7 @@ export class CombinationNode extends Node {
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(id, x, y, 30, 30, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+		this.saveManager = nodeSystem.saveManager;
 		this.importParams(parameters);
 		this.reset();
 	}
