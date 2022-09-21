@@ -2,7 +2,13 @@ import type { NodeSaveFile } from './NodeSaveFile';
 import type { NodeSystem } from './NodeSystem';
 import { ToastMessage } from './toastMessage/ToastMessage';
 
-export type SaveMetadata = { id: number; filename: string; isAutosave?: boolean; lastUpdated?: string };
+export type SaveMetadata = {
+	id: number;
+	filename: string;
+	isAutosave?: boolean;
+	isCustomNode?: boolean;
+	lastUpdated?: string;
+};
 
 export class SaveManager {
 	constructor(public nodeSystem: NodeSystem) {}
@@ -16,7 +22,7 @@ export class SaveManager {
 		return save;
 	}
 
-	loadSaveFile(save: NodeSaveFile, filename: string, saveId: number, silent = false) {
+	loadSaveFile(save: NodeSaveFile, filename: string, saveId: number, silent = false, isCustomNode = false) {
 		try {
 			this.nodeSystem.importNodes(save);
 		} catch (e) {
@@ -28,6 +34,7 @@ export class SaveManager {
 		this.nodeSystem.nodeRenderer.render();
 		this.nodeSystem.filename = filename;
 		this.nodeSystem.saveId = saveId;
+		this.nodeSystem.isCustomNode = isCustomNode;
 		this.nodeSystem.displayFileInfo();
 		if (!silent) {
 			new ToastMessage('Loaded save: ' + filename).show();
@@ -43,32 +50,37 @@ export class SaveManager {
 		const filteredSaves = [];
 		for (const save of saves) {
 			if (save.isAutosave && !includeNonModifiedAutosaves) {
-				const autosave = this.getSaveFile(save.id, true);
+				const autosave = this.getSaveFile(save.id, true, save.isCustomNode);
 
-				if (!autosave || this.getSaveFile(save.id, false) == autosave) {
+				if (!autosave || this.getSaveFile(save.id, false, save.isCustomNode) == autosave) {
 					continue;
 				}
 			}
 			filteredSaves.push(save);
 		}
-
 		return filteredSaves;
 	}
 
-	getSaveFile(saveId: number, autosave = false) {
-		const prefix = autosave ? 'autosave_' : 'save_';
+	getCustomNodes() {
+		return this.getSaves().filter((node) => node.isCustomNode);
+	}
+
+	getSaveFile(saveId: number, autosave = false, customNode = false) {
+		const prefix = (autosave ? 'autosave_' : 'save_') + (customNode ? 'node_' : '');
 		return window.localStorage.getItem(prefix + saveId);
 	}
 
-	saveToLocalStorage(saveData: NodeSaveFile, filename: string, id: number, isAutosave = false) {
+	saveToLocalStorage(saveData: NodeSaveFile, filename: string, id: number, isAutosave = false, isCustomNode = false) {
 		let saves: SaveMetadata[] = this.getSaves();
-		saves = saves.filter((save) => !(id == save.id && save.isAutosave == isAutosave));
+		saves = saves.filter(
+			(save) => !(id == save.id && save.isAutosave == isAutosave && save.isCustomNode == isCustomNode)
+		);
 		const lastUpdated = new Date().toJSON();
-		saves.push({ id, filename, isAutosave, lastUpdated });
+		saves.push({ id, filename, isAutosave, lastUpdated, isCustomNode });
 
 		const lastSaveId = Math.max(this.lastSaveId(), id);
 		window.localStorage.setItem('lastSaveId', lastSaveId.toString());
-		const prefix = isAutosave ? 'autosave_' : 'save_';
+		const prefix = (isAutosave ? 'autosave_' : 'save_') + (isCustomNode ? 'node_' : '');
 		window.localStorage.setItem(prefix + id, JSON.stringify(saveData));
 		window.localStorage.setItem('saves', JSON.stringify(saves));
 	}

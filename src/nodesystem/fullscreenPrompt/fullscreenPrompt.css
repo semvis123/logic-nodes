@@ -21,6 +21,8 @@
 	border: solid 1px rgb(133, 133, 133);
 	position: relative;
 	min-width: 20rem;
+	overflow-y: auto;
+	max-height: 90vh;
 }
 
 .parameter {

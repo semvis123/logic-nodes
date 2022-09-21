@@ -1,6 +1,6 @@
 import type { NodeParameter } from './fullscreenPrompt/FullscreenPrompt';
 
-export const metadataCategories = ['Logic', 'Input', 'Output', 'Generators', 'Misc'] as const;
+export const metadataCategories = ['Logic', 'Input', 'Output', 'Generators', 'Misc', 'Custom'] as const;
 
 export type MetadataCategory = typeof metadataCategories[number];
 

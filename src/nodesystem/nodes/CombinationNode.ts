@@ -86,10 +86,11 @@ export class CombinationNode extends Node {
 		this.nodeConnectionHandler = new NodeConnectionHandler();
 		this.nodeStorage = new NodeStorage();
 		this.config = new Config();
-		const save = JSON.parse(this.nodeSystem.saveManager.getSaveFile(this.getParamValue('saveId', -1), false));
+		const save = JSON.parse(this.nodeSystem.saveManager.getSaveFile(this.getParamValue('saveId', -1), false, true));
 		this.importNodes(save);
 		this.inputNodes = [];
 		this.outputNodes = [];
+		this.nodeStorage.nodes.sort((a, b) => a.y - b.y);
 		this.nodeStorage.nodes.forEach((node) => {
 			if (node.getMetadata().nodeName == 'InputNode') {
 				// add as input
@@ -102,11 +103,10 @@ export class CombinationNode extends Node {
 		});
 
 		// setup inputs
-		while (this.inputs.length > this.inputNodes.length) {
+		while (this.inputs.length > 0) {
 			this.nodeSystem.nodeConnectionHandler.removeFirstConnection(this.inputs.pop());
 		}
-		console.log(this.inputs.length);
-		console.log(this.inputNodes.length);
+        
 		while (this.inputs.length < this.inputNodes.length) {
 			this.inputs.push(
 				new NodeInput(uuid(), this.inputNodes[this.inputs.length].getParamValue('name', ''), NodeValueType.Number)
@@ -116,7 +116,7 @@ export class CombinationNode extends Node {
 		this.inputs.forEach((input, i) => input.setNode(this, i));
 
 		// setup outputs
-		while (this.outputs.length > this.outputNodes.length) {
+		while (this.outputs.length > 0) {
 			this.nodeSystem.nodeConnectionHandler.connections.delete(this.outputs.pop());
 		}
 		while (this.outputs.length < this.outputNodes.length) {
@@ -174,17 +174,17 @@ export class CombinationNode extends Node {
 	}
 
 	onclick(e: MouseEvent, pos: { x: number; y: number }) {
-		if (
-			pos.x < this.padding ||
-			pos.x > this.width - this.padding ||
-			pos.y < this.padding ||
-			pos.y > this.height - this.padding
-		)
-			return true;
+		// if (
+		// 	pos.x < this.padding ||
+		// 	pos.x > this.width - this.padding ||
+		// 	pos.y < this.padding ||
+		// 	pos.y > this.height - this.padding
+		// )
+		// 	return true;
 
 		// open the combination node maybe?
 
 		// this.toggle();
-		// return false;
+		return true;
 	}
 }

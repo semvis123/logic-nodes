@@ -47,11 +47,13 @@ export const positionNode = (
 	const padding = config.nodeSpacing;
 
 	// check if current location is valid
-	const overlapping = nodes.filter((node) => nodesOverlap(node, nodeStorage.nodes, padding, nodes));
-	if (overlapping.length == 0) {
-		boundingBox.x = x;
-		boundingBox.y = y;
-		return { x: x - boundingBox.x, y: y - boundingBox.y };
+	if (nodes.length > 0) {
+		const overlapping = nodes.filter((node) => nodesOverlap(node, nodeStorage.nodes, padding, nodes));
+		if (overlapping.length == 0) {
+			boundingBox.x = x;
+			boundingBox.y = y;
+			return { x: x - boundingBox.x, y: y - boundingBox.y };
+		}
 	}
 
 	const directions = [

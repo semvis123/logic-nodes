@@ -10,6 +10,8 @@ import { FullscreenPrompt } from '../fullscreenPrompt/FullscreenPrompt';
 import type { NodeSaveFile } from '../NodeSaveFile';
 import { exampleSaves } from '../examples/exampleSaves';
 import type { SaveMetadata } from '../SaveManager';
+import { ToastMessage } from '../toastMessage/ToastMessage';
+import { CombinationNode } from '../nodes/CombinationNode';
 
 export class Toolbar {
 	htmlElement: HTMLDivElement;
@@ -34,18 +36,23 @@ export class Toolbar {
 						await new FullscreenPrompt().requestSelectionFromList(
 							'Select save:',
 							saves.map((x) => {
-								if (x.isAutosave) {
-									return 'Autosave - ' + x.filename;
-								}
-								return x.filename;
+								const prefix = (x.isAutosave ? 'Autosave - ' : '') + (x.isCustomNode ? 'Node - ' : '');
+								return prefix + x.filename;
 							})
 						)
 					];
+				console.log(saveMetaData);
 				const save: NodeSaveFile = JSON.parse(
-					this.nodeSystem.saveManager.getSaveFile(saveMetaData.id, saveMetaData.isAutosave)
+					this.nodeSystem.saveManager.getSaveFile(saveMetaData.id, saveMetaData.isAutosave, saveMetaData.isCustomNode)
 				);
 				this.nodeSystem.reset();
-				this.nodeSystem.saveManager.loadSaveFile(save, saveMetaData.filename, saveMetaData.id);
+				this.nodeSystem.saveManager.loadSaveFile(
+					save,
+					saveMetaData.filename,
+					saveMetaData.id,
+					false,
+					saveMetaData.isCustomNode
+				);
 				this.nodeSystem.nodeRenderer.render();
 			} finally {
 				this.nodeSystem.eventHandler.addEventListeners();
@@ -56,7 +63,13 @@ export class Toolbar {
 			if (this.nodeSystem.saveId == -1) return saveAsAction();
 			// save to localStorage
 			const save = this.nodeSystem.saveManager.createSaveFile();
-			this.nodeSystem.saveManager.saveToLocalStorage(save, this.nodeSystem.filename, this.nodeSystem.saveId);
+			this.nodeSystem.saveManager.saveToLocalStorage(
+				save,
+				this.nodeSystem.filename,
+				this.nodeSystem.saveId,
+				false,
+				this.nodeSystem.isCustomNode
+			);
 		};
 
 		const saveAsAction = async () => {
@@ -137,10 +150,11 @@ export class Toolbar {
 						value: 'Delete',
 						onclick: () => {
 							const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
-							const newSaves = saves.filter((value) => value.id != this.nodeSystem.saveId);
+							const newSaves = saves.filter((value) => !(value.id == this.nodeSystem.saveId && this.nodeSystem.isCustomNode == value.isCustomNode));
 							window.localStorage.setItem('saves', JSON.stringify(newSaves));
-							window.localStorage.removeItem('save_' + this.nodeSystem.saveId);
-							window.localStorage.removeItem('autosave_' + this.nodeSystem.saveId);
+							const prefix = this.nodeSystem.isCustomNode ? 'node_' : '';
+							window.localStorage.removeItem('save_' + prefix + this.nodeSystem.saveId);
+							window.localStorage.removeItem('autosave_' + prefix + this.nodeSystem.saveId);
 							this.nodeSystem.reset();
 							this.htmlElement.remove();
 						}
@@ -149,6 +163,40 @@ export class Toolbar {
 				parameters.forEach((param) => {
 					this.nodeSystem.config[param.name] = param.type == 'checkbox' ? param.checked : param.value;
 				});
+			} finally {
+				this.nodeSystem.eventHandler.addEventListeners();
+			}
+		};
+
+		const createNodeAction = async () => {
+			let possible = false;
+			// check if possible
+			this.nodeSystem.nodeStorage.nodes.forEach((node) => {
+				if (node.getMetadata().nodeName == 'OutputNode') {
+					possible = true;
+				}
+			});
+
+			if (!possible) return new ToastMessage('Creating a node requires at least one OutputNode.', 'danger').show();
+
+			const popup = new FullscreenPrompt();
+			this.nodeSystem.eventHandler.removeEventListeners();
+			try {
+				const params = await popup.requestParameters('New Node', [
+					{
+						name: 'name',
+						label: 'Name',
+						value: '',
+						type: 'text'
+					}
+				]);
+				const name = params[0].value as string;
+				const save = this.nodeSystem.saveManager.createSaveFile();
+				if (this.nodeSystem.saveId == -1) {
+					this.nodeSystem.saveId = this.nodeSystem.saveManager.lastSaveId() + 1;
+				}
+				this.nodeSystem.saveManager.saveToLocalStorage(save, name, this.nodeSystem.saveId, false, true);
+				new ToastMessage('Created node: ' + name, 'info').show();
 			} finally {
 				this.nodeSystem.eventHandler.addEventListeners();
 			}
@@ -163,6 +211,7 @@ export class Toolbar {
 		const importButton = new ToolbarButton('Import', importAction);
 		const exportButton = new ToolbarButton('Export', exportAction);
 		const settingsButton = new ToolbarButton('Settings', settingsAction);
+		const createNewNodeButton = new ToolbarButton('Create node', createNodeAction);
 
 		for (const button of [
 			newButton,
@@ -171,7 +220,8 @@ export class Toolbar {
 			saveAsButton,
 			importButton,
 			exportButton,
-			settingsButton
+			settingsButton,
+			createNewNodeButton
 		]) {
 			fileDropdownMenu.addButton(button);
 		}
@@ -205,12 +255,34 @@ export class Toolbar {
 					window.innerWidth / 2,
 					window.innerHeight / 2,
 					this.nodeSystem.nodeStorage,
-					this.nodeSystem.config
+					this.nodeSystem.config,
 				);
 				this.nodeSystem.nodeStorage.addNode(newNode);
 				this.nodeSystem.nodeRenderer.render();
 			});
 			createNodeDropdowns.get(nodeClass.prototype.getMetadata().category ?? 'Misc').addButton(node);
+		});
+
+		// custom nodes
+		this.nodeSystem.saveManager.getCustomNodes().forEach((node) => {
+			const button = new ToolbarButton(node.filename, () => {
+				const newNode = new CombinationNode(uuid(), 0, 0, this.nodeSystem, [
+					{
+						name: 'saveId',
+						value: node.id
+					}
+				]);
+				positionNode(
+					newNode,
+					window.innerWidth / 2,
+					window.innerHeight / 2,
+					this.nodeSystem.nodeStorage,
+					this.nodeSystem.config,
+				);
+				this.nodeSystem.nodeStorage.addNode(newNode);
+				this.nodeSystem.nodeRenderer.render();
+			});
+			createNodeDropdowns.get('Custom').addButton(button);
 		});
 
 		createNodeDropdowns.forEach((dropdown) => {

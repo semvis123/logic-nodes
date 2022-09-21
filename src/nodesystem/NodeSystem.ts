@@ -27,6 +27,7 @@ export class NodeSystem {
 	bottomToolbar: BottomToolbar;
 	saveId = -1;
 	filename = 'Example';
+	isCustomNode = false;
 	history = [];
 	historyLevel = -1;
 	restoringHistory = false;
@@ -137,7 +138,7 @@ export class NodeSystem {
 
 		this.saveId = -1;
 		this.filename = 'Untitled';
-
+		this.isCustomNode = false;
 		this.nodeConnectionHandler = new NodeConnectionHandler();
 		this.nodeStorage = new NodeStorage();
 		this.saveManager = new SaveManager(this);
