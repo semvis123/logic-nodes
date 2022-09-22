@@ -270,6 +270,10 @@ export class Toolbar {
 					{
 						name: 'saveId',
 						value: node.id
+					},
+					{ 
+						name: 'nodeName',
+						value: node.filename
 					}
 				]);
 				positionNode(

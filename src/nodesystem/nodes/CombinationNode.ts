@@ -1,6 +1,6 @@
 import { Node } from '../Node';
 import { NodeOutput } from '../NodeOutput';
-import { roundRect, uuid } from '../utils';
+import { roundRect, textColor, uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
@@ -32,6 +32,18 @@ export class CombinationNode extends Node {
 			label: 'SaveId',
 			value: '5',
 			type: 'text'
+		},
+		{
+			name: 'nodeName',
+			label: 'Name',
+			value: '',
+			type: 'text'
+		},
+		{
+			name: 'color',
+			label: 'Color',
+			value: '#000',
+			type: 'color'
 		}
 	];
 
@@ -61,16 +73,22 @@ export class CombinationNode extends Node {
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 
+		const textMetrics = ctx.measureText(this.getParamValue('nodeName', 'Label'));
+		this.width = textMetrics.width + this.padding * 4;
+
+
 		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
 		ctx.stroke(path);
 		ctx.fill(path);
 
 		this.renderConnectionPoints(ctx);
 
-		ctx.fillStyle = this.currentValue == 0 ? '#000000' : '#3a3';
+		ctx.fillStyle = this.getParamValue('color', '#000');
 		ctx.fillRect(this.padding, this.padding, this.width - this.padding * 2, this.height - this.padding * 2);
 		ctx.strokeStyle = this.nodeSystem.config.theme.nodeBorderColor;
 		ctx.strokeRect(this.padding, this.padding, this.width - this.padding * 2, this.height - this.padding * 2);
+		ctx.fillStyle = textColor(this.getParamValue('color', '#000'));
+		ctx.fillText(this.getParamValue('nodeName', 'Label'), this.width / 2, this.height / 2);
 	}
 
 	reset() {
@@ -164,7 +182,7 @@ export class CombinationNode extends Node {
 
 	update() {
 		this.inputNodes.forEach((inputNode, i) => {
-			inputNode.outputs[0].value = this.inputs[i].value;
+			inputNode.outputs[0].value = this.inputs[i]?.value;
 			this.nodeConnectionHandler.updateValue(inputNode.outputs[0]);
 		});
 	}

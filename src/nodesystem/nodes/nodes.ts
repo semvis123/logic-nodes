@@ -15,6 +15,7 @@ import { LabelNode } from './LabelNode';
 import { InputNode } from './InputNode';
 import { OutputNode } from './OutputNode';
 import { CombinationNode } from './CombinationNode';
+import { ConnectionNode } from './ConnectionNode';
 
 export const nodeClasses = [
 	ToggleNode,
@@ -23,6 +24,7 @@ export const nodeClasses = [
 	OrNode,
 	XorNode,
 	NandNode,
+	ConnectionNode,
 	InputNode,
 	OutputNode,
 	CombinationNode,

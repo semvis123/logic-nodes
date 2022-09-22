@@ -7,28 +7,18 @@ import type { NodeSystem } from '../NodeSystem';
 import type { Metadata } from '../Metadata';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 
-export class DelayNode extends Node {
-	parameters: NodeParameter[] = [
-		{
-			name: 'delay',
-			label: 'Delay',
-			value: 100,
-			type: 'number',
-			required: true,
-			min: 10
-		}
-	];
-	delay: NodeJS.Timeout;
+export class ConnectionNode extends Node {
+	parameters: NodeParameter[] = [];
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(
 			id,
 			x,
 			y,
+			50,
 			40,
-			40,
-			[new NodeInput(uuid(), 'a', NodeValueType.Number)],
-			[new NodeOutput(uuid(), 'delayed output', NodeValueType.Number)],
+			[new NodeInput(uuid(), '1', NodeValueType.Number)],
+			[new NodeOutput(uuid(), 'q', NodeValueType.Number)],
 			nodeSystem
 		);
 		this.importParams(parameters);
@@ -36,8 +26,8 @@ export class DelayNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
-			nodeName: 'DelayNode',
-			displayName: 'Delay',
+			nodeName: 'SplitterNode',
+			displayName: 'Splitter',
 			category: 'Misc',
 			parameters: this.parameters
 		};
@@ -60,21 +50,10 @@ export class DelayNode extends Node {
 		this.renderConnectionPoints(ctx);
 
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText(`delay`, (this.width * 2) / 4, (this.height * 1) / 3);
-		ctx.fillText(`${this.getParamValue('delay', 1000)}`, (this.width * 2) / 4, (this.height * 2) / 3);
+		ctx.fillText(`Splitter`, (this.width * 2) / 4, (this.height * 1) / 2);
 	}
 
 	update() {
-		const value = this.inputs[0].value;
-		this.delay = setTimeout(() => {
-			this.outputs[0].setValue(value);
-		}, this.getParamValue('delay', 1000));
-	}
-
-	reset() {
-		if (this.delay) clearTimeout(this.delay);
-		this.delay = setTimeout(() => {
-			this.outputs[0].setValue(this.inputs[0].value);
-		}, this.getParamValue('delay', 1000));
+		this.outputs[0].setValue(this.inputs[0].value);
 	}
 }
