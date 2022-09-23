@@ -6,6 +6,7 @@ export class NodeRenderer {
 	throttleTimer: NodeJS.Timeout = null;
 	shouldRender = false;
 	view: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 };
+	dpi = 1;
 
 	constructor(public canvas: HTMLCanvasElement, private nodeSystem: NodeSystem) {
 		this.ctx = canvas.getContext('2d', { alpha: false });
@@ -31,6 +32,7 @@ export class NodeRenderer {
 		this.ctx.fillStyle = theme.backgroundColor;
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 		this.ctx.save();
+		this.ctx.scale(this.dpi, this.dpi);
 		this.ctx.scale(this.view.zoom, this.view.zoom);
 		this.ctx.translate(this.view.x, this.view.y);
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
@@ -39,14 +41,17 @@ export class NodeRenderer {
 			this.ctx.translate(-node.x, -node.y);
 		}
 		this.ctx.restore();
-
+		this.ctx.save();
+		this.ctx.scale(this.dpi, this.dpi);
 		if (selectionSquare) {
 			this.ctx.fillStyle = theme.nodeSelectionSquareColor;
 			this.ctx.lineWidth = 1;
 			this.ctx.fillRect(selectionSquare.x, selectionSquare.y, selectionSquare.width, selectionSquare.height);
 			this.ctx.strokeRect(selectionSquare.x, selectionSquare.y, selectionSquare.width, selectionSquare.height);
 		}
+		this.ctx.restore();
 		this.ctx.save();
+		this.ctx.scale(this.dpi, this.dpi);
 		this.ctx.scale(this.view.zoom, this.view.zoom);
 		this.ctx.translate(this.view.x, this.view.y);
 
@@ -128,5 +133,9 @@ export class NodeRenderer {
 
 	transformOverlay() {
 		this.nodeSystem.htmlCanvasOverlayContainer.style.transform = `translate(-50%, -50%) scale(${this.view.zoom}) translate(50%, 50%) translate(${this.view.x}px, ${this.view.y}px)`;
+	}
+
+	setDPI(dpi: number) {
+		this.dpi = dpi;
 	}
 }

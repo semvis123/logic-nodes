@@ -6,7 +6,8 @@
 
 	let width = 500;
 	let height = 500;
-	let nodeSystem = null;
+	let dpi = 1;
+	let nodeSystem: NodeSystem = null;
 	let canvasOverlayContainer: HTMLDivElement;
 	let overlayContainer: HTMLDivElement;
 	$: (width, height), resize();
@@ -22,6 +23,9 @@
 	const resize = () => {
 		if (nodeSystem == null) return;
 		nodeSystem.nodeRenderer.render();
+		// set dpi
+		dpi = devicePixelRatio || 1;
+		nodeSystem.nodeRenderer.setDPI(dpi);
 	};
 </script>
 
@@ -35,7 +39,7 @@
 			width: 100%;
 			overflow: hidden;
 		}
-		.container {
+		.container, canvas {
 			width: 100%;
 			height: 100%;
 		}
@@ -50,7 +54,7 @@
 </svelte:head>
 
 <div class="container" bind:clientWidth={width} bind:clientHeight={height}>
-	<canvas bind:this={canvas} {width} {height} />
+	<canvas bind:this={canvas} width={width * dpi} height={height*dpi} />
 	<div class="overlayContainer" bind:this={canvasOverlayContainer} />
 	<div class="overlayContainer" bind:this={overlayContainer} />
 	<div class="toast-message-container" id="toast-container" />
