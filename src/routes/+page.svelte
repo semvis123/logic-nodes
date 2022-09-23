@@ -39,7 +39,8 @@
 			width: 100%;
 			overflow: hidden;
 		}
-		.container, canvas {
+		.container,
+		canvas {
 			width: 100%;
 			height: 100%;
 		}
@@ -54,7 +55,7 @@
 </svelte:head>
 
 <div class="container" bind:clientWidth={width} bind:clientHeight={height}>
-	<canvas bind:this={canvas} width={width * dpi} height={height*dpi} />
+	<canvas bind:this={canvas} width={width * dpi} height={height * dpi} />
 	<div class="overlayContainer" bind:this={canvasOverlayContainer} />
 	<div class="overlayContainer" bind:this={overlayContainer} />
 	<div class="toast-message-container" id="toast-container" />

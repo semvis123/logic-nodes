@@ -76,7 +76,6 @@ export class CombinationNode extends Node {
 		const textMetrics = ctx.measureText(this.getParamValue('nodeName', 'Label'));
 		this.width = textMetrics.width + this.padding * 4;
 
-
 		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
 		ctx.stroke(path);
 		ctx.fill(path);
@@ -126,7 +125,7 @@ export class CombinationNode extends Node {
 		while (this.inputs.length > 0) {
 			this.nodeSystem.nodeConnectionHandler.removeFirstConnection(this.inputs.pop());
 		}
-        
+
 		while (this.inputs.length < this.inputNodes.length) {
 			this.inputs.push(
 				new NodeInput(uuid(), this.inputNodes[this.inputs.length].getParamValue('name', ''), NodeValueType.Number)

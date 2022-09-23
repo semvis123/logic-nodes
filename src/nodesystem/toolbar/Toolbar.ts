@@ -150,7 +150,9 @@ export class Toolbar {
 						value: 'Delete',
 						onclick: () => {
 							const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
-							const newSaves = saves.filter((value) => !(value.id == this.nodeSystem.saveId && this.nodeSystem.isCustomNode == value.isCustomNode));
+							const newSaves = saves.filter(
+								(value) => !(value.id == this.nodeSystem.saveId && this.nodeSystem.isCustomNode == value.isCustomNode)
+							);
 							window.localStorage.setItem('saves', JSON.stringify(newSaves));
 							const prefix = this.nodeSystem.isCustomNode ? 'node_' : '';
 							window.localStorage.removeItem('save_' + prefix + this.nodeSystem.saveId);
@@ -255,7 +257,7 @@ export class Toolbar {
 					window.innerWidth / 2,
 					window.innerHeight / 2,
 					this.nodeSystem.nodeStorage,
-					this.nodeSystem.config,
+					this.nodeSystem.config
 				);
 				this.nodeSystem.nodeStorage.addNode(newNode);
 				this.nodeSystem.nodeRenderer.render();
@@ -271,7 +273,7 @@ export class Toolbar {
 						name: 'saveId',
 						value: node.id
 					},
-					{ 
+					{
 						name: 'nodeName',
 						value: node.filename
 					}
@@ -281,7 +283,7 @@ export class Toolbar {
 					window.innerWidth / 2,
 					window.innerHeight / 2,
 					this.nodeSystem.nodeStorage,
-					this.nodeSystem.config,
+					this.nodeSystem.config
 				);
 				this.nodeSystem.nodeStorage.addNode(newNode);
 				this.nodeSystem.nodeRenderer.render();
