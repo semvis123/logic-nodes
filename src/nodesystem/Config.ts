@@ -1,6 +1,6 @@
 export type ThemeConfig = {
 	backgroundColor: string;
-	nodeBackfroundColor: string;
+	nodeBackgroundColor: string;
 	nodeBorderColor: string;
 	nodeTextColor: string;
 	connectionColor: string;

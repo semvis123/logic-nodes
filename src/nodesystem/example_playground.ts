@@ -407,7 +407,7 @@ export const playground: NodeSaveFile = {
 	config: {
 		theme: {
 			backgroundColor: '#1D1E20',
-			nodeBackfroundColor: '#161618',
+			nodeBackgroundColor: '#161618',
 			nodeBorderColor: '#FFF',
 			nodeTextColor: '#FFF',
 			connectionColor: '#FFF',
