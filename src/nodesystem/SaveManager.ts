@@ -31,7 +31,7 @@ export class SaveManager {
 			this.nodeSystem.reset();
 			return;
 		}
-		this.nodeSystem.nodeRenderer.render();
+		this.nodeSystem.nodeRenderer.requestRender();
 		this.nodeSystem.filename = filename;
 		this.nodeSystem.saveId = saveId;
 		this.nodeSystem.isCustomNode = isCustomNode;

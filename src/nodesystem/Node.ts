@@ -165,6 +165,6 @@ export abstract class Node {
 	}
 
 	reset() {
-		this.nodeSystem.nodeRenderer.render();
+		this.nodeSystem.nodeRenderer.requestRender();
 	}
 }

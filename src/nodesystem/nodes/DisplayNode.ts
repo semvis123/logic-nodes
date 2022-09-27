@@ -53,6 +53,6 @@ export class DisplayNode extends Node {
 	}
 
 	reset(): void {
-		this.nodeSystem.nodeRenderer.render();
+		this.nodeSystem.nodeRenderer.requestRender();
 	}
 }

@@ -10,18 +10,18 @@ export class NodeRenderer {
 
 	constructor(public canvas: HTMLCanvasElement, private nodeSystem: NodeSystem) {
 		this.ctx = canvas.getContext('2d', { alpha: false });
-		this.actuallyRender = this.actuallyRender.bind(this);
+		this.render = this.render.bind(this);
 	}
 
-	render() {
+	requestRender() {
 		this.shouldRender = true;
 		if (this.throttleTimer == null) {
-			requestAnimationFrame(this.actuallyRender);
-			this.throttleTimer = setTimeout(this.actuallyRender, 10);
+			requestAnimationFrame(this.render);
+			this.throttleTimer = setTimeout(this.render, 10);
 		}
 	}
 
-	actuallyRender() {
+	render() {
 		this.throttleTimer = null;
 		if (!this.shouldRender) return;
 		this.shouldRender = false;
@@ -98,7 +98,7 @@ export class NodeRenderer {
 		};
 
 		this.view = view;
-		this.render();
+		this.requestRender();
 	}
 
 	zoomView(deltaY: number, mouseX: number, mouseY: number) {
@@ -115,7 +115,7 @@ export class NodeRenderer {
 			y: this.view.y + mouseY / newZoom - mouseY / oldZoom,
 			zoom: newZoom
 		};
-		this.render();
+		this.requestRender();
 		this.nodeSystem.bottomToolbar.setZoom(newZoom);
 	}
 
@@ -128,7 +128,7 @@ export class NodeRenderer {
 		this.setZoom(zoom, 0, 0);
 		this.view.x = -boundingBox.x + (this.canvas.width - zoom * boundingBox.width) / 2 / zoom;
 		this.view.y = -boundingBox.y + (this.canvas.height - zoom * boundingBox.height) / 2 / zoom;
-		this.render();
+		this.requestRender();
 	}
 
 	transformOverlay() {

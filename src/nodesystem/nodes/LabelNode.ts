@@ -59,7 +59,7 @@ export class LabelNode extends Node {
 	}
 
 	reset(): void {
-		this.nodeSystem.nodeRenderer.render();
+		this.nodeSystem.nodeRenderer.requestRender();
 	}
 
 	getMetadata(): Metadata {

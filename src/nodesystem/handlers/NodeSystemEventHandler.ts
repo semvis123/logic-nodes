@@ -84,7 +84,7 @@ export class NodeSystemEventHandler {
 						this.nodeSystem.nodeStorage.removeNode(node);
 					});
 					this.selectedNodes = undefined;
-					this.nodeSystem.nodeRenderer.render();
+					this.nodeSystem.nodeRenderer.requestRender();
 					this.nodeSystem.snapshot();
 				}
 				e.preventDefault();
@@ -138,7 +138,7 @@ export class NodeSystemEventHandler {
 		}
 		this.contextMenu = new ContextMenu(mouseX, mouseY, this.selectedNodes, this.nodeSystem).show();
 
-		this.nodeSystem.nodeRenderer.render();
+		this.nodeSystem.nodeRenderer.requestRender();
 		this.selectionSquare = {
 			x: mouseX,
 			y: mouseY,
@@ -235,11 +235,11 @@ export class NodeSystemEventHandler {
 				return;
 			}
 			if (!node.onclick(e, { x: pannedMouseX - node.x, y: pannedMouseY - node.y })) {
-				this.nodeSystem.nodeRenderer.render();
+				this.nodeSystem.nodeRenderer.requestRender();
 				return;
 			}
 			this.selectedNodes = [node];
-			this.nodeSystem.nodeRenderer.render();
+			this.nodeSystem.nodeRenderer.requestRender();
 			return;
 		}
 		this.selectedNodes = undefined;
@@ -277,7 +277,7 @@ export class NodeSystemEventHandler {
 				node.y = node.y - (this.startingMouseMovePosition.y - mouseY) / zoom;
 			});
 			this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
-			this.nodeSystem.nodeRenderer.render();
+			this.nodeSystem.nodeRenderer.requestRender();
 		} else if (this.selectionSquare) {
 			// set selectionbox
 			this.selectionSquare.width = mouseX - this.selectionSquare.x;
@@ -287,7 +287,7 @@ export class NodeSystemEventHandler {
 			this.halfConnection.mousePos = { x: pannedMouseX, y: pannedMouseY };
 		} else return;
 
-		this.nodeSystem.nodeRenderer.render();
+		this.nodeSystem.nodeRenderer.requestRender();
 	}
 
 	onMouseUp(e: MouseEvent) {
@@ -371,7 +371,7 @@ export class NodeSystemEventHandler {
 			this.selectedNodes = undefined;
 		}
 		this.halfConnection = undefined;
-		this.nodeSystem.nodeRenderer.render();
+		this.nodeSystem.nodeRenderer.requestRender();
 	}
 
 	async onCopy() {

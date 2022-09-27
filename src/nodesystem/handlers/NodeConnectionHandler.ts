@@ -79,7 +79,7 @@ export class NodeConnectionHandler {
 			}
 		});
 		if (updateSnapshot.length > 0) {
-			updateSnapshot[0].node.nodeSystem.nodeRenderer?.render();
+			updateSnapshot[0].node.nodeSystem.nodeRenderer?.requestRender();
 		}
 	}
 

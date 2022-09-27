@@ -21,7 +21,7 @@ export class Toolbar {
 
 		const newAction = () => {
 			this.nodeSystem.reset();
-			this.nodeSystem.nodeRenderer.render();
+			this.nodeSystem.nodeRenderer.requestRender();
 			this.nodeSystem.filename = 'Untitled';
 		};
 
@@ -53,7 +53,7 @@ export class Toolbar {
 					false,
 					saveMetaData.isCustomNode
 				);
-				this.nodeSystem.nodeRenderer.render();
+				this.nodeSystem.nodeRenderer.requestRender();
 			} finally {
 				this.nodeSystem.eventHandler.addEventListeners();
 			}
@@ -260,7 +260,7 @@ export class Toolbar {
 					this.nodeSystem.config
 				);
 				this.nodeSystem.nodeStorage.addNode(newNode);
-				this.nodeSystem.nodeRenderer.render();
+				this.nodeSystem.nodeRenderer.requestRender();
 			});
 			createNodeDropdowns.get(nodeClass.prototype.getMetadata().category ?? 'Misc').addButton(node);
 		});
@@ -286,7 +286,7 @@ export class Toolbar {
 					this.nodeSystem.config
 				);
 				this.nodeSystem.nodeStorage.addNode(newNode);
-				this.nodeSystem.nodeRenderer.render();
+				this.nodeSystem.nodeRenderer.requestRender();
 			});
 			createNodeDropdowns.get('Custom').addButton(button);
 		});

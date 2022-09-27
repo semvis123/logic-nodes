@@ -67,14 +67,14 @@ export class ContextMenu {
 			this.nodeSystem.eventHandler.addEventListeners();
 		}
 		node.reset();
-		this.nodeSystem.nodeRenderer.render();
+		this.nodeSystem.nodeRenderer.requestRender();
 		this.nodeSystem.snapshot();
 	}
 
 	deleteAction() {
 		this.selectedNodes.forEach((node) => {
 			this.nodeSystem.nodeStorage.removeNode(node);
-			this.nodeSystem.nodeRenderer.render();
+			this.nodeSystem.nodeRenderer.requestRender();
 		});
 		this.menu.remove();
 		this.nodeSystem.snapshot();

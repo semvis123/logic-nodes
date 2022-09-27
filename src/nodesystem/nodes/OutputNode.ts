@@ -63,6 +63,6 @@ export class OutputNode extends Node {
 	}
 
 	reset(): void {
-		this.nodeSystem.nodeRenderer.render();
+		this.nodeSystem.nodeRenderer.requestRender();
 	}
 }

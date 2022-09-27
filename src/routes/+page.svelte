@@ -22,7 +22,7 @@
 
 	const resize = () => {
 		if (nodeSystem == null) return;
-		nodeSystem.nodeRenderer.render();
+		nodeSystem.nodeRenderer.requestRender();
 		// set dpi
 		dpi = devicePixelRatio || 1;
 		nodeSystem.nodeRenderer.setDPI(dpi);
