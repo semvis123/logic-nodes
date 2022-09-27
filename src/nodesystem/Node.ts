@@ -1,13 +1,13 @@
 import type { NodeInput } from './NodeInput';
 import type { NodeOutput } from './NodeOutput';
 import type { NodeStyle } from './NodeStyle';
-import './node.css';
-import { positionNode, roundRect, uuid } from './utils';
 import type { Metadata } from './Metadata';
 import type { NodeSystem } from './NodeSystem';
-import { FullscreenPrompt, type NodeParameter } from './fullscreenPrompt/FullscreenPrompt';
+import type { NodeParameter } from './fullscreenPrompt/FullscreenPrompt';
 import type { NodeSaveData } from './NodeSaveData';
 import type { NodeConstructor } from './NodeConstructor';
+import { roundRect } from './utils';
+import './node.css';
 
 export abstract class Node {
 	public parameters = [];
@@ -22,7 +22,7 @@ export abstract class Node {
 		public outputs: NodeOutput[],
 		public nodeSystem: NodeSystem,
 		public style: NodeStyle = {
-			color: nodeSystem.config.theme.nodeBackfroundColor,
+			color: nodeSystem.config.theme.nodeBackgroundColor,
 			borderColor: nodeSystem.config.theme.nodeBorderColor,
 			borderWidth: 1,
 			borderRadius: nodeSystem.config.theme.nodeBorderRadius,
@@ -33,61 +33,6 @@ export abstract class Node {
 	) {
 		inputs.forEach((input, i) => input.setNode(this, i));
 		outputs.forEach((output, i) => output.setNode(this, i));
-	}
-
-	showContextMenu(pageX: number, pageY: number): HTMLDivElement {
-		const menu = document.createElement('div');
-		menu.classList.add('node-context-menu');
-		menu.style.left = `${pageX}px`;
-		menu.style.top = `${pageY}px`;
-
-		const menuItems = {
-			edit: {
-				text: 'Edit',
-				onclick: (async () => {
-					menu.remove();
-					const popup = new FullscreenPrompt();
-					this.nodeSystem.eventHandler.removeEventListeners();
-					try {
-						this.parameters = await popup.requestParameters('Edit', this.getMetadata().parameters);
-						this.reset();
-					} finally {
-						this.nodeSystem.eventHandler.addEventListeners();
-					}
-				}).bind(this)
-			},
-			delete: {
-				text: 'Delete',
-				onclick: () => {
-					this.nodeSystem.nodeStorage.removeNode(this);
-					menu.remove();
-					this.nodeSystem.nodeRenderer.render();
-				}
-			},
-			duplicate: {
-				text: 'Duplicate',
-				onclick: () => {
-					const clone = this.save();
-					clone.id = uuid();
-					const cloneNode = Object.getPrototypeOf(this).constructor.load(clone, this.nodeSystem);
-					positionNode(cloneNode, clone.x, clone.y, this.nodeSystem.nodeStorage, this.nodeSystem.config);
-					this.nodeSystem.nodeStorage.addNode(cloneNode);
-					menu.remove();
-				}
-			}
-		};
-
-		Object.keys(menuItems).forEach((key) => {
-			const item = document.createElement('div');
-			item.innerText = menuItems[key].text;
-			item.onclick = menuItems[key].onclick;
-			item.classList.add('node-context-menu-item');
-
-			menu.appendChild(item);
-		});
-
-		document.body.appendChild(menu);
-		return menu;
 	}
 
 	renderNode(ctx: CanvasRenderingContext2D) {
@@ -176,11 +121,11 @@ export abstract class Node {
 		}
 	}
 
-	getParamValue<Type>(key: string, defaultvalue: Type): Type {
+	getParamValue<Type>(key: string, defaultValue: Type): Type {
 		if (this.getParam(key)?.type === 'checkbox') {
-			return (this.getParam(key)?.checked as Type) ?? defaultvalue;
+			return (this.getParam(key)?.checked as Type) ?? defaultValue;
 		}
-		return (this.getParam(key)?.value as Type) ?? defaultvalue;
+		return (this.getParam(key)?.value as Type) ?? defaultValue;
 	}
 
 	importParams(params: NodeParameter[]) {

@@ -24,7 +24,7 @@ export type ConfigType = {
 export class Config {
 	theme = {
 		backgroundColor: '#1D1E20',
-		nodeBackfroundColor: '#161618',
+		nodeBackgroundColor: '#161618',
 		nodeBorderColor: '#FFF',
 		nodeTextColor: '#FFF',
 		connectionColor: '#FFF',
