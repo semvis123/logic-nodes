@@ -122,6 +122,8 @@ export class NodeSystem {
 			});
 		}
 
+		const prevDpi = this.nodeRenderer?.dpi;
+
 		if (full) {
 			if (this.eventHandler) this.eventHandler.removeEventListeners();
 
@@ -146,6 +148,7 @@ export class NodeSystem {
 		if (full) {
 			this.eventHandler = new NodeSystemEventHandler(this, this.canvas);
 			this.nodeRenderer = new NodeRenderer(this.canvas, this);
+			this.nodeRenderer.setDPI(prevDpi);
 			this.toolbar = new Toolbar(this);
 			this.bottomToolbar = new BottomToolbar(this);
 			this.config = new Config();
