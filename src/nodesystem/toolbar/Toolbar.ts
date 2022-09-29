@@ -12,6 +12,7 @@ import { exampleSaves } from '../examples/exampleSaves';
 import type { SaveMetadata } from '../SaveManager';
 import { ToastMessage } from '../toastMessage/ToastMessage';
 import { CombinationNode } from '../nodes/CombinationNode';
+import type { Folder } from '../fullscreenPrompt/Folder';
 
 export class Toolbar {
 	htmlElement: HTMLDivElement;
@@ -28,19 +29,49 @@ export class Toolbar {
 		const loadAction = async () => {
 			// show save file dialog
 			const saves: SaveMetadata[] = this.nodeSystem.saveManager.getSaves();
+			const normalSaves: SaveMetadata[] = [];
+			const customNodes: SaveMetadata[] = [];
+			const autosavedCustomNodes: SaveMetadata[] = [];
+			const autosaves: SaveMetadata[] = [];
+
+			saves.forEach((save) => {
+				if (!save.isAutosave && !save.isCustomNode) {
+					normalSaves.push(save);
+				} else if (!save.isAutosave && save.isCustomNode) {
+					customNodes.push(save);
+				} else if (save.isAutosave && save.isCustomNode) {
+					autosavedCustomNodes.push(save);
+				} else if (save.isAutosave) {
+					autosaves.push(save);
+				}
+			});
+
+			const saveFolder: Folder = {
+				name: 'Saves',
+				files: normalSaves,
+				directories: [
+					{
+						name: 'Autosaves',
+						files: autosaves,
+						directories: []
+					},
+					{
+						name: 'Custom nodes',
+						files: customNodes,
+						directories: [
+							{
+								name: 'Autosaves',
+								files: autosavedCustomNodes,
+								directories: []
+							}
+						]
+					}
+				]
+			};
 
 			this.nodeSystem.eventHandler.removeEventListeners();
 			try {
-				const saveMetaData =
-					saves[
-						await new FullscreenPrompt().requestSelectionFromList(
-							'Select save:',
-							saves.map((x) => {
-								const prefix = (x.isAutosave ? 'Autosave - ' : '') + (x.isCustomNode ? 'Node - ' : '');
-								return prefix + x.filename;
-							})
-						)
-					];
+				const saveMetaData = await new FullscreenPrompt().requestSelectionFromList(saveFolder);
 				console.log(saveMetaData);
 				const save: NodeSaveFile = JSON.parse(
 					this.nodeSystem.saveManager.getSaveFile(saveMetaData.id, saveMetaData.isAutosave, saveMetaData.isCustomNode)

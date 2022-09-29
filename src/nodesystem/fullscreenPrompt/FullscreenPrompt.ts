@@ -1,3 +1,5 @@
+import type { SaveMetadata } from '../SaveManager';
+import type { Folder } from './Folder';
 import './fullscreenPrompt.css';
 
 export type NodeParameter = {
@@ -79,21 +81,36 @@ export class FullscreenPrompt {
 		});
 	}
 
-	requestSelectionFromList(title: string, list: string[]): Promise<number> {
+	requestSelectionFromList(folder: Folder): Promise<SaveMetadata> {
 		return new Promise((resolve, reject) => {
 			const titleEl = document.createElement('h1');
-			titleEl.innerText = title;
+			titleEl.innerText = folder.name;
 			this.popupElement.appendChild(titleEl);
 
 			const listEl = document.createElement('ul');
-			list.forEach((item, index) => {
+			folder.files.forEach((item) => {
 				const paramEl = document.createElement('li');
 				const paramLabel = document.createElement('p');
-				paramLabel.innerText = item;
+				paramLabel.innerText = item.filename;
 				paramEl.className = 'list-item';
 				paramEl.onclick = () => {
 					this.htmlElement.remove();
-					resolve(index);
+					resolve(item);
+				};
+				paramEl.appendChild(paramLabel);
+				listEl.appendChild(paramEl);
+			});
+
+			folder.directories.forEach((folder) => {
+				const paramEl = document.createElement('li');
+				const paramLabel = document.createElement('p');
+				paramLabel.innerText = '> ' + folder.name;
+				paramEl.className = 'list-item list-folder';
+				paramEl.onclick = () => {
+					new FullscreenPrompt().requestSelectionFromList(folder).then((save: SaveMetadata) => {
+						this.htmlElement.remove();
+						resolve(save);
+					}).catch();
 				};
 				paramEl.appendChild(paramLabel);
 				listEl.appendChild(paramEl);
