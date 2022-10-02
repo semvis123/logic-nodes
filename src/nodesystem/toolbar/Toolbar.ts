@@ -6,13 +6,17 @@ import { ToolbarButton } from './ToolbarButton';
 import { nodeClasses } from '../nodes/nodes';
 import { positionNode, uuid } from '../utils';
 import './toolbar.css';
-import { FullscreenPrompt } from '../fullscreenPrompt/FullscreenPrompt';
-import type { NodeSaveFile } from '../NodeSaveFile';
 import { exampleSaves } from '../examples/exampleSaves';
-import type { SaveMetadata } from '../SaveManager';
-import { ToastMessage } from '../toastMessage/ToastMessage';
 import { CombinationNode } from '../nodes/CombinationNode';
-import type { Folder } from '../fullscreenPrompt/Folder';
+import { CreateNodeCommand } from '../commands/CreateNodeCommand';
+import { SettingsCommand } from '../commands/SettingsCommand';
+import { ExportCommand } from '../commands/ExportCommand';
+import { ImportCommand } from '../commands/ImportCommand';
+import { SaveAsCommand } from '../commands/SaveAsCommand';
+import { SaveCommand } from '../commands/SaveCommand';
+import { LoadSaveCommand } from '../commands/loadSaveCommand';
+import { NewCommand } from '../commands/newCommand';
+import type { Command } from '../commands/Command';
 
 export class Toolbar {
 	htmlElement: HTMLDivElement;
@@ -20,231 +24,20 @@ export class Toolbar {
 	constructor(public nodeSystem: NodeSystem) {
 		this.createHtmlElement();
 
-		const newAction = () => {
-			this.nodeSystem.reset();
-			this.nodeSystem.nodeRenderer.requestRender();
-			this.nodeSystem.filename = 'Untitled';
-		};
-
-		const loadAction = async () => {
-			// show save file dialog
-			const saves: SaveMetadata[] = this.nodeSystem.saveManager.getSaves();
-			const normalSaves: SaveMetadata[] = [];
-			const customNodes: SaveMetadata[] = [];
-			const autosavedCustomNodes: SaveMetadata[] = [];
-			const autosaves: SaveMetadata[] = [];
-
-			saves.forEach((save) => {
-				if (!save.isAutosave && !save.isCustomNode) {
-					normalSaves.push(save);
-				} else if (!save.isAutosave && save.isCustomNode) {
-					customNodes.push(save);
-				} else if (save.isAutosave && save.isCustomNode) {
-					autosavedCustomNodes.push(save);
-				} else if (save.isAutosave) {
-					autosaves.push(save);
-				}
-			});
-
-			const saveFolder: Folder = {
-				name: 'Saves',
-				files: normalSaves,
-				directories: [
-					{
-						name: 'Autosaves',
-						files: autosaves,
-						directories: []
-					},
-					{
-						name: 'Custom nodes',
-						files: customNodes,
-						directories: [
-							{
-								name: 'Autosaves',
-								files: autosavedCustomNodes,
-								directories: []
-							}
-						]
-					}
-				]
-			};
-
-			this.nodeSystem.eventHandler.removeEventListeners();
-			try {
-				const saveMetaData = await new FullscreenPrompt().requestSelectionFromList(saveFolder);
-				console.log(saveMetaData);
-				const save: NodeSaveFile = JSON.parse(
-					this.nodeSystem.saveManager.getSaveFile(saveMetaData.id, saveMetaData.isAutosave, saveMetaData.isCustomNode)
-				);
-				this.nodeSystem.reset();
-				this.nodeSystem.saveManager.loadSaveFile(
-					save,
-					saveMetaData.filename,
-					saveMetaData.id,
-					false,
-					saveMetaData.isCustomNode
-				);
-				this.nodeSystem.nodeRenderer.requestRender();
-			} finally {
-				this.nodeSystem.eventHandler.addEventListeners();
-			}
-		};
-
-		const saveAction = async () => {
-			if (this.nodeSystem.saveId == -1) return saveAsAction();
-			// save to localStorage
-			const save = this.nodeSystem.saveManager.createSaveFile();
-			this.nodeSystem.saveManager.saveToLocalStorage(
-				save,
-				this.nodeSystem.filename,
-				this.nodeSystem.saveId,
-				false,
-				this.nodeSystem.isCustomNode
-			);
-		};
-
-		const saveAsAction = async () => {
-			// save to localStorage
-			const save = this.nodeSystem.saveManager.createSaveFile();
-			const newSaveId: number = this.nodeSystem.saveManager.lastSaveId() + 1;
-
-			const dialog = new FullscreenPrompt();
-
-			this.nodeSystem.eventHandler.removeEventListeners();
-			try {
-				const params = await dialog.requestParameters('Save', [
-					{
-						name: 'filename',
-						label: 'Filename',
-						value: 'save ' + newSaveId,
-						type: 'text',
-						required: true
-					}
-				]);
-				const filename = params[0].value as string;
-				this.nodeSystem.saveManager.saveToLocalStorage(save, filename, newSaveId);
-				this.nodeSystem.saveId = newSaveId;
-				this.nodeSystem.filename = filename;
-				this.nodeSystem.displayFileInfo();
-			} finally {
-				this.nodeSystem.eventHandler.addEventListeners();
-			}
-		};
-
-		const importAction = () => {
-			// show open dialog
-			const openDialog = document.createElement('input');
-			openDialog.type = 'file';
-			openDialog.accept = '.json';
-			openDialog.onchange = (event: Event) => {
-				const file = (event.target as HTMLInputElement).files[0];
-				if (file) {
-					const reader = new FileReader();
-					reader.onload = () => {
-						const json = JSON.parse(reader.result as string);
-						this.nodeSystem.reset();
-						this.nodeSystem.saveManager.loadSaveFile(json, 'Unsaved import', -1);
-					};
-					reader.readAsText(file);
-				}
-			};
-			openDialog.click();
-		};
-
-		const exportAction = () => {
-			// download save
-			const save = this.nodeSystem.saveManager.createSaveFile();
-			const blob = new Blob([JSON.stringify(save)], { type: 'application/json' });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = 'save.json';
-			a.click();
-		};
-
-		const settingsAction = async () => {
-			// show setting popup
-			const popup = new FullscreenPrompt();
-			this.nodeSystem.eventHandler.removeEventListeners();
-			try {
-				const parameters = await popup.requestParameters('Settings', [
-					{
-						name: 'colorConnectionLines',
-						label: 'Change connection line color based on value.',
-						checked: this.nodeSystem.config.colorConnectionLines,
-						type: 'checkbox'
-					},
-					this.nodeSystem.saveId != -1 && {
-						name: 'delete',
-						type: 'button',
-						label: 'Current savefile',
-						value: 'Delete',
-						onclick: () => {
-							const saves: SaveMetadata[] = JSON.parse(window.localStorage.getItem('saves')) ?? [];
-							const newSaves = saves.filter(
-								(value) => !(value.id == this.nodeSystem.saveId && this.nodeSystem.isCustomNode == value.isCustomNode)
-							);
-							window.localStorage.setItem('saves', JSON.stringify(newSaves));
-							const prefix = this.nodeSystem.isCustomNode ? 'node_' : '';
-							window.localStorage.removeItem('save_' + prefix + this.nodeSystem.saveId);
-							window.localStorage.removeItem('autosave_' + prefix + this.nodeSystem.saveId);
-							this.nodeSystem.reset();
-							this.htmlElement.remove();
-						}
-					}
-				]);
-				parameters.forEach((param) => {
-					this.nodeSystem.config[param.name] = param.type == 'checkbox' ? param.checked : param.value;
-				});
-			} finally {
-				this.nodeSystem.eventHandler.addEventListeners();
-			}
-		};
-
-		const createNodeAction = async () => {
-			let possible = false;
-			// check if possible
-			this.nodeSystem.nodeStorage.nodes.forEach((node) => {
-				if (node.getMetadata().nodeName == 'OutputNode') {
-					possible = true;
-				}
-			});
-
-			if (!possible) return new ToastMessage('Creating a node requires at least one OutputNode.', 'danger').show();
-
-			const popup = new FullscreenPrompt();
-			this.nodeSystem.eventHandler.removeEventListeners();
-			try {
-				const params = await popup.requestParameters('New Node', [
-					{
-						name: 'name',
-						label: 'Name',
-						value: '',
-						type: 'text'
-					}
-				]);
-				const name = params[0].value as string;
-				const save = this.nodeSystem.saveManager.createSaveFile();
-				if (this.nodeSystem.saveId == -1) {
-					this.nodeSystem.saveId = this.nodeSystem.saveManager.lastSaveId() + 1;
-				}
-				this.nodeSystem.saveManager.saveToLocalStorage(save, name, this.nodeSystem.saveId, false, true);
-				new ToastMessage('Created node: ' + name, 'info').show();
-			} finally {
-				this.nodeSystem.eventHandler.addEventListeners();
-			}
-		};
-
 		const fileDropdownMenu = new ToolbarDropdownMenu('File');
-
-		const newButton = new ToolbarButton('New', newAction);
-		const openButton = new ToolbarButton('Load', loadAction);
-		const saveButton = new ToolbarButton('Save', saveAction);
-		const saveAsButton = new ToolbarButton('Save As', saveAsAction);
-		const importButton = new ToolbarButton('Import', importAction);
-		const exportButton = new ToolbarButton('Export', exportAction);
-		const settingsButton = new ToolbarButton('Settings', settingsAction);
-		const createNewNodeButton = new ToolbarButton('Create node', createNodeAction);
+		let createButton = (text: string, commandClass: new (n: NodeSystem) => Command) => {
+			const c = new commandClass(this.nodeSystem);
+			return new ToolbarButton(text, c)
+		}
+		createButton = createButton.bind(this)
+		const newButton = createButton('New', NewCommand);
+		const openButton = createButton('Load', LoadSaveCommand);
+		const saveButton = createButton('Save', SaveCommand);
+		const saveAsButton = createButton('Save As', SaveAsCommand);
+		const importButton = createButton('Import', ImportCommand);
+		const exportButton = createButton('Export', ExportCommand);
+		const settingsButton = createButton('Settings', SettingsCommand);
+		const createNewNodeButton = createButton('Create node', CreateNodeCommand);
 
 		for (const button of [
 			newButton,

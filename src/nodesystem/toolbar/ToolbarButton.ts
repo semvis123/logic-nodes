@@ -1,13 +1,21 @@
+import { Command } from '../commands/Command';
+
 export class ToolbarButton {
 	htmlElement: HTMLDivElement;
-	constructor(public name: string, public clickHandler: () => void, public icon?: string) {
+	constructor(public name: string, public clickHandler: (() => void) | Command, public icon?: string) {
 		this.htmlElement = this.createHtmlElement();
 	}
 	createHtmlElement(): HTMLDivElement {
 		const button = document.createElement('div');
 		button.classList.add('toolbar-button');
 		button.innerHTML = `<i>${this.name}</i>`;
-		button.addEventListener('click', this.clickHandler);
+		button.addEventListener('click', () => {
+			if (this.clickHandler instanceof Command) {
+				this.clickHandler.execute();
+			} else {
+				this.clickHandler();
+			}
+		});
 		return button;
 	}
 

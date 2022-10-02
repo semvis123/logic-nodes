@@ -11,7 +11,6 @@ export class BottomToolbar {
 	constructor(public nodeSystem: NodeSystem) {
 		this.createHtmlElement();
 		this.createButtons();
-		this.setFileName('aaa');
 	}
 
 	createButtons() {

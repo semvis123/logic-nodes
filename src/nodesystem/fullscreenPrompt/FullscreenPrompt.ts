@@ -81,7 +81,7 @@ export class FullscreenPrompt {
 		});
 	}
 
-	requestSelectionFromList(folder: Folder): Promise<SaveMetadata> {
+	requestSelectionFromFolder(folder: Folder): Promise<SaveMetadata> {
 		return new Promise((resolve, reject) => {
 			const titleEl = document.createElement('h1');
 			titleEl.innerText = folder.name;
@@ -107,7 +107,7 @@ export class FullscreenPrompt {
 				paramLabel.innerText = '> ' + folder.name;
 				paramEl.className = 'list-item list-folder';
 				paramEl.onclick = () => {
-					new FullscreenPrompt().requestSelectionFromList(folder).then((save: SaveMetadata) => {
+					new FullscreenPrompt().requestSelectionFromFolder(folder).then((save: SaveMetadata) => {
 						this.htmlElement.remove();
 						resolve(save);
 					}).catch();
