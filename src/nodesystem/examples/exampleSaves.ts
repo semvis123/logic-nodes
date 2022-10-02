@@ -1,5 +1,5 @@
 import * as welcome from './introduction.json';
-import * as segmentDisplay from './7-segement-display.json';
+import * as segmentDisplay from './7-segment-display.json';
 import type { NodeSaveFile } from '../NodeSaveFile';
 
 export const exampleSaves: { filename: string; save: NodeSaveFile }[] = [
