@@ -124,7 +124,7 @@ export class CustomNode extends Node {
 		});
 
 		if (this.inputNodeSize == this.inputNodes.length && this.outputNodeSize == this.outputNodes.length) {
-			// same savefile, so we don't actually need to update the inputs and outputs
+			// same input and output length, so we don't actually need to update the inputs and outputs
 			return;
 		}
 		this.inputNodeSize = this.inputNodes.length;

@@ -1,6 +1,6 @@
-import type { NodeSystem } from "../NodeSystem";
+import type { NodeSystem } from '../NodeSystem';
 
 export abstract class Command {
-    constructor(public nodeSystem: NodeSystem){};
-    abstract execute(): void;
+	constructor(public nodeSystem: NodeSystem) {}
+	abstract execute(): void;
 }

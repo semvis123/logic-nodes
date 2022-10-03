@@ -1,8 +1,11 @@
-import { FullscreenPrompt } from './fullscreenPrompt/FullscreenPrompt';
 import type { Node } from './Node';
 import type { NodeSystem } from './NodeSystem';
-import { ToastMessage } from './toastMessage/ToastMessage';
-import { getBoundingBoxOfMultipleNodes } from './utils';
+import { EditNodeCommand } from './commands/EditNodeCommand';
+import { DeleteNodesCommand } from './commands/DeleteNodesCommand';
+import { PasteCommand } from './commands/PasteCommand';
+import { CopyCommand } from './commands/CopyCommand';
+import { DuplicateNodesCommand } from './commands/DuplicateNodesCommand';
+import { AlignNodesCommand } from './commands/AlignNodesCommand';
 
 export class ContextMenu {
 	menu: HTMLDivElement;
@@ -56,77 +59,33 @@ export class ContextMenu {
 		return this.menu;
 	}
 
-	async editAction() {
-		const node = this.selectedNodes[0];
+	editAction() {
 		this.menu.remove();
-		const popup = new FullscreenPrompt();
-		this.nodeSystem.eventHandler.removeEventListeners();
-		try {
-			node.parameters = await popup.requestParameters('Edit', node.getMetadata().parameters);
-		} finally {
-			this.nodeSystem.eventHandler.addEventListeners();
-		}
-		node.reset();
-		this.nodeSystem.nodeRenderer.requestRender();
-		this.nodeSystem.snapshot();
+		new EditNodeCommand(this.nodeSystem, this.selectedNodes).execute();
 	}
 
 	deleteAction() {
-		this.selectedNodes.forEach((node) => {
-			this.nodeSystem.nodeStorage.removeNode(node);
-			this.nodeSystem.nodeRenderer.requestRender();
-		});
 		this.menu.remove();
-		this.nodeSystem.snapshot();
+		new DeleteNodesCommand(this.nodeSystem, this.selectedNodes).execute();
 	}
 
-	async copyAction() {
-		const nodeData = JSON.stringify(this.nodeSystem.exportNodes(this.selectedNodes));
-		await navigator.clipboard.writeText(nodeData);
+	copyAction() {
 		this.menu.remove();
+		new CopyCommand(this.nodeSystem, this.selectedNodes).execute();
 	}
 
-	async pasteAction() {
-		try {
-			const data = JSON.parse(await navigator.clipboard.readText());
-			this.nodeSystem.importNodes(data, true);
-		} catch (e) {
-			console.log('invalid data');
-			console.log(e);
-			new ToastMessage('Unable to paste nodes', 'danger').show();
-		}
+	pasteAction() {
 		this.menu.remove();
+		new PasteCommand(this.nodeSystem).execute();
 	}
 
 	duplicateAction() {
-		const nodeData = this.nodeSystem.exportNodes(this.selectedNodes);
-		this.nodeSystem.importNodes(nodeData, true, true);
 		this.menu.remove();
+		new DuplicateNodesCommand(this.nodeSystem, this.selectedNodes).execute();
 	}
 
 	alignAction() {
-		const { x, y } = getBoundingBoxOfMultipleNodes(this.selectedNodes);
-		const padding = this.nodeSystem.config.nodeSpacing;
-		// width += padding * 2;
-		// height += padding * 2;
-		// const totalArea = width * height;
-		// const rows = height / 50;
-		// const columns = width / 50;
-		let smallestWidth: number;
-		let smallestHeight: number;
-		this.selectedNodes.forEach((node) => {
-			smallestWidth = Math.min(smallestWidth ?? node.width, node.width);
-			smallestHeight = Math.min(smallestHeight ?? node.height, node.height);
-		});
-		const gridSizeX = smallestWidth + padding;
-		const gridSizeY = smallestHeight + padding;
-
-		this.selectedNodes.forEach((node) => {
-			node.x = Math.round((node.x - x) / gridSizeX) * gridSizeX + x;
-			node.y = Math.round((node.y - y) / gridSizeY) * gridSizeY + y;
-		});
-		this.nodeSystem.eventHandler.selectedNodes = undefined;
+		new AlignNodesCommand(this.nodeSystem, this.selectedNodes).execute();
 		this.menu.remove();
-		this.nodeSystem.snapshot();
 	}
 }

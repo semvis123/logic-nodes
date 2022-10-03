@@ -107,10 +107,13 @@ export class FullscreenPrompt {
 				paramLabel.innerText = '> ' + folder.name;
 				paramEl.className = 'list-item list-folder';
 				paramEl.onclick = () => {
-					new FullscreenPrompt().requestSelectionFromFolder(folder).then((save: SaveMetadata) => {
-						this.htmlElement.remove();
-						resolve(save);
-					}).catch();
+					new FullscreenPrompt()
+						.requestSelectionFromFolder(folder)
+						.then((save: SaveMetadata) => {
+							this.htmlElement.remove();
+							resolve(save);
+						})
+						.catch();
 				};
 				paramEl.appendChild(paramLabel);
 				listEl.appendChild(paramEl);

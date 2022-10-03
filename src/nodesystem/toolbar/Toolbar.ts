@@ -8,7 +8,7 @@ import { positionNode, uuid } from '../utils';
 import './toolbar.css';
 import { exampleSaves } from '../examples/exampleSaves';
 import { CustomNode } from '../nodes/CustomNode';
-import { CreateNodeCommand } from '../commands/CreateNodeCommand';
+import { CreateNodeCommand } from '../commands/CreateCustomNodeCommand';
 import { SettingsCommand } from '../commands/SettingsCommand';
 import { ExportCommand } from '../commands/ExportCommand';
 import { ImportCommand } from '../commands/ImportCommand';
@@ -27,9 +27,9 @@ export class Toolbar {
 		const fileDropdownMenu = new ToolbarDropdownMenu('File');
 		let createButton = (text: string, commandClass: new (n: NodeSystem) => Command) => {
 			const c = new commandClass(this.nodeSystem);
-			return new ToolbarButton(text, c)
-		}
-		createButton = createButton.bind(this)
+			return new ToolbarButton(text, c);
+		};
+		createButton = createButton.bind(this);
 		const newButton = createButton('New', NewCommand);
 		const openButton = createButton('Load', LoadSaveCommand);
 		const saveButton = createButton('Save', SaveCommand);

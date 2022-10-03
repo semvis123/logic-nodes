@@ -3,7 +3,8 @@ import type { NodeSystem } from '../NodeSystem';
 import { positionNode, getBoundingBoxOfMultipleNodes } from '../utils';
 import { ContextMenu } from '../ContextMenu';
 import type { Node } from '../Node';
-import { ToastMessage } from '../toastMessage/ToastMessage';
+import { CopyCommand } from '../commands/CopyCommand';
+import { PasteCommand } from '../commands/PasteCommand';
 
 export class NodeSystemEventHandler {
 	selectedNodes: Node[] | undefined;
@@ -375,19 +376,11 @@ export class NodeSystemEventHandler {
 	}
 
 	async onCopy() {
-		const data = this.nodeSystem.exportNodes(this.selectedNodes);
-		await navigator.clipboard.writeText(JSON.stringify(data));
+		new CopyCommand(this.nodeSystem, this.selectedNodes).execute();
 	}
 
 	onPaste(e: ClipboardEvent) {
-		try {
-			const data = JSON.parse(e.clipboardData.getData('text'));
-			this.nodeSystem.importNodes(data, true, true);
-		} catch (e) {
-			console.log('incorrect data');
-			console.log(e);
-			new ToastMessage('Unable to paste nodes', 'danger').show();
-		}
+		new PasteCommand(this.nodeSystem, e).execute();
 	}
 
 	getNodeAt(x: number, y: number) {
