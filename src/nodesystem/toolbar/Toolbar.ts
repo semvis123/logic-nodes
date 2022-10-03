@@ -7,7 +7,7 @@ import { nodeClasses } from '../nodes/nodes';
 import { positionNode, uuid } from '../utils';
 import './toolbar.css';
 import { exampleSaves } from '../examples/exampleSaves';
-import { CombinationNode } from '../nodes/CombinationNode';
+import { CustomNode } from '../nodes/CustomNode';
 import { CreateNodeCommand } from '../commands/CreateNodeCommand';
 import { SettingsCommand } from '../commands/SettingsCommand';
 import { ExportCommand } from '../commands/ExportCommand';
@@ -92,7 +92,7 @@ export class Toolbar {
 		// custom nodes
 		this.nodeSystem.saveManager.getCustomNodes().forEach((node) => {
 			const button = new ToolbarButton(node.filename, () => {
-				const newNode = new CombinationNode(uuid(), 0, 0, this.nodeSystem, [
+				const newNode = new CustomNode(uuid(), 0, 0, this.nodeSystem, [
 					{
 						name: 'saveId',
 						value: node.id

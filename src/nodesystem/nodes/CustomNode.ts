@@ -16,7 +16,7 @@ import type { OutputNode } from './OutputNode';
 import type { InputNode } from './InputNode';
 import type { SaveManager } from '../SaveManager';
 
-export class CombinationNode extends Node {
+export class CustomNode extends Node {
 	padding = 7;
 	currentValue = 0;
 	nodeStorage: NodeStorage;
@@ -25,6 +25,8 @@ export class CombinationNode extends Node {
 	inputNodes: InputNode[];
 	outputNodes: OutputNode[];
 	config: Config;
+	inputNodeSize: number;
+	outputNodeSize: number;
 
 	parameters: NodeParameter[] = [
 		{
@@ -56,7 +58,7 @@ export class CombinationNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
-			nodeName: 'CombinationNode',
+			nodeName: 'CustomNode',
 			displayName: 'Chip',
 			category: 'Misc',
 			parameters: this.parameters
@@ -120,6 +122,13 @@ export class CombinationNode extends Node {
 				(node as OutputNode).updateCallback = this.updateOutputs.bind(this);
 			}
 		});
+
+		if (this.inputNodeSize == this.inputNodes.length && this.outputNodeSize == this.outputNodes.length) {
+			// same savefile, so we don't actually need to update the inputs and outputs
+			return;
+		}
+		this.inputNodeSize = this.inputNodes.length;
+		this.outputNodeSize = this.outputNodes.length;
 
 		// setup inputs
 		while (this.inputs.length > 0) {
