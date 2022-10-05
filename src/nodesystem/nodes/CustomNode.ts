@@ -15,6 +15,7 @@ import { Config } from '../Config';
 import type { OutputNode } from './OutputNode';
 import type { InputNode } from './InputNode';
 import type { SaveManager } from '../SaveManager';
+import { TickSystem } from '../TickSystem';
 
 export class CustomNode extends Node {
 	padding = 7;
@@ -48,6 +49,7 @@ export class CustomNode extends Node {
 			type: 'color'
 		}
 	];
+	tickSystem: TickSystem;
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(id, x, y, 30, 30, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
@@ -58,7 +60,7 @@ export class CustomNode extends Node {
 
 	getMetadata(): Metadata {
 		return {
-			nodeName: 'CustomNode',
+			nodeName: 'CombinationNode',
 			displayName: 'Chip',
 			category: 'Misc',
 			parameters: this.parameters
@@ -103,9 +105,13 @@ export class CustomNode extends Node {
 		delete this.nodeConnectionHandler;
 		delete this.nodeStorage;
 		delete this.config;
+		this.tickSystem?.stop();
+		delete this.tickSystem;
 
 		this.nodeConnectionHandler = new NodeConnectionHandler();
 		this.nodeStorage = new NodeStorage();
+		this.tickSystem = new TickSystem(this.nodeConnectionHandler);
+		this.tickSystem.start();
 		this.config = new Config();
 		const save = JSON.parse(this.nodeSystem.saveManager.getSaveFile(this.getParamValue('saveId', -1), false, true));
 		this.importNodes(save);
