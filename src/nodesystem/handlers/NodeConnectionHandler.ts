@@ -5,7 +5,6 @@ import type { Config } from '../Config';
 export class NodeConnectionHandler {
 	connections: Map<NodeOutput, NodeInput[]> = new Map();
 	toUpdate: Set<NodeOutput> = new Set();
-	updateTimer: NodeJS.Timeout;
 
 	removeAllConnections(node: Node) {
 		this.connections.forEach((toInputs, fromOutput) => {
@@ -58,12 +57,9 @@ export class NodeConnectionHandler {
 
 	updateValue(output: NodeOutput) {
 		this.toUpdate.add(output);
-		if (!this.updateTimer) this.updateTimer = setTimeout(this.updateAllValues.bind(this), 10);
 	}
 
 	updateAllValues() {
-		clearTimeout(this.updateTimer);
-		this.updateTimer = undefined;
 		const updateSnapshot = Array.from(this.toUpdate);
 		this.toUpdate.clear();
 

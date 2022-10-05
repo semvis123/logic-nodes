@@ -5,11 +5,12 @@ import { NodeValueType } from '../NodeValueType';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
+import type { TickTimeoutReference } from '../TickSystem';
 
 export class ButtonNode extends Node {
 	padding = 7;
 	currentValue = 0;
-	timer: NodeJS.Timeout;
+	timer: TickTimeoutReference;
 
 	parameters: NodeParameter[] = [
 		{
@@ -66,7 +67,7 @@ export class ButtonNode extends Node {
 		this.currentValue = this.currentValue === 0 ? 1 : 0;
 		this.update();
 		if (this.timer) {
-			clearTimeout(this.timer);
+			this.nodeSystem.tickSystem.removeTickTimeout(this.timer);
 			this.timer = null;
 		}
 	}
@@ -81,9 +82,9 @@ export class ButtonNode extends Node {
 			return true;
 		if (this.timer) return false;
 		this.toggle();
-		this.timer = setTimeout(() => {
+		this.timer = this.nodeSystem.tickSystem.waitTicks(() => {
 			this.toggle();
-		}, this.getParamValue('delay', 1000));
+		}, this.getParamValue('delay', 1000) / this.nodeSystem.tickSystem.tickSpeed);
 		return false;
 	}
 }

@@ -5,10 +5,11 @@ import { NodeValueType } from '../NodeValueType';
 import type { NodeSystem } from '../NodeSystem';
 import type { Metadata } from '../Metadata';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
+import type { TickTimeoutReference } from '../TickSystem';
 
 export class ClockNode extends Node {
 	currentValue = 0;
-	timer: NodeJS.Timer;
+	timer: TickTimeoutReference;
 	parameters: NodeParameter[] = [
 		{
 			name: 'interval',
@@ -23,7 +24,7 @@ export class ClockNode extends Node {
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(id, x, y, 40, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		this.importParams(parameters);
-		this.timer = setInterval(() => this.toggle(), this.getParamValue('interval', 1000));
+		this.reset();
 	}
 
 	getMetadata(): Metadata {
@@ -58,9 +59,13 @@ export class ClockNode extends Node {
 
 	reset() {
 		if (this.timer) {
-			clearInterval(this.timer);
+			this.nodeSystem.tickSystem.removeTickTimeout(this.timer);
 		}
-		this.timer = setInterval(() => this.toggle(), this.getParamValue('interval', 1000));
+		this.timer = this.nodeSystem.tickSystem.waitTicks(
+			() => this.toggle(),
+			this.getParamValue('interval', 1000) / this.nodeSystem.tickSystem.tickSpeed,
+			true
+		);
 	}
 
 	update() {

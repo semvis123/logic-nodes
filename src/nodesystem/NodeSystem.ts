@@ -14,6 +14,7 @@ import type { Node } from './Node';
 import { ToastMessage } from './toastMessage/ToastMessage';
 import { BottomToolbar } from './toolbar/BottomToolbar';
 import { SaveManager } from './SaveManager';
+import { TickSystem } from './TickSystem';
 
 const maxUndoHistory = 5000;
 
@@ -33,6 +34,7 @@ export class NodeSystem {
 	restoringHistory = false;
 	snapshotTimer: NodeJS.Timeout;
 	saveManager: SaveManager;
+	tickSystem: TickSystem;
 
 	constructor(
 		public canvas: HTMLCanvasElement,
@@ -137,6 +139,8 @@ export class NodeSystem {
 		delete this.nodeConnectionHandler;
 		delete this.nodeStorage;
 		delete this.saveManager;
+		this.tickSystem && this.tickSystem.stop();
+		delete this.tickSystem;
 
 		this.saveId = -1;
 		this.filename = 'Untitled';
@@ -144,6 +148,7 @@ export class NodeSystem {
 		this.nodeConnectionHandler = new NodeConnectionHandler();
 		this.nodeStorage = new NodeStorage();
 		this.saveManager = new SaveManager(this);
+		this.tickSystem = new TickSystem(this.nodeConnectionHandler);
 
 		if (full) {
 			this.eventHandler = new NodeSystemEventHandler(this, this.canvas);
@@ -154,6 +159,7 @@ export class NodeSystem {
 			this.config = new Config();
 			this.htmlCanvasOverlayContainer.style.transform = `translate(${0}px, ${0}px)`;
 		}
+		this.tickSystem.start();
 		this.displayFileInfo();
 	}
 

@@ -6,6 +6,7 @@ import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { Metadata } from '../Metadata';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
+import type { TickTimeoutReference } from '../TickSystem';
 
 export class DelayNode extends Node {
 	parameters: NodeParameter[] = [
@@ -18,7 +19,7 @@ export class DelayNode extends Node {
 			min: 10
 		}
 	];
-	delay: NodeJS.Timeout;
+	delay: TickTimeoutReference;
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(
@@ -66,15 +67,15 @@ export class DelayNode extends Node {
 
 	update() {
 		const value = this.inputs[0].value;
-		this.delay = setTimeout(() => {
+		this.delay = this.nodeSystem.tickSystem.waitTicks(() => {
 			this.outputs[0].setValue(value);
-		}, this.getParamValue('delay', 1000));
+		}, this.getParamValue('delay', 1000) / this.nodeSystem.tickSystem.tickSpeed);
 	}
 
 	reset() {
-		if (this.delay) clearTimeout(this.delay);
-		this.delay = setTimeout(() => {
+		if (this.delay) this.nodeSystem.tickSystem.removeTickTimeout(this.delay);
+		this.delay = this.nodeSystem.tickSystem.waitTicks(() => {
 			this.outputs[0].setValue(this.inputs[0].value);
-		}, this.getParamValue('delay', 1000));
+		}, this.getParamValue('delay', 1000) / this.nodeSystem.tickSystem.tickSpeed);
 	}
 }
