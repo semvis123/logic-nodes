@@ -15,7 +15,7 @@ import { ImportCommand } from '../commands/ImportCommand';
 import { SaveAsCommand } from '../commands/SaveAsCommand';
 import { SaveCommand } from '../commands/SaveCommand';
 import { LoadSaveCommand } from '../commands/LoadSaveCommand';
-import { NewCommand } from '../commands/newCommand';
+import { NewCommand } from '../commands/NewCommand';
 import type { Command } from '../commands/Command';
 
 export class Toolbar {
