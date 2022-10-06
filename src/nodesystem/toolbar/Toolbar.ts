@@ -14,7 +14,7 @@ import { ExportCommand } from '../commands/ExportCommand';
 import { ImportCommand } from '../commands/ImportCommand';
 import { SaveAsCommand } from '../commands/SaveAsCommand';
 import { SaveCommand } from '../commands/SaveCommand';
-import { LoadSaveCommand } from '../commands/loadSaveCommand';
+import { LoadSaveCommand } from '../commands/LoadSaveCommand';
 import { NewCommand } from '../commands/newCommand';
 import type { Command } from '../commands/Command';
 
