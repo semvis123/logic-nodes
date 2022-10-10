@@ -15,7 +15,7 @@ export class CreateNodeCommand extends Command {
 		if (!possible) return new ToastMessage('Creating a node requires at least one OutputNode.', 'danger').show();
 
 		const popup = new FullscreenPrompt();
-		this.nodeSystem.eventHandler.removeEventListeners();
+		this.nodeSystem.eventHandler.cleanup();
 		try {
 			const params = await popup.requestParameters('New Node', [
 				{

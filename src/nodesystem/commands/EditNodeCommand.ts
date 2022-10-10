@@ -12,7 +12,7 @@ export class EditNodeCommand extends Command {
 		if (node == undefined) return;
 
 		const popup = new FullscreenPrompt();
-		this.nodeSystem.eventHandler.removeEventListeners();
+		this.nodeSystem.eventHandler.cleanup();
 		try {
 			node.parameters = await popup.requestParameters('Edit', node.getMetadata().parameters);
 		} finally {

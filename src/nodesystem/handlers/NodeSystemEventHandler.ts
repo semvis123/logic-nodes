@@ -23,6 +23,7 @@ export class NodeSystemEventHandler {
 	hasEventListeners = false;
 	tooltip: Tooltip;
 	tooltipTimer: NodeJS.Timer;
+	activeTooltip: { node: Node; idx: number } = null;
 
 	constructor(private nodeSystem: NodeSystem, private canvas: HTMLCanvasElement) {
 		this.onMouseDown = this.onMouseDown.bind(this);
@@ -50,7 +51,7 @@ export class NodeSystemEventHandler {
 		}
 	}
 
-	removeEventListeners() {
+	cleanup() {
 		this.hasEventListeners = false;
 		window.removeEventListener('pointerdown', this.onMouseDown);
 		window.removeEventListener('pointermove', this.onMouseMove);
@@ -65,6 +66,7 @@ export class NodeSystemEventHandler {
 		this.selectionBox = undefined;
 		this.leftMouseDown = false;
 		this.middleMouseDown = false;
+		this.tooltip?.destroy();
 	}
 
 	onWheel(e: WheelEvent) {
@@ -313,11 +315,13 @@ export class NodeSystemEventHandler {
 					) {
 						if (isHoveringConnectionPoint) return;
 						isHoveringConnectionPoint = true;
-						if (this.tooltip) return;
+						if (this.activeTooltip?.node == node && this.activeTooltip?.idx == point.index) return;
 						if (this.tooltipTimer) clearTimeout(this.tooltipTimer);
 
 						this.tooltipTimer = setTimeout(() => {
+							this.tooltip?.destroy();
 							this.tooltip = new Tooltip(mouseX, mouseY, point.name);
+							this.activeTooltip = {node, idx: point.index};
 							document.body.appendChild(this.tooltip.createElement());
 						}, 300);
 					}
@@ -332,6 +336,7 @@ export class NodeSystemEventHandler {
 			this.tooltip = null;
 			clearTimeout(this.tooltipTimer);
 			this.tooltipTimer = null;
+			this.activeTooltip = null;
 		}
 
 		if (!noNeedToRender) {

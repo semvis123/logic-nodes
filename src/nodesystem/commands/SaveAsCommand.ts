@@ -9,7 +9,7 @@ export class SaveAsCommand extends Command {
 
 		const dialog = new FullscreenPrompt();
 
-		this.nodeSystem.eventHandler.removeEventListeners();
+		this.nodeSystem.eventHandler.cleanup();
 		try {
 			const params = await dialog.requestParameters('Save', [
 				{

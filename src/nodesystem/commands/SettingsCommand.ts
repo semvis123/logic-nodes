@@ -6,7 +6,7 @@ export class SettingsCommand extends Command {
 	async execute() {
 		// show setting popup
 		const popup = new FullscreenPrompt();
-		this.nodeSystem.eventHandler.removeEventListeners();
+		this.nodeSystem.eventHandler.cleanup();
 		try {
 			const parameters = await popup.requestParameters('Settings', [
 				{

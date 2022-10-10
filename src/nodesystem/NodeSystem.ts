@@ -127,7 +127,7 @@ export class NodeSystem {
 		const prevDpi = this.nodeRenderer?.dpi;
 
 		if (full) {
-			if (this.eventHandler) this.eventHandler.removeEventListeners();
+			if (this.eventHandler) this.eventHandler.cleanup();
 
 			delete this.eventHandler;
 			delete this.nodeRenderer;
