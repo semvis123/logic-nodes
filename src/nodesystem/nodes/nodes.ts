@@ -14,7 +14,6 @@ import { NorNode } from './LogicNorNode';
 import { LabelNode } from './LabelNode';
 import { InputNode } from './InputNode';
 import { OutputNode } from './OutputNode';
-import { CustomNode } from './CustomNode';
 import { ConnectionNode } from './ConnectionNode';
 
 export const nodeClasses = [
@@ -27,7 +26,6 @@ export const nodeClasses = [
 	ConnectionNode,
 	InputNode,
 	OutputNode,
-	CustomNode,
 	NotNode,
 	ClockNode,
 	CounterNode,
