@@ -26,7 +26,7 @@ export class NandNode extends Node {
 			y,
 			40,
 			40,
-			[new NodeInput(uuid(), 'a', NodeValueType.Number), new NodeInput(uuid(), 'b', NodeValueType.Number)],
+			[new NodeInput(uuid(), '1', NodeValueType.Number), new NodeInput(uuid(), '2', NodeValueType.Number)],
 			[new NodeOutput(uuid(), 'output', NodeValueType.Number)],
 			nodeSystem
 		);
@@ -48,7 +48,7 @@ export class NandNode extends Node {
 			this.nodeSystem.nodeConnectionHandler.removeFirstConnection(this.inputs.pop());
 		}
 		while (this.inputs.length < this.getParamValue('inputs', 2)) {
-			this.inputs.push(new NodeInput(uuid(), '-', NodeValueType.Number));
+			this.inputs.push(new NodeInput(uuid(), (this.inputs.length + 1).toString(), NodeValueType.Number));
 		}
 		this.inputs.forEach((input, i) => input.setNode(this, i));
 		this.height = Math.max(this.inputs.length * 20, 40);
