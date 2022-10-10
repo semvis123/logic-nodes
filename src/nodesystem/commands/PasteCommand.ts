@@ -16,7 +16,7 @@ export class PasteCommand extends Command {
 			} else {
 				data = JSON.parse(this.event.clipboardData.getData('text'));
 			}
-			this.nodeSystem.importNodes(data, true);
+			this.nodeSystem.importNodes(data, true, true);
 		} catch (e) {
 			console.log('invalid data');
 			console.log(e);
