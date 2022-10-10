@@ -5,6 +5,7 @@ import { ContextMenu } from '../ContextMenu';
 import type { Node } from '../Node';
 import { CopyCommand } from '../commands/CopyCommand';
 import { PasteCommand } from '../commands/PasteCommand';
+import { Tooltip } from '../tooltip/Tooltip';
 
 export class NodeSystemEventHandler {
 	selectedNodes: Node[] | undefined;
@@ -20,6 +21,8 @@ export class NodeSystemEventHandler {
 		mousePos: { x: number; y: number };
 	};
 	hasEventListeners = false;
+	tooltip: Tooltip;
+	tooltipTimer: NodeJS.Timer;
 
 	constructor(private nodeSystem: NodeSystem, private canvas: HTMLCanvasElement) {
 		this.onMouseDown = this.onMouseDown.bind(this);
@@ -258,6 +261,8 @@ export class NodeSystemEventHandler {
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
 
+		let noNeedToRender = false;
+
 		const {
 			view: { x, y, zoom }
 		} = this.nodeSystem.nodeRenderer;
@@ -286,9 +291,52 @@ export class NodeSystemEventHandler {
 		} else if (this.halfConnection) {
 			// connection moved
 			this.halfConnection.mousePos = { x: pannedMouseX, y: pannedMouseY };
-		} else return;
+		} else {
+			noNeedToRender = true;
+		}
 
-		this.nodeSystem.nodeRenderer.requestRender();
+		// check if hovering on a connection point and display information
+		let isHoveringConnectionPoint = false;
+		this.nodeSystem.nodeStorage.nodes.forEach((node) => {
+			const inputSpacing = node.height / (node.inputs.length + 1);
+			const outputSpacing = node.height / (node.outputs.length + 1);
+			[
+				{ points: node.inputs, spacing: inputSpacing, xOffset: 0 },
+				{ points: node.outputs, spacing: outputSpacing, xOffset: node.width }
+			].forEach(({ points, spacing, xOffset }) => {
+				points.forEach((point) => {
+					if (
+						pannedMouseX >= node.x + xOffset - 10 &&
+						pannedMouseX <= node.x + xOffset + 10 &&
+						pannedMouseY >= node.y + spacing * (point.index + 1) - 10 &&
+						pannedMouseY <= node.y + spacing * (point.index + 1) + 10
+					) {
+						if (isHoveringConnectionPoint) return;
+						isHoveringConnectionPoint = true;
+						if (this.tooltip) return;
+						if (this.tooltipTimer) clearTimeout(this.tooltipTimer);
+
+						this.tooltipTimer = setTimeout(() => {
+							this.tooltip = new Tooltip(mouseX, mouseY, point.name);
+							document.body.appendChild(this.tooltip.createElement());
+						}, 300);
+					}
+				});
+			});
+		});
+
+		if (isHoveringConnectionPoint) {
+			noNeedToRender = false;
+		} else {
+			this.tooltip?.destroy();
+			this.tooltip = null;
+			clearTimeout(this.tooltipTimer);
+			this.tooltipTimer = null;
+		}
+
+		if (!noNeedToRender) {
+			this.nodeSystem.nodeRenderer.requestRender();
+		}
 	}
 
 	onMouseUp(e: MouseEvent) {
