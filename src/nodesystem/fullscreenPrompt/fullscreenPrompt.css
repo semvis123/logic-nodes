@@ -25,6 +25,10 @@
 	max-height: 90vh;
 }
 
+input:invalid {
+	border: #b40300 solid 2px;
+}
+
 .parameter {
 	display: flex;
 	flex-flow: row;

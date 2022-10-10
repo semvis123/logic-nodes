@@ -19,6 +19,7 @@ export type ConfigType = {
 	colorConnectionLines: boolean;
 	nodeSpacing: number;
 	nodesCanOverlap: boolean;
+	connectionRenderMode: 'bezier' | 'square';
 };
 
 export class Config {
@@ -40,6 +41,7 @@ export class Config {
 	colorConnectionLines = true;
 	nodeSpacing = 5;
 	nodesCanOverlap = false;
+	connectionRenderMode = 'bezier';
 
 	setConfig(config: object) {
 		for (const key in config) {

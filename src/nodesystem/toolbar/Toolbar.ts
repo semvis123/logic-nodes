@@ -47,7 +47,7 @@ export class Toolbar {
 			importButton,
 			exportButton,
 			createNewNodeButton,
-			settingsButton,
+			settingsButton
 		]) {
 			fileDropdownMenu.addButton(button);
 		}

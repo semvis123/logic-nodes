@@ -15,6 +15,13 @@ export class SettingsCommand extends Command {
 					checked: this.nodeSystem.config.colorConnectionLines,
 					type: 'checkbox'
 				},
+				{
+					name: 'connectionRenderMode',
+					label: "Connection line render mode, possible values: 'square', 'bezier' (default).",
+					value: this.nodeSystem.config.connectionRenderMode,
+					type: 'text',
+					pattern: 'square|bezier'
+				},
 				this.nodeSystem.saveId != -1 && {
 					name: 'delete',
 					type: 'button',
@@ -38,6 +45,7 @@ export class SettingsCommand extends Command {
 			});
 		} finally {
 			this.nodeSystem.eventHandler.addEventListeners();
+			this.nodeSystem.nodeRenderer.requestRender();
 		}
 	}
 }

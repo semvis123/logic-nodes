@@ -94,16 +94,24 @@ export class NodeConnectionHandler {
 				const outputOffset = (fromOutput.node.height / (fromOutput.node.outputs.length + 1)) * (fromOutput.index + 1);
 				const fromY = fromOutput.node.y + outputOffset;
 				ctx.moveTo(fromX, fromY);
-				const controlOffsetX = -(fromOutput.node.x - toInput.node.x) / 5;
-				const controlOffsetY = -(fromOutput.node.y - toInput.node.y) / 5;
-				ctx.bezierCurveTo(
-					fromX + controlOffsetX,
-					fromY + controlOffsetY,
-					toX - controlOffsetX,
-					toY - controlOffsetY,
-					toX,
-					toY
-				);
+
+				if (config.connectionRenderMode == 'square') {
+					ctx.lineTo((toX - fromX) / 2 + fromX, fromY);
+					ctx.lineTo((toX - fromX) / 2 + fromX, toY);
+					ctx.lineTo(toX, toY);
+				} else {
+					const controlOffsetX = -(fromOutput.node.x - toInput.node.x) / 5;
+					const controlOffsetY = -(fromOutput.node.y - toInput.node.y) / 5;
+					ctx.bezierCurveTo(
+						fromX + controlOffsetX,
+						fromY + controlOffsetY,
+						toX - controlOffsetX,
+						toY - controlOffsetY,
+						toX,
+						toY
+					);
+				}
+
 				ctx.stroke();
 			});
 		});

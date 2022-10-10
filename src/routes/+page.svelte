@@ -32,7 +32,7 @@
 <svelte:head>
 	<style>
 		* {
-			-webkit-user-select: none;  
+			-webkit-user-select: none;
 			-moz-user-select: none;
 			-ms-user-select: none;
 			user-select: none;

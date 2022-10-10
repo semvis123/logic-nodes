@@ -16,6 +16,7 @@ export type NodeParameter = {
 	minlength?: number;
 	checked?: boolean;
 	disabled?: boolean;
+	pattern?: string;
 	onclick?: () => void;
 };
 
