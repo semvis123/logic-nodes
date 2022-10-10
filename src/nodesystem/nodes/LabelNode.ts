@@ -46,7 +46,12 @@ export class LabelNode extends Node {
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 		const textMetrics = ctx.measureText(this.getParamValue('text', 'Label'));
-		this.height = textMetrics.fontBoundingBoxAscent + textMetrics.fontBoundingBoxDescent + this.padding * 2;
+		// firefox doesn't support textMetrics...
+		if (textMetrics.fontBoundingBoxAscent != undefined) {
+			this.height = textMetrics.fontBoundingBoxAscent + textMetrics.fontBoundingBoxDescent + this.padding * 2;
+		} else {
+			this.height = ctx.measureText('M').width + this.padding * 2; // hack to estimate the height
+		}
 		this.width = textMetrics.width + this.padding * 2;
 		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
 		ctx.stroke(path);
