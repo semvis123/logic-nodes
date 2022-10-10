@@ -280,7 +280,7 @@ export class NodeSystemEventHandler {
 			this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
 			this.nodeSystem.nodeRenderer.requestRender();
 		} else if (this.selectionBox) {
-			// set selectionbox
+			// set selectionBox
 			this.selectionBox.width = mouseX - this.selectionBox.x;
 			this.selectionBox.height = mouseY - this.selectionBox.y;
 		} else if (this.halfConnection) {
