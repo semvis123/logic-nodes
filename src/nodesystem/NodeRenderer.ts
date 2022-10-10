@@ -34,6 +34,27 @@ export class NodeRenderer {
 		this.ctx.save();
 		this.ctx.scale(this.dpi, this.dpi);
 		this.ctx.scale(this.view.zoom, this.view.zoom);
+		// render grid
+		if (this.view.zoom > 2.5) {
+			const gridSize = this.nodeSystem.config.nodeSpacing;
+			this.ctx.beginPath();
+			this.ctx.lineWidth = 0.5;
+			const opacity = Math.max(this.view.zoom * 1/2.5 - 1, 0.25);
+			this.ctx.strokeStyle = `rgba(41, 41, 41, ${opacity})`;
+			const yOffset = this.view.y % gridSize;
+			const xOffset = this.view.x % gridSize;
+			// horizontal lines
+			for (let i = 0; i < (this.canvas.height / this.view.zoom / gridSize) + 1; i++) {
+				this.ctx.moveTo(0, i * gridSize + yOffset);
+				this.ctx.lineTo(this.canvas.width / this.view.zoom, i * gridSize + yOffset);
+			}
+			// vertical lines
+			for (let i = 0; i < (this.canvas.width / this.view.zoom / gridSize) + 1; i++) {
+				this.ctx.moveTo(i * gridSize + xOffset, 0);
+				this.ctx.lineTo(i * gridSize + xOffset, this.canvas.height);
+			}
+			this.ctx.stroke();
+		}
 		this.ctx.translate(this.view.x, this.view.y);
 
 
