@@ -10,11 +10,7 @@ export class AlignNodesCommand extends Command {
 	async execute() {
 		const { x, y } = getBoundingBoxOfMultipleNodes(this.selectedNodes);
 		const padding = this.nodeSystem.config.nodeSpacing;
-		// width += padding * 2;
-		// height += padding * 2;
-		// const totalArea = width * height;
-		// const rows = height / 50;
-		// const columns = width / 50;
+
 		let smallestWidth: number;
 		let smallestHeight: number;
 		this.selectedNodes.forEach((node) => {
