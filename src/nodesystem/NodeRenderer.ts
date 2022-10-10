@@ -27,7 +27,7 @@ export class NodeRenderer {
 		this.shouldRender = false;
 		const theme = this.nodeSystem.config.theme;
 		const eventHandler = this.nodeSystem.eventHandler;
-		const selectionSquare = eventHandler.selectionSquare;
+		const selectionBox = eventHandler.selectionBox;
 
 		this.ctx.fillStyle = theme.backgroundColor;
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -35,6 +35,9 @@ export class NodeRenderer {
 		this.ctx.scale(this.dpi, this.dpi);
 		this.ctx.scale(this.view.zoom, this.view.zoom);
 		this.ctx.translate(this.view.x, this.view.y);
+
+
+		// render nodes
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
 			this.ctx.translate(node.x, node.y);
 			node.renderNode(this.ctx);
@@ -43,11 +46,13 @@ export class NodeRenderer {
 		this.ctx.restore();
 		this.ctx.save();
 		this.ctx.scale(this.dpi, this.dpi);
-		if (selectionSquare) {
+
+		// render selection rectangle
+		if (selectionBox) {
 			this.ctx.fillStyle = theme.nodeSelectionSquareColor;
 			this.ctx.lineWidth = 1;
-			this.ctx.fillRect(selectionSquare.x, selectionSquare.y, selectionSquare.width, selectionSquare.height);
-			this.ctx.strokeRect(selectionSquare.x, selectionSquare.y, selectionSquare.width, selectionSquare.height);
+			this.ctx.fillRect(selectionBox.x, selectionBox.y, selectionBox.width, selectionBox.height);
+			this.ctx.strokeRect(selectionBox.x, selectionBox.y, selectionBox.width, selectionBox.height);
 		}
 		this.ctx.restore();
 		this.ctx.save();
@@ -55,11 +60,14 @@ export class NodeRenderer {
 		this.ctx.scale(this.view.zoom, this.view.zoom);
 		this.ctx.translate(this.view.x, this.view.y);
 
+		// render connections
 		this.nodeSystem.nodeConnectionHandler.renderConnections(this.ctx, this.nodeSystem.config);
 		this.ctx.strokeStyle = theme.connectionColor;
 
 		this.ctx.fillStyle = theme.nodeSelectedColor;
 		this.ctx.lineWidth = 1;
+
+		// highlight the selected nodes
 		for (const node of eventHandler.selectedNodes || []) {
 			this.ctx.strokeRect(node.x, node.y, node.width, node.height);
 		}
@@ -67,6 +75,7 @@ export class NodeRenderer {
 			this.ctx.fillRect(node.x, node.y, node.width, node.height);
 		}
 
+		// render a half connection
 		if (eventHandler.halfConnection) {
 			const toX = eventHandler.halfConnection.mousePos.x;
 			const toY = eventHandler.halfConnection.mousePos.y;

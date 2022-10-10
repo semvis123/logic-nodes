@@ -8,7 +8,7 @@ import { PasteCommand } from '../commands/PasteCommand';
 
 export class NodeSystemEventHandler {
 	selectedNodes: Node[] | undefined;
-	selectionSquare: { x: number; y: number; width: number; height: number } | undefined;
+	selectionBox: { x: number; y: number; width: number; height: number } | undefined;
 	startingMouseMovePosition: { x: number; y: number } | undefined;
 	selectionStarted: boolean;
 	middleMouseDown: boolean;
@@ -59,7 +59,7 @@ export class NodeSystemEventHandler {
 		window.removeEventListener('wheel', this.onWheel);
 		this.startingMouseMovePosition = undefined;
 		this.halfConnection = undefined;
-		this.selectionSquare = undefined;
+		this.selectionBox = undefined;
 		this.leftMouseDown = false;
 		this.middleMouseDown = false;
 	}
@@ -140,7 +140,7 @@ export class NodeSystemEventHandler {
 		this.contextMenu = new ContextMenu(mouseX, mouseY, this.selectedNodes, this.nodeSystem).show();
 
 		this.nodeSystem.nodeRenderer.requestRender();
-		this.selectionSquare = {
+		this.selectionBox = {
 			x: mouseX,
 			y: mouseY,
 			width: 0,
@@ -244,7 +244,7 @@ export class NodeSystemEventHandler {
 			return;
 		}
 		this.selectedNodes = undefined;
-		this.selectionSquare = {
+		this.selectionBox = {
 			x: mouseX,
 			y: mouseY,
 			width: 0,
@@ -279,10 +279,10 @@ export class NodeSystemEventHandler {
 			});
 			this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
 			this.nodeSystem.nodeRenderer.requestRender();
-		} else if (this.selectionSquare) {
+		} else if (this.selectionBox) {
 			// set selectionbox
-			this.selectionSquare.width = mouseX - this.selectionSquare.x;
-			this.selectionSquare.height = mouseY - this.selectionSquare.y;
+			this.selectionBox.width = mouseX - this.selectionBox.x;
+			this.selectionBox.height = mouseY - this.selectionBox.y;
 		} else if (this.halfConnection) {
 			// connection moved
 			this.halfConnection.mousePos = { x: pannedMouseX, y: pannedMouseY };
@@ -299,17 +299,17 @@ export class NodeSystemEventHandler {
 			return;
 		}
 		if (this.contextMenu) {
-			this.selectionSquare = undefined;
+			this.selectionBox = undefined;
 			return;
 		}
-		if (this.selectionSquare) {
+		if (this.selectionBox) {
 			const {
 				view: { x, y, zoom }
 			} = this.nodeSystem.nodeRenderer;
-			let x1 = this.selectionSquare.x / zoom - x;
-			let y1 = this.selectionSquare.y / zoom - y;
-			let x2 = (this.selectionSquare.x + this.selectionSquare.width) / zoom - x;
-			let y2 = (this.selectionSquare.y + this.selectionSquare.height) / zoom - y;
+			let x1 = this.selectionBox.x / zoom - x;
+			let y1 = this.selectionBox.y / zoom - y;
+			let x2 = (this.selectionBox.x + this.selectionBox.width) / zoom - x;
+			let y2 = (this.selectionBox.y + this.selectionBox.height) / zoom - y;
 			// [x1, x2] = [x1, x2].sort();
 			// [y1, y2] = [y1, y2].sort();
 			if (x1 > x2) {
@@ -326,7 +326,7 @@ export class NodeSystemEventHandler {
 				return node.x + node.width >= x1 && node.x <= x2 && node.y + node.height >= y1 && node.y <= y2;
 			});
 			this.selectedNodes = nodes;
-			this.selectionSquare = undefined;
+			this.selectionBox = undefined;
 			this.startingMouseMovePosition = undefined;
 		} else if (this.halfConnection) {
 			const mouseX = e.pageX - this.canvas.offsetLeft;
