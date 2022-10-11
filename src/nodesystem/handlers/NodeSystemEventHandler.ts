@@ -119,7 +119,7 @@ export class NodeSystemEventHandler {
 	onContextMenu(e: MouseEvent) {
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
-		this.tooltip.destroy();
+		this.tooltip?.destroy();
 		const {
 			view: { x, y, zoom }
 		} = this.nodeSystem.nodeRenderer;
