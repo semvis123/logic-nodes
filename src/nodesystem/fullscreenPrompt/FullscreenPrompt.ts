@@ -72,7 +72,10 @@ export class FullscreenPrompt {
 					else param.value = (e.currentTarget as HTMLInputElement).value;
 				};
 				paramInput.onkeydown = (e: KeyboardEvent) => {
-					if (e.key == 'Enter') submitBtn.click();
+					if (e.key == 'Enter') {
+						e.preventDefault();
+						submitBtn.click();
+					}
 				};
 				this.popupElement.appendChild(paramEl);
 			});

@@ -56,13 +56,21 @@
 			left: 0;
 			height: 100vh;
 			width: 100vw;
+			backface-visibility: hidden;
+		}
+		.canvasOverlayContainerWrapper {
+			position: fixed;
+			top: 0;
+			left: 0;
 		}
 	</style>
 </svelte:head>
 
 <div class="container" bind:clientWidth={width} bind:clientHeight={height}>
 	<canvas bind:this={canvas} width={width * dpi} height={height * dpi} />
-	<div class="overlayContainer" bind:this={canvasOverlayContainer} />
+	<div class="canvasOverlayContainerWrapper">
+		<div class="overlayContainer" bind:this={canvasOverlayContainer} />
+	</div>
 	<div class="overlayContainer" bind:this={overlayContainer} />
 	<div class="toast-message-container" id="toast-container" />
 </div>
