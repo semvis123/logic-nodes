@@ -69,6 +69,10 @@ export class NodeSystem {
 		if (!this.snapshotTimer) {
 			this.snapshotTimer = setTimeout(() => {
 				// autosave
+				const nonAutosave = this.saveManager.getSaveFile(this.saveId, false, this.isCustomNode);
+				if (JSON.stringify(save) == nonAutosave) {
+					return; // don't override autosave when there are no changes compared to the save.
+				}
 				this.saveManager.saveToLocalStorage(save, this.filename, this.saveId, true);
 				new ToastMessage('Autosaved', 'info', 500).show();
 				this.snapshotTimer = undefined;
