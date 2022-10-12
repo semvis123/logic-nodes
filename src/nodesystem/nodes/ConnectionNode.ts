@@ -51,7 +51,7 @@ export class ConnectionNode extends Node {
 		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
 		ctx.stroke(path);
 		ctx.fill(path);
-		
+
 		this.renderConnectionPoints(ctx);
 		if (!this.getParamValue('tiny', false)) {
 			ctx.font = `${this.style.fontSize}px ${this.style.fontFamily}`;
@@ -63,7 +63,7 @@ export class ConnectionNode extends Node {
 	}
 
 	reset() {
-		const tiny = this.getParamValue("tiny", false);
+		const tiny = this.getParamValue('tiny', false);
 		this.width = tiny ? 20 : 50;
 		this.height = tiny ? 15 : 40;
 	}

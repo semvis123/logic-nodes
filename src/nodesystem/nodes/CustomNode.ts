@@ -160,7 +160,7 @@ export class CustomNode extends Node {
 		if (this.nodeSystem.nodeRenderer) {
 			const ctx = this.nodeSystem.nodeRenderer.canvas.getContext('2d');
 			ctx.font = `${this.style.fontSize}px ${this.style.fontFamily}`;
-			const textMetrics = ctx.measureText(this.getParamValue('nodeName', 'Label')) ?? {width: 40};
+			const textMetrics = ctx.measureText(this.getParamValue('nodeName', 'Label')) ?? { width: 40 };
 			this.width = textMetrics.width + this.padding * 4;
 		}
 		this.height = Math.max(Math.max(this.inputs.length, this.outputs.length) * 20, 40);
