@@ -321,7 +321,7 @@ export class NodeSystemEventHandler {
 						this.tooltipTimer = setTimeout(() => {
 							this.tooltip?.destroy();
 							this.tooltip = new Tooltip(mouseX, mouseY, point.name);
-							this.activeTooltip = {node, idx: point.index};
+							this.activeTooltip = { node, idx: point.index };
 							document.body.appendChild(this.tooltip.createElement());
 						}, 300);
 					}

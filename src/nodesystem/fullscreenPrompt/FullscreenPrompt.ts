@@ -73,6 +73,7 @@ export class FullscreenPrompt {
 				};
 				paramInput.onkeydown = (e: KeyboardEvent) => {
 					if (e.key == 'Enter') {
+						paramInput.onchange(e);
 						e.preventDefault();
 						submitBtn.click();
 					}
