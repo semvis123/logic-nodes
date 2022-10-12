@@ -188,14 +188,16 @@ export class NodeSystemEventHandler {
 		if (e.button == 2) return;
 
 		// connectors
+		const connectionPointHitBox = this.calcConnectionPointHitBox();
+
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
 			const inputSpacing = node.height / (node.inputs.length + 1);
 			for (const input of node.inputs) {
 				if (
-					pannedMouseX >= node.x - 10 &&
-					pannedMouseX <= node.x + 10 &&
-					pannedMouseY >= node.y + inputSpacing * (input.index + 1) - 10 &&
-					pannedMouseY <= node.y + inputSpacing * (input.index + 1) + 10
+					pannedMouseX >= node.x - connectionPointHitBox &&
+					pannedMouseX <= node.x + connectionPointHitBox &&
+					pannedMouseY >= node.y + inputSpacing * (input.index + 1) - connectionPointHitBox &&
+					pannedMouseY <= node.y + inputSpacing * (input.index + 1) + connectionPointHitBox
 				) {
 					// break one connection
 					const brokenConnection = this.nodeSystem.nodeConnectionHandler.removeFirstConnection(input);
@@ -217,10 +219,10 @@ export class NodeSystemEventHandler {
 			for (const output of node.outputs) {
 				for (let i = 0; i < node.outputs.length; i++) {
 					if (
-						pannedMouseX >= node.x + node.width - 10 &&
-						pannedMouseX <= node.x + node.width + 10 &&
-						pannedMouseY >= node.y + outputSpacing * (output.index + 1) - 10 &&
-						pannedMouseY <= node.y + outputSpacing * (output.index + 1) + 10
+						pannedMouseX >= node.x + node.width - connectionPointHitBox &&
+						pannedMouseX <= node.x + node.width + connectionPointHitBox &&
+						pannedMouseY >= node.y + outputSpacing * (output.index + 1) - connectionPointHitBox &&
+						pannedMouseY <= node.y + outputSpacing * (output.index + 1) + connectionPointHitBox
 					) {
 						const mousePos = { x: pannedMouseX, y: pannedMouseY };
 						const outputPos = {
@@ -296,6 +298,8 @@ export class NodeSystemEventHandler {
 		} else {
 			noNeedToRender = true;
 		}
+		
+		const connectionPointHitBox = this.calcConnectionPointHitBox();
 
 		// check if hovering on a connection point and display information
 		let isHoveringConnectionPoint = false;
@@ -308,10 +312,10 @@ export class NodeSystemEventHandler {
 			].forEach(({ points, spacing, xOffset }) => {
 				points.forEach((point) => {
 					if (
-						pannedMouseX >= node.x + xOffset - 10 &&
-						pannedMouseX <= node.x + xOffset + 10 &&
-						pannedMouseY >= node.y + spacing * (point.index + 1) - 10 &&
-						pannedMouseY <= node.y + spacing * (point.index + 1) + 10
+						pannedMouseX >= node.x + xOffset - connectionPointHitBox &&
+						pannedMouseX <= node.x + xOffset + connectionPointHitBox &&
+						pannedMouseY >= node.y + spacing * (point.index + 1) - connectionPointHitBox &&
+						pannedMouseY <= node.y + spacing * (point.index + 1) + connectionPointHitBox
 					) {
 						if (isHoveringConnectionPoint) return;
 						isHoveringConnectionPoint = true;
@@ -391,14 +395,15 @@ export class NodeSystemEventHandler {
 			const pannedMouseY = mouseY / zoom - y;
 
 			// connectors
+			const connectionPointHitBox = this.calcConnectionPointHitBox();
 			for (const node of this.nodeSystem.nodeStorage.nodes) {
 				const inputSpacing = node.height / (node.inputs.length + 1);
 				for (const input of node.inputs) {
 					if (
-						pannedMouseX >= node.x - 5 &&
-						pannedMouseX <= node.x + 5 &&
-						pannedMouseY >= node.y + inputSpacing * (input.index + 1) - 5 &&
-						pannedMouseY <= node.y + inputSpacing * (input.index + 1) + 5
+						pannedMouseX >= node.x - connectionPointHitBox &&
+						pannedMouseX <= node.x + connectionPointHitBox &&
+						pannedMouseY >= node.y + inputSpacing * (input.index + 1) - connectionPointHitBox &&
+						pannedMouseY <= node.y + inputSpacing * (input.index + 1) + connectionPointHitBox
 					) {
 						this.nodeSystem.nodeConnectionHandler.addConnection(this.halfConnection.output, input);
 						this.nodeSystem.snapshot();
@@ -443,5 +448,9 @@ export class NodeSystemEventHandler {
 			}
 		}
 		return undefined;
+	}
+
+	calcConnectionPointHitBox(){
+		return Math.max(this.nodeSystem.config.theme.connectionPointRadius, 5 / this.nodeSystem.nodeRenderer.view.zoom);
 	}
 }
