@@ -252,5 +252,6 @@ export class NodeSystem {
 			});
 		}
 		this.snapshot();
+		this.nodeRenderer?.requestRender();
 	}
 }
