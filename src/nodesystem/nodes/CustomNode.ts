@@ -77,9 +77,6 @@ export class CustomNode extends Node {
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
 
-		const textMetrics = ctx.measureText(this.getParamValue('nodeName', 'Label'));
-		this.width = textMetrics.width + this.padding * 4;
-
 		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
 		ctx.stroke(path);
 		ctx.fill(path);
@@ -160,7 +157,12 @@ export class CustomNode extends Node {
 		}
 
 		this.outputs.forEach((output, i) => output.setNode(this, i));
-
+		if (this.nodeSystem.nodeRenderer) {
+			const ctx = this.nodeSystem.nodeRenderer.canvas.getContext('2d');
+			ctx.font = `${this.style.fontSize}px ${this.style.fontFamily}`;
+			const textMetrics = ctx.measureText(this.getParamValue('nodeName', 'Label')) ?? {width: 40};
+			this.width = textMetrics.width + this.padding * 4;
+		}
 		this.height = Math.max(Math.max(this.inputs.length, this.outputs.length) * 20, 40);
 	}
 
