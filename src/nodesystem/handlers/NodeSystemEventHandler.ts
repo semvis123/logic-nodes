@@ -451,6 +451,6 @@ export class NodeSystemEventHandler {
 	}
 
 	calcConnectionPointHitBox() {
-		return Math.max(this.nodeSystem.config.theme.connectionPointRadius, 5 / this.nodeSystem.nodeRenderer.view.zoom);
+		return Math.max(this.nodeSystem.config.theme.connectionPointRadius, 5);
 	}
 }

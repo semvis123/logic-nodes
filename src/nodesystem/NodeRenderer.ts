@@ -58,10 +58,19 @@ export class NodeRenderer {
 		this.ctx.translate(this.view.x, this.view.y);
 
 		// render nodes
+		const viewRight = -this.view.x + this.canvas.width / this.view.zoom;
+		const viewBottom = -this.view.y + this.canvas.height / this.view.zoom;
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
-			this.ctx.translate(node.x, node.y);
-			node.renderNode(this.ctx);
-			this.ctx.translate(-node.x, -node.y);
+			if (
+				-this.view.x < node.x + node.width &&
+				viewRight > node.x &&
+				-this.view.y < node.y + node.height &&
+				viewBottom > node.y
+				) {
+					this.ctx.translate(node.x, node.y);
+					node.renderNode(this.ctx);
+					this.ctx.translate(-node.x, -node.y);
+				}
 		}
 		this.ctx.restore();
 		this.ctx.save();
