@@ -7,21 +7,36 @@ export class NodeRenderer {
 	shouldRender = false;
 	view: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 };
 	dpi = 1;
+	frameCount = 0;
+	lastFpsSampleTime = 0;
+	countFPS = import.meta.env.DEV;
 
 	constructor(public canvas: HTMLCanvasElement, private nodeSystem: NodeSystem) {
 		this.ctx = canvas.getContext('2d', { alpha: false });
 		this.render = this.render.bind(this);
+		if (this.countFPS) {
+			setInterval(this.sampleFPS.bind(this), 2000);
+		}
 		this.render();
 	}
 
 	requestRender() {
 		this.shouldRender = true;
 	}
+
+	sampleFPS() {
+		const now = performance.now();
+		if (this.frameCount > 0) {
+			const currentFps = ((this.frameCount / (now - this.lastFpsSampleTime)) * 1000).toFixed(2);
+			console.info(currentFps + ' fps');
+			this.frameCount = 0;
 		}
+		this.lastFpsSampleTime = now;
 	}
 
 	render() {
 		requestAnimationFrame(this.render);
+		this.frameCount++;
 		this.throttleTimer = null;
 		if (!this.shouldRender) return;
 		this.shouldRender = false;
@@ -66,11 +81,11 @@ export class NodeRenderer {
 				viewRight > node.x &&
 				-this.view.y < node.y + node.height &&
 				viewBottom > node.y
-				) {
-					this.ctx.translate(node.x, node.y);
-					node.renderNode(this.ctx);
-					this.ctx.translate(-node.x, -node.y);
-				}
+			) {
+				this.ctx.translate(node.x, node.y);
+				node.renderNode(this.ctx);
+				this.ctx.translate(-node.x, -node.y);
+			}
 		}
 		this.ctx.restore();
 		this.ctx.save();
