@@ -11,17 +11,17 @@ export class NodeRenderer {
 	constructor(public canvas: HTMLCanvasElement, private nodeSystem: NodeSystem) {
 		this.ctx = canvas.getContext('2d', { alpha: false });
 		this.render = this.render.bind(this);
+		this.render();
 	}
 
 	requestRender() {
 		this.shouldRender = true;
-		if (this.throttleTimer == null) {
-			requestAnimationFrame(this.render);
-			this.throttleTimer = setTimeout(this.render, 10);
+	}
 		}
 	}
 
 	render() {
+		requestAnimationFrame(this.render);
 		this.throttleTimer = null;
 		if (!this.shouldRender) return;
 		this.shouldRender = false;

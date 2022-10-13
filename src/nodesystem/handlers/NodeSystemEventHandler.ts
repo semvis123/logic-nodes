@@ -302,45 +302,37 @@ export class NodeSystemEventHandler {
 		const connectionPointHitBox = this.calcConnectionPointHitBox();
 
 		// check if hovering on a connection point and display information
-		let isHoveringConnectionPoint = false;
+		this.tooltip?.destroy();
 		if (noNeedToRender && this.nodeSystem.nodeRenderer.view.zoom > 0.5) {
-			this.nodeSystem.nodeStorage.nodes.forEach((node) => {
-				const inputSpacing = node.height / (node.inputs.length + 1);
-				const outputSpacing = node.height / (node.outputs.length + 1);
-				[
-					{ points: node.inputs, spacing: inputSpacing, xOffset: 0 },
-					{ points: node.outputs, spacing: outputSpacing, xOffset: node.width }
-				].forEach(({ points, spacing, xOffset }) => {
-					points.forEach((point) => {
-						if (
-							pannedMouseX >= node.x + xOffset - connectionPointHitBox &&
-							pannedMouseX <= node.x + xOffset + connectionPointHitBox &&
-							pannedMouseY >= node.y + spacing * (point.index + 1) - connectionPointHitBox &&
-							pannedMouseY <= node.y + spacing * (point.index + 1) + connectionPointHitBox
-						) {
-							if (isHoveringConnectionPoint) return;
-							isHoveringConnectionPoint = true;
-							if (this.activeTooltip?.node == node && this.activeTooltip?.idx == point.index) return;
-							if (this.tooltipTimer) clearTimeout(this.tooltipTimer);
+			this.tooltip = null;
+			this.activeTooltip = null;
+			if (this.tooltipTimer) clearTimeout(this.tooltipTimer);
+			this.tooltipTimer = setTimeout(() => {
+				this.nodeSystem.nodeStorage.nodes.forEach((node) => {
+					const inputSpacing = node.height / (node.inputs.length + 1);
+					const outputSpacing = node.height / (node.outputs.length + 1);
+					[
+						{ points: node.inputs, spacing: inputSpacing, xOffset: 0 },
+						{ points: node.outputs, spacing: outputSpacing, xOffset: node.width }
+					].forEach(({ points, spacing, xOffset }) => {
+						points.forEach((point) => {
+							if (
+								pannedMouseX >= node.x + xOffset - connectionPointHitBox &&
+								pannedMouseX <= node.x + xOffset + connectionPointHitBox &&
+								pannedMouseY >= node.y + spacing * (point.index + 1) - connectionPointHitBox &&
+								pannedMouseY <= node.y + spacing * (point.index + 1) + connectionPointHitBox
+							) {
+								if (this.activeTooltip?.node == node && this.activeTooltip?.idx == point.index) return;
 
-							this.tooltipTimer = setTimeout(() => {
 								this.tooltip?.destroy();
 								this.tooltip = new Tooltip(mouseX, mouseY, point.name);
 								this.activeTooltip = { node, idx: point.index };
 								document.body.appendChild(this.tooltip.createElement());
-							}, 300);
-						}
+							}
+						});
 					});
 				});
-			});
-		}
-
-		if (!isHoveringConnectionPoint) {
-			this.tooltip?.destroy();
-			this.tooltip = null;
-			clearTimeout(this.tooltipTimer);
-			this.tooltipTimer = null;
-			this.activeTooltip = null;
+			}, 300);
 		}
 
 		if (!noNeedToRender) {
