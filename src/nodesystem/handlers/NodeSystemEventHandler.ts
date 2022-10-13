@@ -411,18 +411,9 @@ export class NodeSystemEventHandler {
 			let y1 = this.selectionBox.y / zoom - y;
 			let x2 = (this.selectionBox.x + this.selectionBox.width) / zoom - x;
 			let y2 = (this.selectionBox.y + this.selectionBox.height) / zoom - y;
-			// [x1, x2] = [x1, x2].sort();
-			// [y1, y2] = [y1, y2].sort();
-			if (x1 > x2) {
-				const temp = x1;
-				x1 = x2;
-				x2 = temp;
-			}
-			if (y1 > y2) {
-				const temp = y1;
-				y1 = y2;
-				y2 = temp;
-			}
+			[x1, x2] = [x1, x2].sort((a, b) => a - b);
+			[y1, y2] = [y1, y2].sort((a, b) => a - b);
+
 			const nodes = this.nodeSystem.nodeStorage.nodes.filter((node) => {
 				return node.x + node.width >= x1 && node.x <= x2 && node.y + node.height >= y1 && node.y <= y2;
 			});
