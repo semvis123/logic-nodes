@@ -1,10 +1,10 @@
 import type { Node } from './Node';
 import type { NodeSystem } from './NodeSystem';
 import { EditNodeCommand } from './commands/EditNodeCommand';
-import { DeleteNodesCommand } from './commands/DeleteNodesCommand';
+import { DeleteCommand } from './commands/DeleteCommand';
 import { PasteCommand } from './commands/PasteCommand';
 import { CopyCommand } from './commands/CopyCommand';
-import { DuplicateNodesCommand } from './commands/DuplicateNodesCommand';
+import { DuplicateCommand } from './commands/DuplicateCommand';
 import { AlignNodesCommand } from './commands/AlignNodesCommand';
 
 export class ContextMenu {
@@ -66,7 +66,7 @@ export class ContextMenu {
 
 	deleteAction() {
 		this.menu.remove();
-		new DeleteNodesCommand(this.nodeSystem, this.selectedNodes).execute();
+		new DeleteCommand(this.nodeSystem, this.selectedNodes).execute();
 	}
 
 	copyAction() {
@@ -81,7 +81,7 @@ export class ContextMenu {
 
 	duplicateAction() {
 		this.menu.remove();
-		new DuplicateNodesCommand(this.nodeSystem, this.selectedNodes).execute();
+		new DuplicateCommand(this.nodeSystem, this.selectedNodes).execute();
 	}
 
 	alignAction() {

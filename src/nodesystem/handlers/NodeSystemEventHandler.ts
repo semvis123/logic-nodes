@@ -6,9 +6,12 @@ import type { Node } from '../Node';
 import { CopyCommand } from '../commands/CopyCommand';
 import { PasteCommand } from '../commands/PasteCommand';
 import { Tooltip } from '../tooltip/Tooltip';
-import { DeleteNodesCommand } from '../commands/DeleteNodesCommand';
+import { DeleteCommand } from '../commands/DeleteCommand';
 import { SelectAllCommand } from '../commands/SelectAllCommand';
 import { Command } from '../commands/Command';
+import { SaveCommand } from '../commands/SaveCommand';
+import { SaveAsCommand } from '../commands/SaveAsCommand';
+import { SettingsCommand } from '../commands/SettingsCommand';
 
 export class NodeSystemEventHandler {
 	selectedNodes: Node[] | undefined;
@@ -85,13 +88,32 @@ export class NodeSystemEventHandler {
 	}
 
 	onKeyDown(e: KeyboardEvent) {
-		const shortcuts: {[shortcut: string]: CallableFunction|Command} = {
-			'Delete/Backspace': new DeleteNodesCommand(this.nodeSystem, this.selectedNodes),
-			'ctrl/cmd+shift+z': () => {this.nodeSystem.redo()},
-			'ctrl/cmd+y': () => {this.nodeSystem.redo()},
-			'ctrl/cmd+z': () => {this.nodeSystem.undo()},
-			'ctrl/cmd+a': new SelectAllCommand(this.nodeSystem)
-		}
+		const shortcuts: { [shortcut: string]: CallableFunction | Command | Command[] } = {
+			'Delete/Backspace': new DeleteCommand(this.nodeSystem, this.selectedNodes),
+			'ctrl/cmd+shift+z': this.nodeSystem.redo.bind(this.nodeSystem),
+			'ctrl/cmd+y': this.nodeSystem.redo.bind(this.nodeSystem),
+			'ctrl/cmd+z': this.nodeSystem.undo.bind(this.nodeSystem),
+			'ctrl/cmd+a': new SelectAllCommand(this.nodeSystem),
+			'ctrl/cmd+x': [
+				new CopyCommand(this.nodeSystem, this.selectedNodes),
+				new DeleteCommand(this.nodeSystem, this.selectedNodes)
+			],
+			'ctrl/cmd+s': new SaveCommand(this.nodeSystem),
+			'ctrl/cmd+shift+s': new SaveAsCommand(this.nodeSystem),
+			'ctrl/cmd+,': new SettingsCommand(this.nodeSystem),
+			'ctrl/cmd+=': () => {
+				this.nodeSystem.nodeRenderer.setZoom(this.nodeSystem.nodeRenderer.view.zoom * 2);
+			},
+			'ctrl/cmd+-': () => {
+				this.nodeSystem.nodeRenderer.setZoom(this.nodeSystem.nodeRenderer.view.zoom / 2);
+			},
+			'ctrl/cmd+0': () => {
+				this.nodeSystem.nodeRenderer.setZoom(1);
+			},
+			'ctrl/cmd+9': () => {
+				this.nodeSystem.nodeRenderer.zoomToFit();
+			}
+		};
 
 		for (const [shortcut, callback] of Object.entries(shortcuts)) {
 			const keyCombo = shortcut.split('+');
@@ -100,7 +122,7 @@ export class NodeSystemEventHandler {
 				const possibleKeys = keyComboItem.split('/');
 				let isPressed = false;
 				for (const key of possibleKeys) {
-					switch(key) {
+					switch (key) {
 						case 'ctrl': {
 							isPressed ||= e.ctrlKey;
 							break;
@@ -113,8 +135,18 @@ export class NodeSystemEventHandler {
 							isPressed ||= e.shiftKey;
 							break;
 						}
+						case 'alt': {
+							isPressed ||= e.altKey;
+							break;
+						}
+						case 'plus':
+							isPressed ||= e.key == '+';
+							break;
+						case 'forward-slash':
+							isPressed ||= e.key == '/';
+							break;
 						default:
-							isPressed ||= e.key == key;
+							isPressed ||= e.key.toUpperCase() == key.toUpperCase();
 					}
 				}
 				isCorrect &&= isPressed;
@@ -123,9 +155,14 @@ export class NodeSystemEventHandler {
 			if (isCorrect) {
 				if (callback instanceof Command) {
 					callback.execute();
+				} else if (callback instanceof Array) {
+					callback.forEach((c) => {
+						c.execute();
+					});
 				} else {
 					callback();
 				}
+				e.preventDefault();
 				break;
 			}
 		}

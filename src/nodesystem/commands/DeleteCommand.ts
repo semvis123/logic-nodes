@@ -2,7 +2,7 @@ import { Command } from './Command';
 import type { NodeSystem } from '../NodeSystem';
 import type { Node } from '../Node';
 
-export class DeleteNodesCommand extends Command {
+export class DeleteCommand extends Command {
 	constructor(nodeSystem: NodeSystem, private selectedNodes: Node[]) {
 		super(nodeSystem);
 	}
