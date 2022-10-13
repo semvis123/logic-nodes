@@ -14,6 +14,7 @@ import { NorNode } from './LogicNorNode';
 import { LabelNode } from './LabelNode';
 import { InputNode } from './InputNode';
 import { OutputNode } from './OutputNode';
+import { ToneNode } from './ToneNode';
 import { ConnectionNode } from './ConnectionNode';
 
 export const nodeClasses = [
@@ -33,7 +34,8 @@ export const nodeClasses = [
 	DelayNode,
 	HtmlOverlayNode,
 	ButtonNode,
-	LabelNode
+	LabelNode,
+	ToneNode
 ];
 
 export const nodeClassesMap = {};

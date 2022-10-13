@@ -1,0 +1,115 @@
+{
+	"nodes": [
+		{
+			"id": "1957885236-3270345205-496790413-1479869609",
+			"type": "OutputNode",
+			"x": 591.5374755859375,
+			"y": 510.48638916015625,
+			"parameters": [
+				{ "name": "name", "label": "Name", "value": "Output", "type": "text" },
+				{ "name": "index", "label": "Index", "value": 0, "type": "number", "required": true, "min": 0 }
+			]
+		},
+		{
+			"id": "4291416872-3391276338-3497785755-686099641",
+			"type": "InputNode",
+			"x": 328.3687744140625,
+			"y": 500.85211181640625,
+			"parameters": [
+				{ "name": "name", "label": "Name", "value": "Input", "type": "text" },
+				{ "name": "index", "label": "Index", "value": 0, "type": "number", "required": true, "min": 0 }
+			]
+		},
+		{
+			"id": "2593326496-1936340269-2979993567-2099194336",
+			"type": "AndNode",
+			"x": 507.11334228515625,
+			"y": 506.94549560546875,
+			"parameters": [{ "name": "inputs", "label": "Inputs", "value": 2, "type": "number", "required": true, "min": 1 }]
+		},
+		{
+			"id": "2343561067-887961497-987582555-3223754821",
+			"type": "NotNode",
+			"x": 384.6060791015625,
+			"y": 538.4054565429688,
+			"parameters": []
+		},
+		{
+			"id": "772228246-2250607362-2259091316-3137205795",
+			"type": "LabelNode",
+			"x": 365.05037946690436,
+			"y": 348.7729529306803,
+			"parameters": [
+				{ "name": "text", "label": "Text", "value": "Rising edge detector", "type": "text" },
+				{ "name": "bgcolor", "label": "Background color", "value": "#008f24", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": "20", "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "3000550080-3121926235-722111031-4249704650",
+			"type": "LabelNode",
+			"x": 297.49409744682,
+			"y": 657.8861890606481,
+			"parameters": [
+				{
+					"name": "text",
+					"label": "Text",
+					"value": "Use the 'Create node' button to convert this to a custom node.",
+					"type": "text"
+				},
+				{ "name": "bgcolor", "label": "Background color", "value": "#d1d1d1", "type": "color" },
+				{ "name": "fontsize", "label": "Font size", "value": 12, "type": "number", "step": 1 }
+			]
+		},
+		{
+			"id": "2912396360-110372618-2568441315-3123069020",
+			"type": "SplitterNode",
+			"x": 438.036376953125,
+			"y": 551.9378662109375,
+			"parameters": [{ "name": "tiny", "label": "Tiny", "checked": true, "type": "checkbox" }]
+		}
+	],
+	"connections": [
+		{
+			"from": { "nodeId": "4291416872-3391276338-3497785755-686099641", "index": 0 },
+			"to": { "nodeId": "2343561067-887961497-987582555-3223754821", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "4291416872-3391276338-3497785755-686099641", "index": 0 },
+			"to": { "nodeId": "2593326496-1936340269-2979993567-2099194336", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2343561067-887961497-987582555-3223754821", "index": 0 },
+			"to": { "nodeId": "2912396360-110372618-2568441315-3123069020", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2593326496-1936340269-2979993567-2099194336", "index": 0 },
+			"to": { "nodeId": "1957885236-3270345205-496790413-1479869609", "index": 0 }
+		},
+		{
+			"from": { "nodeId": "2912396360-110372618-2568441315-3123069020", "index": 0 },
+			"to": { "nodeId": "2593326496-1936340269-2979993567-2099194336", "index": 1 }
+		}
+	],
+	"config": {
+		"theme": {
+			"backgroundColor": "#1D1E20",
+			"nodeBackgroundColor": "#161618",
+			"nodeBorderColor": "#FFF",
+			"nodeTextColor": "#FFF",
+			"connectionColor": "#FFF",
+			"nodeSelectedColor": "rgba(0, 30, 120, 0.5)",
+			"nodeSelectionSquareColor": "rgba(0, 0, 0, 0.2)",
+			"connectionPointRadius": 3,
+			"nodeBorderRadius": 3,
+			"nodeHighColor": "#372",
+			"nodeLowColor": "#f23"
+		},
+		"renderMode": "variable",
+		"hardwareAccelerationHtmlOverlay": true,
+		"colorConnectionLines": true,
+		"nodeSpacing": 5,
+		"nodesCanOverlap": false,
+		"connectionRenderMode": "bezier"
+	}
+}
