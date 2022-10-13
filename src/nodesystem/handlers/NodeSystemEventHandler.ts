@@ -6,6 +6,9 @@ import type { Node } from '../Node';
 import { CopyCommand } from '../commands/CopyCommand';
 import { PasteCommand } from '../commands/PasteCommand';
 import { Tooltip } from '../tooltip/Tooltip';
+import { DeleteNodesCommand } from '../commands/DeleteNodesCommand';
+import { SelectAllCommand } from '../commands/SelectAllCommand';
+import { Command } from '../commands/Command';
 
 export class NodeSystemEventHandler {
 	selectedNodes: Node[] | undefined;
@@ -82,37 +85,49 @@ export class NodeSystemEventHandler {
 	}
 
 	onKeyDown(e: KeyboardEvent) {
-		switch (e.code) {
-			case 'Delete':
-			case 'Backspace':
-				if (this.selectedNodes) {
-					this.selectedNodes.forEach((node) => {
-						this.nodeSystem.nodeStorage.removeNode(node);
-					});
-					this.selectedNodes = undefined;
-					this.nodeSystem.nodeRenderer.requestRender();
-					this.nodeSystem.snapshot();
-				}
-				e.preventDefault();
-				break;
-			case 'KeyZ':
-				if (e.ctrlKey || e.metaKey) {
-					if (e.shiftKey) {
-						this.nodeSystem.redo();
-					} else {
-						this.nodeSystem.undo();
+		const shortcuts: {[shortcut: string]: CallableFunction|Command} = {
+			'Delete/Backspace': new DeleteNodesCommand(this.nodeSystem, this.selectedNodes),
+			'ctrl/cmd+shift+z': () => {this.nodeSystem.redo()},
+			'ctrl/cmd+y': () => {this.nodeSystem.redo()},
+			'ctrl/cmd+z': () => {this.nodeSystem.undo()},
+			'ctrl/cmd+a': new SelectAllCommand(this.nodeSystem)
+		}
+
+		for (const [shortcut, callback] of Object.entries(shortcuts)) {
+			const keyCombo = shortcut.split('+');
+			let isCorrect = true;
+			for (const keyComboItem of keyCombo) {
+				const possibleKeys = keyComboItem.split('/');
+				let isPressed = false;
+				for (const key of possibleKeys) {
+					switch(key) {
+						case 'ctrl': {
+							isPressed ||= e.ctrlKey;
+							break;
+						}
+						case 'cmd': {
+							isPressed ||= e.metaKey;
+							break;
+						}
+						case 'shift': {
+							isPressed ||= e.shiftKey;
+							break;
+						}
+						default:
+							isPressed ||= e.key == key;
 					}
-					e.preventDefault();
+				}
+				isCorrect &&= isPressed;
+				if (!isPressed) break;
+			}
+			if (isCorrect) {
+				if (callback instanceof Command) {
+					callback.execute();
+				} else {
+					callback();
 				}
 				break;
-			case 'KeyY':
-				if (e.ctrlKey || e.metaKey) {
-					this.nodeSystem.redo();
-				}
-				e.preventDefault();
-				break;
-			default:
-				break;
+			}
 		}
 	}
 
