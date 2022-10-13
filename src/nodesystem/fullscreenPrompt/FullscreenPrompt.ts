@@ -80,13 +80,17 @@ export class FullscreenPrompt {
 				};
 				this.popupElement.appendChild(paramEl);
 			});
-			
-			window.addEventListener('keydown', (e: KeyboardEvent) => {
-				if (e.key == 'Escape') {
-					e.preventDefault();
-					cancelBtn?.click();
-				}
-			}, { once: true });
+
+			window.addEventListener(
+				'keydown',
+				(e: KeyboardEvent) => {
+					if (e.key == 'Escape') {
+						e.preventDefault();
+						cancelBtn?.click();
+					}
+				},
+				{ once: true }
+			);
 			this.popupElement.appendChild(cancelBtn);
 			this.popupElement.appendChild(submitBtn);
 		});

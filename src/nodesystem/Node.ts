@@ -76,11 +76,11 @@ export abstract class Node {
 			ctx.moveTo(0, inputSpacing * (i + 1));
 			ctx.arc(0, inputSpacing * (i + 1), radius, 0, 2 * Math.PI);
 		}
-		
+
 		const outputSpacing = this.height / (this.outputs.length + 1);
 		for (let i = 0; i < this.outputs.length; i++) {
 			ctx.moveTo(this.width, outputSpacing * (i + 1));
-			ctx.arc(this.width, outputSpacing * (i + 1), radius, 0, 2*Math.PI);
+			ctx.arc(this.width, outputSpacing * (i + 1), radius, 0, 2 * Math.PI);
 		}
 		ctx.stroke();
 		ctx.fill();

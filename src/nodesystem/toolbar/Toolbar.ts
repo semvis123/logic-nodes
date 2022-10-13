@@ -78,8 +78,8 @@ export class Toolbar {
 				const newNode = new nodeClass(uuid(), 0, 0, this.nodeSystem);
 				positionNode(
 					newNode,
-					(window.innerWidth / 2) / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.x,
-					(window.innerHeight / 2) / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.y,
+					window.innerWidth / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.x,
+					window.innerHeight / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.y,
 					this.nodeSystem.nodeStorage,
 					this.nodeSystem.config
 				);
@@ -104,8 +104,8 @@ export class Toolbar {
 				]);
 				positionNode(
 					newNode,
-					(window.innerWidth / 2) / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.x,
-					(window.innerHeight / 2) / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.y,
+					window.innerWidth / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.x,
+					window.innerHeight / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.y,
 					this.nodeSystem.nodeStorage,
 					this.nodeSystem.config
 				);
