@@ -53,7 +53,7 @@ export class AudioInputNode extends Node {
 	lastPitch = 0;
 
 	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
-		super(id, x, y, 40, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+		super(id, x, y, 70, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		if (!AudioInputNode.stream) {
 			navigator.mediaDevices
 				.getUserMedia({ audio: true })
