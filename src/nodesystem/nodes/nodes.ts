@@ -16,6 +16,7 @@ import { InputNode } from './InputNode';
 import { OutputNode } from './OutputNode';
 import { ToneNode } from './ToneNode';
 import { ConnectionNode } from './ConnectionNode';
+import { AudioInputNode } from './AudioInputNode';
 
 export const nodeClasses = [
 	ToggleNode,
@@ -35,7 +36,8 @@ export const nodeClasses = [
 	HtmlOverlayNode,
 	ButtonNode,
 	LabelNode,
-	ToneNode
+	ToneNode,
+	AudioInputNode
 ];
 
 export const nodeClassesMap = {};

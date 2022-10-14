@@ -55,7 +55,7 @@ export class ToneNode extends Node {
 		ctx.fillStyle = this.inputs[0].value == 0 ? '#aa1111' : '#11aa11';
 		ctx.fill(path);
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText(this.getParamValue('frequency', 800).toString(), (this.width * 1) / 2, this.height / 2-5);
+		ctx.fillText(this.getParamValue('frequency', 800).toString(), (this.width * 1) / 2, this.height / 2 - 5);
 		ctx.fillText('Hz', (this.width * 1) / 2, this.height / 2 + 10);
 
 		this.renderConnectionPoints(ctx);
