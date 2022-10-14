@@ -17,7 +17,7 @@ export class ToneNode extends Node {
 		},
 		{
 			name: 'type',
-			label: 'Type (sine, square)',
+			label: 'Type (sine, square, sawtooth, triangle)',
 			type: 'text',
 			value: 'sine'
 		}
@@ -75,6 +75,6 @@ export class ToneNode extends Node {
 
 	reset(): void {
 		this.nodeSystem.nodeRenderer.requestRender();
-		this.update();
+		this.inputs[0].value && this.update();
 	}
 }
