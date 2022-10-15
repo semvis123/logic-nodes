@@ -10,12 +10,16 @@ export class NodeRenderer {
 	frameCount = 0;
 	lastFpsSampleTime = 0;
 	countFPS = import.meta.env.DEV;
+	static fpsInterval: NodeJS.Timer = null;
 
 	constructor(public canvas: HTMLCanvasElement, private nodeSystem: NodeSystem) {
 		this.ctx = canvas.getContext('2d', { alpha: false });
 		this.render = this.render.bind(this);
+		if (NodeRenderer.fpsInterval) {
+			clearInterval(NodeRenderer.fpsInterval);
+		}
 		if (this.countFPS) {
-			setInterval(this.sampleFPS.bind(this), 2000);
+			NodeRenderer.fpsInterval = setInterval(this.sampleFPS.bind(this), 2000);
 		}
 		this.render();
 	}
