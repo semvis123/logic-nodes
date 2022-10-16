@@ -18,6 +18,7 @@ import { LoadSaveCommand } from '../commands/LoadSaveCommand';
 import { NewCommand } from '../commands/NewCommand';
 import type { Command } from '../commands/Command';
 import { DisplayTruthTableCommand } from '../commands/DisplayTruthTableCommand';
+import { CreateBooleanExpressionCommand } from '../commands/CreateBooleanExpressionCommand';
 
 export class Toolbar {
 	htmlElement: HTMLDivElement;
@@ -40,6 +41,7 @@ export class Toolbar {
 		const settingsButton = createButton('Settings', SettingsCommand);
 		const createNewNodeButton = createButton('Create node', CreateNodeCommand);
 		const displayTruthTableButton = createButton('Build truth table', DisplayTruthTableCommand);
+		const booleanExpressionButton = createButton('Boolean expression', CreateBooleanExpressionCommand);
 
 		for (const button of [
 			newButton,
@@ -50,7 +52,8 @@ export class Toolbar {
 			exportButton,
 			createNewNodeButton,
 			displayTruthTableButton,
-			settingsButton
+			booleanExpressionButton,
+			settingsButton,
 		]) {
 			fileDropdownMenu.addButton(button);
 		}

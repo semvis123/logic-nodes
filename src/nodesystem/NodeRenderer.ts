@@ -32,7 +32,7 @@ export class NodeRenderer {
 		const now = performance.now();
 		if (this.frameCount > 0) {
 			const currentFps = ((this.frameCount / (now - this.lastFpsSampleTime)) * 1000).toFixed(2);
-			console.info(currentFps + ' fps');
+			console.debug(currentFps + ' fps');
 			this.frameCount = 0;
 		}
 		this.lastFpsSampleTime = now;

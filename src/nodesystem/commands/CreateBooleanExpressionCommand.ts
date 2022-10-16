@@ -8,12 +8,13 @@ import type { NodeSaveData } from '../NodeSaveData';
 import type { NodeSaveFile } from '../NodeSaveFile';
 import { uuid } from '../utils';
 import type { Node } from '../Node';
+import type { NodeInput } from '../NodeInput';
 
-export class DisplayTruthTableCommand extends Command {
-	nodeConnectionHandler: NodeConnectionHandler;
+export class CreateBooleanExpressionCommand extends Command {
+    nodeConnectionHandler: NodeConnectionHandler;
 	nodeStorage: NodeStorage;
 	config: Config;
-
+    
 	async execute() {
 		try {
 			this.nodeSystem.eventHandler.cleanup();
@@ -29,7 +30,7 @@ export class DisplayTruthTableCommand extends Command {
 					node.getMetadata().nodeName != 'InputNode' && 
 					node.getMetadata().nodeName != 'LabelNode' 
 				) {
-					return new ToastMessage('Truth table can only contain logic nodes.', 'danger').show();
+					return new ToastMessage('Boolean expression can only contain logic nodes.', 'danger').show();
 				}
 			}
 			save.nodes.sort((a, b) => a.y - b.y);
@@ -37,7 +38,6 @@ export class DisplayTruthTableCommand extends Command {
 
 			const inputNodes: Node[] = [];
 			const outputNodes: Node[] = [];
-			// check for outputNodes
 			for (const node of this.nodeStorage.nodes) {
 				if (node.getMetadata().nodeName == 'OutputNode') {
 					outputNodes.push(node);
@@ -50,51 +50,71 @@ export class DisplayTruthTableCommand extends Command {
 			}
 
 			if (inputNodes.length == 0)
-				return new ToastMessage('Truth table requires at least one InputNode.', 'danger').show();
+				return new ToastMessage('Boolean expression requires at least one InputNode.', 'danger').show();
 			if (outputNodes.length == 0)
-				return new ToastMessage('Truth table requires at least one OutputNode.', 'danger').show();
+				return new ToastMessage('Boolean expression requires at least one OutputNode.', 'danger').show();
+			if (outputNodes.length > 1)
+				return new ToastMessage('Boolean expression can only be made for one OutputNode.', 'danger').show();
 
-			// try all input values
-			const table = [];
-			const possibleInputValues = this.calculatePossibleInputs(inputNodes.length);
-			possibleInputValues.forEach((x) => this.buildTable(x, inputNodes, outputNodes, table));
-			console.table(table);
-
-			new ToastMessage('Created truth table, it is available in the console', 'success').show();
+			const output = this.createBooleanExpression(outputNodes[0]);
+			console.log(output);
+			new ToastMessage('Created boolean expression, it is available in the console', 'success').show();
 		} finally {
 			this.nodeSystem.eventHandler.addEventListeners();
 		}
 	}
 
-	calculatePossibleInputs(n: number) {
-		const possibilities = [];
-		if (n <= 0) return [];
-		if (n == 1) return [[0], [1]];
-		const recurse = this.calculatePossibleInputs(n - 1);
-		for (const recursePossibility of recurse) {
-			possibilities.push([...recursePossibility, 0]);
-			possibilities.push([...recursePossibility, 1]);
+	createBooleanExpression(node: Node): string {
+		// (a + b) . (a . b)'
+		if (!node) return '0';
+
+		const recurseValues = []
+		for (const input of node.inputs) {
+			// get the node connected to the input
+			const fromNode = this.getNodeForInput(input);
+			recurseValues.push(this.createBooleanExpression(fromNode))
 		}
-		return possibilities;
+
+		switch(node?.getMetadata().nodeName) {
+			case 'InputNode': {
+				return node.getParamValue('name', 'input');
+			}
+			case 'OrNode': {
+				return recurseValues.join(' + ')
+			}
+			case 'NandNode': {
+				return `(${recurseValues.join(' . ')})'`
+			}
+			case 'NorNode': {
+				return `(${recurseValues.join(' + ')})'`
+			}
+			case 'XorNode': {
+				return `(${recurseValues[0]} . ${recurseValues[1]}' + ${recurseValues[0]}' . ${recurseValues[1]})`
+			}
+			case 'AndNode': {
+				return `(${recurseValues.join(' . ')})`
+			}
+			case 'NotNode': {
+				return recurseValues[0] + '\''
+			}
+			case 'OutputNode': {
+				return recurseValues[0]
+			}
+		}
+		return '0'
 	}
 
-	buildTable(inputValues: number[], inputNodes: Node[], outputNodes: Node[], table: object[]) {
-		inputNodes.forEach((node, i) => node.outputs[0].setValue(inputValues[i]));
-		let limit = 5000;
-		while (this.nodeConnectionHandler.toUpdate.size > 0 && limit > 0) {
-			this.nodeConnectionHandler.updateAllValues();
-			limit--;
+	getNodeForInput(toInput: NodeInput) {
+		for (const [output, inputs] of this.nodeConnectionHandler.connections) {
+			for (const input of inputs) {
+				if (input == toInput) {
+					return output.node;
+				}
+			}
 		}
-		if (limit == 0) throw new ToastMessage('Circular connection detected, cannot create truth table', 'danger').show();
-		const state = {};
-		inputNodes.forEach((x) => {
-			state[x.getParamValue('name', 'Input')] = x.outputs[0].value ? 1 : 0;
-		});
-		outputNodes.forEach((x) => {
-			state[x.getParamValue('name', 'Output')] = x.inputs[0].value ? 1 : 0;
-		});
-		table.push(state);
+		return null;
 	}
+
 
 	importNodes(
 		data: {
