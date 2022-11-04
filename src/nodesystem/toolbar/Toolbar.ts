@@ -32,28 +32,19 @@ export class Toolbar {
 			return new ToolbarButton(text, c);
 		};
 		createButton = createButton.bind(this);
-		const newButton = createButton('New', NewCommand);
-		const openButton = createButton('Load', LoadSaveCommand);
-		const saveButton = createButton('Save', SaveCommand);
-		const saveAsButton = createButton('Save As', SaveAsCommand);
-		const importButton = createButton('Import', ImportCommand);
-		const exportButton = createButton('Export', ExportCommand);
-		const settingsButton = createButton('Settings', SettingsCommand);
-		const createNewNodeButton = createButton('Create node', CreateNodeCommand);
-		const displayTruthTableButton = createButton('Build truth table', DisplayTruthTableCommand);
-		const booleanExpressionButton = createButton('Boolean expression', CreateBooleanExpressionCommand);
 
 		for (const button of [
-			newButton,
-			openButton,
-			saveButton,
-			saveAsButton,
-			importButton,
-			exportButton,
-			createNewNodeButton,
-			displayTruthTableButton,
-			booleanExpressionButton,
-			settingsButton,
+			createButton('New', NewCommand),
+			createButton('Load', LoadSaveCommand),
+			createButton('Save', SaveCommand),
+			createButton('Save As', SaveAsCommand),
+			createButton('Import', ImportCommand),
+			createButton('Export', ExportCommand),
+			createButton('Create node', CreateNodeCommand),
+			createButton('Build truth table', DisplayTruthTableCommand),
+			createButton('Simplify Logic', SimplifyLogicCommand),
+			createButton('Boolean expression', CreateBooleanExpressionCommand),
+			createButton('Settings', SettingsCommand),
 		]) {
 			fileDropdownMenu.addButton(button);
 		}
