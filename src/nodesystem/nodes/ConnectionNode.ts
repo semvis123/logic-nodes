@@ -17,13 +17,14 @@ export class ConnectionNode extends Node {
 		}
 	];
 
-	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
+	constructor(id: string, x: number, y: number, layer: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(
 			id,
 			x,
 			y,
 			50,
 			40,
+			layer,
 			[new NodeInput(uuid(), '1', NodeValueType.Number)],
 			[new NodeOutput(uuid(), 'q', NodeValueType.Number)],
 			nodeSystem

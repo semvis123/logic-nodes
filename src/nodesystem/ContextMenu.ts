@@ -6,6 +6,7 @@ import { PasteCommand } from './commands/PasteCommand';
 import { CopyCommand } from './commands/CopyCommand';
 import { DuplicateCommand } from './commands/DuplicateCommand';
 import { AlignNodesCommand } from './commands/AlignNodesCommand';
+import { ChangeLayerOfNodeCommand } from './commands/ChangeLayerOfNodeCommand';
 
 export class ContextMenu {
 	menu: HTMLDivElement;
@@ -42,7 +43,11 @@ export class ContextMenu {
 			align: this.selectedNodes?.length > 1 && {
 				text: 'Align',
 				onclick: this.alignAction
-			}
+			},
+			layer: this.selectedNodes?.length > 0 && {
+				text: 'Change layer',
+				onclick: this.moveNodesAction
+			}			
 		};
 
 		Object.values(menuItems).forEach((menuItem) => {
@@ -57,6 +62,10 @@ export class ContextMenu {
 
 		document.body.appendChild(this.menu);
 		return this.menu;
+	}
+
+	remove() {
+		this.menu.remove();
 	}
 
 	editAction() {
@@ -86,6 +95,11 @@ export class ContextMenu {
 
 	alignAction() {
 		new AlignNodesCommand(this.nodeSystem, this.selectedNodes).execute();
+		this.menu.remove();
+	}
+
+	moveNodesAction() {
+		new ChangeLayerOfNodeCommand(this.nodeSystem, this.selectedNodes).execute();
 		this.menu.remove();
 	}
 }

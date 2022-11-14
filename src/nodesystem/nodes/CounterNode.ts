@@ -10,13 +10,14 @@ export class CounterNode extends Node {
 	parameters: NodeParameter[] = [];
 	count = 0;
 
-	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
+	constructor(id: string, x: number, y: number, layer: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(
 			id,
 			x,
 			y,
 			40,
 			40,
+			layer,
 			[new NodeInput(uuid(), 'input', NodeValueType.Number), new NodeInput(uuid(), 'reset', NodeValueType.Number)],
 			[],
 			nodeSystem

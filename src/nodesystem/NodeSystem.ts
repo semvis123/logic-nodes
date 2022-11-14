@@ -15,6 +15,7 @@ import { ToastMessage } from './toastMessage/ToastMessage';
 import { BottomToolbar } from './toolbar/BottomToolbar';
 import { SaveManager } from './SaveManager';
 import { TickSystem } from './TickSystem';
+import { EditorState } from './EditorState';
 
 const maxUndoHistory = 5000;
 
@@ -35,6 +36,7 @@ export class NodeSystem {
 	snapshotTimer: NodeJS.Timeout;
 	saveManager: SaveManager;
 	tickSystem: TickSystem;
+	editorState: EditorState;
 
 	constructor(
 		public canvas: HTMLCanvasElement,
@@ -138,6 +140,7 @@ export class NodeSystem {
 			delete this.config;
 			delete this.toolbar;
 			delete this.bottomToolbar;
+			delete this.editorState;
 		}
 
 		delete this.nodeConnectionHandler;
@@ -155,6 +158,7 @@ export class NodeSystem {
 		this.tickSystem = new TickSystem(this.nodeConnectionHandler);
 
 		if (full) {
+			this.editorState = new EditorState();
 			this.eventHandler = new NodeSystemEventHandler(this, this.canvas);
 			this.nodeRenderer = new NodeRenderer(this.canvas, this);
 			this.nodeRenderer.setDPI(prevDpi);

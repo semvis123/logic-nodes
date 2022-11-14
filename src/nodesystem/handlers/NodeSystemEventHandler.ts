@@ -1,4 +1,3 @@
-import type { NodeOutput } from '../NodeOutput';
 import type { NodeSystem } from '../NodeSystem';
 import { positionNode, getBoundingBoxOfMultipleNodes } from '../utils';
 import { ContextMenu } from '../ContextMenu';
@@ -12,26 +11,22 @@ import { Command } from '../commands/Command';
 import { SaveCommand } from '../commands/SaveCommand';
 import { SaveAsCommand } from '../commands/SaveAsCommand';
 import { SettingsCommand } from '../commands/SettingsCommand';
+import type { EditorState } from '../EditorState';
 
 export class NodeSystemEventHandler {
 	selectedNodes: Node[] | undefined;
-	selectionBox: { x: number; y: number; width: number; height: number } | undefined;
 	startingMouseMovePosition: { x: number; y: number } | undefined;
 	selectionStarted: boolean;
 	middleMouseDown: boolean;
 	leftMouseDown: boolean;
-	contextMenu: HTMLDivElement | undefined;
-	halfConnection: {
-		output: NodeOutput;
-		outputPos: { x: number; y: number };
-		mousePos: { x: number; y: number };
-	};
 	hasEventListeners = false;
 	tooltip: Tooltip;
 	tooltipTimer: NodeJS.Timer;
 	activeTooltip: { node: Node; idx: number } = null;
+	editorState: EditorState;
 
 	constructor(private nodeSystem: NodeSystem, private canvas: HTMLCanvasElement) {
+		this.editorState = nodeSystem.editorState;
 		this.onMouseDown = this.onMouseDown.bind(this);
 		this.onMouseMove = this.onMouseMove.bind(this);
 		this.onMouseUp = this.onMouseUp.bind(this);
@@ -68,8 +63,8 @@ export class NodeSystemEventHandler {
 		window.removeEventListener('paste', this.onPaste);
 		window.removeEventListener('wheel', this.onWheel);
 		this.startingMouseMovePosition = undefined;
-		this.halfConnection = undefined;
-		this.selectionBox = undefined;
+		this.editorState.halfConnection = undefined;
+		this.editorState.selectionBox = undefined;
 		this.leftMouseDown = false;
 		this.middleMouseDown = false;
 		this.tooltip?.destroy();
@@ -77,7 +72,7 @@ export class NodeSystemEventHandler {
 
 	onWheel(e: WheelEvent) {
 		e.preventDefault();
-		if (this.middleMouseDown || this.contextMenu) return;
+		if (this.middleMouseDown || this.editorState.contextMenu) return;
 		if (e.ctrlKey) {
 			// zoom
 			this.nodeSystem.nodeRenderer.zoomView(e.deltaY, e.pageX, e.pageY);
@@ -88,34 +83,41 @@ export class NodeSystemEventHandler {
 	}
 
 	onKeyDown(e: KeyboardEvent) {
-		const shortcuts: { [shortcut: string]: CallableFunction | Command | Command[] } = {
-			'Delete/Backspace': new DeleteCommand(this.nodeSystem, this.selectedNodes),
-			'ctrl/cmd+shift+z': this.nodeSystem.redo.bind(this.nodeSystem),
-			'ctrl/cmd+y': this.nodeSystem.redo.bind(this.nodeSystem),
-			'ctrl/cmd+z': this.nodeSystem.undo.bind(this.nodeSystem),
-			'ctrl/cmd+a': new SelectAllCommand(this.nodeSystem),
-			'ctrl/cmd+x': [
-				new CopyCommand(this.nodeSystem, this.selectedNodes),
-				new DeleteCommand(this.nodeSystem, this.selectedNodes)
-			],
-			'ctrl/cmd+s': new SaveCommand(this.nodeSystem),
-			'ctrl/cmd+shift+s': new SaveAsCommand(this.nodeSystem),
-			'ctrl/cmd+,': new SettingsCommand(this.nodeSystem),
-			'ctrl/cmd+=': () => {
-				this.nodeSystem.nodeRenderer.setZoom(this.nodeSystem.nodeRenderer.view.zoom * 2);
-			},
-			'ctrl/cmd+-': () => {
-				this.nodeSystem.nodeRenderer.setZoom(this.nodeSystem.nodeRenderer.view.zoom / 2);
-			},
-			'ctrl/cmd+0': () => {
-				this.nodeSystem.nodeRenderer.setZoom(1);
-			},
-			'ctrl/cmd+9': () => {
-				this.nodeSystem.nodeRenderer.zoomToFit();
-			}
-		};
+		const nodeRenderer = this.nodeSystem.nodeRenderer;
+		const shortcuts: Map<string, CallableFunction | Command | Command[]> = new Map([
+			['Delete/Backspace', new DeleteCommand(this.nodeSystem, this.editorState.selectedNodes)],
+			['ctrl/cmd+shift+z', this.nodeSystem.redo.bind(this.nodeSystem)],
+			['ctrl/cmd+y', this.nodeSystem.redo.bind(this.nodeSystem)],
+			['ctrl/cmd+z', this.nodeSystem.undo.bind(this.nodeSystem)],
+			['ctrl/cmd+a', new SelectAllCommand(this.nodeSystem)],
+			['ctrl/cmd+x', [
+				new CopyCommand(this.nodeSystem, this.editorState.selectedNodes),
+				new DeleteCommand(this.nodeSystem, this.editorState.selectedNodes)
+			]],
+			['ctrl/cmd+s', new SaveCommand(this.nodeSystem)],
+			['ctrl/cmd+shift+s', new SaveAsCommand(this.nodeSystem)],
+			['ctrl/cmd+,', new SettingsCommand(this.nodeSystem)],
+			['ctrl/cmd+=', () => {
+				nodeRenderer.setZoom(this.nodeSystem.editorState.view.zoom * 2);
+			}],
+			['ctrl/cmd+-', () => {
+				nodeRenderer.setZoom(this.nodeSystem.editorState.view.zoom / 2);
+			}],
+			['ctrl/cmd+0', () => { nodeRenderer.setZoom(1) }],
+			['ctrl/cmd+9', () => { nodeRenderer.zoomToFit() }],
+			['1', () => { nodeRenderer.setLayer(0) }],
+			['2', () => { nodeRenderer.setLayer(1) }],
+			['3', () => { nodeRenderer.setLayer(2) }],
+			['4', () => { nodeRenderer.setLayer(3) }],
+			['5', () => { nodeRenderer.setLayer(4) }],
+			['6', () => { nodeRenderer.setLayer(5) }],
+			['7', () => { nodeRenderer.setLayer(6) }],
+			['8', () => { nodeRenderer.setLayer(7) }],
+			['9', () => { nodeRenderer.setLayer(8) }],
+			['0', () => { nodeRenderer.setLayer(9) }],
+		]);
 
-		for (const [shortcut, callback] of Object.entries(shortcuts)) {
+		for (const [shortcut, callback] of shortcuts.entries()) {
 			const keyCombo = shortcut.split('+');
 			let isCorrect = true;
 			for (const keyComboItem of keyCombo) {
@@ -153,6 +155,7 @@ export class NodeSystemEventHandler {
 				if (!isPressed) break;
 			}
 			if (isCorrect) {
+				e.preventDefault();
 				if (callback instanceof Command) {
 					callback.execute();
 				} else if (callback instanceof Array) {
@@ -162,7 +165,6 @@ export class NodeSystemEventHandler {
 				} else {
 					callback();
 				}
-				e.preventDefault();
 				break;
 			}
 		}
@@ -174,30 +176,31 @@ export class NodeSystemEventHandler {
 		this.tooltip?.destroy();
 		const {
 			view: { x, y, zoom }
-		} = this.nodeSystem.nodeRenderer;
+		} = this.nodeSystem.editorState;
 		const pannedMouseX = mouseX / zoom - x;
 		const pannedMouseY = mouseY / zoom - y;
 
 		this.startingMouseMovePosition = undefined;
-		if (this.contextMenu) {
-			this.contextMenu.remove();
-			this.contextMenu = undefined;
+		if (this.editorState.contextMenu) {
+			this.editorState.contextMenu.remove();
+			this.editorState.contextMenu = undefined;
 		}
 		// show context menu
 		const node = this.getNodeAt(pannedMouseX, pannedMouseY);
 		if (node) {
-			if (!this.selectedNodes?.includes(node)) this.selectedNodes = [node];
+			if (!this.editorState.selectedNodes?.includes(node)) this.editorState.selectedNodes = [node];
 		} else {
-			this.selectedNodes = [];
+			this.editorState.selectedNodes = [];
 		}
 
-		if (this.contextMenu) {
-			this.contextMenu.remove();
+		if (this.editorState.contextMenu) {
+			this.editorState.contextMenu.remove();
 		}
-		this.contextMenu = new ContextMenu(mouseX, mouseY, this.selectedNodes, this.nodeSystem).show();
+		this.editorState.contextMenu = new ContextMenu(mouseX, mouseY, this.editorState.selectedNodes, this.nodeSystem);
+		this.editorState.contextMenu.show();
 
 		this.nodeSystem.nodeRenderer.requestRender();
-		this.selectionBox = {
+		this.editorState.selectionBox = {
 			x: mouseX,
 			y: mouseY,
 			width: 0,
@@ -206,8 +209,8 @@ export class NodeSystemEventHandler {
 	}
 
 	onMouseDown(e: MouseEvent) {
-		const ctxMBounds = this.contextMenu?.getBoundingClientRect();
-		if (this.contextMenu) {
+		const ctxMBounds = this.editorState.contextMenu?.menu?.getBoundingClientRect();
+		if (this.editorState.contextMenu) {
 			if (
 				!(
 					e.x > ctxMBounds.x &&
@@ -216,8 +219,8 @@ export class NodeSystemEventHandler {
 					e.y - ctxMBounds.height < ctxMBounds.y
 				)
 			) {
-				this.contextMenu.remove();
-				this.contextMenu = undefined;
+				this.editorState.contextMenu.remove();
+				this.editorState.contextMenu = undefined;
 			}
 			return;
 		}
@@ -226,7 +229,7 @@ export class NodeSystemEventHandler {
 
 		const {
 			view: { x, y, zoom }
-		} = this.nodeSystem.nodeRenderer;
+		} = this.nodeSystem.editorState;
 		const pannedMouseX = mouseX / zoom - x;
 		const pannedMouseY = mouseY / zoom - y;
 
@@ -261,7 +264,7 @@ export class NodeSystemEventHandler {
 							x: output.node.x + output.node.width,
 							y: output.node.y + outputSpacing * (output.index + 1)
 						};
-						this.halfConnection = { output, outputPos, mousePos };
+						this.editorState.halfConnection = { output, outputPos, mousePos };
 						this.nodeSystem.snapshot();
 						return;
 					}
@@ -281,7 +284,7 @@ export class NodeSystemEventHandler {
 							x: output.node.x + output.node.width,
 							y: output.node.y + outputSpacing * (output.index + 1)
 						};
-						this.halfConnection = { output, outputPos, mousePos };
+						this.editorState.halfConnection = { output, outputPos, mousePos };
 						return;
 					}
 				}
@@ -291,19 +294,19 @@ export class NodeSystemEventHandler {
 		const node = this.getNodeAt(pannedMouseX, pannedMouseY);
 		if (node) {
 			this.startingMouseMovePosition = { x: mouseX, y: mouseY };
-			if (this.selectedNodes?.length) {
+			if (this.editorState.selectedNodes?.length) {
 				return;
 			}
 			if (!node.onclick(e, { x: pannedMouseX - node.x, y: pannedMouseY - node.y })) {
 				this.nodeSystem.nodeRenderer.requestRender();
 				return;
 			}
-			this.selectedNodes = [node];
+			this.editorState.selectedNodes = [node];
 			this.nodeSystem.nodeRenderer.requestRender();
 			return;
 		}
-		this.selectedNodes = undefined;
-		this.selectionBox = {
+		this.editorState.selectedNodes = undefined;
+		this.editorState.selectionBox = {
 			x: mouseX,
 			y: mouseY,
 			width: 0,
@@ -312,7 +315,7 @@ export class NodeSystemEventHandler {
 	}
 
 	onMouseMove(e: MouseEvent) {
-		if (this.contextMenu) return;
+		if (this.editorState.contextMenu) return;
 
 		const mouseX = e.pageX - this.canvas.offsetLeft;
 		const mouseY = e.pageY - this.canvas.offsetTop;
@@ -321,7 +324,7 @@ export class NodeSystemEventHandler {
 
 		const {
 			view: { x, y, zoom }
-		} = this.nodeSystem.nodeRenderer;
+		} = this.nodeSystem.editorState;
 		const pannedMouseX = mouseX / zoom - x;
 		const pannedMouseY = mouseY / zoom - y;
 
@@ -332,21 +335,21 @@ export class NodeSystemEventHandler {
 				-(this.startingMouseMovePosition.y - mouseY)
 			);
 			this.startingMouseMovePosition = { x: mouseX, y: mouseY };
-		} else if (this.leftMouseDown && this.selectedNodes && this.startingMouseMovePosition) {
+		} else if (this.leftMouseDown && this.editorState.selectedNodes && this.startingMouseMovePosition) {
 			// move selection
-			this.selectedNodes.forEach((node) => {
+			this.editorState.selectedNodes.forEach((node) => {
 				node.x = node.x - (this.startingMouseMovePosition.x - mouseX) / zoom;
 				node.y = node.y - (this.startingMouseMovePosition.y - mouseY) / zoom;
 			});
 			this.startingMouseMovePosition = { x: e.pageX, y: e.pageY };
 			this.nodeSystem.nodeRenderer.requestRender();
-		} else if (this.selectionBox) {
+		} else if (this.editorState.selectionBox) {
 			// set selectionBox
-			this.selectionBox.width = mouseX - this.selectionBox.x;
-			this.selectionBox.height = mouseY - this.selectionBox.y;
-		} else if (this.halfConnection) {
+			this.editorState.selectionBox.width = mouseX - this.editorState.selectionBox.x;
+			this.editorState.selectionBox.height = mouseY - this.editorState.selectionBox.y;
+		} else if (this.editorState.halfConnection) {
 			// connection moved
-			this.halfConnection.mousePos = { x: pannedMouseX, y: pannedMouseY };
+			this.editorState.halfConnection.mousePos = { x: pannedMouseX, y: pannedMouseY };
 		} else {
 			noNeedToRender = true;
 		}
@@ -355,7 +358,7 @@ export class NodeSystemEventHandler {
 
 		// check if hovering on a connection point and display information
 		this.tooltip?.destroy();
-		if (noNeedToRender && this.nodeSystem.nodeRenderer.view.zoom > 0.5) {
+		if (noNeedToRender && this.nodeSystem.editorState.view.zoom > 0.5) {
 			this.tooltip = null;
 			this.activeTooltip = null;
 			if (this.tooltipTimer) clearTimeout(this.tooltipTimer);
@@ -399,33 +402,33 @@ export class NodeSystemEventHandler {
 			this.middleMouseDown = false;
 			return;
 		}
-		if (this.contextMenu) {
-			this.selectionBox = undefined;
+		if (this.editorState.contextMenu) {
+			this.editorState.selectionBox = undefined;
 			return;
 		}
-		if (this.selectionBox) {
+		if (this.editorState.selectionBox) {
 			const {
 				view: { x, y, zoom }
-			} = this.nodeSystem.nodeRenderer;
-			let x1 = this.selectionBox.x / zoom - x;
-			let y1 = this.selectionBox.y / zoom - y;
-			let x2 = (this.selectionBox.x + this.selectionBox.width) / zoom - x;
-			let y2 = (this.selectionBox.y + this.selectionBox.height) / zoom - y;
+			} = this.nodeSystem.editorState;
+			let x1 = this.editorState.selectionBox.x / zoom - x;
+			let y1 = this.editorState.selectionBox.y / zoom - y;
+			let x2 = (this.editorState.selectionBox.x + this.editorState.selectionBox.width) / zoom - x;
+			let y2 = (this.editorState.selectionBox.y + this.editorState.selectionBox.height) / zoom - y;
 			[x1, x2] = [x1, x2].sort((a, b) => a - b);
 			[y1, y2] = [y1, y2].sort((a, b) => a - b);
 
 			const nodes = this.nodeSystem.nodeStorage.nodes.filter((node) => {
 				return node.x + node.width >= x1 && node.x <= x2 && node.y + node.height >= y1 && node.y <= y2;
 			});
-			this.selectedNodes = nodes;
-			this.selectionBox = undefined;
+			this.editorState.selectedNodes = nodes;
+			this.editorState.selectionBox = undefined;
 			this.startingMouseMovePosition = undefined;
-		} else if (this.halfConnection) {
+		} else if (this.editorState.halfConnection) {
 			const mouseX = e.pageX - this.canvas.offsetLeft;
 			const mouseY = e.pageY - this.canvas.offsetTop;
 			const {
 				view: { x, y, zoom }
-			} = this.nodeSystem.nodeRenderer;
+			} = this.nodeSystem.editorState;
 			const pannedMouseX = mouseX / zoom - x;
 			const pannedMouseY = mouseY / zoom - y;
 
@@ -440,36 +443,36 @@ export class NodeSystemEventHandler {
 						pannedMouseY >= node.y + inputSpacing * (input.index + 1) - connectionPointHitBox &&
 						pannedMouseY <= node.y + inputSpacing * (input.index + 1) + connectionPointHitBox
 					) {
-						this.nodeSystem.nodeConnectionHandler.addConnection(this.halfConnection.output, input);
+						this.nodeSystem.nodeConnectionHandler.addConnection(this.editorState.halfConnection.output, input);
 						this.nodeSystem.snapshot();
 					}
 				}
 			}
 		} else {
-			if (this.selectedNodes?.length) {
-				const box = getBoundingBoxOfMultipleNodes(this.selectedNodes);
+			if (this.editorState.selectedNodes?.length) {
+				const box = getBoundingBoxOfMultipleNodes(this.editorState.selectedNodes);
 				const translation = positionNode(
 					box,
 					box.x,
 					box.y,
 					this.nodeSystem.nodeStorage,
 					this.nodeSystem.config,
-					this.selectedNodes
+					this.editorState.selectedNodes
 				);
-				this.selectedNodes.forEach((node) => {
+				this.editorState.selectedNodes.forEach((node) => {
 					node.x += translation.x;
 					node.y += translation.y;
 				});
 				this.nodeSystem.snapshot();
 			}
-			this.selectedNodes = undefined;
+			this.editorState.selectedNodes = undefined;
 		}
-		this.halfConnection = undefined;
+		this.editorState.halfConnection = undefined;
 		this.nodeSystem.nodeRenderer.requestRender();
 	}
 
 	async onCopy() {
-		new CopyCommand(this.nodeSystem, this.selectedNodes).execute();
+		new CopyCommand(this.nodeSystem, this.editorState.selectedNodes).execute();
 	}
 
 	onPaste(e: ClipboardEvent) {

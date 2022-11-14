@@ -21,13 +21,14 @@ export class DelayNode extends Node {
 	];
 	delay: TickTimeoutReference;
 
-	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
+	constructor(id: string, x: number, y: number, layer: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(
 			id,
 			x,
 			y,
 			40,
 			40,
+			layer,
 			[new NodeInput(uuid(), 'a', NodeValueType.Number)],
 			[new NodeOutput(uuid(), 'delayed output', NodeValueType.Number)],
 			nodeSystem

@@ -18,6 +18,7 @@ export abstract class Node {
 		public y: number,
 		public width: number,
 		public height: number,
+		public layer: number,
 		public inputs: NodeInput[],
 		public outputs: NodeOutput[],
 		public nodeSystem: NodeSystem,
@@ -148,6 +149,7 @@ export abstract class Node {
 			type: this.getMetadata().nodeName,
 			x: this.x,
 			y: this.y,
+			layer: this.layer,
 			parameters: this.parameters
 		};
 	}
@@ -157,6 +159,7 @@ export abstract class Node {
 			saveData.id,
 			saveData.x,
 			saveData.y,
+			saveData.layer ?? 0,
 			nodeSystem,
 			saveData.parameters
 		);

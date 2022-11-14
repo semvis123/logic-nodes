@@ -11,6 +11,7 @@ export class DeleteCommand extends Command {
 			this.nodeSystem.nodeStorage.removeNode(node);
 			this.nodeSystem.nodeRenderer.requestRender();
 		});
+		this.nodeSystem.editorState.selectedNodes = [];
 		this.nodeSystem.snapshot();
 	}
 }

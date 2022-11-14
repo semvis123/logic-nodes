@@ -20,8 +20,8 @@ export class ToggleNode extends Node {
 		}
 	];
 
-	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
-		super(id, x, y, 120, 40, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+	constructor(id: string, x: number, y: number, layer: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
+		super(id, x, y, 120, 40, layer, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		this.importParams(parameters);
 		this.currentValue = +this.getParamValue('defaultValue', 0);
 	}

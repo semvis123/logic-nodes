@@ -42,7 +42,6 @@ export class Toolbar {
 			createButton('Export', ExportCommand),
 			createButton('Create node', CreateNodeCommand),
 			createButton('Build truth table', DisplayTruthTableCommand),
-			createButton('Simplify Logic', SimplifyLogicCommand),
 			createButton('Boolean expression', CreateBooleanExpressionCommand),
 			createButton('Settings', SettingsCommand),
 		]) {
@@ -72,11 +71,11 @@ export class Toolbar {
 
 		nodeClasses.forEach((nodeClass) => {
 			const node = new ToolbarButton(nodeClass.prototype.getMetadata().displayName, () => {
-				const newNode = new nodeClass(uuid(), 0, 0, this.nodeSystem);
+				const newNode = new nodeClass(uuid(), 0, 0, this.nodeSystem.editorState.layer, this.nodeSystem);
 				positionNode(
 					newNode,
-					window.innerWidth / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.x,
-					window.innerHeight / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.y,
+					window.innerWidth / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.x,
+					window.innerHeight / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.y,
 					this.nodeSystem.nodeStorage,
 					this.nodeSystem.config
 				);
@@ -89,7 +88,7 @@ export class Toolbar {
 		// custom nodes
 		this.nodeSystem.saveManager.getCustomNodes().forEach((node) => {
 			const button = new ToolbarButton(node.filename, () => {
-				const newNode = new CustomNode(uuid(), 0, 0, this.nodeSystem, [
+				const newNode = new CustomNode(uuid(), 0, 0, this.nodeSystem.editorState.layer, this.nodeSystem, [
 					{
 						name: 'saveId',
 						value: node.id
@@ -101,8 +100,8 @@ export class Toolbar {
 				]);
 				positionNode(
 					newNode,
-					window.innerWidth / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.x,
-					window.innerHeight / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.y,
+					window.innerWidth / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.x,
+					window.innerHeight / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.y,
 					this.nodeSystem.nodeStorage,
 					this.nodeSystem.config
 				);

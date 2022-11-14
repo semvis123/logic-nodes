@@ -10,13 +10,14 @@ import type { Metadata } from '../Metadata';
 export class XorNode extends Node {
 	parameters: NodeParameter[] = [];
 
-	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
+	constructor(id: string, x: number, y: number, layer: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
 		super(
 			id,
 			x,
 			y,
 			40,
 			40,
+			layer,
 			[new NodeInput(uuid(), 'a', NodeValueType.Number), new NodeInput(uuid(), 'b', NodeValueType.Number)],
 			[new NodeOutput(uuid(), 'output', NodeValueType.Number)],
 			nodeSystem

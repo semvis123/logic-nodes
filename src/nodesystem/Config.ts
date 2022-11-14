@@ -34,7 +34,8 @@ export class Config {
 		connectionPointRadius: 3,
 		nodeBorderRadius: 3,
 		nodeHighColor: '#372',
-		nodeLowColor: '#f23'
+		nodeLowColor: '#f23',
+		nodeSelectionSquareBorderColor: 'rgba(94, 94, 94, 1)',
 	};
 	renderMode = 'variable';
 	hardwareAccelerationHtmlOverlay = true;
