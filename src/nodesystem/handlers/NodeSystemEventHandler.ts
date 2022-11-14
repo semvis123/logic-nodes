@@ -90,31 +90,100 @@ export class NodeSystemEventHandler {
 			['ctrl/cmd+y', this.nodeSystem.redo.bind(this.nodeSystem)],
 			['ctrl/cmd+z', this.nodeSystem.undo.bind(this.nodeSystem)],
 			['ctrl/cmd+a', new SelectAllCommand(this.nodeSystem)],
-			['ctrl/cmd+x', [
-				new CopyCommand(this.nodeSystem, this.editorState.selectedNodes),
-				new DeleteCommand(this.nodeSystem, this.editorState.selectedNodes)
-			]],
+			[
+				'ctrl/cmd+x',
+				[
+					new CopyCommand(this.nodeSystem, this.editorState.selectedNodes),
+					new DeleteCommand(this.nodeSystem, this.editorState.selectedNodes)
+				]
+			],
 			['ctrl/cmd+s', new SaveCommand(this.nodeSystem)],
 			['ctrl/cmd+shift+s', new SaveAsCommand(this.nodeSystem)],
 			['ctrl/cmd+,', new SettingsCommand(this.nodeSystem)],
-			['ctrl/cmd+=', () => {
-				nodeRenderer.setZoom(this.nodeSystem.editorState.view.zoom * 2);
-			}],
-			['ctrl/cmd+-', () => {
-				nodeRenderer.setZoom(this.nodeSystem.editorState.view.zoom / 2);
-			}],
-			['ctrl/cmd+0', () => { nodeRenderer.setZoom(1) }],
-			['ctrl/cmd+9', () => { nodeRenderer.zoomToFit() }],
-			['1', () => { nodeRenderer.setLayer(0) }],
-			['2', () => { nodeRenderer.setLayer(1) }],
-			['3', () => { nodeRenderer.setLayer(2) }],
-			['4', () => { nodeRenderer.setLayer(3) }],
-			['5', () => { nodeRenderer.setLayer(4) }],
-			['6', () => { nodeRenderer.setLayer(5) }],
-			['7', () => { nodeRenderer.setLayer(6) }],
-			['8', () => { nodeRenderer.setLayer(7) }],
-			['9', () => { nodeRenderer.setLayer(8) }],
-			['0', () => { nodeRenderer.setLayer(9) }],
+			[
+				'ctrl/cmd+=',
+				() => {
+					nodeRenderer.setZoom(this.nodeSystem.editorState.view.zoom * 2);
+				}
+			],
+			[
+				'ctrl/cmd+-',
+				() => {
+					nodeRenderer.setZoom(this.nodeSystem.editorState.view.zoom / 2);
+				}
+			],
+			[
+				'ctrl/cmd+0',
+				() => {
+					nodeRenderer.setZoom(1);
+				}
+			],
+			[
+				'ctrl/cmd+9',
+				() => {
+					nodeRenderer.zoomToFit();
+				}
+			],
+			[
+				'1',
+				() => {
+					nodeRenderer.setLayer(0);
+				}
+			],
+			[
+				'2',
+				() => {
+					nodeRenderer.setLayer(1);
+				}
+			],
+			[
+				'3',
+				() => {
+					nodeRenderer.setLayer(2);
+				}
+			],
+			[
+				'4',
+				() => {
+					nodeRenderer.setLayer(3);
+				}
+			],
+			[
+				'5',
+				() => {
+					nodeRenderer.setLayer(4);
+				}
+			],
+			[
+				'6',
+				() => {
+					nodeRenderer.setLayer(5);
+				}
+			],
+			[
+				'7',
+				() => {
+					nodeRenderer.setLayer(6);
+				}
+			],
+			[
+				'8',
+				() => {
+					nodeRenderer.setLayer(7);
+				}
+			],
+			[
+				'9',
+				() => {
+					nodeRenderer.setLayer(8);
+				}
+			],
+			[
+				'0',
+				() => {
+					nodeRenderer.setLayer(9);
+				}
+			]
 		]);
 
 		for (const [shortcut, callback] of shortcuts.entries()) {

@@ -19,7 +19,14 @@ export class NandNode extends Node {
 		}
 	];
 
-	constructor(id: string, x: number, y: number, layer: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
+	constructor(
+		id: string,
+		x: number,
+		y: number,
+		layer: number,
+		public nodeSystem: NodeSystem,
+		parameters?: NodeParameter[]
+	) {
 		super(
 			id,
 			x,

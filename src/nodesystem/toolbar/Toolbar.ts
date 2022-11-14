@@ -43,7 +43,7 @@ export class Toolbar {
 			createButton('Create node', CreateNodeCommand),
 			createButton('Build truth table', DisplayTruthTableCommand),
 			createButton('Boolean expression', CreateBooleanExpressionCommand),
-			createButton('Settings', SettingsCommand),
+			createButton('Settings', SettingsCommand)
 		]) {
 			fileDropdownMenu.addButton(button);
 		}

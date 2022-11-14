@@ -47,7 +47,7 @@ export class ContextMenu {
 			layer: this.selectedNodes?.length > 0 && {
 				text: 'Change layer',
 				onclick: this.moveNodesAction
-			}			
+			}
 		};
 
 		Object.values(menuItems).forEach((menuItem) => {

@@ -18,7 +18,14 @@ export class OrNode extends Node {
 			min: 1
 		}
 	];
-	constructor(id: string, x: number, y: number, layer: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
+	constructor(
+		id: string,
+		x: number,
+		y: number,
+		layer: number,
+		public nodeSystem: NodeSystem,
+		parameters?: NodeParameter[]
+	) {
 		super(
 			id,
 			x,

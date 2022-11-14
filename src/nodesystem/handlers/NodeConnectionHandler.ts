@@ -108,7 +108,7 @@ export class NodeConnectionHandler {
 					}
 					const gradient = ctx.createLinearGradient(fromX, fromY, toX, toY);
 					gradient.addColorStop(0, ctx.strokeStyle);
-					gradient.addColorStop(1, "transparent");
+					gradient.addColorStop(1, 'transparent');
 					ctx.strokeStyle = gradient;
 				}
 				ctx.moveTo(fromX, fromY);
@@ -125,8 +125,7 @@ export class NodeConnectionHandler {
 					} else if (fromOutput.node.layer !== editorState.layer) {
 						controlOffsetX = -25;
 						controlOffsetY = 5;
-					}
-					else {
+					} else {
 						controlOffsetX = -(fromOutput.node.x - toInput.node.x) / 5;
 						controlOffsetY = -(fromOutput.node.y - toInput.node.y) / 5;
 					}
