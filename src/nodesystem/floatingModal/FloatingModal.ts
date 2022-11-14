@@ -22,7 +22,12 @@ export class FloatingModal {
 		const closeButton = document.createElement('a');
 		closeButton.className = 'floating-modal-close-button';
 		closeButton.textContent = 'X';
-		closeButton.onclick = this.remove.bind(this);
+		closeButton.onmouseup = (e)=> {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            eventHandler.addEventListeners();
+            this.remove();
+        }
 
 		this.htmlElement.onmousedown = (e) => {
 			this.mouseIsDown = true;
