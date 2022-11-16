@@ -62,7 +62,6 @@ export class CreateBooleanExpressionCommand extends Command {
 				return new ToastMessage('Boolean expression can only be made for one OutputNode.', 'danger').show();
 
 			const output = this.createBooleanExpression(outputNodes[0]);
-			console.log(output);
 			this.activeModal = new TextFloatingModal('Boolean expression', output, this.nodeSystem.eventHandler);
 			this.activeModal.show();
 			new ToastMessage('Created boolean expression.', 'success').show();

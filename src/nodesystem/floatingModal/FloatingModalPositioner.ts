@@ -35,6 +35,6 @@ export class FloatingModalPositioner {
 	bringToFront(modal: FloatingModal) {
 		this.modals = this.modals.filter((m) => m !== modal);
 		this.modals.push(modal);
-		this.modals.forEach((m, i) => (m.htmlElement.style.zIndex = 1000 + i.toString()));
+		this.modals.forEach((m, i) => (m.htmlElement.style.zIndex = 100 + i.toString()));
 	}
 }

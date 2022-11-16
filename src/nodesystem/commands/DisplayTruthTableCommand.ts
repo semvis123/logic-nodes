@@ -64,8 +64,6 @@ export class DisplayTruthTableCommand extends Command {
 			const table = [];
 			const possibleInputValues = this.calculatePossibleInputs(inputNodes.length);
 			possibleInputValues.forEach((x) => this.buildTable(x, inputNodes, outputNodes, table));
-			console.table(table);
-			console.log(table);
 			this.activeTruthTableModal = new TableFloatingModal('Truth Table', table, this.nodeSystem.eventHandler);
 			this.activeTruthTableModal.show();
 			new ToastMessage('Created truth table.', 'success').show();

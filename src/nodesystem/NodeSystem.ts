@@ -244,6 +244,9 @@ export class NodeSystem {
 		}
 
 		if (addSelection) {
+			if (!(pastedNodes?.length > 0)) {
+				return;
+			}
 			this.eventHandler.selectedNodes = pastedNodes;
 			const box = getBoundingBoxOfMultipleNodes(this.eventHandler.selectedNodes);
 			const translation = positionNode(

@@ -59,7 +59,7 @@ export class FloatingModal {
 	}
 
 	show() {
-		document.body.appendChild(this.htmlElement);
+		document.querySelector('.container').appendChild(this.htmlElement);
 		FloatingModalPositioner.prototype.getInstance().addModal(this);
 	}
 

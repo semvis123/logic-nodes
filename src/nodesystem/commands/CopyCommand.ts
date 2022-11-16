@@ -7,6 +7,9 @@ export class CopyCommand extends Command {
 		super(nodeSystem);
 	}
 	async execute() {
+		if (!(this.selectedNodes?.length > 0)) {
+			return;
+		}
 		const data = this.nodeSystem.exportNodes(this.selectedNodes);
 		await navigator.clipboard.writeText(JSON.stringify(data));
 	}
