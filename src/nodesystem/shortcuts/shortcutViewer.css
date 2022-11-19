@@ -1,0 +1,31 @@
+kbd {
+    background-color: #f7f7f7;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.2), 0 0 0 2px #fff inset;
+    color: #333;
+    display: inline-block;
+    font: 11px/1 "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Geneva, Verdana, sans-serif;
+    font-weight: bold;
+    line-height: 10px;
+    padding: 2px 4px;
+    white-space: nowrap;
+}
+
+.shortcut-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: stretch;
+  align-content: stretch;
+}
+
+.shortcut-container > * {
+  flex: 1 1 15em;
+  margin: 1em;
+}
+
+.shortcut-popup {
+    width: 80%;
+    margin: 2em;
+}

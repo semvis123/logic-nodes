@@ -6,16 +6,22 @@ import { NodeStorage } from '../NodeStorage';
 import { nodeClassesMap } from '../nodes/nodes';
 import type { NodeSaveData } from '../NodeSaveData';
 import type { NodeSaveFile } from '../NodeSaveFile';
-import { uuid } from '../utils';
+import { removeOuterBrackets, uuid } from '../utils';
 import type { Node } from '../Node';
 import type { NodeInput } from '../NodeInput';
+import { TextFloatingModal } from '../floatingModal/TextFloatingModal';
+import type { NodeSystem } from '../NodeSystem';
 
 export class CreateBooleanExpressionCommand extends Command {
-    nodeConnectionHandler: NodeConnectionHandler;
+	nodeConnectionHandler: NodeConnectionHandler;
 	nodeStorage: NodeStorage;
 	config: Config;
-    
+	activeModal: TextFloatingModal = null;
+
 	async execute() {
+		if (this.activeModal) {
+			this.activeModal.remove();
+		}
 		try {
 			this.nodeSystem.eventHandler.cleanup();
 			this.nodeConnectionHandler = new NodeConnectionHandler();
@@ -27,8 +33,10 @@ export class CreateBooleanExpressionCommand extends Command {
 				if (
 					node.getMetadata().category != 'Logic' &&
 					node.getMetadata().nodeName != 'OutputNode' &&
-					node.getMetadata().nodeName != 'InputNode' && 
-					node.getMetadata().nodeName != 'LabelNode' 
+					node.getMetadata().nodeName != 'InputNode' &&
+					node.getMetadata().nodeName != 'LabelNode' &&
+					node.getMetadata().nodeName != 'SplitterNode' &&
+					node.getMetadata().nodeName != 'ConstantNode'
 				) {
 					return new ToastMessage('Boolean expression can only contain logic nodes.', 'danger').show();
 				}
@@ -56,52 +64,60 @@ export class CreateBooleanExpressionCommand extends Command {
 			if (outputNodes.length > 1)
 				return new ToastMessage('Boolean expression can only be made for one OutputNode.', 'danger').show();
 
-			const output = this.createBooleanExpression(outputNodes[0]);
-			console.log(output);
-			new ToastMessage('Created boolean expression, it is available in the console', 'success').show();
+			let output = this.createBooleanExpression(outputNodes[0]);
+			output = removeOuterBrackets(output);
+			this.activeModal = new TextFloatingModal('Boolean expression', output, this.nodeSystem.eventHandler);
+			this.activeModal.show();
+			new ToastMessage('Created boolean expression.', 'success').show();
 		} finally {
 			this.nodeSystem.eventHandler.addEventListeners();
 		}
 	}
 
 	createBooleanExpression(node: Node): string {
-		// (a + b) . (a . b)'
+		// ((a + b) . (a . b))'
 		if (!node) return '0';
 
-		const recurseValues = []
+		const recurseValues = [];
 		for (const input of node.inputs) {
 			// get the node connected to the input
 			const fromNode = this.getNodeForInput(input);
-			recurseValues.push(this.createBooleanExpression(fromNode))
+			recurseValues.push(this.createBooleanExpression(fromNode));
 		}
 
-		switch(node?.getMetadata().nodeName) {
+		switch (node?.getMetadata().nodeName) {
 			case 'InputNode': {
 				return node.getParamValue('name', 'input');
 			}
 			case 'OrNode': {
-				return recurseValues.join(' + ')
+				return `(${recurseValues.join(' + ')})`;
 			}
 			case 'NandNode': {
-				return `(${recurseValues.join(' . ')})'`
+				return `(${recurseValues.join(' . ')})'`;
 			}
 			case 'NorNode': {
-				return `(${recurseValues.join(' + ')})'`
+				return `(${recurseValues.join(' + ')})'`;
 			}
 			case 'XorNode': {
-				return `(${recurseValues[0]} . ${recurseValues[1]}' + ${recurseValues[0]}' . ${recurseValues[1]})`
+				return `(${recurseValues[0]} . ${recurseValues[1]}' + ${recurseValues[0]}' . ${recurseValues[1]})`;
 			}
 			case 'AndNode': {
-				return `(${recurseValues.join(' . ')})`
+				return `(${recurseValues.join(' . ')})`;
 			}
 			case 'NotNode': {
-				return recurseValues[0] + '\''
+				return `${recurseValues[0]}'`;
 			}
 			case 'OutputNode': {
-				return recurseValues[0]
+				return recurseValues[0];
+			}
+			case 'SplitterNode': {
+				return recurseValues[0];
+			}
+			case 'ConstantNode': {
+				return node.getParamValue('value', '0');
 			}
 		}
-		return '0'
+		return '0';
 	}
 
 	getNodeForInput(toInput: NodeInput) {
@@ -114,7 +130,6 @@ export class CreateBooleanExpressionCommand extends Command {
 		}
 		return null;
 	}
-
 
 	importNodes(
 		data: {
@@ -130,7 +145,7 @@ export class CreateBooleanExpressionCommand extends Command {
 		let outputCount = 0;
 		const alphabet = 'abcdefghijklmnopqrstuvwxyz';
 		nodes.forEach((node) => {
-			const newNode: Node = nodeClassesMap[node.type].load(node, this);
+			const newNode: Node = nodeClassesMap.get(node.type).load(node, this as unknown as NodeSystem);
 			const nodeNameParam = newNode.getParam('name');
 			if (nodeNameParam?.value == 'Input') {
 				// no input name, create one

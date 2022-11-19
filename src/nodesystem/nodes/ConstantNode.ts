@@ -1,14 +1,23 @@
 import { Node } from '../Node';
+import { NodeOutput } from '../NodeOutput';
 import { roundRect, uuid } from '../utils';
 import { NodeValueType } from '../NodeValueType';
-import { NodeInput } from '../NodeInput';
 import type { NodeSystem } from '../NodeSystem';
 import type { NodeParameter } from '../fullscreenPrompt/FullscreenPrompt';
 import type { Metadata } from '../Metadata';
 
-export class CounterNode extends Node {
-	parameters: NodeParameter[] = [];
-	count = 0;
+export class ConstantNode extends Node {
+	parameters: NodeParameter[] = [
+		{
+			name: 'value',
+			label: 'Value',
+			value: 1,
+			type: 'number',
+			required: true,
+			min: 0,
+			max: 1
+		}
+	];
 
 	constructor(
 		id: string,
@@ -18,25 +27,16 @@ export class CounterNode extends Node {
 		public nodeSystem: NodeSystem,
 		parameters?: NodeParameter[]
 	) {
-		super(
-			id,
-			x,
-			y,
-			40,
-			40,
-			layer,
-			[new NodeInput(uuid(), 'input', NodeValueType.Number), new NodeInput(uuid(), 'reset', NodeValueType.Number)],
-			[],
-			nodeSystem
-		);
+		super(id, x, y, 25, 25, layer, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		this.importParams(parameters);
+        this.update();
 	}
 
 	getMetadata(): Metadata {
 		return {
-			nodeName: 'CounterNode',
-			displayName: 'Counter',
-			category: 'Output',
+			nodeName: 'ConstantNode',
+			displayName: 'Constant',
+			category: 'Misc',
 			parameters: this.parameters
 		};
 	}
@@ -54,19 +54,18 @@ export class CounterNode extends Node {
 		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
 		ctx.stroke(path);
 
-		ctx.fillStyle = '#4494a6';
+		ctx.fillStyle = this.outputs[0].value == 0 ? '#aa1111' : '#11aa11';
 		ctx.fill(path);
 		ctx.fillStyle = this.style.fontColor;
-		ctx.fillText(this.count.toString(), (this.width * 1) / 2, this.height / 2);
 		this.renderConnectionPoints(ctx);
 	}
 
 	update() {
-		if (this.inputs[0].value == 1) {
-			this.count++;
-		}
-		if (this.inputs[1].value == 1) {
-			this.count = 0;
-		}
+		this.outputs[0].setValue(parseInt(this.getParamValue('value', '0') as string));
 	}
+
+    reset() {
+        this.update();
+        this.nodeSystem.nodeRenderer?.requestRender();
+    }
 }

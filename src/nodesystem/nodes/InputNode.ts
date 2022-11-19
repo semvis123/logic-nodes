@@ -27,8 +27,15 @@ export class InputNode extends Node {
 		}
 	];
 
-	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
-		super(id, x, y, 30, 30, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+	constructor(
+		id: string,
+		x: number,
+		y: number,
+		layer: number,
+		public nodeSystem: NodeSystem,
+		parameters?: NodeParameter[]
+	) {
+		super(id, x, y, 30, 30, layer, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		this.importParams(parameters);
 	}
 

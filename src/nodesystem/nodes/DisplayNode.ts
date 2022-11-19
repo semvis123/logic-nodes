@@ -16,8 +16,15 @@ export class DisplayNode extends Node {
 		}
 	];
 
-	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
-		super(id, x, y, 40, 40, [new NodeInput(uuid(), 'input', NodeValueType.Number)], [], nodeSystem);
+	constructor(
+		id: string,
+		x: number,
+		y: number,
+		layer: number,
+		public nodeSystem: NodeSystem,
+		parameters?: NodeParameter[]
+	) {
+		super(id, x, y, 40, 40, layer, [new NodeInput(uuid(), 'input', NodeValueType.Number)], [], nodeSystem);
 		this.importParams(parameters);
 	}
 

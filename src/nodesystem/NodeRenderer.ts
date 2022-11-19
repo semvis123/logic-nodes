@@ -1,3 +1,4 @@
+import type { EditorState } from './EditorState';
 import type { NodeSystem } from './NodeSystem';
 import { getBoundingBoxOfMultipleNodes } from './utils';
 export class NodeRenderer {
@@ -5,15 +6,16 @@ export class NodeRenderer {
 	frame: number;
 	throttleTimer: NodeJS.Timeout = null;
 	shouldRender = false;
-	view: { x: number; y: number; zoom: number } = { x: 0, y: 0, zoom: 1 };
 	dpi = 1;
 	frameCount = 0;
 	lastFpsSampleTime = 0;
 	countFPS = import.meta.env.DEV;
 	static fpsInterval: NodeJS.Timer = null;
+	editorState: EditorState;
 
 	constructor(public canvas: HTMLCanvasElement, private nodeSystem: NodeSystem) {
 		this.ctx = canvas.getContext('2d', { alpha: false });
+		this.editorState = nodeSystem.editorState;
 		this.render = this.render.bind(this);
 		if (NodeRenderer.fpsInterval) {
 			clearInterval(NodeRenderer.fpsInterval);
@@ -45,45 +47,45 @@ export class NodeRenderer {
 		if (!this.shouldRender) return;
 		this.shouldRender = false;
 		const theme = this.nodeSystem.config.theme;
-		const eventHandler = this.nodeSystem.eventHandler;
-		const selectionBox = eventHandler.selectionBox;
+		const selectionBox = this.editorState.selectionBox;
 
 		this.ctx.fillStyle = theme.backgroundColor;
 		this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 		this.ctx.save();
 		this.ctx.scale(this.dpi, this.dpi);
-		this.ctx.scale(this.view.zoom, this.view.zoom);
+		this.ctx.scale(this.editorState.view.zoom, this.editorState.view.zoom);
 		// render grid
-		if (this.view.zoom > 2.5) {
+		if (this.editorState.view.zoom > 2.5) {
 			const gridSize = this.nodeSystem.config.nodeSpacing;
 			this.ctx.beginPath();
 			this.ctx.lineWidth = 0.5;
-			const opacity = Math.max((this.view.zoom * 1) / 2.5 - 1, 0.25);
+			const opacity = Math.max((this.editorState.view.zoom * 1) / 2.5 - 1, 0.25);
 			this.ctx.strokeStyle = `rgba(41, 41, 41, ${opacity})`;
-			const yOffset = this.view.y % gridSize;
-			const xOffset = this.view.x % gridSize;
+			const yOffset = this.editorState.view.y % gridSize;
+			const xOffset = this.editorState.view.x % gridSize;
 			// horizontal lines
-			for (let i = 0; i < this.canvas.height / this.view.zoom / gridSize + 1; i++) {
+			for (let i = 0; i < this.canvas.height / this.editorState.view.zoom / gridSize + 1; i++) {
 				this.ctx.moveTo(0, i * gridSize + yOffset);
-				this.ctx.lineTo(this.canvas.width / this.view.zoom, i * gridSize + yOffset);
+				this.ctx.lineTo(this.canvas.width / this.editorState.view.zoom, i * gridSize + yOffset);
 			}
 			// vertical lines
-			for (let i = 0; i < this.canvas.width / this.view.zoom / gridSize + 1; i++) {
+			for (let i = 0; i < this.canvas.width / this.editorState.view.zoom / gridSize + 1; i++) {
 				this.ctx.moveTo(i * gridSize + xOffset, 0);
 				this.ctx.lineTo(i * gridSize + xOffset, this.canvas.height);
 			}
 			this.ctx.stroke();
 		}
-		this.ctx.translate(this.view.x, this.view.y);
+		this.ctx.translate(this.editorState.view.x, this.editorState.view.y);
 
 		// render nodes
-		const viewRight = -this.view.x + this.canvas.width / this.view.zoom;
-		const viewBottom = -this.view.y + this.canvas.height / this.view.zoom;
+		const viewRight = -this.editorState.view.x + this.canvas.width / this.editorState.view.zoom;
+		const viewBottom = -this.editorState.view.y + this.canvas.height / this.editorState.view.zoom;
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
 			if (
-				-this.view.x < node.x + node.width &&
+				node.layer === this.editorState.layer &&
+				-this.editorState.view.x < node.x + node.width &&
 				viewRight > node.x &&
-				-this.view.y < node.y + node.height &&
+				-this.editorState.view.y < node.y + node.height &&
 				viewBottom > node.y
 			) {
 				this.ctx.translate(node.x, node.y);
@@ -97,6 +99,7 @@ export class NodeRenderer {
 
 		// render selection rectangle
 		if (selectionBox) {
+			this.ctx.strokeStyle = theme.nodeSelectionSquareBorderColor;
 			this.ctx.fillStyle = theme.nodeSelectionSquareColor;
 			this.ctx.lineWidth = 1;
 			this.ctx.fillRect(selectionBox.x, selectionBox.y, selectionBox.width, selectionBox.height);
@@ -105,31 +108,31 @@ export class NodeRenderer {
 		this.ctx.restore();
 		this.ctx.save();
 		this.ctx.scale(this.dpi, this.dpi);
-		this.ctx.scale(this.view.zoom, this.view.zoom);
-		this.ctx.translate(this.view.x, this.view.y);
+		this.ctx.scale(this.editorState.view.zoom, this.editorState.view.zoom);
+		this.ctx.translate(this.editorState.view.x, this.editorState.view.y);
 
 		// render connections
-		this.nodeSystem.nodeConnectionHandler.renderConnections(this.ctx, this.nodeSystem.config);
+		this.nodeSystem.nodeConnectionHandler.renderConnections(this.ctx, this.nodeSystem.config, this.editorState);
 		this.ctx.strokeStyle = theme.connectionColor;
 
 		this.ctx.fillStyle = theme.nodeSelectedColor;
 		this.ctx.lineWidth = 1;
 
 		// highlight the selected nodes
-		for (const node of eventHandler.selectedNodes || []) {
+		for (const node of this.editorState.selectedNodes || []) {
 			this.ctx.strokeRect(node.x, node.y, node.width, node.height);
 		}
-		for (const node of eventHandler.selectedNodes || []) {
+		for (const node of this.editorState.selectedNodes || []) {
 			this.ctx.fillRect(node.x, node.y, node.width, node.height);
 		}
 
 		// render a half connection
-		if (eventHandler.halfConnection) {
-			const toX = eventHandler.halfConnection.mousePos.x;
-			const toY = eventHandler.halfConnection.mousePos.y;
-			const fromX = eventHandler.halfConnection.outputPos.x;
-			const fromY = eventHandler.halfConnection.outputPos.y;
-			const controlOffsetX = -(fromX - toX) / 3 + eventHandler.halfConnection.output.node.width / 2;
+		if (this.editorState.halfConnection) {
+			const toX = this.editorState.halfConnection.mousePos.x;
+			const toY = this.editorState.halfConnection.mousePos.y;
+			const fromX = this.editorState.halfConnection.outputPos.x;
+			const fromY = this.editorState.halfConnection.outputPos.y;
+			const controlOffsetX = -(fromX - toX) / 3 + this.editorState.halfConnection.output.node.width / 2;
 			const controlOffsetY = -(fromY - toY) / 3;
 			this.ctx.beginPath();
 			this.ctx.moveTo(fromX, fromY);
@@ -149,27 +152,27 @@ export class NodeRenderer {
 
 	panView(deltaX: number, deltaY: number) {
 		const view = {
-			x: this.view.x + deltaX / this.view.zoom,
-			y: this.view.y + deltaY / this.view.zoom,
-			zoom: this.view.zoom
+			x: this.editorState.view.x + deltaX / this.editorState.view.zoom,
+			y: this.editorState.view.y + deltaY / this.editorState.view.zoom,
+			zoom: this.editorState.view.zoom
 		};
 
-		this.view = view;
+		this.editorState.view = view;
 		this.requestRender();
 	}
 
 	zoomView(deltaY: number, mouseX: number, mouseY: number) {
 		const zoomSpeed = Math.min(Math.abs(deltaY) * 0.02, 0.4);
 		const zoomDelta = deltaY < 0 ? 1 + zoomSpeed : 1 / (1 + zoomSpeed);
-		const newZoom = this.view.zoom * zoomDelta;
+		const newZoom = this.editorState.view.zoom * zoomDelta;
 		this.setZoom(newZoom, mouseX, mouseY);
 	}
 
 	setZoom(newZoom: number, mouseX: number = this.canvas.width / 2, mouseY: number = this.canvas.height / 2) {
-		const oldZoom = this.view.zoom;
-		this.view = {
-			x: this.view.x + mouseX / newZoom - mouseX / oldZoom,
-			y: this.view.y + mouseY / newZoom - mouseY / oldZoom,
+		const oldZoom = this.editorState.view.zoom;
+		this.editorState.view = {
+			x: this.editorState.view.x + mouseX / newZoom - mouseX / oldZoom,
+			y: this.editorState.view.y + mouseY / newZoom - mouseY / oldZoom,
 			zoom: newZoom
 		};
 		this.requestRender();
@@ -183,16 +186,24 @@ export class NodeRenderer {
 		const zoomY = this.canvas.height / (boundingBox.height + padding);
 		const zoom = Math.min(zoomX, zoomY);
 		this.setZoom(zoom, 0, 0);
-		this.view.x = -boundingBox.x + (this.canvas.width - zoom * boundingBox.width) / 2 / zoom;
-		this.view.y = -boundingBox.y + (this.canvas.height - zoom * boundingBox.height) / 2 / zoom;
+		this.editorState.view.x = -boundingBox.x + (this.canvas.width - zoom * boundingBox.width) / 2 / zoom;
+		this.editorState.view.y = -boundingBox.y + (this.canvas.height - zoom * boundingBox.height) / 2 / zoom;
 		this.requestRender();
 	}
 
 	transformOverlay() {
-		this.nodeSystem.htmlCanvasOverlayContainer.style.transform = `translate(-50%, -50%) scale(${this.view.zoom}) translate(50%, 50%) translate(${this.view.x}px, ${this.view.y}px)`;
+		const x = this.editorState.view.x;
+		const y = this.editorState.view.y;
+		const zoom = this.editorState.view.zoom;
+		this.nodeSystem.htmlCanvasOverlayContainer.style.transform = `translate(-50%, -50%) scale(${zoom}) translate(50%, 50%) translate(${x}px, ${y}px)`;
 	}
 
 	setDPI(dpi: number) {
 		this.dpi = dpi;
+	}
+
+	setLayer(n: number) {
+		this.editorState.layer = n;
+		this.requestRender();
 	}
 }

@@ -28,8 +28,15 @@ export class LabelNode extends Node {
 		}
 	];
 
-	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
-		super(id, x, y, 40, 20, [], [], nodeSystem);
+	constructor(
+		id: string,
+		x: number,
+		y: number,
+		layer: number,
+		public nodeSystem: NodeSystem,
+		parameters?: NodeParameter[]
+	) {
+		super(id, x, y, 40, 20, layer, [], [], nodeSystem);
 		this.parameters[1].value = this.style.color;
 		this.parameters[2].value = this.style.fontSize;
 		this.importParams(parameters);

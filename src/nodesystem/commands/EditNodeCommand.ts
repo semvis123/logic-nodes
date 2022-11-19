@@ -14,7 +14,9 @@ export class EditNodeCommand extends Command {
 		const popup = new FullscreenPrompt();
 		this.nodeSystem.eventHandler.cleanup();
 		try {
-			node.parameters = await popup.requestParameters('Edit', node.getMetadata().parameters);
+			const params = await popup.requestParameters('Edit', node.getMetadata().parameters);
+			if (params == null) return;
+			node.parameters = params;
 		} finally {
 			this.nodeSystem.eventHandler.addEventListeners();
 		}

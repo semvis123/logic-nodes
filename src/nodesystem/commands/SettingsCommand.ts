@@ -40,6 +40,9 @@ export class SettingsCommand extends Command {
 					}
 				}
 			]);
+			if (parameters == null) {
+				return;
+			}
 			parameters.forEach((param) => {
 				this.nodeSystem.config[param.name] = param.type == 'checkbox' ? param.checked : param.value;
 			});

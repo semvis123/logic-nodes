@@ -51,6 +51,9 @@ export class LoadSaveCommand extends Command {
 		this.nodeSystem.eventHandler.cleanup();
 		try {
 			const saveMetaData = await new FullscreenPrompt().requestSelectionFromFolder(saveFolder);
+			if (saveMetaData == null) {
+				return;
+			}
 			const save: NodeSaveFile = JSON.parse(
 				this.nodeSystem.saveManager.getSaveFile(saveMetaData.id, saveMetaData.isAutosave, saveMetaData.isCustomNode)
 			);

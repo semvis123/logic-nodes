@@ -140,3 +140,51 @@ export const getBoundingBoxOfMultipleNodes = (nodes: Node[]) => {
 	const height = maxY - y;
 	return { x, y, width, height };
 };
+
+export const createDivTable = (table: Map<string, number>[]) => {
+	const t = document.createElement('table');
+	const header = document.createElement('thead');
+	for (const headerText of table[0].keys()) {
+		const th = document.createElement('th');
+		th.innerText = headerText;
+		header.appendChild(th);
+	}
+	t.appendChild(header);
+	const body = document.createElement('tbody');
+	for (const row of table) {
+		const tr = document.createElement('tr');
+		for (const rowValue of row.values()) {
+			const td = document.createElement('td');
+			td.innerText = rowValue.toString();
+			td.classList.add('td-value-' + rowValue);
+			tr.appendChild(td);
+		}
+		body.appendChild(tr);
+	}
+	t.appendChild(body);
+	return t;
+};
+
+
+export const removeOuterBrackets = (str: string) => {
+	if (str[0] == '(' && str[str.length - 1] == ')') {
+		let needToRemoveOuterBrackets = true;
+		let bracketCount = 1;
+		for (let i = 1; i < str.length - 1; i++) {
+			if (str[i] == '(') {
+				bracketCount++;
+			} else if (str[i] == ')') {
+				bracketCount--;
+			}
+			if (bracketCount <= 0) {
+				needToRemoveOuterBrackets = false;
+			}
+		}
+		if (needToRemoveOuterBrackets) {
+			str = str.substring(1, str.length - 1);
+			// recurse
+			return removeOuterBrackets(str);
+		}
+	}
+	return str;
+}

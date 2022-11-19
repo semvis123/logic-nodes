@@ -51,8 +51,15 @@ export class CustomNode extends Node {
 	];
 	tickSystem: TickSystem;
 
-	constructor(id: string, x: number, y: number, public nodeSystem: NodeSystem, parameters?: NodeParameter[]) {
-		super(id, x, y, 30, 30, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
+	constructor(
+		id: string,
+		x: number,
+		y: number,
+		layer: number,
+		public nodeSystem: NodeSystem,
+		parameters?: NodeParameter[]
+	) {
+		super(id, x, y, 30, 30, layer, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		this.saveManager = nodeSystem.saveManager;
 		this.importParams(parameters);
 		this.reset();
@@ -177,7 +184,7 @@ export class CustomNode extends Node {
 		const nodeNames = new Map<string, string>();
 		const pastedNodes: Node[] = [];
 		nodes.forEach((node) => {
-			const newNode = nodeClassesMap[node.type].load(node, this);
+			const newNode = nodeClassesMap.get(node.type).load(node, this as unknown as NodeSystem);
 			if (rename) newNode.id = uuid();
 			nodeNames.set(node.id, newNode.id);
 			this.nodeStorage.addNode(newNode);

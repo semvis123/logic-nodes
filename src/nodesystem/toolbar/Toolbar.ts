@@ -32,28 +32,18 @@ export class Toolbar {
 			return new ToolbarButton(text, c);
 		};
 		createButton = createButton.bind(this);
-		const newButton = createButton('New', NewCommand);
-		const openButton = createButton('Load', LoadSaveCommand);
-		const saveButton = createButton('Save', SaveCommand);
-		const saveAsButton = createButton('Save As', SaveAsCommand);
-		const importButton = createButton('Import', ImportCommand);
-		const exportButton = createButton('Export', ExportCommand);
-		const settingsButton = createButton('Settings', SettingsCommand);
-		const createNewNodeButton = createButton('Create node', CreateNodeCommand);
-		const displayTruthTableButton = createButton('Build truth table', DisplayTruthTableCommand);
-		const booleanExpressionButton = createButton('Boolean expression', CreateBooleanExpressionCommand);
 
 		for (const button of [
-			newButton,
-			openButton,
-			saveButton,
-			saveAsButton,
-			importButton,
-			exportButton,
-			createNewNodeButton,
-			displayTruthTableButton,
-			booleanExpressionButton,
-			settingsButton,
+			createButton('New', NewCommand),
+			createButton('Load', LoadSaveCommand),
+			createButton('Save', SaveCommand),
+			createButton('Save As', SaveAsCommand),
+			createButton('Import', ImportCommand),
+			createButton('Export', ExportCommand),
+			createButton('Create node', CreateNodeCommand),
+			createButton('Build truth table', DisplayTruthTableCommand),
+			createButton('Boolean expression', CreateBooleanExpressionCommand),
+			createButton('Settings', SettingsCommand)
 		]) {
 			fileDropdownMenu.addButton(button);
 		}
@@ -81,11 +71,11 @@ export class Toolbar {
 
 		nodeClasses.forEach((nodeClass) => {
 			const node = new ToolbarButton(nodeClass.prototype.getMetadata().displayName, () => {
-				const newNode = new nodeClass(uuid(), 0, 0, this.nodeSystem);
+				const newNode = new nodeClass(uuid(), 0, 0, this.nodeSystem.editorState.layer, this.nodeSystem);
 				positionNode(
 					newNode,
-					window.innerWidth / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.x,
-					window.innerHeight / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.y,
+					window.innerWidth / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.x,
+					window.innerHeight / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.y,
 					this.nodeSystem.nodeStorage,
 					this.nodeSystem.config
 				);
@@ -98,7 +88,7 @@ export class Toolbar {
 		// custom nodes
 		this.nodeSystem.saveManager.getCustomNodes().forEach((node) => {
 			const button = new ToolbarButton(node.filename, () => {
-				const newNode = new CustomNode(uuid(), 0, 0, this.nodeSystem, [
+				const newNode = new CustomNode(uuid(), 0, 0, this.nodeSystem.editorState.layer, this.nodeSystem, [
 					{
 						name: 'saveId',
 						value: node.id
@@ -110,8 +100,8 @@ export class Toolbar {
 				]);
 				positionNode(
 					newNode,
-					window.innerWidth / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.x,
-					window.innerHeight / 2 / this.nodeSystem.nodeRenderer.view.zoom - this.nodeSystem.nodeRenderer.view.y,
+					window.innerWidth / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.x,
+					window.innerHeight / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.y,
 					this.nodeSystem.nodeStorage,
 					this.nodeSystem.config
 				);

@@ -17,12 +17,17 @@ export type NodeParameter = {
 	checked?: boolean;
 	disabled?: boolean;
 	pattern?: string;
+	autofocus?: boolean;
 	onclick?: () => void;
 };
 
 export class FullscreenPrompt {
 	htmlElement: HTMLDivElement;
 	popupElement: HTMLDivElement;
+	promise: Promise<NodeParameter[] | SaveMetadata | void>;
+	rejectPromise: (reason?: string) => void;
+	resolvePromise: (value: NodeParameter[] | SaveMetadata | void | PromiseLike<void> | PromiseLike<NodeParameter[]> | PromiseLike<SaveMetadata>) => void;
+	failOnClose = false;
 
 	constructor() {
 		this.htmlElement = document.createElement('div');
@@ -31,10 +36,15 @@ export class FullscreenPrompt {
 		this.popupElement.className = 'popup';
 		this.htmlElement.appendChild(this.popupElement);
 		window.document.body.appendChild(this.htmlElement);
+		this.closeOnEscape = this.closeOnEscape.bind(this);
+		this.closeOnOutsideClick = this.closeOnOutsideClick.bind(this);
 	}
 
-	requestParameters(title: string, parameters: NodeParameter[]): Promise<NodeParameter[]> {
-		return new Promise((resolve, reject) => {
+	requestParameters(title: string, parameters: NodeParameter[]): Promise<NodeParameter[] | null> {
+		const result = new Promise<NodeParameter[]>((resolve, reject) => {
+			this.rejectPromise = reject;
+			this.resolvePromise = resolve;
+			this.addCloseListeners();
 			const titleEl = document.createElement('h1');
 			titleEl.innerText = title;
 			const submitBtn = document.createElement('input');
@@ -50,8 +60,7 @@ export class FullscreenPrompt {
 			cancelBtn.value = 'x';
 			cancelBtn.className = 'cancelbtn';
 			cancelBtn.onclick = () => {
-				this.htmlElement.remove();
-				reject();
+				this.close(true, null);
 			};
 			this.popupElement.appendChild(titleEl);
 			parameters = parameters.map((param) => Object.assign({}, param));
@@ -81,23 +90,19 @@ export class FullscreenPrompt {
 				this.popupElement.appendChild(paramEl);
 			});
 
-			window.addEventListener(
-				'keydown',
-				(e: KeyboardEvent) => {
-					if (e.key == 'Escape') {
-						e.preventDefault();
-						cancelBtn?.click();
-					}
-				},
-				{ once: true }
-			);
 			this.popupElement.appendChild(cancelBtn);
 			this.popupElement.appendChild(submitBtn);
 		});
+
+		this.promise = result;
+		return result;
 	}
 
 	requestSelectionFromFolder(folder: Folder): Promise<SaveMetadata> {
-		return new Promise((resolve, reject) => {
+		const result = new Promise<SaveMetadata>((resolve, reject) => {
+			this.addCloseListeners();
+			this.rejectPromise = reject;
+			this.resolvePromise = resolve;
 			const titleEl = document.createElement('h1');
 			titleEl.innerText = folder.name;
 			this.popupElement.appendChild(titleEl);
@@ -121,14 +126,16 @@ export class FullscreenPrompt {
 				const paramLabel = document.createElement('p');
 				paramLabel.innerText = '> ' + folder.name;
 				paramEl.className = 'list-item list-folder';
-				paramEl.onclick = () => {
-					new FullscreenPrompt()
-						.requestSelectionFromFolder(folder)
-						.then((save: SaveMetadata) => {
-							this.htmlElement.remove();
-							resolve(save);
-						})
-						.catch();
+				paramEl.onclick = async () => {
+					this.removeCloseListeners();
+					const save = await new FullscreenPrompt().requestSelectionFromFolder(folder);
+					if (save) {	
+						resolve(save);
+						this.htmlElement.remove();
+					}
+					else {
+						this.addCloseListeners();
+					}
 				};
 				paramEl.appendChild(paramLabel);
 				listEl.appendChild(paramEl);
@@ -139,12 +146,46 @@ export class FullscreenPrompt {
 			cancelBtn.value = 'x';
 			cancelBtn.className = 'cancelbtn';
 			cancelBtn.onclick = () => {
-				this.htmlElement.remove();
-				reject();
+				this.close(true, null);
 			};
 
 			this.popupElement.appendChild(cancelBtn);
 			this.popupElement.appendChild(listEl);
 		});
+
+		this.promise = result;
+		return result;
 	}
+
+	close(resolve = false, result: NodeParameter[] | SaveMetadata | void = null) {
+		if (this.promise) {
+			if (resolve) this.resolvePromise(result);
+			else this.rejectPromise();
+		}
+		this.htmlElement.remove();
+		this.removeCloseListeners();
+	}
+
+	closeOnEscape(e: KeyboardEvent) {
+		if (e.key == 'Escape') {
+			e.preventDefault();
+			this.close(!this.failOnClose);
+		}
+	}
+
+	closeOnOutsideClick(e: MouseEvent) {
+		if (e.target == this.htmlElement) this.close(!this.failOnClose);
+	}
+
+	addCloseListeners(failOnClose = false) {
+		this.failOnClose = failOnClose;
+		window.addEventListener('keydown', this.closeOnEscape);
+		this.htmlElement.addEventListener('click', this.closeOnOutsideClick);
+	}
+
+	removeCloseListeners() {
+		window.removeEventListener('keydown', this.closeOnEscape);
+		this.htmlElement.removeEventListener('click', this.closeOnOutsideClick);
+	}
+	
 }

@@ -15,6 +15,9 @@ import { ToastMessage } from './toastMessage/ToastMessage';
 import { BottomToolbar } from './toolbar/BottomToolbar';
 import { SaveManager } from './SaveManager';
 import { TickSystem } from './TickSystem';
+import { EditorState } from './EditorState';
+import { FloatingModalPositioner } from './floatingModal/FloatingModalPositioner';
+import { ShortcutManager } from './shortcuts/ShortcutManager';
 
 const maxUndoHistory = 5000;
 
@@ -35,6 +38,8 @@ export class NodeSystem {
 	snapshotTimer: NodeJS.Timeout;
 	saveManager: SaveManager;
 	tickSystem: TickSystem;
+	editorState: EditorState;
+	shortcutManager: ShortcutManager;
 
 	constructor(
 		public canvas: HTMLCanvasElement,
@@ -138,6 +143,8 @@ export class NodeSystem {
 			delete this.config;
 			delete this.toolbar;
 			delete this.bottomToolbar;
+			delete this.editorState;
+			delete this.shortcutManager;
 		}
 
 		delete this.nodeConnectionHandler;
@@ -155,13 +162,16 @@ export class NodeSystem {
 		this.tickSystem = new TickSystem(this.nodeConnectionHandler);
 
 		if (full) {
+			this.editorState = new EditorState();
 			this.eventHandler = new NodeSystemEventHandler(this, this.canvas);
 			this.nodeRenderer = new NodeRenderer(this.canvas, this);
 			this.nodeRenderer.setDPI(prevDpi);
 			this.toolbar = new Toolbar(this);
 			this.bottomToolbar = new BottomToolbar(this);
 			this.config = new Config();
+			this.shortcutManager = new ShortcutManager(this);
 			this.htmlCanvasOverlayContainer.style.transform = `translate(${0}px, ${0}px)`;
+			FloatingModalPositioner.prototype.getInstance().closeAll();
 		}
 		this.tickSystem.start();
 		this.displayFileInfo();
@@ -220,8 +230,17 @@ export class NodeSystem {
 		const nodes: NodeSaveData[] = data.nodes;
 		const nodeNames = new Map<string, string>();
 		const pastedNodes: Node[] = [];
+		const failedNodeTypes: Set<string> = new Set();
 		nodes.forEach((node) => {
-			const newNode = nodeClassesMap[node.type].load(node, this);
+			if (!nodeClassesMap.has(node.type)) {
+				if (!failedNodeTypes.has(node.type)) {
+					new ToastMessage(`Could not find node type ${node.type}`, 'danger', 5000).show();
+					failedNodeTypes.add(node.type);
+				}
+				return;
+			}
+
+			const newNode = nodeClassesMap.get(node.type).load(node, this);
 			if (rename) newNode.id = uuid();
 			nodeNames.set(node.id, newNode.id);
 			this.nodeStorage.addNode(newNode);
@@ -240,6 +259,9 @@ export class NodeSystem {
 		}
 
 		if (addSelection) {
+			if (!(pastedNodes?.length > 0)) {
+				return;
+			}
 			this.eventHandler.selectedNodes = pastedNodes;
 			const box = getBoundingBoxOfMultipleNodes(this.eventHandler.selectedNodes);
 			const translation = positionNode(

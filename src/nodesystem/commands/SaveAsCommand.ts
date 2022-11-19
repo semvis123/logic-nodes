@@ -20,6 +20,8 @@ export class SaveAsCommand extends Command {
 					required: true
 				}
 			]);
+			if (params == null) return;
+
 			const filename = params[0].value as string;
 			this.nodeSystem.saveManager.saveToLocalStorage(save, filename, newSaveId);
 			this.nodeSystem.saveId = newSaveId;
