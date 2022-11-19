@@ -184,7 +184,7 @@ export class CustomNode extends Node {
 		const nodeNames = new Map<string, string>();
 		const pastedNodes: Node[] = [];
 		nodes.forEach((node) => {
-			const newNode = nodeClassesMap[node.type].load(node, this);
+			const newNode = nodeClassesMap.get(node.type).load(node, this as unknown as NodeSystem);
 			if (rename) newNode.id = uuid();
 			nodeNames.set(node.id, newNode.id);
 			this.nodeStorage.addNode(newNode);

@@ -10,6 +10,7 @@ import { removeOuterBrackets, uuid } from '../utils';
 import type { Node } from '../Node';
 import type { NodeInput } from '../NodeInput';
 import { TextFloatingModal } from '../floatingModal/TextFloatingModal';
+import type { NodeSystem } from '../NodeSystem';
 
 export class CreateBooleanExpressionCommand extends Command {
 	nodeConnectionHandler: NodeConnectionHandler;
@@ -136,7 +137,7 @@ export class CreateBooleanExpressionCommand extends Command {
 		let outputCount = 0;
 		const alphabet = 'abcdefghijklmnopqrstuvwxyz';
 		nodes.forEach((node) => {
-			const newNode: Node = nodeClassesMap[node.type].load(node, this);
+			const newNode: Node = nodeClassesMap.get(node.type).load(node, this as unknown as NodeSystem);
 			const nodeNameParam = newNode.getParam('name');
 			if (nodeNameParam?.value == 'Input') {
 				// no input name, create one

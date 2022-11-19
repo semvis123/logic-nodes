@@ -181,13 +181,11 @@ export class FullscreenPrompt {
 		this.failOnClose = failOnClose;
 		window.addEventListener('keydown', this.closeOnEscape);
 		this.htmlElement.addEventListener('click', this.closeOnOutsideClick);
-		console.log('added close listeners');
 	}
 
 	removeCloseListeners() {
 		window.removeEventListener('keydown', this.closeOnEscape);
 		this.htmlElement.removeEventListener('click', this.closeOnOutsideClick);
-		console.log('removed close listeners');
 	}
 	
 }

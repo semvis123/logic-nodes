@@ -9,6 +9,7 @@ import type { NodeSaveFile } from '../NodeSaveFile';
 import { uuid } from '../utils';
 import type { Node } from '../Node';
 import { TableFloatingModal } from '../floatingModal/TableFloatingModal';
+import type { NodeSystem } from '../NodeSystem';
 
 export class DisplayTruthTableCommand extends Command {
 	nodeConnectionHandler: NodeConnectionHandler;
@@ -116,7 +117,7 @@ export class DisplayTruthTableCommand extends Command {
 		let outputCount = 0;
 		const alphabet = 'abcdefghijklmnopqrstuvwxyz';
 		nodes.forEach((node) => {
-			const newNode: Node = nodeClassesMap[node.type].load(node, this);
+			const newNode: Node = nodeClassesMap.get(node.type).load(node, this as unknown as NodeSystem);
 			const nodeNameParam = newNode.getParam('name');
 			if (nodeNameParam?.value == 'Input') {
 				// no input name, create one
