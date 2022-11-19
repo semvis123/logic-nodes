@@ -166,7 +166,7 @@ export class ConstructCircuitFromExpressionCommand extends Command {
                 if (!usedInputNodeMap.has(current.value)) {
                     let node;
                     if (current.value == '0' || current.value == '1') {
-                        node = this.createConstantNode(current.value == '1', x, y);
+                        node = this.createConstantNode(current.value, x, y);
                     } else {
                         node = this.createInputNode(current.value, amountOfInputs);
                     }
@@ -213,7 +213,7 @@ export class ConstructCircuitFromExpressionCommand extends Command {
         };
     }
 
-    createConstantNode(value: boolean, x: number, y: number) {
+    createConstantNode(value: string, x: number, y: number) {
         return {
             id: uuid(),
             type: 'ConstantNode',
