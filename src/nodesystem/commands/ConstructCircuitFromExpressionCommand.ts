@@ -156,12 +156,22 @@ export class ConstructCircuitFromExpressionCommand extends Command {
             const current = toCreate.shift();
             console.log(current);
             const parentId = current.parentNode.id;
+            const x = width - 70 - currentDepth * 70;
+            let y = current.parentNode.y;
+            if (current.parentTreeNode?.children.length > 1) {
+                y += (usedInputMap.get(current.parentNode.id) ?? 0) * 500 / currentDepth - 50;
+            }
             if (current.type == 'value') {
                 // create input node if not already created
                 if (!usedInputNodeMap.has(current.value)) {
-                    const inputNode = this.createInputNode(current.value, amountOfInputs);
-                    output.nodes.push(inputNode);
-                    usedInputNodeMap.set(current.value, inputNode);
+                    let node;
+                    if (current.value == '0' || current.value == '1') {
+                        node = this.createConstantNode(current.value == '1', x, y);
+                    } else {
+                        node = this.createInputNode(current.value, amountOfInputs);
+                    }
+                    output.nodes.push(node);
+                    usedInputNodeMap.set(current.value, node);
                     amountOfInputs++;
                 }
 
@@ -170,12 +180,6 @@ export class ConstructCircuitFromExpressionCommand extends Command {
                 usedInputMap.set(parentId, (usedInputMap.get(parentId) ?? 0) + 1);
             } else {
                 // create operator node (and, or, not)
-                const x = width - 70 - currentDepth * 70;
-                let y = current.parentNode.y;
-                if (current.parentTreeNode?.children.length > 1) {
-                    y += (usedInputMap.get(current.parentNode.id) ?? 0) * 500 / currentDepth - 50;
-                }
-
                 const operatorNode = this.createOperatorNode(operatorMap[current.value], x, y);
                 output.nodes.push(operatorNode);
                 output.connections.push(this.createConnection(operatorNode.id, parentId, usedInputMap));
@@ -204,6 +208,22 @@ export class ConstructCircuitFromExpressionCommand extends Command {
                 {
                     name: 'name',
                     value: name
+                }
+            ]
+        };
+    }
+
+    createConstantNode(value: boolean, x: number, y: number) {
+        return {
+            id: uuid(),
+            type: 'ConstantNode',
+            x,
+            y,
+            layer: 0,
+            parameters: [
+                {
+                    name: 'value',
+                    value
                 }
             ]
         };

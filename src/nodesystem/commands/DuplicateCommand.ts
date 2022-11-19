@@ -1,13 +1,12 @@
 import { Command } from './Command';
 import type { NodeSystem } from '../NodeSystem';
-import type { Node } from '../Node';
 
 export class DuplicateCommand extends Command {
-	constructor(nodeSystem: NodeSystem, private selectedNodes: Node[]) {
+	constructor(nodeSystem: NodeSystem) {
 		super(nodeSystem);
 	}
 	async execute() {
-		const nodeData = this.nodeSystem.exportNodes(this.selectedNodes);
+		const nodeData = this.nodeSystem.exportNodes(this.nodeSystem.editorState.selectedNodes);
 		this.nodeSystem.importNodes(nodeData, true, true);
 	}
 }

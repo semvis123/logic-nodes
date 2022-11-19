@@ -18,6 +18,7 @@ import { ToneNode } from './ToneNode';
 import { ConnectionNode } from './ConnectionNode';
 import { AudioInputNode } from './AudioInputNode';
 import type { NodeConstructor } from '../NodeConstructor';
+import { ConstantNode } from './ConstantNode';
 
 export const nodeClasses = [
 	ToggleNode,
@@ -38,7 +39,8 @@ export const nodeClasses = [
 	ButtonNode,
 	LabelNode,
 	ToneNode,
-	AudioInputNode
+	AudioInputNode,
+	ConstantNode
 ];
 
 export const nodeClassesMap = new Map<string, NodeConstructor>();

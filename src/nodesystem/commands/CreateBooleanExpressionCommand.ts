@@ -34,7 +34,9 @@ export class CreateBooleanExpressionCommand extends Command {
 					node.getMetadata().category != 'Logic' &&
 					node.getMetadata().nodeName != 'OutputNode' &&
 					node.getMetadata().nodeName != 'InputNode' &&
-					node.getMetadata().nodeName != 'LabelNode'
+					node.getMetadata().nodeName != 'LabelNode' &&
+					node.getMetadata().nodeName != 'SplitterNode' &&
+					node.getMetadata().nodeName != 'ConstantNode'
 				) {
 					return new ToastMessage('Boolean expression can only contain logic nodes.', 'danger').show();
 				}
@@ -107,6 +109,12 @@ export class CreateBooleanExpressionCommand extends Command {
 			}
 			case 'OutputNode': {
 				return recurseValues[0];
+			}
+			case 'SplitterNode': {
+				return recurseValues[0];
+			}
+			case 'ConstantNode': {
+				return node.getParamValue('value', '0');
 			}
 		}
 		return '0';

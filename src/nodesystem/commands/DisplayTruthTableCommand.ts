@@ -34,7 +34,9 @@ export class DisplayTruthTableCommand extends Command {
 					node.getMetadata().category != 'Logic' &&
 					node.getMetadata().nodeName != 'OutputNode' &&
 					node.getMetadata().nodeName != 'InputNode' &&
-					node.getMetadata().nodeName != 'LabelNode'
+					node.getMetadata().nodeName != 'LabelNode' &&
+					node.getMetadata().nodeName != 'SplitterNode' &&
+					node.getMetadata().nodeName != 'ConstantNode'
 				) {
 					return new ToastMessage('Truth table can only contain logic nodes.', 'danger').show();
 				}

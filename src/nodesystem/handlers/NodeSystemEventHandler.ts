@@ -382,7 +382,7 @@ export class NodeSystemEventHandler {
 	}
 
 	async onCopy() {
-		new CopyCommand(this.nodeSystem, this.editorState.selectedNodes).execute();
+		new CopyCommand(this.nodeSystem).execute();
 	}
 
 	onPaste(e: ClipboardEvent) {

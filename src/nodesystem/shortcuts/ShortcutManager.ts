@@ -10,7 +10,8 @@ export type Shortcut = {
     category: string;
 }
 
-type Callback = (() => void) | Command | ((() => void) | Command)[];
+type Callable = Command | (() => void);
+type Callback = Callable | Callback[];
 
 
 export class ShortcutManager {
@@ -31,9 +32,11 @@ export class ShortcutManager {
 	getShortcuts() {
 		return this.shortcuts;
 	}
-	
+
     executeShortcut(e: KeyboardEvent) {
         for (const { keyCombo: keyComboList, callback} of this.shortcuts) {
+			if (!(keyComboList?.length > 0)) continue;
+
 			for (const keyCombo of keyComboList.split('|')) {
 				const keyComboItems = keyCombo.split('+');
 				let isCorrect = true;

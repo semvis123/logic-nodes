@@ -12,6 +12,7 @@ import type { Shortcut } from './ShortcutManager';
 import { ExportCommand } from '../commands/ExportCommand';
 import { LoadSaveCommand } from '../commands/LoadSaveCommand';
 import { ShowShortcutsCommand } from '../commands/ShowShortcutsCommand';
+import { DeselectAllCommand } from '../commands/DeselectAllCommand';
 
 export const getShortcuts: (nodeSystem: NodeSystem) => Shortcut[] = (nodeSystem: NodeSystem) => [
     {
@@ -33,8 +34,8 @@ export const getShortcuts: (nodeSystem: NodeSystem) => Shortcut[] = (nodeSystem:
         description: 'Cut selected nodes to clipboard',
         keyCombo: 'ctrl/cmd+x',
         callback: [
-            new CopyCommand(nodeSystem, nodeSystem.editorState.selectedNodes),
-            new DeleteCommand(nodeSystem, nodeSystem.editorState.selectedNodes)
+            new CopyCommand(nodeSystem),
+            new DeleteCommand(nodeSystem)
         ],
         category: 'Editor'
     },
@@ -42,7 +43,7 @@ export const getShortcuts: (nodeSystem: NodeSystem) => Shortcut[] = (nodeSystem:
         name: 'Delete selected nodes',
         description: 'Delete all selected nodes in the circuit',
         keyCombo: 'Delete/Backspace',
-        callback: new DeleteCommand(nodeSystem, nodeSystem.editorState.selectedNodes),
+        callback: new DeleteCommand(nodeSystem),
         category: 'Editor'
     },
     {
@@ -50,6 +51,13 @@ export const getShortcuts: (nodeSystem: NodeSystem) => Shortcut[] = (nodeSystem:
         description: 'Select all nodes in the circuit',
         keyCombo: 'ctrl/cmd+a',
         callback: new SelectAllCommand(nodeSystem),
+        category: 'Editor'
+    },
+    {
+        name: 'Deselect all',
+        description: 'Deselect all nodes in the circuit',
+        keyCombo: 'escape',
+        callback: new DeselectAllCommand(nodeSystem),
         category: 'Editor'
     },
     {
