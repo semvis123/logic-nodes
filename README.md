@@ -10,4 +10,6 @@ Features:
 - Custom nodes (create your own node, using other nodes.)
 - Import, export
 - Save, load (localstorage)
+- Load circuit from boolean expression
 - Intuitive controls (pan, zoom)
+- shortcuts (crtl+? for a shortcut overview)
