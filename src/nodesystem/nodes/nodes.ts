@@ -17,6 +17,7 @@ import { OutputNode } from './OutputNode';
 import { ToneNode } from './ToneNode';
 import { ConnectionNode } from './ConnectionNode';
 import { AudioInputNode } from './AudioInputNode';
+import type { NodeConstructor } from '../NodeConstructor';
 
 export const nodeClasses = [
 	ToggleNode,
@@ -40,8 +41,8 @@ export const nodeClasses = [
 	AudioInputNode
 ];
 
-export const nodeClassesMap = {};
+export const nodeClassesMap = new Map<string, NodeConstructor>();
 
 nodeClasses.forEach((nodeClass) => {
-	nodeClassesMap[nodeClass.prototype.getMetadata().nodeName] = nodeClass;
+	nodeClassesMap.set(nodeClass.prototype.getMetadata().nodeName, nodeClass);
 });

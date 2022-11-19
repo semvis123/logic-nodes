@@ -6,7 +6,7 @@ import { NodeStorage } from '../NodeStorage';
 import { nodeClassesMap } from '../nodes/nodes';
 import type { NodeSaveData } from '../NodeSaveData';
 import type { NodeSaveFile } from '../NodeSaveFile';
-import { uuid } from '../utils';
+import { removeOuterBrackets, uuid } from '../utils';
 import type { Node } from '../Node';
 import type { NodeInput } from '../NodeInput';
 import { TextFloatingModal } from '../floatingModal/TextFloatingModal';
@@ -61,7 +61,8 @@ export class CreateBooleanExpressionCommand extends Command {
 			if (outputNodes.length > 1)
 				return new ToastMessage('Boolean expression can only be made for one OutputNode.', 'danger').show();
 
-			const output = this.createBooleanExpression(outputNodes[0]);
+			let output = this.createBooleanExpression(outputNodes[0]);
+			output = removeOuterBrackets(output);
 			this.activeModal = new TextFloatingModal('Boolean expression', output, this.nodeSystem.eventHandler);
 			this.activeModal.show();
 			new ToastMessage('Created boolean expression.', 'success').show();
@@ -71,7 +72,7 @@ export class CreateBooleanExpressionCommand extends Command {
 	}
 
 	createBooleanExpression(node: Node): string {
-		// (a + b) . (a . b)'
+		// ((a + b) . (a . b))'
 		if (!node) return '0';
 
 		const recurseValues = [];
@@ -86,7 +87,7 @@ export class CreateBooleanExpressionCommand extends Command {
 				return node.getParamValue('name', 'input');
 			}
 			case 'OrNode': {
-				return recurseValues.join(' + ');
+				return `(${recurseValues.join(' + ')})`;
 			}
 			case 'NandNode': {
 				return `(${recurseValues.join(' . ')})'`;
@@ -101,7 +102,7 @@ export class CreateBooleanExpressionCommand extends Command {
 				return `(${recurseValues.join(' . ')})`;
 			}
 			case 'NotNode': {
-				return recurseValues[0] + "'";
+				return `${recurseValues[0]}'`;
 			}
 			case 'OutputNode': {
 				return recurseValues[0];

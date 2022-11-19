@@ -26,5 +26,6 @@ export class AlignNodesCommand extends Command {
 		});
 		this.nodeSystem.eventHandler.selectedNodes = undefined;
 		this.nodeSystem.snapshot();
+		this.nodeSystem.nodeRenderer.requestRender();
 	}
 }

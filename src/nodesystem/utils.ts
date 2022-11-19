@@ -164,3 +164,27 @@ export const createDivTable = (table: Map<string, number>[]) => {
 	t.appendChild(body);
 	return t;
 };
+
+
+export const removeOuterBrackets = (str: string) => {
+	if (str[0] == '(' && str[str.length - 1] == ')') {
+		let needToRemoveOuterBrackets = true;
+		let bracketCount = 1;
+		for (let i = 1; i < str.length - 1; i++) {
+			if (str[i] == '(') {
+				bracketCount++;
+			} else if (str[i] == ')') {
+				bracketCount--;
+			}
+			if (bracketCount <= 0) {
+				needToRemoveOuterBrackets = false;
+			}
+		}
+		if (needToRemoveOuterBrackets) {
+			str = str.substring(1, str.length - 1);
+			// recurse
+			return removeOuterBrackets(str);
+		}
+	}
+	return str;
+}

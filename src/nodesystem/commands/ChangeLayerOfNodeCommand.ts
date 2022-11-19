@@ -14,7 +14,7 @@ export class ChangeLayerOfNodeCommand extends Command {
 		const popup = new FullscreenPrompt();
 		this.nodeSystem.eventHandler.cleanup();
 		try {
-			const newLayer = await popup
+			const newLayerParams = await popup
 				.requestParameters('Move to layer', [
 					{
 						type: 'number',
@@ -24,8 +24,9 @@ export class ChangeLayerOfNodeCommand extends Command {
 						max: 9,
 						step: 1
 					}
-				])
-				.then((params) => parseInt(params[0].value as string));
+				]);
+			if (newLayerParams == null) return;
+			const newLayer = parseInt(newLayerParams[0].value as string);
 			nodes.forEach((node) => {
 				node.layer = newLayer;
 			});

@@ -37,4 +37,8 @@ export class FloatingModalPositioner {
 		this.modals.push(modal);
 		this.modals.forEach((m, i) => (m.htmlElement.style.zIndex = 100 + i.toString()));
 	}
+
+	closeAll() {
+		this.modals.forEach((m) => m.remove());
+	}
 }
