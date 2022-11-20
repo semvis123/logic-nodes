@@ -38,7 +38,8 @@
 			user-select: none;
 		}
 		html,
-		body {
+		body,
+		main {
 			margin: 0;
 			padding: 0;
 			height: 100%;
