@@ -159,7 +159,7 @@ export class ConstructCircuitFromExpressionCommand extends Command {
             const x = width - 70 - currentDepth * 70;
             let y = current.parentNode.y;
             if (current.parentTreeNode?.children.length > 1) {
-                y += (usedInputMap.get(current.parentNode.id) ?? 0) * 500 / currentDepth - 50;
+                y += (usedInputMap.get(current.parentNode.id) ?? 0) * 100 / currentDepth - 50;
             }
             if (current.type == 'value') {
                 // create input node if not already created

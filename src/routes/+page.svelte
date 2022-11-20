@@ -44,6 +44,8 @@
 			height: 100%;
 			width: 100%;
 			overflow: hidden;
+			/* fixes white background flickering on resize */
+			background-color: #222;
 		}
 		.container,
 		canvas {
