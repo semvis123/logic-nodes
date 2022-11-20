@@ -1,40 +1,39 @@
-import { Command } from "../commands/Command";
-import type { NodeSystem } from "../NodeSystem";
-import { getShortcuts } from "./shortcuts";
+import { Command } from '../commands/Command';
+import type { NodeSystem } from '../NodeSystem';
+import { getShortcuts } from './shortcuts';
 
 export type Shortcut = {
-    name: string;
-    keyCombo: string;
-    description: string;
-    callback: Callback;
-    category: string;
-}
+	name: string;
+	keyCombo: string;
+	description: string;
+	callback: Callback;
+	category: string;
+};
 
 type Callable = Command | (() => void);
 type Callback = Callable | Callback[];
 
-
 export class ShortcutManager {
 	shortcuts: Shortcut[] = [];
-	
-    constructor(nodeSystem: NodeSystem) {
+
+	constructor(nodeSystem: NodeSystem) {
 		this.shortcuts = getShortcuts(nodeSystem);
-    }
-	
-    addShortcut(shortcut: Shortcut) {
+	}
+
+	addShortcut(shortcut: Shortcut) {
 		this.shortcuts.push(shortcut);
-    }
-	
-    removeShortcut(shortcut: Shortcut) {
+	}
+
+	removeShortcut(shortcut: Shortcut) {
 		this.shortcuts = this.shortcuts.filter((s) => s !== shortcut);
-    }
-	
+	}
+
 	getShortcuts() {
 		return this.shortcuts;
 	}
 
-    executeShortcut(e: KeyboardEvent) {
-        for (const { keyCombo: keyComboList, callback} of this.shortcuts) {
+	executeShortcut(e: KeyboardEvent) {
+		for (const { keyCombo: keyComboList, callback } of this.shortcuts) {
 			if (!(keyComboList?.length > 0)) continue;
 
 			for (const keyCombo of keyComboList.split('|')) {
@@ -81,17 +80,17 @@ export class ShortcutManager {
 				}
 			}
 		}
-    }
+	}
 
-    private executeCallback(callback: Callback) {
-        if (callback instanceof Command) {
-            callback.execute();
-        } else if (callback instanceof Array) {
-            callback.forEach((c) => {
-                this.executeCallback(c);
-            });
-        } else {
-            callback();
-        }
-    }
+	private executeCallback(callback: Callback) {
+		if (callback instanceof Command) {
+			callback.execute();
+		} else if (callback instanceof Array) {
+			callback.forEach((c) => {
+				this.executeCallback(c);
+			});
+		} else {
+			callback();
+		}
+	}
 }

@@ -26,7 +26,15 @@ export class FullscreenPrompt {
 	popupElement: HTMLDivElement;
 	promise: Promise<NodeParameter[] | SaveMetadata | void>;
 	rejectPromise: (reason?: string) => void;
-	resolvePromise: (value: NodeParameter[] | SaveMetadata | void | PromiseLike<void> | PromiseLike<NodeParameter[]> | PromiseLike<SaveMetadata>) => void;
+	resolvePromise: (
+		value:
+			| NodeParameter[]
+			| SaveMetadata
+			| void
+			| PromiseLike<void>
+			| PromiseLike<NodeParameter[]>
+			| PromiseLike<SaveMetadata>
+	) => void;
 	failOnClose = false;
 
 	constructor() {
@@ -129,11 +137,10 @@ export class FullscreenPrompt {
 				paramEl.onclick = async () => {
 					this.removeCloseListeners();
 					const save = await new FullscreenPrompt().requestSelectionFromFolder(folder);
-					if (save) {	
+					if (save) {
 						resolve(save);
 						this.htmlElement.remove();
-					}
-					else {
+					} else {
 						this.addCloseListeners();
 					}
 				};
@@ -187,5 +194,4 @@ export class FullscreenPrompt {
 		window.removeEventListener('keydown', this.closeOnEscape);
 		this.htmlElement.removeEventListener('click', this.closeOnOutsideClick);
 	}
-	
 }

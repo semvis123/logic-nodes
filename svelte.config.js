@@ -12,7 +12,7 @@ const config = {
 	vitePlugin: {
 		prebundleSvelteLibraries: true,
 		experimental: {
-			useVitePreprocess: true,
+			useVitePreprocess: true
 		}
 	},
 	kit: {

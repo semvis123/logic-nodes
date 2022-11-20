@@ -14,17 +14,16 @@ export class ChangeLayerOfNodeCommand extends Command {
 		const popup = new FullscreenPrompt();
 		this.nodeSystem.eventHandler.cleanup();
 		try {
-			const newLayerParams = await popup
-				.requestParameters('Move to layer', [
-					{
-						type: 'number',
-						name: 'layer',
-						value: this.nodeSystem.editorState.layer,
-						min: 0,
-						max: 9,
-						step: 1
-					}
-				]);
+			const newLayerParams = await popup.requestParameters('Move to layer', [
+				{
+					type: 'number',
+					name: 'layer',
+					value: this.nodeSystem.editorState.layer,
+					min: 0,
+					max: 9,
+					step: 1
+				}
+			]);
 			if (newLayerParams == null) return;
 			const newLayer = parseInt(newLayerParams[0].value as string);
 			nodes.forEach((node) => {
