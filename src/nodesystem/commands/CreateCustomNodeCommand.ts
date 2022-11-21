@@ -26,7 +26,7 @@ export class CreateNodeCommand extends Command {
 				}
 			]);
 			if (params == null) return;
-			
+
 			const name = params[0].value as string;
 			const save = this.nodeSystem.saveManager.createSaveFile();
 			if (this.nodeSystem.saveId == -1) {

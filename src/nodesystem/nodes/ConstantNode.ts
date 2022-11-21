@@ -29,7 +29,7 @@ export class ConstantNode extends Node {
 	) {
 		super(id, x, y, 25, 25, layer, [], [new NodeOutput(uuid(), 'output', NodeValueType.Number)], nodeSystem);
 		this.importParams(parameters);
-        this.update();
+		this.update();
 	}
 
 	getMetadata(): Metadata {
@@ -64,8 +64,8 @@ export class ConstantNode extends Node {
 		this.outputs[0].setValue(parseInt(this.getParamValue('value', '0') as string));
 	}
 
-    reset() {
-        this.update();
-        this.nodeSystem.nodeRenderer?.requestRender();
-    }
+	reset() {
+		this.update();
+		this.nodeSystem.nodeRenderer?.requestRender();
+	}
 }

@@ -165,7 +165,6 @@ export const createDivTable = (table: Map<string, number>[]) => {
 	return t;
 };
 
-
 export const removeOuterBrackets = (str: string) => {
 	if (str[0] == '(' && str[str.length - 1] == ')') {
 		let needToRemoveOuterBrackets = true;
@@ -187,4 +186,4 @@ export const removeOuterBrackets = (str: string) => {
 		}
 	}
 	return str;
-}
+};
