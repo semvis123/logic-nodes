@@ -1,6 +1,7 @@
 import { Command } from './Command';
 import { FullscreenPrompt } from '../fullscreenPrompt/FullscreenPrompt';
 import type { SaveMetadata } from '../SaveManager';
+import { logicNotations } from './CreateBooleanExpressionCommand';
 
 export class SettingsCommand extends Command {
 	async execute() {
@@ -21,6 +22,30 @@ export class SettingsCommand extends Command {
 					value: this.nodeSystem.config.connectionRenderMode,
 					type: 'text',
 					pattern: 'square|bezier'
+				},
+				{
+					name: 'localStorage.wolframAppId',
+					label: 'Wolfram Alpha App ID (for boolean expression simplification)',
+					value: this.nodeSystem.config.private.wolframAppId,
+					type: 'text'
+				},
+				{
+					name: 'localStorage.wolframAlphaEnabled',
+					label: 'Wolfram Alpha Enabled (requires App ID)',
+					checked: this.nodeSystem.config.private.wolframAlphaEnabled,
+					type: 'checkbox'
+				},
+				{
+					name: 'localStorage.logicNotation',
+					label: 'Logic notation',
+					value: this.nodeSystem.config.private.logicNotation,
+					type: 'select',
+					options: [
+						...logicNotations.map((notation, index) => ({
+							label: [notation.and, notation.or, notation.not].join(''),
+							value: index
+						}))
+					]
 				},
 				this.nodeSystem.saveId != -1 && {
 					name: 'delete',
@@ -44,6 +69,15 @@ export class SettingsCommand extends Command {
 				return;
 			}
 			parameters.forEach((param) => {
+				if (param.name.startsWith('localStorage.')) {
+					const key = param.name.split('.')[1];
+					if (param.type == 'checkbox') {
+						window.localStorage.setItem(key, param.checked ? 'true' : 'false');
+					} else {
+						window.localStorage.setItem(key, param.value as string);
+					}
+					return;
+				}
 				this.nodeSystem.config[param.name] = param.type == 'checkbox' ? param.checked : param.value;
 			});
 		} finally {

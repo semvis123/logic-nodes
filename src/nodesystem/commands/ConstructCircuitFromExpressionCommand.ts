@@ -19,10 +19,16 @@ type SimpleConnection = {
 
 const operatorMap = {
 	'+': 'OrNode',
+	'|': 'OrNode',
+	'\u2228': 'OrNode',
 	'.': 'AndNode',
 	'*': 'AndNode',
+	'&': 'AndNode',
+	'\u2227': 'AndNode',
 	"'": 'NotNode',
-	'!': 'NotNode'
+	"~": 'NotNode',
+	'!': 'NotNode',
+	'\u00AC': 'NotNode',
 };
 
 export class ConstructCircuitFromExpressionCommand extends Command {
