@@ -43,6 +43,11 @@ export class Config {
 	nodeSpacing = 5;
 	nodesCanOverlap = false;
 	connectionRenderMode = 'bezier';
+	private = {
+		wolframAppId: localStorage.getItem('wolframAppId') ?? '',
+		wolframAlphaEnabled: (localStorage.getItem('wolframAlphaEnabled') ?? 'true') == 'true',
+		logicNotation: parseInt(localStorage.getItem('logicNotation') ?? '2'),
+	};
 
 	setConfig(config: object) {
 		for (const key in config) {
@@ -63,6 +68,9 @@ export class Config {
 	toObject(): ConfigType {
 		const config: unknown = {};
 		for (const key in this) {
+			if (key == 'private') {
+				continue;
+			}
 			if (typeof this[key] !== 'function') {
 				config[key] = this[key];
 			}

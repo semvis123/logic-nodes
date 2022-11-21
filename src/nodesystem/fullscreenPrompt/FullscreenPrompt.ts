@@ -5,8 +5,9 @@ import './fullscreenPrompt.css';
 export type NodeParameter = {
 	name: string;
 	label?: string;
-	type?: 'number' | 'text' | 'checkbox' | 'button' | 'color';
+	type?: 'number' | 'text' | 'checkbox' | 'button' | 'color' | 'select';
 	value?: string | number;
+	options?: { label: string; value: string | number }[];
 	step?: number;
 	readonly?: boolean;
 	required?: boolean;
@@ -81,6 +82,23 @@ export class FullscreenPrompt {
 				paramLabel.innerText = param.label ?? '';
 				Object.assign(paramInput, param);
 				paramInputContainer.appendChild(paramInput);
+				if (param.type == 'select') {
+					paramInput.remove();
+					paramInputContainer.className = 'select-container';
+					const select = document.createElement('select');
+					select.name = param.name;
+					param.options.forEach((option) => {
+						const optionEl = document.createElement('option');
+						optionEl.value = option.value.toString();
+						optionEl.innerText = option.label;
+						select.appendChild(optionEl);
+					});
+					paramInputContainer.appendChild(select);
+					select.value = param.value.toString();
+					select.onchange = () => {
+						param.value = select.value;
+					}
+				}
 				paramEl.appendChild(paramLabel);
 				paramEl.appendChild(paramInputContainer);
 				paramEl.className = 'parameter';

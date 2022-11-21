@@ -12,6 +12,43 @@ import type { NodeInput } from '../NodeInput';
 import { TextFloatingModal } from '../floatingModal/TextFloatingModal';
 import type { NodeSystem } from '../NodeSystem';
 
+type LogicNotation = {
+	or: string;
+	and: string;
+	not: string;
+	notLocation?: string;
+}
+
+export const logicNotations: LogicNotation[] = [
+	{
+		or: ' || ',
+		and: ' && ',
+		not: ' !',
+	},
+	{
+		or: ' or ',
+		and: ' and ',
+		not: 'not ',
+	},
+	{
+		or: ' \u2228 ',
+		and: ' \u2227 ',
+		not: '\u00AC',
+	},
+	{
+		or: ' + ',
+		and: ' . ',
+		not: '\'',
+		notLocation: 'after',
+	},
+	{
+		or: ' v ',
+		and: ' ^ ',
+		not: ' ~ ',
+	},
+];
+
+
 export class CreateBooleanExpressionCommand extends Command {
 	nodeConnectionHandler: NodeConnectionHandler;
 	nodeStorage: NodeStorage;
@@ -64,8 +101,31 @@ export class CreateBooleanExpressionCommand extends Command {
 			if (outputNodes.length > 1)
 				return new ToastMessage('Boolean expression can only be made for one OutputNode.', 'danger').show();
 
-			let output = this.createBooleanExpression(outputNodes[0]);
+			let output = this.createBooleanExpression(outputNodes[0], logicNotations[this.config.private.logicNotation]);
 			output = removeOuterBrackets(output);
+
+			// ask wolfram alpha for a simplified version
+			if (this.config.private.wolframAlphaEnabled) {
+				try {
+					const wolframCorrectNotation = this.createBooleanExpression(outputNodes[0], logicNotations[1]);
+					const response = await fetch(
+						`https://api.wolframalpha.com/v2/query?input=simplify%20${wolframCorrectNotation}&appid=${this.config.private.wolframAppId}`
+					);
+					const xml = await response.text();
+					const parser = new DOMParser();
+					const xmlDoc = parser.parseFromString(xml, 'text/xml');
+					const pod = xmlDoc.getElementsByTagName('pod')[1];
+					const subpod = pod.getElementsByTagName('subpod')[0];
+					const plaintext = subpod.getElementsByTagName('plaintext')[0];
+					const simplifiedOutput = plaintext.childNodes[0].nodeValue;
+					if (!simplifiedOutput.includes('already')) {
+						output += `\n\nSimplified:\n\n ${simplifiedOutput}`;
+					}
+				} catch (e) {
+					console.log(e);
+				}
+			}
+
 			this.activeModal = new TextFloatingModal('Boolean expression', output, this.nodeSystem.eventHandler);
 			this.activeModal.show();
 			new ToastMessage('Created boolean expression.', 'success').show();
@@ -74,7 +134,7 @@ export class CreateBooleanExpressionCommand extends Command {
 		}
 	}
 
-	createBooleanExpression(node: Node): string {
+	createBooleanExpression(node: Node, notation: LogicNotation): string {
 		// ((a + b) . (a . b))'
 		if (!node) return '0';
 
@@ -82,30 +142,37 @@ export class CreateBooleanExpressionCommand extends Command {
 		for (const input of node.inputs) {
 			// get the node connected to the input
 			const fromNode = this.getNodeForInput(input);
-			recurseValues.push(this.createBooleanExpression(fromNode));
+			recurseValues.push(this.createBooleanExpression(fromNode, notation));
 		}
+
+		const not = (value: string): string => {
+			if (notation.notLocation == 'after') {
+				return `${value}${notation.not}`;
+			}
+			return `${notation.not}${value}`;
+		};
 
 		switch (node?.getMetadata().nodeName) {
 			case 'InputNode': {
 				return node.getParamValue('name', 'input');
 			}
 			case 'OrNode': {
-				return `(${recurseValues.join(' + ')})`;
+				return `(${recurseValues.join(notation.or)})`;
 			}
 			case 'NandNode': {
-				return `(${recurseValues.join(' . ')})'`;
+				return not(`(${recurseValues.join(notation.and)})`);
 			}
 			case 'NorNode': {
-				return `(${recurseValues.join(' + ')})'`;
+				return not(`(${recurseValues.join(notation.or)})`);
 			}
 			case 'XorNode': {
-				return `(${recurseValues[0]} . ${recurseValues[1]}' + ${recurseValues[0]}' . ${recurseValues[1]})`;
+				return `(${recurseValues[0]}${notation.and}${not(recurseValues[1])}${notation.or}${not(recurseValues[0])}${notation.and}${recurseValues[1]})`;
 			}
 			case 'AndNode': {
-				return `(${recurseValues.join(' . ')})`;
+				return `(${recurseValues.join(notation.and)})`;
 			}
 			case 'NotNode': {
-				return `${recurseValues[0]}'`;
+				return not(`${recurseValues[0]}`);
 			}
 			case 'OutputNode': {
 				return recurseValues[0];

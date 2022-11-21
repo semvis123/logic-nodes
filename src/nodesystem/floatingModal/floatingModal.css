@@ -75,3 +75,9 @@ tr:nth-child(even) {
 	pointer-events: auto;
 	user-select: auto;
 }
+
+.floating-modal-body {
+	overflow: auto;
+	max-height: 80vh;
+	white-space: pre-line;
+}
