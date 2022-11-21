@@ -99,6 +99,12 @@ export class ConstructCircuitFromExpressionCommand extends Command {
 					}
 				}
 			}
+			if (bracketStack != 0) {
+				const error = new Error('Expression contains mismatching brackets');
+				new ToastMessage(error.message, 'danger').show();
+				throw error;
+			}
+
 			if (foundOperator) {
 				break;
 			}
