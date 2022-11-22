@@ -22,6 +22,7 @@ const operatorMap = {
 	'|': 'OrNode',
 	'\u2228': 'OrNode',
 	'\u22BB': 'XorNode',
+	'\u2295': 'XorNode',
 	'.': 'AndNode',
 	'*': 'AndNode',
 	'&': 'AndNode',

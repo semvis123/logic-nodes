@@ -42,10 +42,16 @@ export class SettingsCommand extends Command {
 					type: 'select',
 					options: [
 						...logicNotations.map((notation, index) => ({
-							label: [notation.and, notation.or, notation.not].join(''),
+							label: [notation.and, notation.or, notation.not, notation.xor].join(''),
 							value: index
 						}))
 					]
+				},
+				{
+					name: 'localStorage.useXORSymbol',
+					label: 'Use XOR symbol instead of combining other symbols',
+					checked: this.nodeSystem.config.private.useXORSymbol,
+					type: 'checkbox'
 				},
 				this.nodeSystem.saveId != -1 && {
 					name: 'delete',
