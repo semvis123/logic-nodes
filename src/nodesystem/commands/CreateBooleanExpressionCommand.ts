@@ -16,6 +16,7 @@ type LogicNotation = {
 	or: string;
 	and: string;
 	not: string;
+	xor: string;
 	notLocation?: string;
 }
 
@@ -24,27 +25,32 @@ export const logicNotations: LogicNotation[] = [
 		or: ' || ',
 		and: ' && ',
 		not: ' !',
+		xor: ' ^ '
 	},
 	{
 		or: ' or ',
 		and: ' and ',
 		not: 'not ',
+		xor: ' xor '
 	},
 	{
 		or: ' \u2228 ',
 		and: ' \u2227 ',
 		not: '\u00AC',
+		xor: ' \u22BB '
 	},
 	{
 		or: ' + ',
 		and: ' . ',
 		not: '\'',
+		xor: ' \u2295 ',
 		notLocation: 'after',
 	},
 	{
 		or: ' v ',
 		and: ' ^ ',
 		not: ' ~ ',
+		xor: ' \u2295 '
 	},
 ];
 
@@ -166,6 +172,10 @@ export class CreateBooleanExpressionCommand extends Command {
 				return not(`(${recurseValues.join(notation.or)})`);
 			}
 			case 'XorNode': {
+				if (this.config.private.useXORSymbol) {
+					return `(${recurseValues.join(notation.xor)})`;
+				}
+
 				return `(${recurseValues[0]}${notation.and}${not(recurseValues[1])}${notation.or}${not(recurseValues[0])}${notation.and}${recurseValues[1]})`;
 			}
 			case 'AndNode': {

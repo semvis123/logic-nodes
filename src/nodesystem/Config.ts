@@ -47,6 +47,7 @@ export class Config {
 		wolframAppId: localStorage.getItem('wolframAppId') ?? '',
 		wolframAlphaEnabled: (localStorage.getItem('wolframAlphaEnabled') ?? 'true') == 'true',
 		logicNotation: parseInt(localStorage.getItem('logicNotation') ?? '2'),
+		useXORSymbol: (localStorage.getItem('useXORSymbol') ?? 'true') == 'true',
 	};
 
 	setConfig(config: object) {
