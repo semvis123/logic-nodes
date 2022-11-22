@@ -21,6 +21,7 @@ const operatorMap = {
 	'+': 'OrNode',
 	'|': 'OrNode',
 	'\u2228': 'OrNode',
+	'\u22BB': 'XorNode',
 	'.': 'AndNode',
 	'*': 'AndNode',
 	'&': 'AndNode',
@@ -146,6 +147,32 @@ export class ConstructCircuitFromExpressionCommand extends Command {
 		};
 		const width = 200 + findMaxDepth(tree) * 150;
 
+
+		const inputNodes = [] as string[];
+		const findInputNodes = (treeNode: TreeNode) => {
+			if (treeNode.type == 'value' &&
+				(treeNode.value != '0' && treeNode.value != '1') &&
+				!inputNodes.includes(treeNode.value)) {
+				inputNodes.push(treeNode.value);
+			}
+			treeNode.children.forEach(findInputNodes);
+		}
+		findInputNodes(tree);
+
+		// sort input nodes
+		inputNodes.sort((a, b) => {
+			return a.localeCompare(b);
+		});
+
+		const usedInputNodeMap = new Map<string, NodeSaveData>();
+
+		// create input nodes
+		inputNodes.forEach((inputNode, index) => {
+			const node = this.createInputNode(inputNode, index);
+			output.nodes.push(node);
+			usedInputNodeMap.set(inputNode, node);
+		});
+
 		const outputNode = {
 			id: uuid(),
 			type: 'OutputNode',
@@ -160,13 +187,10 @@ export class ConstructCircuitFromExpressionCommand extends Command {
 
 		let currentDepth = 0;
 		const toCreate = [tree];
-		let amountOfInputs = 0;
 		const usedInputMap = new Map<string, number>();
-		const usedInputNodeMap = new Map<string, NodeSaveData>();
 
 		while (toCreate.length > 0) {
 			const current = toCreate.shift();
-			console.log(current);
 			const parentId = current.parentNode.id;
 			const x = width - 70 - currentDepth * 70;
 			let y = current.parentNode.y;
@@ -174,17 +198,11 @@ export class ConstructCircuitFromExpressionCommand extends Command {
 				y += ((usedInputMap.get(current.parentNode.id) ?? 0) * 500) / currentDepth - 50;
 			}
 			if (current.type == 'value') {
-				// create input node if not already created
+				// create constant node if not already created
 				if (!usedInputNodeMap.has(current.value)) {
-					let node;
-					if (current.value == '0' || current.value == '1') {
-						node = this.createConstantNode(current.value, x, y);
-					} else {
-						node = this.createInputNode(current.value, amountOfInputs);
-					}
+					const node = this.createConstantNode(current.value, x, y);
 					output.nodes.push(node);
 					usedInputNodeMap.set(current.value, node);
-					amountOfInputs++;
 				}
 
 				const inputNode = usedInputNodeMap.get(current.value);
