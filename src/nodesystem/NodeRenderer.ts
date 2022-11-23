@@ -168,7 +168,7 @@ export class NodeRenderer {
 		this.setZoom(newZoom, mouseX, mouseY);
 	}
 
-	setZoom(newZoom: number, mouseX: number = this.canvas.width / 2, mouseY: number = this.canvas.height / 2) {
+	setZoom(newZoom: number, mouseX: number = this.canvas.width / this.dpi / 2, mouseY: number = this.canvas.height / this.dpi / 2) {
 		const oldZoom = this.editorState.view.zoom;
 		this.editorState.view = {
 			x: this.editorState.view.x + mouseX / newZoom - mouseX / oldZoom,
@@ -192,11 +192,11 @@ export class NodeRenderer {
 		const zoom = Math.min(zoomX, zoomY);
 		
 		// set the new view position
-		this.editorState.view.x = -boundingBox.x - (boundingBox.width - canvasWidth / zoom) / 2;
-		this.editorState.view.y = -boundingBox.y - (boundingBox.height - canvasHeight / zoom) / 2;
+		this.editorState.view.x = -boundingBox.x - (boundingBox.width - canvasWidth) / 2;
+		this.editorState.view.y = -boundingBox.y - (boundingBox.height - canvasHeight) / 2;
 		
 		// set the zoom level
-		this.setZoom(zoom, 0, 0);
+		this.setZoom(zoom);
 		
 		this.requestRender();
 	}
