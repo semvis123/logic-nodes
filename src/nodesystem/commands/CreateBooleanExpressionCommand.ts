@@ -104,35 +104,41 @@ export class CreateBooleanExpressionCommand extends Command {
 				return new ToastMessage('Boolean expression requires at least one InputNode.', 'danger').show();
 			if (outputNodes.length == 0)
 				return new ToastMessage('Boolean expression requires at least one OutputNode.', 'danger').show();
-			if (outputNodes.length > 1)
-				return new ToastMessage('Boolean expression can only be made for one OutputNode.', 'danger').show();
 
-			let output = this.createBooleanExpression(outputNodes[0], logicNotations[this.config.private.logicNotation]);
-			output = removeOuterBrackets(output);
-
-			// ask wolfram alpha for a simplified version
-			if (this.config.private.wolframAlphaEnabled) {
-				try {
-					const wolframCorrectNotation = this.createBooleanExpression(outputNodes[0], logicNotations[1]);
-					const response = await fetch(
-						`https://api.wolframalpha.com/v2/query?input=simplify%20${wolframCorrectNotation}&appid=${this.config.private.wolframAppId}`
-					);
-					const xml = await response.text();
-					const parser = new DOMParser();
-					const xmlDoc = parser.parseFromString(xml, 'text/xml');
-					const pod = xmlDoc.getElementsByTagName('pod')[1];
-					const subpod = pod.getElementsByTagName('subpod')[0];
-					const plaintext = subpod.getElementsByTagName('plaintext')[0];
-					const simplifiedOutput = plaintext.childNodes[0].nodeValue;
-					if (!simplifiedOutput.includes('already')) {
-						output += `\n\nSimplified:\n\n ${simplifiedOutput}`;
+			let allExpressions = "";
+			for (const node of outputNodes) {
+				let output = this.createBooleanExpression(node, logicNotations[this.config.private.logicNotation]);
+				output = removeOuterBrackets(output);
+	
+				// ask wolfram alpha for a simplified version
+				if (this.config.private.wolframAlphaEnabled) {
+					try {
+						const wolframCorrectNotation = this.createBooleanExpression(node, logicNotations[1]);
+						const response = await fetch(
+							`https://api.wolframalpha.com/v2/query?input=simplify%20${wolframCorrectNotation}&appid=${this.config.private.wolframAppId}`
+						);
+						const xml = await response.text();
+						const parser = new DOMParser();
+						const xmlDoc = parser.parseFromString(xml, 'text/xml');
+						const pod = xmlDoc.getElementsByTagName('pod')[1];
+						const subpod = pod.getElementsByTagName('subpod')[0];
+						const plaintext = subpod.getElementsByTagName('plaintext')[0];
+						const simplifiedOutput = plaintext.childNodes[0].nodeValue;
+						if (!simplifiedOutput.includes('already')) {
+							output += `\n\nSimplified:\n\n ${simplifiedOutput}`;
+						}
+					} catch (e) {
+						console.log(e);
 					}
-				} catch (e) {
-					console.log(e);
 				}
-			}
+				if (outputNodes.length > 1) {
+					allExpressions += `Output ${node.getParamValue('name', 'Q')}: \n${output}\n\n`;
+				} else {
+					allExpressions += output;
+				}
+			} 
 
-			this.activeModal = new TextFloatingModal('Boolean expression', output, this.nodeSystem.eventHandler);
+			this.activeModal = new TextFloatingModal('Boolean expression', allExpressions, this.nodeSystem.eventHandler);
 			this.activeModal.show();
 			new ToastMessage('Created boolean expression.', 'success').show();
 		} finally {
