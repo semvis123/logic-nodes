@@ -70,6 +70,7 @@ export class Toolbar {
 		});
 
 		nodeClasses.forEach((nodeClass) => {
+			if (nodeClass.prototype.getMetadata().hideFromMenu) return;
 			const node = new ToolbarButton(nodeClass.prototype.getMetadata().displayName, () => {
 				const newNode = new nodeClass(uuid(), 0, 0, this.nodeSystem.editorState.layer, this.nodeSystem);
 				positionNode(
