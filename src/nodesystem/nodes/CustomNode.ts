@@ -70,6 +70,7 @@ export class CustomNode extends Node {
 			nodeName: 'CombinationNode',
 			displayName: 'Chip',
 			category: 'Misc',
+			hideFromMenu: true,
 			parameters: this.parameters
 		};
 	}

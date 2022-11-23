@@ -9,4 +9,5 @@ export type Metadata = {
 	displayName: string;
 	category?: MetadataCategory;
 	parameters: NodeParameter[];
+	hideFromMenu?: boolean;
 };
