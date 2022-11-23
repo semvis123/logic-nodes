@@ -182,12 +182,22 @@ export class NodeRenderer {
 	zoomToFit() {
 		const boundingBox = getBoundingBoxOfMultipleNodes(this.nodeSystem.nodeStorage.nodes);
 		const padding = 100;
-		const zoomX = this.canvas.width / (boundingBox.width + padding);
-		const zoomY = this.canvas.height / (boundingBox.height + padding);
+
+		const canvasWidth = this.canvas.width / this.dpi;
+		const canvasHeight = this.canvas.height / this.dpi;
+
+		// calculate the maximum zoom level
+		const zoomX = canvasWidth / (boundingBox.width + padding);
+		const zoomY = canvasHeight / (boundingBox.height + padding);
 		const zoom = Math.min(zoomX, zoomY);
+		
+		// set the new view position
+		this.editorState.view.x = -boundingBox.x - (boundingBox.width - canvasWidth / zoom) / 2;
+		this.editorState.view.y = -boundingBox.y - (boundingBox.height - canvasHeight / zoom) / 2;
+		
+		// set the zoom level
 		this.setZoom(zoom, 0, 0);
-		this.editorState.view.x = -boundingBox.x + (this.canvas.width - zoom * boundingBox.width) / 2 / zoom;
-		this.editorState.view.y = -boundingBox.y + (this.canvas.height - zoom * boundingBox.height) / 2 / zoom;
+		
 		this.requestRender();
 	}
 
