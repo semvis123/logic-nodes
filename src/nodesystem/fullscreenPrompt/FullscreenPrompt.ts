@@ -97,7 +97,7 @@ export class FullscreenPrompt {
 					select.value = param.value.toString();
 					select.onchange = () => {
 						param.value = select.value;
-					}
+					};
 				}
 				paramEl.appendChild(paramLabel);
 				paramEl.appendChild(paramInputContainer);

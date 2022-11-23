@@ -18,7 +18,7 @@ type LogicNotation = {
 	not: string;
 	xor: string;
 	notLocation?: string;
-}
+};
 
 export const logicNotations: LogicNotation[] = [
 	{
@@ -42,18 +42,17 @@ export const logicNotations: LogicNotation[] = [
 	{
 		or: ' + ',
 		and: ' . ',
-		not: '\'',
+		not: "'",
 		xor: ' \u2295 ',
-		notLocation: 'after',
+		notLocation: 'after'
 	},
 	{
 		or: ' v ',
 		and: ' ^ ',
 		not: ' ~ ',
 		xor: ' \u2295 '
-	},
+	}
 ];
-
 
 export class CreateBooleanExpressionCommand extends Command {
 	nodeConnectionHandler: NodeConnectionHandler;
@@ -105,11 +104,11 @@ export class CreateBooleanExpressionCommand extends Command {
 			if (outputNodes.length == 0)
 				return new ToastMessage('Boolean expression requires at least one OutputNode.', 'danger').show();
 
-			let allExpressions = "";
+			let allExpressions = '';
 			for (const node of outputNodes) {
 				let output = this.createBooleanExpression(node, logicNotations[this.config.private.logicNotation]);
 				output = removeOuterBrackets(output);
-	
+
 				// ask wolfram alpha for a simplified version
 				if (this.config.private.wolframAlphaEnabled) {
 					try {
@@ -136,7 +135,7 @@ export class CreateBooleanExpressionCommand extends Command {
 				} else {
 					allExpressions += output;
 				}
-			} 
+			}
 
 			this.activeModal = new TextFloatingModal('Boolean expression', allExpressions, this.nodeSystem.eventHandler);
 			this.activeModal.show();
@@ -182,7 +181,9 @@ export class CreateBooleanExpressionCommand extends Command {
 					return `(${recurseValues.join(notation.xor)})`;
 				}
 
-				return `(${recurseValues[0]}${notation.and}${not(recurseValues[1])}${notation.or}${not(recurseValues[0])}${notation.and}${recurseValues[1]})`;
+				return `(${recurseValues[0]}${notation.and}${not(recurseValues[1])}${notation.or}${not(recurseValues[0])}${
+					notation.and
+				}${recurseValues[1]})`;
 			}
 			case 'AndNode': {
 				return `(${recurseValues.join(notation.and)})`;

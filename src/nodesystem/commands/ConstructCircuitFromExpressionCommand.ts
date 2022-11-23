@@ -28,9 +28,9 @@ const operatorMap = {
 	'&': 'AndNode',
 	'\u2227': 'AndNode',
 	"'": 'NotNode',
-	"~": 'NotNode',
+	'~': 'NotNode',
 	'!': 'NotNode',
-	'\u00AC': 'NotNode',
+	'\u00AC': 'NotNode'
 };
 
 export class ConstructCircuitFromExpressionCommand extends Command {
@@ -148,16 +148,18 @@ export class ConstructCircuitFromExpressionCommand extends Command {
 		};
 		const width = 200 + findMaxDepth(tree) * 150;
 
-
 		const inputNodes = [] as string[];
 		const findInputNodes = (treeNode: TreeNode) => {
-			if (treeNode.type == 'value' &&
-				(treeNode.value != '0' && treeNode.value != '1') &&
-				!inputNodes.includes(treeNode.value)) {
+			if (
+				treeNode.type == 'value' &&
+				treeNode.value != '0' &&
+				treeNode.value != '1' &&
+				!inputNodes.includes(treeNode.value)
+			) {
 				inputNodes.push(treeNode.value);
 			}
 			treeNode.children.forEach(findInputNodes);
-		}
+		};
 		findInputNodes(tree);
 
 		// sort input nodes
