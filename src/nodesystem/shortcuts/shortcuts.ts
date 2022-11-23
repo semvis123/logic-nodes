@@ -13,6 +13,7 @@ import { ExportCommand } from '../commands/ExportCommand';
 import { LoadSaveCommand } from '../commands/LoadSaveCommand';
 import { ShowShortcutsCommand } from '../commands/ShowShortcutsCommand';
 import { DeselectAllCommand } from '../commands/DeselectAllCommand';
+import { ToastMessage } from '../toastmessage/ToastMessage';
 
 export const getShortcuts: (nodeSystem: NodeSystem) => Shortcut[] = (nodeSystem: NodeSystem) => [
 	{
@@ -152,7 +153,10 @@ export const getShortcuts: (nodeSystem: NodeSystem) => Shortcut[] = (nodeSystem:
 		description: `Set the layer to ${i + 1}`,
 		keyCombo: `${i + 1}`,
 		callback: () => {
-			nodeSystem.nodeRenderer.setLayer(i);
+			if (nodeSystem.editorState.layer !== i) {
+				nodeSystem.nodeRenderer.setLayer(i);
+				new ToastMessage(`Set layer to ${i + 1}`, 'info', 1000).show();
+			}
 		},
 		category: 'Layers'
 	})),
