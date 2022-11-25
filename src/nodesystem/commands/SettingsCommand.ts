@@ -36,6 +36,12 @@ export class SettingsCommand extends Command {
 					type: 'checkbox'
 				},
 				{
+					name: 'localStorage.wolframAlphaCorsProxy',
+					label: 'Wolfram Alpha CORS Proxy (for boolean expression simplification)',
+					value: this.nodeSystem.config.private.wolframAlphaCorsProxy,
+					type: 'text'
+				},
+				{
 					name: 'localStorage.logicNotation',
 					label: 'Logic notation',
 					value: this.nodeSystem.config.private.logicNotation,
@@ -75,6 +81,9 @@ export class SettingsCommand extends Command {
 				return;
 			}
 			parameters.forEach((param) => {
+				if (Object.keys(param).length == 0) {
+					return;
+				}
 				if (param.name.startsWith('localStorage.')) {
 					const key = param.name.split('.')[1];
 					if (param.type == 'checkbox') {

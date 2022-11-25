@@ -113,9 +113,11 @@ export class CreateBooleanExpressionCommand extends Command {
 				if (this.config.private.wolframAlphaEnabled) {
 					try {
 						const wolframCorrectNotation = this.createBooleanExpression(node, logicNotations[1]);
-						const response = await fetch(
-							`https://api.wolframalpha.com/v2/query?input=simplify%20${wolframCorrectNotation}&appid=${this.config.private.wolframAppId}`
-						);
+						let url = `https://api.wolframalpha.com/v2/query?input=simplify%20${wolframCorrectNotation}&appid=${this.config.private.wolframAppId}`
+						if (this.config.private.wolframAlphaCorsProxy != '') {
+							url = this.config.private.wolframAlphaCorsProxy + encodeURIComponent(url);
+						}
+						const response = await fetch(url);
 						const xml = await response.text();
 						const parser = new DOMParser();
 						const xmlDoc = parser.parseFromString(xml, 'text/xml');

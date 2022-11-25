@@ -46,6 +46,7 @@ export class Config {
 	private = {
 		wolframAppId: localStorage.getItem('wolframAppId') ?? '',
 		wolframAlphaEnabled: (localStorage.getItem('wolframAlphaEnabled') ?? 'true') == 'true',
+		wolframAlphaCorsProxy: localStorage.getItem('wolframAlphaCorsProxy') ?? 'https://api.allorigins.win/raw?url=',
 		logicNotation: parseInt(localStorage.getItem('logicNotation') ?? '2'),
 		useXORSymbol: (localStorage.getItem('useXORSymbol') ?? 'true') == 'true'
 	};
