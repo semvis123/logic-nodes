@@ -149,7 +149,12 @@ export class NodeSystemEventHandler {
 			return;
 		}
 
-		if (e.button == 0) this.leftMouseDown = true;
+		if (e.button == 0) {
+			this.leftMouseDown = true;
+			if (this.nodeSystem.minimap?.handleMouse(mouseX, mouseY)) {
+				return;
+			}
+		}
 		if (e.button == 2) return;
 
 		// connectors
@@ -237,6 +242,10 @@ export class NodeSystemEventHandler {
 		} = this.nodeSystem.editorState;
 		const pannedMouseX = mouseX / zoom - x;
 		const pannedMouseY = mouseY / zoom - y;
+
+		if (this.leftMouseDown && this.nodeSystem.minimap?.handleMouse(mouseX, mouseY)) {
+			return;
+		}
 
 		if (this.middleMouseDown && this.startingMouseMovePosition) {
 			// pan

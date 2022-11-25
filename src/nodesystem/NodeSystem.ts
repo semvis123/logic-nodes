@@ -18,6 +18,7 @@ import { TickSystem } from './TickSystem';
 import { EditorState } from './EditorState';
 import { FloatingModalPositioner } from './floatingModal/FloatingModalPositioner';
 import { ShortcutManager } from './shortcuts/ShortcutManager';
+import { Minimap } from './minimap/Minimap';
 
 const maxUndoHistory = 5000;
 
@@ -40,6 +41,7 @@ export class NodeSystem {
 	tickSystem: TickSystem;
 	editorState: EditorState;
 	shortcutManager: ShortcutManager;
+	minimap: Minimap;
 
 	constructor(
 		public canvas: HTMLCanvasElement,
@@ -145,6 +147,8 @@ export class NodeSystem {
 			delete this.bottomToolbar;
 			delete this.editorState;
 			delete this.shortcutManager;
+			if (this.minimap) this.minimap.remove();
+			delete this.minimap;
 		}
 
 		delete this.nodeConnectionHandler;
@@ -172,6 +176,8 @@ export class NodeSystem {
 			this.shortcutManager = new ShortcutManager(this);
 			this.htmlCanvasOverlayContainer.style.transform = `translate(${0}px, ${0}px)`;
 			FloatingModalPositioner.prototype.getInstance().closeAll();
+			this.minimap = new Minimap(this);
+			this.minimap.show();
 		}
 		this.tickSystem.start();
 		this.displayFileInfo();

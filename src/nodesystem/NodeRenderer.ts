@@ -146,6 +146,18 @@ export class NodeRenderer {
 			);
 			this.ctx.stroke();
 		}
+
+		this.ctx.restore();
+		this.ctx.save();
+		// minimap is rendered in the top right corner
+		this.ctx.scale(this.dpi, this.dpi);
+		const paddingTop = 50;
+		const paddingRight = 20;
+		this.nodeSystem.minimap.x = this.canvas.width - this.nodeSystem.minimap.width - paddingRight;
+		this.nodeSystem.minimap.y = paddingTop;
+		this.ctx.translate(this.canvas.width / this.dpi - this.nodeSystem.minimap.width - paddingRight, paddingTop);
+		// draw minimap
+		this.nodeSystem.minimap.render(this.ctx);
 		this.ctx.restore();
 		this.transformOverlay();
 	}
