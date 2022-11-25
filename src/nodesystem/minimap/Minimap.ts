@@ -7,7 +7,7 @@ export class Minimap {
 	public x = 0;
 	public y = 0;
 	private boundingBox = { x: 0, y: 0, width: 0, height: 0 };
-	private visible = false;
+	public visible = false;
 
 	constructor(private nodeSystem: NodeSystem) {}
 
