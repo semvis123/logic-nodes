@@ -24,7 +24,9 @@ export class Minimap {
 		if (!this.visible) return;
 		const { zoom, x, y } = this.nodeSystem.editorState.view;
 
-		const nodeBoundingBox = getBoundingBoxOfMultipleNodes(this.nodeSystem.nodeStorage.nodes);
+		const nodeBoundingBox = getBoundingBoxOfMultipleNodes(
+			this.nodeSystem.nodeStorage.nodes.filter((node) => node.layer === this.nodeSystem.editorState.layer)
+		);
 		nodeBoundingBox.x -= 100;
 		nodeBoundingBox.y -= 100;
 		nodeBoundingBox.width += 200;
@@ -73,6 +75,7 @@ export class Minimap {
 		if (!this.visible) return;
 		ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
+			if (node.layer !== this.nodeSystem.editorState.layer) continue;
 			// draw a small square for each node
 			ctx.fillRect(
 				((node.x - this.boundingBox.x) / this.boundingBox.width) * this.width,
