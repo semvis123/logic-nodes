@@ -14,3 +14,4 @@ Features:
 - Load circuit from boolean expression
 - Intuitive controls (pan, zoom)
 - shortcuts (crtl+? for a shortcut overview)
+- Minimap (toggleable with ctrl+m)
