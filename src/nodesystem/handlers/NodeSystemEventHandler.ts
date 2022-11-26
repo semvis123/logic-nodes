@@ -161,6 +161,7 @@ export class NodeSystemEventHandler {
 		const connectionPointHitBox = this.calcConnectionPointHitBox();
 
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
+			if (node.layer != this.nodeSystem.editorState.layer) continue;
 			const inputSpacing = node.height / (node.inputs.length + 1);
 			for (const input of node.inputs) {
 				if (
@@ -338,7 +339,7 @@ export class NodeSystemEventHandler {
 			[y1, y2] = [y1, y2].sort((a, b) => a - b);
 
 			const nodes = this.nodeSystem.nodeStorage.nodes.filter((node) => {
-				return node.x + node.width >= x1 && node.x <= x2 && node.y + node.height >= y1 && node.y <= y2;
+				return node.x + node.width >= x1 && node.x <= x2 && node.y + node.height >= y1 && node.y <= y2 && node.layer == this.nodeSystem.editorState.layer;
 			});
 			this.editorState.selectedNodes = nodes;
 			this.editorState.selectionBox = undefined;
@@ -377,6 +378,7 @@ export class NodeSystemEventHandler {
 					box.y,
 					this.nodeSystem.nodeStorage,
 					this.nodeSystem.config,
+					this.editorState.layer,
 					this.editorState.selectedNodes
 				);
 				this.editorState.selectedNodes.forEach((node) => {
@@ -401,6 +403,7 @@ export class NodeSystemEventHandler {
 
 	getNodeAt(x: number, y: number) {
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
+			if (node.layer != this.nodeSystem.editorState.layer) continue;
 			if (x >= node.x && x <= node.x + node.width && y >= node.y && y <= node.y + node.height) {
 				return node;
 			}

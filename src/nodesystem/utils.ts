@@ -36,6 +36,7 @@ export const positionNode = (
 	y: number,
 	nodeStorage: NodeStorage,
 	config: Config,
+	layer: number,
 	nodes: Node[] = []
 ): { x: number; y: number } => {
 	if (config.nodesCanOverlap) {
@@ -45,10 +46,12 @@ export const positionNode = (
 	}
 
 	const padding = config.nodeSpacing;
+	
+	const currentLayerNodes = nodeStorage.nodes.filter((n) => n.layer == layer);
 
 	// check if current location is valid
 	if (nodes.length > 0) {
-		const overlapping = nodes.filter((node) => nodesOverlap(node, nodeStorage.nodes, padding, nodes));
+		const overlapping = nodes.filter((node) => nodesOverlap(node, currentLayerNodes, padding, nodes));
 		if (overlapping.length == 0) {
 			boundingBox.x = x;
 			boundingBox.y = y;
@@ -76,7 +79,7 @@ export const positionNode = (
 			const left = x + dir[0] * d;
 			const top = y + dir[1] * d;
 			let overlap = false;
-			for (const n of nodeStorage.nodes) {
+			for (const n of currentLayerNodes) {
 				if (boundingBox == n) continue;
 				if (nodes.includes(n)) continue;
 				if (
@@ -107,7 +110,7 @@ export const positionNode = (
 	return { x: diffX, y: diffY };
 };
 
-const nodesOverlap = (node, nodesToCheck, padding, excludedNodes) => {
+const nodesOverlap = (node: Node, nodesToCheck: Node[], padding: number, excludedNodes: Node[]) => {
 	let overlap = false;
 	const { x, y, width, height } = node;
 	for (const n of nodesToCheck) {

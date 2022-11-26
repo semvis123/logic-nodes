@@ -276,7 +276,8 @@ export class NodeSystem {
 				box.y,
 				this.nodeStorage,
 				this.config,
-				this.eventHandler.selectedNodes
+				this.editorState.layer,
+				this.eventHandler.selectedNodes,
 			);
 			this.eventHandler.selectedNodes.forEach((node) => {
 				node.x += translation.x;
