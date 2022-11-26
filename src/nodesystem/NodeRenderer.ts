@@ -153,9 +153,11 @@ export class NodeRenderer {
 		this.ctx.scale(this.dpi, this.dpi);
 		const paddingTop = 50;
 		const paddingRight = 20;
-		this.nodeSystem.minimap.x = this.canvas.width - this.nodeSystem.minimap.width - paddingRight;
-		this.nodeSystem.minimap.y = paddingTop;
-		this.ctx.translate(this.canvas.width / this.dpi - this.nodeSystem.minimap.width - paddingRight, paddingTop);
+		const minimapX = this.canvas.width / this.dpi  - this.nodeSystem.minimap.width - paddingRight;
+		const minimapY = paddingTop;
+		this.nodeSystem.minimap.x = minimapX;
+		this.nodeSystem.minimap.y = minimapY;
+		this.ctx.translate(minimapX, minimapY);
 		// draw minimap
 		this.nodeSystem.minimap.render(this.ctx);
 		this.ctx.restore();
