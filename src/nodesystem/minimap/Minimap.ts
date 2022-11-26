@@ -8,6 +8,7 @@ export class Minimap {
 	public y = 0;
 	private boundingBox = { x: 0, y: 0, width: 0, height: 0 };
 	public visible = false;
+	private mouseDown = false;
 
 	constructor(private nodeSystem: NodeSystem) {}
 
@@ -93,8 +94,21 @@ export class Minimap {
 		}
 	}
 
-	handleMouse(x: number, y: number): boolean {
+	handleMouseDown(x, y) {
+		if (!this.visible) return;
+		if (x < this.x || x > this.x + this.width || y < this.y || y > this.y + this.height) return;
+		this.mouseDown = true;
+		return this.handleMouseMove(x, y);
+	}
+
+	handleMouseUp() {
+		this.mouseDown = false;
+	}
+
+	handleMouseMove(x: number, y: number): boolean {
 		if (!this.visible) return false;
+		if (!this.mouseDown) return false;
+
 		if (x < this.x || x > this.x + this.width || y < this.y || y > this.y + this.height) return false;
 
 		// move the center of the view to the mouse position

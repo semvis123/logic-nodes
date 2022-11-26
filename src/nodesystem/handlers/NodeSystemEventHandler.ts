@@ -151,7 +151,7 @@ export class NodeSystemEventHandler {
 
 		if (e.button == 0) {
 			this.leftMouseDown = true;
-			if (this.nodeSystem.minimap?.handleMouse(mouseX, mouseY)) {
+			if (this.nodeSystem.minimap?.handleMouseDown(mouseX, mouseY)) {
 				return;
 			}
 		}
@@ -243,7 +243,7 @@ export class NodeSystemEventHandler {
 		const pannedMouseX = mouseX / zoom - x;
 		const pannedMouseY = mouseY / zoom - y;
 
-		if (this.leftMouseDown && this.nodeSystem.minimap?.handleMouse(mouseX, mouseY)) {
+		if (this.nodeSystem.minimap?.handleMouseMove(mouseX, mouseY)) {
 			return;
 		}
 
@@ -317,6 +317,7 @@ export class NodeSystemEventHandler {
 	onMouseUp(e: MouseEvent) {
 		if (e.button == 0) {
 			this.leftMouseDown = false;
+			this.nodeSystem.minimap?.handleMouseUp();
 		} else if (e.button == 1) {
 			this.middleMouseDown = false;
 			return;
