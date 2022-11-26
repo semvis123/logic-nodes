@@ -46,7 +46,7 @@ export const positionNode = (
 	}
 
 	const padding = config.nodeSpacing;
-	
+
 	const currentLayerNodes = nodeStorage.nodes.filter((n) => n.layer == layer);
 
 	// check if current location is valid

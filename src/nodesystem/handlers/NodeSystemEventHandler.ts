@@ -339,7 +339,13 @@ export class NodeSystemEventHandler {
 			[y1, y2] = [y1, y2].sort((a, b) => a - b);
 
 			const nodes = this.nodeSystem.nodeStorage.nodes.filter((node) => {
-				return node.x + node.width >= x1 && node.x <= x2 && node.y + node.height >= y1 && node.y <= y2 && node.layer == this.nodeSystem.editorState.layer;
+				return (
+					node.x + node.width >= x1 &&
+					node.x <= x2 &&
+					node.y + node.height >= y1 &&
+					node.y <= y2 &&
+					node.layer == this.nodeSystem.editorState.layer
+				);
 			});
 			this.editorState.selectedNodes = nodes;
 			this.editorState.selectionBox = undefined;
