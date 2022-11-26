@@ -142,6 +142,20 @@ export const getShortcuts: (nodeSystem: NodeSystem) => Shortcut[] = (nodeSystem:
 		category: 'View'
 	},
 	{
+		name: 'Show/Hide minimap',
+		description: 'Show or hide the minimap',
+		keyCombo: 'ctrl/cmd+m',
+		callback: () => {
+			if (nodeSystem.minimap.visible) {
+				nodeSystem.minimap.remove();
+			} else {
+				nodeSystem.minimap.show();
+			}
+			nodeSystem.nodeRenderer?.requestRender();
+		},
+		category: 'View'
+	},
+	{
 		name: 'Circuit from expression',
 		description: 'Create a circuit from an expression',
 		keyCombo: 'ctrl/cmd+e',

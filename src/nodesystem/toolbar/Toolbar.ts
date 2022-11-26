@@ -78,7 +78,8 @@ export class Toolbar {
 					window.innerWidth / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.x,
 					window.innerHeight / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.y,
 					this.nodeSystem.nodeStorage,
-					this.nodeSystem.config
+					this.nodeSystem.config,
+					this.nodeSystem.editorState.layer
 				);
 				this.nodeSystem.nodeStorage.addNode(newNode);
 				this.nodeSystem.nodeRenderer.requestRender();
@@ -104,7 +105,8 @@ export class Toolbar {
 					window.innerWidth / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.x,
 					window.innerHeight / 2 / this.nodeSystem.editorState.view.zoom - this.nodeSystem.editorState.view.y,
 					this.nodeSystem.nodeStorage,
-					this.nodeSystem.config
+					this.nodeSystem.config,
+					this.nodeSystem.editorState.layer
 				);
 				this.nodeSystem.nodeStorage.addNode(newNode);
 				this.nodeSystem.nodeRenderer.requestRender();

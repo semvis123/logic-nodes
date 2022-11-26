@@ -149,13 +149,19 @@ export class NodeSystemEventHandler {
 			return;
 		}
 
-		if (e.button == 0) this.leftMouseDown = true;
+		if (e.button == 0) {
+			this.leftMouseDown = true;
+			if (this.nodeSystem.minimap?.handleMouseDown(mouseX, mouseY)) {
+				return;
+			}
+		}
 		if (e.button == 2) return;
 
 		// connectors
 		const connectionPointHitBox = this.calcConnectionPointHitBox();
 
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
+			if (node.layer != this.nodeSystem.editorState.layer) continue;
 			const inputSpacing = node.height / (node.inputs.length + 1);
 			for (const input of node.inputs) {
 				if (
@@ -238,6 +244,10 @@ export class NodeSystemEventHandler {
 		const pannedMouseX = mouseX / zoom - x;
 		const pannedMouseY = mouseY / zoom - y;
 
+		if (this.nodeSystem.minimap?.handleMouseMove(mouseX, mouseY)) {
+			return;
+		}
+
 		if (this.middleMouseDown && this.startingMouseMovePosition) {
 			// pan
 			this.nodeSystem.nodeRenderer.panView(
@@ -308,6 +318,7 @@ export class NodeSystemEventHandler {
 	onMouseUp(e: MouseEvent) {
 		if (e.button == 0) {
 			this.leftMouseDown = false;
+			this.nodeSystem.minimap?.handleMouseUp();
 		} else if (e.button == 1) {
 			this.middleMouseDown = false;
 			return;
@@ -328,7 +339,13 @@ export class NodeSystemEventHandler {
 			[y1, y2] = [y1, y2].sort((a, b) => a - b);
 
 			const nodes = this.nodeSystem.nodeStorage.nodes.filter((node) => {
-				return node.x + node.width >= x1 && node.x <= x2 && node.y + node.height >= y1 && node.y <= y2;
+				return (
+					node.x + node.width >= x1 &&
+					node.x <= x2 &&
+					node.y + node.height >= y1 &&
+					node.y <= y2 &&
+					node.layer == this.nodeSystem.editorState.layer
+				);
 			});
 			this.editorState.selectedNodes = nodes;
 			this.editorState.selectionBox = undefined;
@@ -367,6 +384,7 @@ export class NodeSystemEventHandler {
 					box.y,
 					this.nodeSystem.nodeStorage,
 					this.nodeSystem.config,
+					this.editorState.layer,
 					this.editorState.selectedNodes
 				);
 				this.editorState.selectedNodes.forEach((node) => {
@@ -391,6 +409,7 @@ export class NodeSystemEventHandler {
 
 	getNodeAt(x: number, y: number) {
 		for (const node of this.nodeSystem.nodeStorage.nodes) {
+			if (node.layer != this.nodeSystem.editorState.layer) continue;
 			if (x >= node.x && x <= node.x + node.width && y >= node.y && y <= node.y + node.height) {
 				return node;
 			}
