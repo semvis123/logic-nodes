@@ -13,7 +13,7 @@ import { ExportCommand } from '../commands/ExportCommand';
 import { LoadSaveCommand } from '../commands/LoadSaveCommand';
 import { ShowShortcutsCommand } from '../commands/ShowShortcutsCommand';
 import { DeselectAllCommand } from '../commands/DeselectAllCommand';
-import { ToastMessage } from '../toastmessage/ToastMessage';
+import { ToastMessage } from '../toastMessage/ToastMessage';
 
 export const getShortcuts: (nodeSystem: NodeSystem) => Shortcut[] = (nodeSystem: NodeSystem) => [
 	{
