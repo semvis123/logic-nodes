@@ -6,7 +6,7 @@ import { NodeStorage } from '../NodeStorage';
 import { nodeClassesMap } from '../nodes/nodes';
 import type { NodeSaveData } from '../NodeSaveData';
 import type { NodeSaveFile } from '../NodeSaveFile';
-import { removeOuterBrackets, uuid } from '../utils';
+import { indexToInputName, removeOuterBrackets, uuid } from '../utils';
 import type { Node } from '../Node';
 import type { NodeInput } from '../NodeInput';
 import { TextFloatingModal } from '../floatingModal/TextFloatingModal';
@@ -110,28 +110,12 @@ export class CreateBooleanExpressionCommand extends Command {
 				output = removeOuterBrackets(output);
 
 				// ask wolfram alpha for a simplified version
-				if (this.config.private.wolframAlphaEnabled) {
-					try {
-						const wolframCorrectNotation = this.createBooleanExpression(node, logicNotations[1]);
-						let url = `https://api.wolframalpha.com/v2/query?input=simplify%20${wolframCorrectNotation}&appid=${this.config.private.wolframAppId}`
-						if (this.config.private.wolframAlphaCorsProxy != '') {
-							url = this.config.private.wolframAlphaCorsProxy + encodeURIComponent(url);
-						}
-						const response = await fetch(url);
-						const xml = await response.text();
-						const parser = new DOMParser();
-						const xmlDoc = parser.parseFromString(xml, 'text/xml');
-						const pod = xmlDoc.getElementsByTagName('pod')[1];
-						const subpod = pod.getElementsByTagName('subpod')[0];
-						const plaintext = subpod.getElementsByTagName('plaintext')[0];
-						const simplifiedOutput = plaintext.childNodes[0].nodeValue;
-						if (!simplifiedOutput.includes('already')) {
-							output += `\n\nSimplified:\n\n ${simplifiedOutput}`;
-						}
-					} catch (e) {
-						console.log(e);
-					}
+				const wolframCorrectNotation = this.createBooleanExpression(node, logicNotations[1]);
+				const simplified = await this.simplifyExpression(wolframCorrectNotation);
+				if (simplified != wolframCorrectNotation) {
+					output += `\n\nSimplified:\n\n ${simplified}`;
 				}
+
 				if (outputNodes.length > 1) {
 					allExpressions += `Output ${node.getParamValue('name', 'Q')}: \n${output}\n\n`;
 				} else {
@@ -145,6 +129,34 @@ export class CreateBooleanExpressionCommand extends Command {
 		} finally {
 			this.nodeSystem.eventHandler.addEventListeners();
 		}
+	}
+
+	async simplifyExpression(expression: string): Promise<string> {
+		const config = this.nodeSystem.config;
+		if (!config.private.wolframAlphaEnabled ?? true) {
+			return expression;
+		}
+
+		try {
+			let url = `https://api.wolframalpha.com/v2/query?input=simplify%20${expression}&appid=${config.private.wolframAppId}`;
+			if (config.private.wolframAlphaCorsProxy != '') {
+				url = config.private.wolframAlphaCorsProxy + encodeURIComponent(url);
+			}
+			const response = await fetch(url);
+			const xml = await response.text();
+			const parser = new DOMParser();
+			const xmlDoc = parser.parseFromString(xml, 'text/xml');
+			const pod = xmlDoc.getElementsByTagName('pod')[1];
+			const subpod = pod.getElementsByTagName('subpod')[0];
+			const plaintext = subpod.getElementsByTagName('plaintext')[0];
+			const simplifiedOutput = plaintext.childNodes[0].nodeValue;
+			if (!simplifiedOutput.includes('already')) {
+				return simplifiedOutput.replaceAll('True', '1').replaceAll('False', '0');
+			}
+		} catch (e) {
+			console.log(e);
+		}
+		return expression;
 	}
 
 	createBooleanExpression(node: Node, notation: LogicNotation): string {
@@ -229,19 +241,12 @@ export class CreateBooleanExpressionCommand extends Command {
 		const pastedNodes: Node[] = [];
 		let inputCount = 1;
 		let outputCount = 0;
-		const alphabet = 'abcdefghijklmnopqrstuvwxyz';
 		nodes.forEach((node) => {
 			const newNode: Node = nodeClassesMap.get(node.type).load(node, this as unknown as NodeSystem);
 			const nodeNameParam = newNode.getParam('name');
 			if (nodeNameParam?.value == 'Input') {
 				// no input name, create one
-				let nodeName = '';
-				let a = inputCount;
-				while (a > 0) {
-					nodeName = alphabet[(a - 1) % alphabet.length] + nodeName;
-					a = ~~(a / alphabet.length);
-				}
-				nodeNameParam.value = nodeName;
+				nodeNameParam.value = indexToInputName(inputCount);
 				inputCount++;
 			} else if (nodeNameParam?.value == 'Output') {
 				// no output name, create one

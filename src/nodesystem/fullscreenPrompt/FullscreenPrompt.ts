@@ -22,20 +22,22 @@ export type NodeParameter = {
 	onclick?: () => void;
 };
 
+type ReturnValue =
+	| NodeParameter[]
+	| SaveMetadata
+	| void
+	| number[][]
+	| PromiseLike<void>
+	| PromiseLike<NodeParameter[]>
+	| PromiseLike<SaveMetadata>
+	| PromiseLike<number[][]>;
+
 export class FullscreenPrompt {
 	htmlElement: HTMLDivElement;
 	popupElement: HTMLDivElement;
-	promise: Promise<NodeParameter[] | SaveMetadata | void>;
+	promise: Promise<ReturnValue>;
 	rejectPromise: (reason?: string) => void;
-	resolvePromise: (
-		value:
-			| NodeParameter[]
-			| SaveMetadata
-			| void
-			| PromiseLike<void>
-			| PromiseLike<NodeParameter[]>
-			| PromiseLike<SaveMetadata>
-	) => void;
+	resolvePromise: (value: ReturnValue) => void;
 	failOnClose = false;
 
 	constructor() {
@@ -182,7 +184,7 @@ export class FullscreenPrompt {
 		return result;
 	}
 
-	close(resolve = false, result: NodeParameter[] | SaveMetadata | void = null) {
+	close(resolve = false, result: ReturnValue = null) {
 		if (this.promise) {
 			if (resolve) this.resolvePromise(result);
 			else this.rejectPromise();

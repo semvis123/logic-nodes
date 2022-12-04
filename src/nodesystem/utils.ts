@@ -190,3 +190,13 @@ export const removeOuterBrackets = (str: string) => {
 	}
 	return str;
 };
+
+export const indexToInputName = (index: number): string => {
+	const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+	let name = '';
+	while (index >= 0) {
+		name = alphabet[index % alphabet.length] + name;
+		index = ~~(index / alphabet.length) - 1;
+	}
+	return name;
+};

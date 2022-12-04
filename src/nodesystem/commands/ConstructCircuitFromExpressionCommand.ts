@@ -61,12 +61,16 @@ export class ConstructCircuitFromExpressionCommand extends Command {
 				return new ToastMessage('Expression is empty', 'danger');
 			}
 
-			const tree = this.createTree(expression)[0];
-			const nodesWithConnection = this.createNodesWithConnection(tree);
-			this.nodeSystem.importNodes(nodesWithConnection);
+			this.constructCircuit(expression);
 		} finally {
 			this.nodeSystem.eventHandler.addEventListeners();
 		}
+	}
+
+	public constructCircuit(expression: string) {
+		const tree = this.createTree(expression)[0];
+		const nodesWithConnection = this.createNodesWithConnection(tree);
+		this.nodeSystem.importNodes(nodesWithConnection);
 	}
 
 	createTree(expression: string): TreeNode[] {

@@ -14,6 +14,7 @@ import { LoadSaveCommand } from '../commands/LoadSaveCommand';
 import { ShowShortcutsCommand } from '../commands/ShowShortcutsCommand';
 import { DeselectAllCommand } from '../commands/DeselectAllCommand';
 import { ToastMessage } from '../toastMessage/ToastMessage';
+import { ConstructCircuitFromTruthTableCommand } from '../commands/ConstructCircuitFromTruthTableCommand';
 
 export const getShortcuts: (nodeSystem: NodeSystem) => Shortcut[] = (nodeSystem: NodeSystem) => [
 	{
@@ -63,6 +64,13 @@ export const getShortcuts: (nodeSystem: NodeSystem) => Shortcut[] = (nodeSystem:
 		description: 'Create a new circuit',
 		keyCombo: 'ctrl/cmd+n',
 		callback: new NewCommand(nodeSystem),
+		category: 'Editor'
+	},
+	{
+		name: 'Create circuit from Truth Table',
+		description: 'Create a circuit from a Truth Table',
+		keyCombo: 'ctrl/cmd+t',
+		callback: new ConstructCircuitFromTruthTableCommand(nodeSystem),
 		category: 'Editor'
 	},
 	{
