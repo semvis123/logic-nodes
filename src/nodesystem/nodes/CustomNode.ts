@@ -16,6 +16,7 @@ import type { OutputNode } from './OutputNode';
 import type { InputNode } from './InputNode';
 import type { SaveManager } from '../SaveManager';
 import { TickSystem } from '../TickSystem';
+import { ToastMessage } from '../toastMessage/ToastMessage';
 
 export class CustomNode extends Node {
 	padding = 7;
@@ -47,6 +48,12 @@ export class CustomNode extends Node {
 			label: 'Color',
 			value: '#000',
 			type: 'color'
+		},
+		{
+			name: 'instant',
+			label: 'Instant',
+			checked: false,
+			type: 'checkbox'
 		}
 	];
 	tickSystem: TickSystem;
@@ -115,8 +122,10 @@ export class CustomNode extends Node {
 
 		this.nodeConnectionHandler = new NodeConnectionHandler();
 		this.nodeStorage = new NodeStorage();
-		this.tickSystem = new TickSystem(this.nodeConnectionHandler);
-		this.tickSystem.start();
+		if (!this.getParamValue('instant', false)) {
+			this.tickSystem = new TickSystem(this.nodeConnectionHandler);
+			this.tickSystem.start();
+		}
 		this.config = new Config();
 		const save = JSON.parse(this.nodeSystem.saveManager.getSaveFile(this.getParamValue('saveId', -1), false, true));
 		this.importNodes(save);
@@ -185,6 +194,14 @@ export class CustomNode extends Node {
 		const nodeNames = new Map<string, string>();
 		const pastedNodes: Node[] = [];
 		nodes.forEach((node) => {
+			if (node.type == 'CombinationNode') {
+				// if parent instant-mode is true, set child instant-mode to true
+				node.parameters.forEach((param) => {
+					if (param.name == 'instant') {
+						param.checked = param.checked || this.getParamValue('instant', false);
+					}
+				});
+			}
 			const newNode = nodeClassesMap.get(node.type).load(node, this as unknown as NodeSystem);
 			if (rename) newNode.id = uuid();
 			nodeNames.set(node.id, newNode.id);
@@ -209,6 +226,17 @@ export class CustomNode extends Node {
 			inputNode.outputs[0].value = this.inputs[i]?.value;
 			this.nodeConnectionHandler.updateValue(inputNode.outputs[0]);
 		});
+		if (this.getParamValue('instant', false)) {
+			let limit = 50000;
+			while (this.nodeConnectionHandler.toUpdate.size > 0 && limit-- > 0) {
+				this.nodeConnectionHandler.updateAllValues();
+			}
+			if (limit <= 0) {
+				this.getParam('instant').checked = false;
+				new ToastMessage('Custom node detected a cycle, and disabled instant mode.', 'danger').show();
+			}
+			this.updateOutputs();
+		}
 	}
 
 	updateOutputs() {

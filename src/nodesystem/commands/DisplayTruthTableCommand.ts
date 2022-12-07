@@ -1,6 +1,6 @@
 import { Command } from './Command';
 import { ToastMessage } from '../toastMessage/ToastMessage';
-import { Config } from '../Config';
+import type { Config } from '../Config';
 import { NodeConnectionHandler } from '../handlers/NodeConnectionHandler';
 import { NodeStorage } from '../NodeStorage';
 import { nodeClassesMap } from '../nodes/nodes';
@@ -10,12 +10,14 @@ import { uuid } from '../utils';
 import type { Node } from '../Node';
 import { TableFloatingModal } from '../floatingModal/TableFloatingModal';
 import type { NodeSystem } from '../NodeSystem';
+import type { SaveManager } from '../SaveManager';
 
 export class DisplayTruthTableCommand extends Command {
 	nodeConnectionHandler: NodeConnectionHandler;
 	nodeStorage: NodeStorage;
 	config: Config;
 	activeTruthTableModal: TableFloatingModal;
+	saveManager: SaveManager
 
 	async execute() {
 		try {
@@ -26,7 +28,8 @@ export class DisplayTruthTableCommand extends Command {
 			this.nodeSystem.eventHandler.cleanup();
 			this.nodeConnectionHandler = new NodeConnectionHandler();
 			this.nodeStorage = new NodeStorage();
-			this.config = new Config();
+			this.config = this.nodeSystem.config;
+			this.saveManager = this.nodeSystem.saveManager;
 
 			const save = this.nodeSystem.saveManager.createSaveFile();
 			for (const node of this.nodeSystem.nodeStorage.nodes) {
@@ -36,7 +39,8 @@ export class DisplayTruthTableCommand extends Command {
 					node.getMetadata().nodeName != 'InputNode' &&
 					node.getMetadata().nodeName != 'LabelNode' &&
 					node.getMetadata().nodeName != 'SplitterNode' &&
-					node.getMetadata().nodeName != 'ConstantNode'
+					node.getMetadata().nodeName != 'ConstantNode' &&
+					node.getMetadata().nodeName != 'CombinationNode'
 				) {
 					return new ToastMessage('Truth table can only contain logic nodes.', 'danger').show();
 				}
@@ -89,7 +93,7 @@ export class DisplayTruthTableCommand extends Command {
 
 	buildTable(inputValues: number[], inputNodes: Node[], outputNodes: Node[], table: Map<string, number>[]) {
 		inputNodes.forEach((node, i) => node.outputs[0].setValue(inputValues[i]));
-		let limit = 5000;
+		let limit = 50000;
 		while (this.nodeConnectionHandler.toUpdate.size > 0 && limit > 0) {
 			this.nodeConnectionHandler.updateAllValues();
 			limit--;
@@ -115,13 +119,23 @@ export class DisplayTruthTableCommand extends Command {
 		const nodes: NodeSaveData[] = data.nodes;
 		const nodeIds = new Map<string, string>();
 		const pastedNodes: Node[] = [];
+		const usedNames: string[] = [];
 		let inputCount = 1;
 		let outputCount = 0;
 		const alphabet = 'abcdefghijklmnopqrstuvwxyz';
 		nodes.forEach((node) => {
 			const newNode: Node = nodeClassesMap.get(node.type).load(node, this as unknown as NodeSystem);
 			const nodeNameParam = newNode.getParam('name');
-			if (nodeNameParam?.value == 'Input') {
+			const nodeName = nodeNameParam?.value as string;
+			if (usedNames.includes(nodeName)) {
+				// name already used, rename
+				let i = 1;
+				while (usedNames.includes(nodeName + i)) {
+					i++;
+				}
+				nodeNameParam.value = nodeName + i;
+			}
+			if (nodeName == 'Input') {
 				// no input name, create one
 				let nodeName = '';
 				let a = inputCount;
@@ -131,15 +145,24 @@ export class DisplayTruthTableCommand extends Command {
 				}
 				nodeNameParam.value = nodeName;
 				inputCount++;
-			} else if (nodeNameParam?.value == 'Output') {
+			} else if (nodeName == 'Output') {
 				// no output name, create one
 				nodeNameParam.value = 'Q' + (outputCount > 0 ? outputCount.toString() : '');
 				outputCount++;
+			} else if (node.type == 'CombinationNode') {
+				// ensure that the instant mode is the same
+				node.parameters.forEach((param) => {
+					if (param.name == 'instant') {
+						param.checked = true;
+					}
+				});
 			}
+
 			if (rename) newNode.id = uuid();
 			nodeIds.set(node.id, newNode.id);
 			this.nodeStorage.addNode(newNode);
 			pastedNodes.push(newNode);
+			usedNames.push(nodeNameParam?.value as string ?? '');
 		});
 
 		for (const connection of data.connections) {

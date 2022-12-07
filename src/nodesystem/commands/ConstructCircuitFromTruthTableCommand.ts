@@ -57,15 +57,13 @@ export class ConstructCircuitFromTruthTableCommand extends Command {
 			const output = row[row.length - 1];
 			const inputExpression = inputs
 				.map((input, index) => {
-					return input ? indexToInputName(index) : `${logicNotations[1].not}${indexToInputName(index)}`;
+					return input ? indexToInputName(index) : `(!${indexToInputName(index)})`;
 				})
 				.join(logicNotations[1].and);
 			if (output == 1) {
-				expression += `${inputExpression}${logicNotations[1].or}`;
-			} else {
-				expression += `${logicNotations[1].not}(${inputExpression})${logicNotations[1].or}`;
+				expression += `${inputExpression}||`;
 			}
 		});
-		return expression.slice(0, expression.length - logicNotations[1].or.length);
+		return expression.slice(0, expression.length - 2);
 	}
 }
