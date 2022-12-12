@@ -36,7 +36,7 @@ export class NodeSystem {
 	history = [];
 	historyLevel = -1;
 	restoringHistory = false;
-	snapshotTimer: NodeJS.Timeout;
+	snapshotTimer: number;
 	saveManager: SaveManager;
 	tickSystem: TickSystem;
 	editorState: EditorState;
@@ -74,7 +74,7 @@ export class NodeSystem {
 	autoSave() {
 		const save = this.saveManager.createSaveFile();
 		if (!this.snapshotTimer) {
-			this.snapshotTimer = setTimeout(() => {
+			this.snapshotTimer = window.setTimeout(() => {
 				// autosave
 				const nonAutosave = this.saveManager.getSaveFile(this.saveId, false, this.isCustomNode);
 				if (JSON.stringify(save) == nonAutosave) {

@@ -4,13 +4,13 @@ import { getBoundingBoxOfMultipleNodes } from './utils';
 export class NodeRenderer {
 	ctx: CanvasRenderingContext2D;
 	frame: number;
-	throttleTimer: NodeJS.Timeout = null;
+	throttleTimer: number = null;
 	shouldRender = false;
 	dpi = 1;
 	frameCount = 0;
 	lastFpsSampleTime = 0;
 	countFPS = import.meta.env.DEV;
-	static fpsInterval: NodeJS.Timer = null;
+	static fpsInterval: number = null;
 	editorState: EditorState;
 
 	constructor(public canvas: HTMLCanvasElement, private nodeSystem: NodeSystem) {
@@ -21,7 +21,7 @@ export class NodeRenderer {
 			clearInterval(NodeRenderer.fpsInterval);
 		}
 		if (this.countFPS) {
-			NodeRenderer.fpsInterval = setInterval(this.sampleFPS.bind(this), 2000);
+			NodeRenderer.fpsInterval = window.setInterval(this.sampleFPS.bind(this), 2000);
 		}
 		this.render();
 	}
