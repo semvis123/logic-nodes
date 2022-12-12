@@ -12,6 +12,7 @@ Features:
 - Import, export
 - Save, load (localStorage)
 - Load circuit from boolean expression
+- Load circuit from truth table
 - Intuitive controls (pan, zoom)
 - shortcuts (crtl+? for a shortcut overview)
 - Minimap (toggleable with ctrl+m)
