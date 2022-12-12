@@ -7,15 +7,15 @@ export class FilterNodesCommand extends Command {
 		super(nodeSystem);
 	}
 	async execute() {
-		const nodeTypes = new Set<string>();
+		const displayNames = new Set<string>();
 		const filterParameters = new Set<NodeParameter>();
 		for (const node of this.nodeSystem.editorState.selectedNodes) {
-			nodeTypes.add(node.getMetadata().nodeName);
+			displayNames.add(node.getMetadata().displayName);
 		}
-		for (const nodeType of nodeTypes) {
+		for (const displayName of displayNames) {
 			filterParameters.add({
-				name: nodeType,
-				label: nodeType,
+				name: displayName,
+				label: displayName,
 				type: 'checkbox',
 				checked: true
 			});
@@ -24,11 +24,11 @@ export class FilterNodesCommand extends Command {
 		const popup = new FullscreenPrompt();
 		this.nodeSystem.eventHandler.cleanup();
 		try {
-			const params = await popup.requestParameters('Filter', Array.from(filterParameters));
+			const params = await popup.requestParameters('Filter selection', Array.from(filterParameters));
 			if (params == null) return;
 			const filteredNodes = [];
 			for (const node of this.nodeSystem.editorState.selectedNodes) {
-				const param = params.find((p) => p.name == node.getMetadata().nodeName);
+				const param = params.find((p) => p.name == node.getMetadata().displayName);
 				if (param == null) continue;
 				if (param.checked) {
 					filteredNodes.push(node);
