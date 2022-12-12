@@ -8,8 +8,8 @@ import { Tooltip } from '../tooltip/Tooltip';
 import type { EditorState } from '../EditorState';
 
 export class NodeSystemEventHandler {
-	selectedNodes: Node[] | undefined;
-	startingMouseMovePosition: { x: number; y: number } | undefined;
+	selectedNodes: Node[] | null;
+	startingMouseMovePosition: { x: number; y: number } | null;
 	selectionStarted: boolean;
 	middleMouseDown: boolean;
 	leftMouseDown: boolean;
@@ -46,16 +46,22 @@ export class NodeSystemEventHandler {
 		}
 	}
 
+	removeEventListeners() {
+		if (this.hasEventListeners) {
+			window.removeEventListener('pointerdown', this.onMouseDown);
+			window.removeEventListener('pointermove', this.onMouseMove);
+			window.removeEventListener('pointerup', this.onMouseUp);
+			window.removeEventListener('contextmenu', this.onContextMenu);
+			window.removeEventListener('keydown', this.onKeyDown);
+			window.removeEventListener('copy', this.onCopy);
+			window.removeEventListener('paste', this.onPaste);
+			window.removeEventListener('wheel', this.onWheel);
+			this.hasEventListeners = false;
+		}
+	}
+
 	cleanup() {
-		this.hasEventListeners = false;
-		window.removeEventListener('pointerdown', this.onMouseDown);
-		window.removeEventListener('pointermove', this.onMouseMove);
-		window.removeEventListener('pointerup', this.onMouseUp);
-		window.removeEventListener('contextmenu', this.onContextMenu);
-		window.removeEventListener('keydown', this.onKeyDown);
-		window.removeEventListener('copy', this.onCopy);
-		window.removeEventListener('paste', this.onPaste);
-		window.removeEventListener('wheel', this.onWheel);
+		this.removeEventListeners();
 		this.startingMouseMovePosition = undefined;
 		this.editorState.halfConnection = undefined;
 		this.editorState.selectionBox = undefined;
@@ -93,7 +99,7 @@ export class NodeSystemEventHandler {
 		this.startingMouseMovePosition = undefined;
 		if (this.editorState.contextMenu) {
 			this.editorState.contextMenu.remove();
-			this.editorState.contextMenu = undefined;
+			this.editorState.contextMenu = null;
 		}
 		// show context menu
 		const node = this.getNodeAt(pannedMouseX, pannedMouseY);
@@ -130,7 +136,7 @@ export class NodeSystemEventHandler {
 				)
 			) {
 				this.editorState.contextMenu.remove();
-				this.editorState.contextMenu = undefined;
+				this.editorState.contextMenu = null;
 			}
 			return;
 		}
@@ -221,7 +227,7 @@ export class NodeSystemEventHandler {
 			this.nodeSystem.nodeRenderer.requestRender();
 			return;
 		}
-		this.editorState.selectedNodes = undefined;
+		this.editorState.selectedNodes = null;
 		this.editorState.selectionBox = {
 			x: mouseX,
 			y: mouseY,
@@ -324,7 +330,7 @@ export class NodeSystemEventHandler {
 			return;
 		}
 		if (this.editorState.contextMenu) {
-			this.editorState.selectionBox = undefined;
+			this.editorState.selectionBox = null;
 			return;
 		}
 		if (this.editorState.selectionBox) {
@@ -348,8 +354,8 @@ export class NodeSystemEventHandler {
 				);
 			});
 			this.editorState.selectedNodes = nodes;
-			this.editorState.selectionBox = undefined;
-			this.startingMouseMovePosition = undefined;
+			this.editorState.selectionBox = null;
+			this.startingMouseMovePosition = null;
 		} else if (this.editorState.halfConnection) {
 			const mouseX = e.pageX - this.canvas.offsetLeft;
 			const mouseY = e.pageY - this.canvas.offsetTop;
@@ -393,9 +399,9 @@ export class NodeSystemEventHandler {
 				});
 				this.nodeSystem.snapshot();
 			}
-			this.editorState.selectedNodes = undefined;
+			this.editorState.selectedNodes = null;
 		}
-		this.editorState.halfConnection = undefined;
+		this.editorState.halfConnection = null;
 		this.nodeSystem.nodeRenderer.requestRender();
 	}
 
@@ -414,7 +420,7 @@ export class NodeSystemEventHandler {
 				return node;
 			}
 		}
-		return undefined;
+		return null;
 	}
 
 	calcConnectionPointHitBox() {

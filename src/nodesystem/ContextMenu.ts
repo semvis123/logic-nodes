@@ -7,6 +7,7 @@ import { CopyCommand } from './commands/CopyCommand';
 import { DuplicateCommand } from './commands/DuplicateCommand';
 import { AlignNodesCommand } from './commands/AlignNodesCommand';
 import { ChangeLayerOfNodeCommand } from './commands/ChangeLayerOfNodeCommand';
+import { FilterNodesCommand } from './commands/FilterNodesCommand';
 
 export class ContextMenu {
 	menu: HTMLDivElement;
@@ -47,6 +48,10 @@ export class ContextMenu {
 			layer: this.selectedNodes?.length > 0 && {
 				text: 'Change layer',
 				onclick: this.moveNodesAction
+			},
+			filter: this.selectedNodes?.length > 0 && {
+				text: 'Filter selection',
+				onclick: this.filterNodesAction
 			}
 		};
 
@@ -64,42 +69,49 @@ export class ContextMenu {
 		return this.menu;
 	}
 
-	remove() {
-		this.menu.remove();
-	}
-
 	editAction() {
-		this.menu.remove();
+		this.remove();
 		new EditNodeCommand(this.nodeSystem, this.selectedNodes).execute();
 	}
 
 	deleteAction() {
-		this.menu.remove();
+		this.remove();
 		new DeleteCommand(this.nodeSystem).execute();
 	}
 
 	copyAction() {
-		this.menu.remove();
+		this.remove();
 		new CopyCommand(this.nodeSystem).execute();
 	}
 
 	pasteAction() {
-		this.menu.remove();
+		this.remove();
 		new PasteCommand(this.nodeSystem).execute();
 	}
 
 	duplicateAction() {
-		this.menu.remove();
+		this.remove();
 		new DuplicateCommand(this.nodeSystem).execute();
 	}
 
 	alignAction() {
 		new AlignNodesCommand(this.nodeSystem, this.selectedNodes).execute();
-		this.menu.remove();
+		this.remove();
 	}
 
 	moveNodesAction() {
 		new ChangeLayerOfNodeCommand(this.nodeSystem, this.selectedNodes).execute();
+		this.remove();
+	}
+	
+	filterNodesAction() {
+		new FilterNodesCommand(this.nodeSystem).execute();
+		this.remove();
+	}
+
+	remove() {
 		this.menu.remove();
+		this.menu = null;
+		this.nodeSystem.editorState.contextMenu = null;
 	}
 }
