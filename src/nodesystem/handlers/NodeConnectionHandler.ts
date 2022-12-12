@@ -92,7 +92,7 @@ export class NodeConnectionHandler {
 
 				editorState.selectedNodes?.forEach((node) => {
 					if (node === fromOutput.node || node === toInput.node) {
-						ctx.strokeStyle = "#0099ff"
+						ctx.strokeStyle = '#0099ff';
 					}
 				});
 

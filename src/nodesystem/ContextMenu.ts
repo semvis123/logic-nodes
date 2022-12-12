@@ -20,11 +20,11 @@ export class ContextMenu {
 
 	show() {
 		const menuItems = {
-			edit: this.selectedNodes?.length == 1 && {
+			edit: this.selectedNodes?.length > 0 && {
 				text: 'Edit',
 				onclick: this.editAction
 			},
-			copy: this.selectedNodes?.length == 1 && {
+			copy: this.selectedNodes?.length > 0 && {
 				text: 'Copy',
 				onclick: this.copyAction
 			},
@@ -75,12 +75,12 @@ export class ContextMenu {
 
 	deleteAction() {
 		this.menu.remove();
-		new DeleteCommand(this.nodeSystem, this.selectedNodes).execute();
+		new DeleteCommand(this.nodeSystem).execute();
 	}
 
 	copyAction() {
 		this.menu.remove();
-		new CopyCommand(this.nodeSystem, this.selectedNodes).execute();
+		new CopyCommand(this.nodeSystem).execute();
 	}
 
 	pasteAction() {
@@ -90,7 +90,7 @@ export class ContextMenu {
 
 	duplicateAction() {
 		this.menu.remove();
-		new DuplicateCommand(this.nodeSystem, this.selectedNodes).execute();
+		new DuplicateCommand(this.nodeSystem).execute();
 	}
 
 	alignAction() {

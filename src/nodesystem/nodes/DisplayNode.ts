@@ -25,7 +25,6 @@ export class DisplayNode extends Node {
 			label: 'Off Color',
 			value: '#aa1111',
 			type: 'color'
-
 		}
 	];
 
@@ -63,7 +62,9 @@ export class DisplayNode extends Node {
 		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
 		ctx.stroke(path);
 
-		ctx.fillStyle = this.inputs[0].value == 0 ? this.getParamValue('offColor', '#ff0000') : this.getParamValue('onColor', '#00ff00');
+		const offColor = this.getParamValue('offColor', '#ff0000');
+		const onColor = this.getParamValue('onColor', '#00ff00');
+		ctx.fillStyle = this.inputs[0].value == 0 ? offColor : onColor;
 		ctx.fill(path);
 		ctx.fillStyle = this.style.fontColor;
 		if (this.getParamValue('showValue', false)) {

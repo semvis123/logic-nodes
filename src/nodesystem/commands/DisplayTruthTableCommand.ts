@@ -17,7 +17,7 @@ export class DisplayTruthTableCommand extends Command {
 	nodeStorage: NodeStorage;
 	config: Config;
 	activeTruthTableModal: TableFloatingModal;
-	saveManager: SaveManager
+	saveManager: SaveManager;
 
 	async execute() {
 		try {
@@ -162,7 +162,7 @@ export class DisplayTruthTableCommand extends Command {
 			nodeIds.set(node.id, newNode.id);
 			this.nodeStorage.addNode(newNode);
 			pastedNodes.push(newNode);
-			usedNames.push(nodeNameParam?.value as string ?? '');
+			usedNames.push((nodeNameParam?.value as string) ?? '');
 		});
 
 		for (const connection of data.connections) {
