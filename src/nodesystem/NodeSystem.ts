@@ -49,7 +49,7 @@ export class NodeSystem {
 		public htmlOverlayContainer: HTMLDivElement
 	) {
 		this.reset();
-		this.saveManager.loadSaveFile(playground, 'Untitled', -1, true);
+		this.saveManager.loadSaveFile(playground, this.filename, -1, true);
 	}
 
 	snapshot() {
@@ -95,8 +95,10 @@ export class NodeSystem {
 		this.restoringHistory = true;
 		try {
 			this.historyLevel--;
+			const filename = this.filename;
+			const saveId = this.saveId;
 			this.reset(false);
-			this.saveManager.loadSaveFile(this.history[this.historyLevel], this.filename, this.saveId, true);
+			this.saveManager.loadSaveFile(this.history[this.historyLevel], filename, saveId, true);
 
 			new ToastMessage(`Undo ${this.historyLevel}/${this.history.length - 1}`, 'info', 1000).show();
 			this.autoSave();
@@ -114,8 +116,10 @@ export class NodeSystem {
 		this.restoringHistory = true;
 		try {
 			this.historyLevel++;
+			const filename = this.filename;
+			const saveId = this.saveId;
 			this.reset(false);
-			this.saveManager.loadSaveFile(this.history[this.historyLevel], this.filename, this.saveId, true);
+			this.saveManager.loadSaveFile(this.history[this.historyLevel], filename, saveId, true);
 			new ToastMessage(`Redo ${this.historyLevel}/${this.history.length - 1}`, 'info', 1000).show();
 			this.autoSave();
 		} finally {

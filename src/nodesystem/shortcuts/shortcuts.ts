@@ -18,17 +18,17 @@ import { ConstructCircuitFromTruthTableCommand } from '../commands/ConstructCirc
 
 export const getShortcuts: (nodeSystem: NodeSystem) => Shortcut[] = (nodeSystem: NodeSystem) => [
 	{
-		name: 'Undo',
-		description: 'Undo the last action',
-		keyCombo: 'ctrl/cmd+z',
-		callback: nodeSystem.undo.bind(nodeSystem),
-		category: 'Editor'
-	},
-	{
 		name: 'Redo',
 		description: 'Redo the last action',
 		keyCombo: 'ctrl/cmd+y|ctrl/cmd+shift+z',
 		callback: nodeSystem.redo.bind(nodeSystem),
+		category: 'Editor'
+	},
+	{
+		name: 'Undo',
+		description: 'Undo the last action',
+		keyCombo: 'ctrl/cmd+z',
+		callback: nodeSystem.undo.bind(nodeSystem),
 		category: 'Editor'
 	},
 	{

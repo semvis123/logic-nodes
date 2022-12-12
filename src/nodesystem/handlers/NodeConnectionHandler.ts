@@ -89,6 +89,13 @@ export class NodeConnectionHandler {
 				if (config.colorConnectionLines)
 					ctx.strokeStyle = fromOutput.value ? config.theme.nodeHighColor : config.theme.nodeLowColor;
 				else ctx.strokeStyle = config.theme.connectionColor;
+
+				editorState.selectedNodes?.forEach((node) => {
+					if (node === fromOutput.node || node === toInput.node) {
+						ctx.strokeStyle = "#0099ff"
+					}
+				});
+
 				let toX = toInput.node.x - config.theme.connectionPointRadius;
 				const inputOffset = (toInput.node.height / (toInput.node.inputs.length + 1)) * (toInput.index + 1);
 				let toY = toInput.node.y + inputOffset;
