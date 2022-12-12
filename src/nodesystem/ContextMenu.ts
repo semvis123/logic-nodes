@@ -103,7 +103,7 @@ export class ContextMenu {
 		new ChangeLayerOfNodeCommand(this.nodeSystem, this.selectedNodes).execute();
 		this.remove();
 	}
-	
+
 	filterNodesAction() {
 		new FilterNodesCommand(this.nodeSystem).execute();
 		this.remove();
