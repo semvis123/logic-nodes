@@ -13,6 +13,19 @@ export class DisplayNode extends Node {
 			label: 'Show Value',
 			checked: false,
 			type: 'checkbox'
+		},
+		{
+			name: 'onColor',
+			label: 'On Color',
+			value: '#11aa11',
+			type: 'color'
+		},
+		{
+			name: 'offColor',
+			label: 'Off Color',
+			value: '#aa1111',
+			type: 'color'
+
 		}
 	];
 
@@ -50,7 +63,7 @@ export class DisplayNode extends Node {
 		const path = roundRect(0, 0, this.width, this.height, this.style.borderRadius);
 		ctx.stroke(path);
 
-		ctx.fillStyle = this.inputs[0].value == 0 ? '#aa1111' : '#11aa11';
+		ctx.fillStyle = this.inputs[0].value == 0 ? this.getParamValue('offColor', '#ff0000') : this.getParamValue('onColor', '#00ff00');
 		ctx.fill(path);
 		ctx.fillStyle = this.style.fontColor;
 		if (this.getParamValue('showValue', false)) {
