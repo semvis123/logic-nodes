@@ -55,11 +55,11 @@ export class NodeRenderer {
 		this.ctx.scale(this.dpi, this.dpi);
 		this.ctx.scale(this.editorState.view.zoom, this.editorState.view.zoom);
 		// render grid
-		if (this.editorState.view.zoom > 2.5) {
-			const gridSize = this.nodeSystem.config.nodeSpacing;
+		if (this.editorState.view.zoom > this.nodeSystem.config.theme.gridThreshold) {
+			const gridSize = this.nodeSystem.config.theme.gridSize;
 			this.ctx.beginPath();
-			this.ctx.lineWidth = 0.5;
-			const opacity = Math.max((this.editorState.view.zoom * 1) / 2.5 - 1, 0.25);
+			this.ctx.lineWidth = 1;
+			const opacity = Math.max((this.editorState.view.zoom * 1) / this.nodeSystem.config.theme.gridThreshold - 1, 0.60);
 			this.ctx.strokeStyle = `rgba(41, 41, 41, ${opacity})`;
 			const yOffset = this.editorState.view.y % gridSize;
 			const xOffset = this.editorState.view.x % gridSize;
