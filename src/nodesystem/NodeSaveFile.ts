@@ -14,4 +14,7 @@ export type NodeSaveFile = {
 		};
 	}[];
 	config?: ConfigType;
+	dependencies?: {
+		[key: string]: NodeSaveFile;
+	};
 };

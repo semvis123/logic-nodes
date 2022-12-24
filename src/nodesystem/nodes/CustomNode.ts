@@ -23,6 +23,9 @@ export class CustomNode extends Node {
 	currentValue = 0;
 	nodeStorage: NodeStorage;
 	nodeConnectionHandler: NodeConnectionHandler;
+	dependencies: {
+		[dependencyId: string]: NodeSaveFile;
+	};
 	saveManager: SaveManager;
 	inputNodes: InputNode[];
 	outputNodes: OutputNode[];
@@ -127,7 +130,16 @@ export class CustomNode extends Node {
 			this.tickSystem.start();
 		}
 		this.config = new Config();
-		const save = JSON.parse(this.nodeSystem.saveManager.getSaveFile(this.getParamValue('saveId', -1), false, true));
+		this.dependencies = this.nodeSystem.dependencies;
+		const save = this.nodeSystem.saveManager.getCustomNodeSaveFileWithDependencies(this.getParamValue('saveId', -1));
+		if (!save) {
+			throw new Error(
+				`Save with id ${this.getParamValue('saveId', -1)} not found, needed for node ${this.id} (${this.getParamValue(
+					'nodeName',
+					'Label'
+				)})`
+			);
+		}
 		this.importNodes(save);
 		this.inputNodes = [];
 		this.outputNodes = [];

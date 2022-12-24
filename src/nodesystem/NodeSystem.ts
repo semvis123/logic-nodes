@@ -42,6 +42,9 @@ export class NodeSystem {
 	editorState: EditorState;
 	shortcutManager: ShortcutManager;
 	minimap: Minimap;
+	dependencies: {
+		[dependencyId: string]: NodeSaveFile;
+	};
 
 	constructor(
 		public canvas: HTMLCanvasElement,
@@ -164,6 +167,7 @@ export class NodeSystem {
 		this.saveId = -1;
 		this.filename = 'Untitled';
 		this.isCustomNode = false;
+		this.dependencies = {};
 		this.nodeConnectionHandler = new NodeConnectionHandler();
 		this.nodeStorage = new NodeStorage();
 		this.saveManager = new SaveManager(this);

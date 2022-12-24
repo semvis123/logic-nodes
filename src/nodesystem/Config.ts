@@ -37,7 +37,7 @@ export class Config {
 		nodeLowColor: '#f23',
 		nodeSelectionSquareBorderColor: 'rgba(94, 94, 94, 1)',
 		gridThreshold: 1.25,
-		gridSize: 45,
+		gridSize: 45
 	};
 	renderMode = 'variable';
 	hardwareAccelerationHtmlOverlay = true;

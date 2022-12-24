@@ -13,16 +13,36 @@ export type SaveMetadata = {
 export class SaveManager {
 	constructor(public nodeSystem: NodeSystem) {}
 
-	createSaveFile() {
+	createSaveFile(dependencies = false) {
 		const save: NodeSaveFile = {
 			...this.nodeSystem.exportNodes(this.nodeSystem.nodeStorage.nodes),
 			config: this.nodeSystem.config.toObject()
 		};
 
+		if (dependencies) {
+			for (const node of this.nodeSystem.nodeStorage.nodes) {
+				if (node.getMetadata().nodeName == 'CombinationNode') {
+					save.dependencies = save.dependencies ?? {};
+					save.dependencies[node.getParamValue('saveId', -1)] = this.getCustomNodeSaveFileWithDependencies(
+						node.getParamValue('saveId', -1)
+					);
+				}
+			}
+
+			for (const [id, dependency] of Object.entries(save.dependencies ?? {})) {
+				save.dependencies[id] = this.bubbleDependencies(dependency);
+				for (const [id2, dependency2] of Object.entries(save.dependencies[id].dependencies ?? {})) {
+					save.dependencies[id2] = dependency2;
+				}
+				save.dependencies[id].dependencies = {};
+			}
+		}
+
 		return save;
 	}
 
 	loadSaveFile(save: NodeSaveFile, filename: string, saveId: number, silent = false, isCustomNode = false) {
+		this.nodeSystem.dependencies = save.dependencies ?? {};
 		try {
 			this.nodeSystem.importNodes(save);
 		} catch (e) {
@@ -68,6 +88,56 @@ export class SaveManager {
 	getSaveFile(saveId: number, autosave = false, customNode = false) {
 		const prefix = (autosave ? 'autosave_' : 'save_') + (customNode ? 'node_' : '');
 		return window.localStorage.getItem(prefix + saveId);
+	}
+
+	getCustomNodeSaveFileWithDependencies(saveId: number) {
+		const prefix = 'save_node_';
+
+		// check dependencies first
+		if (this.nodeSystem.dependencies[saveId]) {
+			return { ...this.nodeSystem.dependencies[saveId], dependencies: this.nodeSystem.dependencies };
+		}
+
+		const json = JSON.parse(window.localStorage.getItem(prefix + saveId)) as NodeSaveFile;
+		if (!json) {
+			throw new Error('Could not find custom node with id ' + saveId);
+		}
+		const dependencies = json.dependencies ?? {};
+
+		for (const node of json.nodes) {
+			if (node.type == 'CombinationNode') {
+				for (const param of node.parameters) {
+					if (param.name == 'saveId') {
+						dependencies[param.value] = this.getCustomNodeSaveFileWithDependencies(param.value as number);
+					}
+				}
+			}
+		}
+
+		for (const dependency of Object.values(json.dependencies ?? {})) {
+			for (const [innerDependencyId, innerDependency] of Object.entries(dependency.dependencies ?? {})) {
+				json.dependencies[innerDependencyId] = innerDependency;
+				innerDependency.dependencies = {};
+			}
+		}
+
+		json.dependencies = dependencies;
+
+		return json;
+	}
+
+	bubbleDependencies(saveFile: NodeSaveFile): NodeSaveFile {
+		const dependencies = saveFile.dependencies ?? {};
+		for (const [id, dependency] of Object.entries(dependencies)) {
+			const save = this.bubbleDependencies(dependency);
+			dependencies[id] = save;
+			for (const [innerDependencyId, innerDependency] of Object.entries(save.dependencies ?? {})) {
+				dependencies[innerDependencyId] = innerDependency;
+			}
+			save.dependencies = {};
+		}
+		saveFile.dependencies = dependencies;
+		return saveFile;
 	}
 
 	saveToLocalStorage(saveData: NodeSaveFile, filename: string, id: number, isAutosave = false, isCustomNode = false) {

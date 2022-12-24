@@ -59,7 +59,7 @@ export class NodeRenderer {
 			const gridSize = this.nodeSystem.config.theme.gridSize;
 			this.ctx.beginPath();
 			this.ctx.lineWidth = 1;
-			const opacity = Math.max((this.editorState.view.zoom * 1) / this.nodeSystem.config.theme.gridThreshold - 1, 0.60);
+			const opacity = Math.max((this.editorState.view.zoom * 1) / this.nodeSystem.config.theme.gridThreshold - 1, 0.6);
 			this.ctx.strokeStyle = `rgba(41, 41, 41, ${opacity})`;
 			const yOffset = this.editorState.view.y % gridSize;
 			const xOffset = this.editorState.view.x % gridSize;
