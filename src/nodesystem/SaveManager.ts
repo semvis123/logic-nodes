@@ -144,10 +144,10 @@ export class SaveManager {
 	saveToLocalStorage(saveData: NodeSaveFile, filename: string, id: string, isAutosave = false, isCustomNode = false, isImported=false) {
 		let saves: SaveMetadata[] = this.getSaves();
 		saves = saves.filter(
-			(save) => !(id == save.id && save.isAutosave == isAutosave && save.isCustomNode == isCustomNode && save.isImported == isImported)
+			(save) => !(id == save.id && save.isAutosave == isAutosave && save.isCustomNode == isCustomNode)
 		);
 		const lastUpdated = new Date().toJSON();
-		saves.push({ id, filename, isAutosave, lastUpdated, isCustomNode });
+		saves.push({ id, filename, isAutosave, lastUpdated, isCustomNode, isImported });
 
 		const prefix = (isAutosave ? 'autosave_' : 'save_') + (isCustomNode ? 'node_' : '');
 		window.localStorage.setItem(prefix + id, JSON.stringify(saveData));
