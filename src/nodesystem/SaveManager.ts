@@ -3,7 +3,7 @@ import type { NodeSystem } from './NodeSystem';
 import { ToastMessage } from './toastMessage/ToastMessage';
 
 export type SaveMetadata = {
-	id: number;
+	id: string;
 	filename: string;
 	isAutosave?: boolean;
 	isCustomNode?: boolean;
@@ -23,8 +23,8 @@ export class SaveManager {
 			for (const node of this.nodeSystem.nodeStorage.nodes) {
 				if (node.getMetadata().nodeName == 'CombinationNode') {
 					save.dependencies = save.dependencies ?? {};
-					save.dependencies[node.getParamValue('saveId', -1)] = this.getCustomNodeSaveFileWithDependencies(
-						node.getParamValue('saveId', -1)
+					save.dependencies[node.getParamValue('saveId', 'unsaved')] = this.getCustomNodeSaveFileWithDependencies(
+						node.getParamValue('saveId', 'undefined')
 					);
 				}
 			}
@@ -41,7 +41,7 @@ export class SaveManager {
 		return save;
 	}
 
-	loadSaveFile(save: NodeSaveFile, filename: string, saveId: number, silent = false, isCustomNode = false) {
+	loadSaveFile(save: NodeSaveFile, filename: string, saveId: string, silent = false, isCustomNode = false) {
 		this.nodeSystem.dependencies = save.dependencies ?? {};
 		try {
 			this.nodeSystem.importNodes(save);
@@ -85,12 +85,12 @@ export class SaveManager {
 		return this.getSaves().filter((node) => node.isCustomNode);
 	}
 
-	getSaveFile(saveId: number, autosave = false, customNode = false) {
+	getSaveFile(saveId: string, autosave = false, customNode = false) {
 		const prefix = (autosave ? 'autosave_' : 'save_') + (customNode ? 'node_' : '');
 		return window.localStorage.getItem(prefix + saveId);
 	}
 
-	getCustomNodeSaveFileWithDependencies(saveId: number) {
+	getCustomNodeSaveFileWithDependencies(saveId: string) {
 		const prefix = 'save_node_';
 
 		// check dependencies first
@@ -108,7 +108,7 @@ export class SaveManager {
 			if (node.type == 'CombinationNode') {
 				for (const param of node.parameters) {
 					if (param.name == 'saveId') {
-						dependencies[param.value] = this.getCustomNodeSaveFileWithDependencies(param.value as number);
+						dependencies[param.value] = this.getCustomNodeSaveFileWithDependencies(param.value as string);
 					}
 				}
 			}
@@ -140,7 +140,7 @@ export class SaveManager {
 		return saveFile;
 	}
 
-	saveToLocalStorage(saveData: NodeSaveFile, filename: string, id: number, isAutosave = false, isCustomNode = false) {
+	saveToLocalStorage(saveData: NodeSaveFile, filename: string, id: string, isAutosave = false, isCustomNode = false) {
 		let saves: SaveMetadata[] = this.getSaves();
 		saves = saves.filter(
 			(save) => !(id == save.id && save.isAutosave == isAutosave && save.isCustomNode == isCustomNode)
@@ -148,14 +148,8 @@ export class SaveManager {
 		const lastUpdated = new Date().toJSON();
 		saves.push({ id, filename, isAutosave, lastUpdated, isCustomNode });
 
-		const lastSaveId = Math.max(this.lastSaveId(), id);
-		window.localStorage.setItem('lastSaveId', lastSaveId.toString());
 		const prefix = (isAutosave ? 'autosave_' : 'save_') + (isCustomNode ? 'node_' : '');
 		window.localStorage.setItem(prefix + id, JSON.stringify(saveData));
 		window.localStorage.setItem('saves', JSON.stringify(saves));
-	}
-
-	lastSaveId() {
-		return parseInt(window.localStorage.getItem('lastSaveId') ?? '0');
 	}
 }

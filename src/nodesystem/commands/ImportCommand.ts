@@ -13,7 +13,7 @@ export class ImportCommand extends Command {
 				reader.onload = () => {
 					const json = JSON.parse(reader.result as string);
 					this.nodeSystem.reset();
-					this.nodeSystem.saveManager.loadSaveFile(json, 'Unsaved import', -1);
+					this.nodeSystem.saveManager.loadSaveFile(json, 'Unsaved import', 'unsaved');
 				};
 				reader.readAsText(file);
 			}

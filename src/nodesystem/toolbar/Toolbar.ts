@@ -53,7 +53,7 @@ export class Toolbar {
 			examplesDropdownMenu.addButton(
 				new ToolbarButton(filename, () => {
 					this.nodeSystem.reset();
-					this.nodeSystem.saveManager.loadSaveFile(save, filename, -1);
+					this.nodeSystem.saveManager.loadSaveFile(save, filename, 'unsaved');
 				})
 			);
 		});

@@ -1,6 +1,7 @@
 import { Command } from './Command';
 import { FullscreenPrompt } from '../fullscreenPrompt/FullscreenPrompt';
 import { ToastMessage } from '../toastMessage/ToastMessage';
+import { uuid } from '../utils';
 
 export class CreateNodeCommand extends Command {
 	async execute() {
@@ -29,8 +30,8 @@ export class CreateNodeCommand extends Command {
 
 			const name = params[0].value as string;
 			const save = this.nodeSystem.saveManager.createSaveFile();
-			if (this.nodeSystem.saveId == -1) {
-				this.nodeSystem.saveId = this.nodeSystem.saveManager.lastSaveId() + 1;
+			if (this.nodeSystem.saveId == 'unsaved') {
+				this.nodeSystem.saveId = uuid();
 			}
 			this.nodeSystem.saveManager.saveToLocalStorage(save, name, this.nodeSystem.saveId, false, true);
 			new ToastMessage('Created node: ' + name, 'info').show();

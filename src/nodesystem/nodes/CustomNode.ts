@@ -131,13 +131,14 @@ export class CustomNode extends Node {
 		}
 		this.config = new Config();
 		this.dependencies = this.nodeSystem.dependencies;
-		const save = this.nodeSystem.saveManager.getCustomNodeSaveFileWithDependencies(this.getParamValue('saveId', -1));
+		const save = this.nodeSystem.saveManager.getCustomNodeSaveFileWithDependencies(
+			this.getParamValue('saveId', 'unsaved')
+		);
 		if (!save) {
 			throw new Error(
-				`Save with id ${this.getParamValue('saveId', -1)} not found, needed for node ${this.id} (${this.getParamValue(
-					'nodeName',
-					'Label'
-				)})`
+				`Save with id ${this.getParamValue('saveId', 'unsaved')} not found, needed for node ${
+					this.id
+				} (${this.getParamValue('nodeName', 'Label')})`
 			);
 		}
 		this.importNodes(save);

@@ -1,11 +1,13 @@
 import { Command } from './Command';
 import { FullscreenPrompt } from '../fullscreenPrompt/FullscreenPrompt';
+import { uuid } from '../utils';
 
 export class SaveAsCommand extends Command {
 	async execute() {
 		// save to localStorage
 		const save = this.nodeSystem.saveManager.createSaveFile();
-		const newSaveId: number = this.nodeSystem.saveManager.lastSaveId() + 1;
+		const newSaveId: string = uuid();
+		const saves = this.nodeSystem.saveManager.getSaves().filter((save) => !save.isAutosave);
 
 		const dialog = new FullscreenPrompt();
 
@@ -15,7 +17,7 @@ export class SaveAsCommand extends Command {
 				{
 					name: 'filename',
 					label: 'Filename',
-					value: 'save ' + newSaveId,
+					value: 'Save ' + (saves.length + 1),
 					type: 'text',
 					required: true
 				}

@@ -30,7 +30,7 @@ export class NodeSystem {
 	config: Config;
 	toolbar: Toolbar;
 	bottomToolbar: BottomToolbar;
-	saveId = -1;
+	saveId = 'unsaved';
 	filename = 'Example';
 	isCustomNode = false;
 	history = [];
@@ -52,7 +52,7 @@ export class NodeSystem {
 		public htmlOverlayContainer: HTMLDivElement
 	) {
 		this.reset();
-		this.saveManager.loadSaveFile(playground, this.filename, -1, true);
+		this.saveManager.loadSaveFile(playground, this.filename, 'unsaved', true);
 	}
 
 	snapshot() {
@@ -164,7 +164,7 @@ export class NodeSystem {
 		this.tickSystem && this.tickSystem.stop();
 		delete this.tickSystem;
 
-		this.saveId = -1;
+		this.saveId = 'unsaved';
 		this.filename = 'Untitled';
 		this.isCustomNode = false;
 		this.dependencies = {};

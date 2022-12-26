@@ -59,7 +59,7 @@ export class SettingsCommand extends Command {
 					checked: this.nodeSystem.config.private.useXORSymbol,
 					type: 'checkbox'
 				},
-				this.nodeSystem.saveId != -1 && {
+				this.nodeSystem.saveId != 'unsaved' && {
 					name: 'delete',
 					type: 'button',
 					label: 'Current savefile',
