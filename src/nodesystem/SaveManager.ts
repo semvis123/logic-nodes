@@ -7,6 +7,7 @@ export type SaveMetadata = {
 	filename: string;
 	isAutosave?: boolean;
 	isCustomNode?: boolean;
+	isImported?: boolean;
 	lastUpdated?: string;
 };
 
@@ -140,10 +141,10 @@ export class SaveManager {
 		return saveFile;
 	}
 
-	saveToLocalStorage(saveData: NodeSaveFile, filename: string, id: string, isAutosave = false, isCustomNode = false) {
+	saveToLocalStorage(saveData: NodeSaveFile, filename: string, id: string, isAutosave = false, isCustomNode = false, isImported=false) {
 		let saves: SaveMetadata[] = this.getSaves();
 		saves = saves.filter(
-			(save) => !(id == save.id && save.isAutosave == isAutosave && save.isCustomNode == isCustomNode)
+			(save) => !(id == save.id && save.isAutosave == isAutosave && save.isCustomNode == isCustomNode && save.isImported == isImported)
 		);
 		const lastUpdated = new Date().toJSON();
 		saves.push({ id, filename, isAutosave, lastUpdated, isCustomNode });
@@ -151,5 +152,20 @@ export class SaveManager {
 		const prefix = (isAutosave ? 'autosave_' : 'save_') + (isCustomNode ? 'node_' : '');
 		window.localStorage.setItem(prefix + id, JSON.stringify(saveData));
 		window.localStorage.setItem('saves', JSON.stringify(saves));
+	}
+
+	getSaveMetadata(id: string, isAutosave = false, isCustomNode = false) {
+		const saves: SaveMetadata[] = this.getSaves();
+		return saves.find((save) => save.id == id && save.isAutosave == isAutosave && save.isCustomNode == isCustomNode);
+	}
+
+	deleteSaveFile(id: string, isAutosave = false, isCustomNode = false) {
+		let saves: SaveMetadata[] = this.getSaves();
+		saves = saves.filter(
+			(save) => !(id == save.id && save.isAutosave == isAutosave && save.isCustomNode == isCustomNode)
+		);
+		window.localStorage.setItem('saves', JSON.stringify(saves));
+		const prefix = (isAutosave ? 'autosave_' : 'save_') + (isCustomNode ? 'node_' : '');
+		window.localStorage.removeItem(prefix + id);
 	}
 }
