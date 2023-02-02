@@ -1,4 +1,4 @@
-# logic nodes
+# Logic nodes
 
 Simple logic node simulator build in Typescript.
 
