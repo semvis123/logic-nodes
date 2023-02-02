@@ -141,7 +141,14 @@ export class SaveManager {
 		return saveFile;
 	}
 
-	saveToLocalStorage(saveData: NodeSaveFile, filename: string, id: string, isAutosave = false, isCustomNode = false, isImported=false) {
+	saveToLocalStorage(
+		saveData: NodeSaveFile,
+		filename: string,
+		id: string,
+		isAutosave = false,
+		isCustomNode = false,
+		isImported = false
+	) {
 		let saves: SaveMetadata[] = this.getSaves();
 		saves = saves.filter(
 			(save) => !(id == save.id && save.isAutosave == isAutosave && save.isCustomNode == isCustomNode)
