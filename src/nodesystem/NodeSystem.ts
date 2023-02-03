@@ -19,6 +19,8 @@ import { EditorState } from './EditorState';
 import { FloatingModalPositioner } from './floatingModal/FloatingModalPositioner';
 import { ShortcutManager } from './shortcuts/ShortcutManager';
 import { Minimap } from './minimap/Minimap';
+import { exampleSaves } from './examples/exampleSaves';
+
 
 const maxUndoHistory = 5000;
 
@@ -52,6 +54,9 @@ export class NodeSystem {
 		public htmlOverlayContainer: HTMLDivElement
 	) {
 		this.reset();
+		if (location.hash && this.loadFromHash()) {
+			return;
+		}
 		this.saveManager.loadSaveFile(playground, this.filename, 'unsaved', true);
 	}
 
@@ -294,5 +299,27 @@ export class NodeSystem {
 		}
 		this.snapshot();
 		this.nodeRenderer?.requestRender();
+	}
+
+	loadFromHash() {
+		const hash = window.location.hash;
+		if (hash.length > 0) {
+			// url: #example:calculator
+			const decoded = decodeURIComponent(hash.substring(1));
+			let found = false;
+			if (decoded.startsWith('example:')) {
+				const exampleName = decoded.substring(8);
+
+				// load example from hash
+				exampleSaves.forEach((example) => {
+					if (example.filename === exampleName) {
+						this.saveManager.loadSaveFile(example.save, example.filename, uuid());
+					}
+					found = true;
+				});
+			}
+			if (found) return true
+		}
+		return false;
 	}
 }
