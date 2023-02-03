@@ -19,11 +19,44 @@ import { NewCommand } from '../commands/NewCommand';
 import type { Command } from '../commands/Command';
 import { DisplayTruthTableCommand } from '../commands/DisplayTruthTableCommand';
 import { CreateBooleanExpressionCommand } from '../commands/CreateBooleanExpressionCommand';
+import type { SaveMetadata } from '../SaveManager';
+import { OpenCustomNodeLibraryCommand } from '../commands/OpenCustomNodeLibraryCommand';
 
 export class Toolbar {
 	htmlElement: HTMLDivElement;
 	buttons: (ToolbarButton | ToolbarDropdownMenu)[] = [];
 	constructor(public nodeSystem: NodeSystem) {
+		this.createButtons();
+	}
+
+	closeAll() {
+		this.buttons.forEach((dropdown) => {
+			if (!(dropdown instanceof ToolbarDropdownMenu)) return;
+			dropdown.close();
+		});
+	}
+
+	createHtmlElement(): HTMLDivElement {
+		this.htmlElement = document.createElement('div');
+		this.htmlElement.classList.add('toolbar');
+		this.buttons.forEach((button) => {
+			this.htmlElement.appendChild(button.htmlElement);
+		});
+
+		// add to DOM
+		this.nodeSystem.canvas.parentElement.appendChild(this.htmlElement);
+
+		return this.htmlElement;
+	}
+
+	refresh() {
+		this.htmlElement.remove();
+		this.htmlElement = null;
+		this.buttons = [];
+		this.createButtons();
+	}
+
+	createButtons() {
 		this.createHtmlElement();
 
 		const fileDropdownMenu = new ToolbarDropdownMenu('File');
@@ -88,16 +121,23 @@ export class Toolbar {
 		});
 
 		// custom nodes
-		this.nodeSystem.saveManager.getCustomNodes().forEach((node) => {
-			const button = new ToolbarButton(node.filename, () => {
+		const customNodes = this.nodeSystem.saveManager.getCustomNodes();
+		const customNodeMap = new Map<string, SaveMetadata>();
+		customNodes.forEach((customNode) => {
+			customNodeMap.set(customNode.id, customNode);
+		});
+		this.nodeSystem.config.private.pinnedCustomNodes.forEach((id) => {
+			const customNode = customNodeMap.get(id);
+			if (!customNode) return;
+			const button = new ToolbarButton(customNode.filename, () => {
 				const newNode = new CustomNode(uuid(), 0, 0, this.nodeSystem.editorState.layer, this.nodeSystem, [
 					{
 						name: 'saveId',
-						value: node.id
+						value: customNode.id
 					},
 					{
 						name: 'nodeName',
-						value: node.filename
+						value: customNode.filename
 					}
 				]);
 				positionNode(
@@ -114,6 +154,9 @@ export class Toolbar {
 			createNodeDropdowns.get('Custom').addButton(button);
 		});
 
+		const viewAllCustomNodesButton = new ToolbarButton('View all', new OpenCustomNodeLibraryCommand(this.nodeSystem));
+		createNodeDropdowns.get('Custom').addButton(viewAllCustomNodesButton);
+
 		createNodeDropdowns.forEach((dropdown) => {
 			if (dropdown.buttons.length > 0) {
 				this.buttons.push(dropdown);
@@ -121,25 +164,5 @@ export class Toolbar {
 				dropdown.onOpen = this.closeAll.bind(this);
 			}
 		});
-	}
-
-	closeAll() {
-		this.buttons.forEach((dropdown) => {
-			if (!(dropdown instanceof ToolbarDropdownMenu)) return;
-			dropdown.close();
-		});
-	}
-
-	createHtmlElement(): HTMLDivElement {
-		this.htmlElement = document.createElement('div');
-		this.htmlElement.classList.add('toolbar');
-		this.buttons.forEach((button) => {
-			this.htmlElement.appendChild(button.htmlElement);
-		});
-
-		// add to DOM
-		this.nodeSystem.canvas.parentElement.appendChild(this.htmlElement);
-
-		return this.htmlElement;
 	}
 }

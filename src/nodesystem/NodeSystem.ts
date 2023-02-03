@@ -178,9 +178,9 @@ export class NodeSystem {
 			this.eventHandler = new NodeSystemEventHandler(this, this.canvas);
 			this.nodeRenderer = new NodeRenderer(this.canvas, this);
 			this.nodeRenderer.setDPI(prevDpi);
+			this.config = new Config();
 			this.toolbar = new Toolbar(this);
 			this.bottomToolbar = new BottomToolbar(this);
-			this.config = new Config();
 			this.shortcutManager = new ShortcutManager(this);
 			this.htmlCanvasOverlayContainer.style.transform = `translate(${0}px, ${0}px)`;
 			FloatingModalPositioner.prototype.getInstance().closeAll();

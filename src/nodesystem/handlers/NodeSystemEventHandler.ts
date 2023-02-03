@@ -71,6 +71,7 @@ export class NodeSystemEventHandler {
 	}
 
 	onWheel(e: WheelEvent) {
+		if (!this.hasEventListeners) return; // weird bug where this gets called after cleanup
 		e.preventDefault();
 		if (this.middleMouseDown || this.editorState.contextMenu) return;
 		if (e.ctrlKey) {
