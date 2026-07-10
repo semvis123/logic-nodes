@@ -135,6 +135,21 @@ export class NodeSystem {
 		}
 	}
 
+	// Tear down without recreating anything. reset() rebuilds the editor for a
+	// new circuit; this is for leaving the page entirely (e.g. client-side
+	// navigation), where leaked window listeners would block scrolling and
+	// keyboard input on the next page.
+	destroy() {
+		if (this.snapshotTimer) {
+			clearTimeout(this.snapshotTimer);
+			this.snapshotTimer = undefined;
+		}
+		this.nodeStorage?.nodes?.forEach((node) => node.cleanup());
+		if (this.eventHandler) this.eventHandler.cleanup();
+		this.tickSystem && this.tickSystem.stop();
+		if (this.minimap) this.minimap.remove();
+	}
+
 	reset(full = true) {
 		if (this.snapshotTimer) {
 			clearTimeout(this.snapshotTimer);

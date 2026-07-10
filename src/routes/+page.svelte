@@ -21,11 +21,12 @@
 	});
 
 	// Client-side navigation to /about must not leave the editor's window
-	// listeners or the context-menu override behind.
+	// listeners or the context-menu override behind. Note: reset(true) is NOT
+	// a teardown, it rebuilds the editor and re-adds the listeners.
 	onDestroy(() => {
 		if (typeof document === 'undefined') return; // SSR runs onDestroy too
 		document.oncontextmenu = null;
-		nodeSystem?.reset(true);
+		nodeSystem?.destroy();
 		nodeSystem = null;
 	});
 
