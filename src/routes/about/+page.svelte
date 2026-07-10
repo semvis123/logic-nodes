@@ -661,8 +661,9 @@
 	}
 
 	kbd {
-		font: 600 0.8em ui-monospace, SFMono-Regular, Menlo, monospace;
-		border: 1px solid rgba(255, 255, 255, 0.35);
+		font: 600 0.85em ui-monospace, SFMono-Regular, Menlo, monospace;
+		color: #fff;
+		border: 1px solid rgba(255, 255, 255, 0.55);
 		border-bottom-width: 2px;
 		border-radius: 3px;
 		padding: 0 4px;
