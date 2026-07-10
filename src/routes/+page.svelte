@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { NodeSystem } from '../nodesystem/NodeSystem';
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 
 	let canvas: HTMLCanvasElement;
 
@@ -18,6 +18,15 @@
 			e.preventDefault();
 			return false;
 		};
+	});
+
+	// Client-side navigation to /about must not leave the editor's window
+	// listeners or the context-menu override behind.
+	onDestroy(() => {
+		if (typeof document === 'undefined') return; // SSR runs onDestroy too
+		document.oncontextmenu = null;
+		nodeSystem?.reset(true);
+		nodeSystem = null;
 	});
 
 	const resize = () => {
@@ -64,41 +73,6 @@
 	<meta name="twitter:title" content="Logic Nodes | Free Online Logic Gate Simulator" />
 	<meta name="twitter:image" content="https://nodes.kriyak.com/og-image.png" />
 	{@html jsonLd}
-	<style>
-		* {
-			-webkit-user-select: none;
-			-moz-user-select: none;
-			-ms-user-select: none;
-			user-select: none;
-		}
-		html,
-		body,
-		main {
-			margin: 0;
-			padding: 0;
-			height: 100%;
-			width: 100%;
-			overflow: hidden;
-		}
-		.container,
-		canvas {
-			width: 100%;
-			height: 100%;
-		}
-		.overlayContainer {
-			position: absolute;
-			top: 0;
-			left: 0;
-			height: 100vh;
-			width: 100vw;
-			backface-visibility: hidden;
-		}
-		.canvasOverlayContainerWrapper {
-			position: fixed;
-			top: 0;
-			left: 0;
-		}
-	</style>
 </svelte:head>
 
 <div class="container" bind:clientWidth={width} bind:clientHeight={height}>
@@ -112,6 +86,51 @@
 </div>
 
 <style>
+	/* Scoped to this page instead of a global <svelte:head> style block, so
+	   client-side navigation to /about doesn't inherit overflow:hidden and
+	   user-select:none. The container is fixed to the viewport, which keeps
+	   the page unscrollable here without touching html/body. */
+	:global(html),
+	:global(body),
+	:global(main) {
+		margin: 0;
+		padding: 0;
+	}
+
+	.container {
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100vw;
+		height: 100vh;
+		overflow: hidden;
+		background-color: #1d1e20;
+		-webkit-user-select: none;
+		-moz-user-select: none;
+		-ms-user-select: none;
+		user-select: none;
+	}
+
+	canvas {
+		width: 100%;
+		height: 100%;
+	}
+
+	.overlayContainer {
+		position: absolute;
+		top: 0;
+		left: 0;
+		height: 100vh;
+		width: 100vw;
+		backface-visibility: hidden;
+	}
+
+	.canvasOverlayContainerWrapper {
+		position: fixed;
+		top: 0;
+		left: 0;
+	}
+
 	.about-link {
 		position: fixed;
 		top: 0;
