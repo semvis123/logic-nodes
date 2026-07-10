@@ -27,9 +27,43 @@
 		dpi = devicePixelRatio || 1;
 		nodeSystem.nodeRenderer.setDPI(dpi);
 	};
+
+	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
+		'@context': 'https://schema.org',
+		'@type': 'SoftwareApplication',
+		name: 'Logic Nodes',
+		url: 'https://nodes.kriyak.com/',
+		applicationCategory: 'EducationalApplication',
+		operatingSystem: 'Web browser',
+		offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+		description:
+			'Free online logic gate simulator. Build and simulate digital logic circuits in the browser, generate truth tables and boolean expressions, and share circuits with a link.',
+		screenshot: 'https://nodes.kriyak.com/og-image.png',
+		author: { '@type': 'Person', name: 'Sem', url: 'https://kriyak.com/about/', '@id': 'https://kriyak.com/#person' },
+		license: 'https://www.apache.org/licenses/LICENSE-2.0'
+	})}${'<'}/script>`;
 </script>
 
 <svelte:head>
+	<title>Logic Nodes | Free Online Logic Gate Simulator</title>
+	<meta
+		name="description"
+		content="Build and simulate digital logic circuits in your browser. Free logic gate simulator with truth tables, boolean expressions, custom nodes, and shareable circuits. No signup."
+	/>
+	<link rel="canonical" href="https://nodes.kriyak.com/" />
+	<meta property="og:type" content="website" />
+	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:title" content="Logic Nodes | Free Online Logic Gate Simulator" />
+	<meta
+		property="og:description"
+		content="Build and simulate digital logic circuits in your browser. Truth tables, boolean expressions, custom nodes, and shareable circuits. Free, no signup."
+	/>
+	<meta property="og:url" content="https://nodes.kriyak.com/" />
+	<meta property="og:image" content="https://nodes.kriyak.com/og-image.png" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content="Logic Nodes | Free Online Logic Gate Simulator" />
+	<meta name="twitter:image" content="https://nodes.kriyak.com/og-image.png" />
+	{@html jsonLd}
 	<style>
 		* {
 			-webkit-user-select: none;
@@ -74,4 +108,25 @@
 	</div>
 	<div class="overlayContainer" bind:this={overlayContainer} />
 	<div class="toast-message-container" id="toast-container" />
+	<a class="about-link" href="/about">about</a>
 </div>
+
+<style>
+	.about-link {
+		position: fixed;
+		top: 0;
+		right: 8px;
+		z-index: 2;
+		height: 30px;
+		line-height: 30px;
+		font: normal normal normal 14px/30px 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		color: #ccc;
+		text-decoration: none;
+		padding: 0 6px;
+	}
+
+	.about-link:hover {
+		color: #fff;
+		text-decoration: underline;
+	}
+</style>
