@@ -58,7 +58,7 @@
 	<title>Logic Nodes | Free Online Logic Gate Simulator</title>
 	<meta
 		name="description"
-		content="Build and simulate digital logic circuits in your browser. Free logic gate simulator with truth tables, boolean expressions, custom nodes, and shareable circuits. No signup."
+		content="Build and simulate digital logic circuits in your browser. Free logic gate simulator with truth tables, boolean expressions, and shareable circuits."
 	/>
 	<link rel="canonical" href="https://nodes.kriyak.com/" />
 	<meta property="og:type" content="website" />

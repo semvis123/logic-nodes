@@ -107,7 +107,7 @@
 	<title>About Logic Nodes | Free Online Logic Gate Simulator</title>
 	<meta
 		name="description"
-		content="What Logic Nodes is and how to use it: a free online logic gate simulator with truth table generation, boolean expression synthesis, custom nodes, and shareable circuits."
+		content="What Logic Nodes is and how to use it: a free online logic gate simulator with truth tables, custom nodes, and shareable circuits."
 	/>
 	<link rel="canonical" href="https://nodes.kriyak.com/about" />
 	<meta property="og:type" content="website" />
