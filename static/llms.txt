@@ -1,0 +1,25 @@
+# Logic Nodes
+
+> Free online logic gate simulator that runs entirely in the browser. Build digital logic circuits with AND, OR, NOT, XOR, NAND, and NOR gates, generate truth tables and boolean expressions, construct circuits from expressions or truth tables, and share circuits with a link. No account, no install, no tracking.
+
+Logic Nodes is a hand-written TypeScript application rendering on an HTML5 canvas, open source under Apache 2.0.
+
+## Pages
+
+- [Simulator](https://nodes.kriyak.com/): the editor itself, opens with an example circuit
+- [About](https://nodes.kriyak.com/about): feature tour, how to use it, and FAQ
+
+## Key facts
+
+- Free and open source (Apache 2.0): https://github.com/semvis123/logic-nodes
+- Gates: AND, OR, NOT, XOR, NAND, NOR, plus clock, delay, counter, button, toggle, and display nodes
+- Generates truth tables and boolean expressions from circuits, and circuits from truth tables or expressions
+- Circuits save in the browser (localStorage), export/import as files, and encode into shareable URLs
+- Custom nodes let you package circuits into reusable components
+- Suited for learning digital logic: boolean algebra, SR latches, half adders, counters
+
+## Author
+
+Built by Sem, a freelance software developer in the Netherlands: https://kriyak.com/
+- Project page: https://kriyak.com/project/logic-nodes/
+- Engineering write-up: https://kriyak.com/blog/hand-writing-a-canvas-node-editor/
