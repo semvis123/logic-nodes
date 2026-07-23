@@ -77,6 +77,23 @@
 </svelte:head>
 
 <div class="container" bind:clientWidth={width} bind:clientHeight={height}>
+	<!-- Crawlable heading + intro for the editor route. Visually hidden so the
+	     editor's appearance is unchanged, but present in the prerendered HTML
+	     (Googlebot renders JS and would otherwise see only the canvas) and read
+	     by screen readers. Single, accurate H1 matching the page's purpose. -->
+	<h1 class="sr-only">Online Logic Gate Simulator</h1>
+	<p class="sr-only">
+		Free online logic gate simulator and digital circuit builder — a no-signup, open-source
+		alternative to tools like Logic.ly and Logisim. Build circuits with AND, OR, NOT, XOR, NAND
+		and NOR gates, generate truth tables and boolean expressions, and share them with a link.
+		<a href="/about">Learn how it works</a>.
+	</p>
+	<noscript>
+		<p class="noscript-note">
+			Logic Nodes is a free online logic gate simulator. Enable JavaScript to build and simulate
+			circuits, or read the <a href="/about">feature overview and guide</a>.
+		</p>
+	</noscript>
 	<canvas bind:this={canvas} width={width * dpi} height={height * dpi} />
 	<div class="canvasOverlayContainerWrapper">
 		<div class="overlayContainer" bind:this={canvasOverlayContainer} />
@@ -110,6 +127,30 @@
 		-moz-user-select: none;
 		-ms-user-select: none;
 		user-select: none;
+	}
+
+	/* Present in the DOM for crawlers and screen readers, but not painted, so the
+	   editor layout is untouched. */
+	.sr-only {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	.noscript-note {
+		position: absolute;
+		top: 40px;
+		left: 12px;
+		right: 12px;
+		z-index: 3;
+		color: #ccc;
+		font: normal normal normal 14px/1.5 'Helvetica Neue', Helvetica, Arial, sans-serif;
 	}
 
 	canvas {
