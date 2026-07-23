@@ -75,6 +75,14 @@
 					},
 					{
 						'@type': 'Question',
+						name: 'Is Logic Nodes a free alternative to Logic.ly?',
+						acceptedAnswer: {
+							'@type': 'Answer',
+							text: 'Yes. Logic Nodes is a free, open-source logic gate simulator that runs in your browser with no account and no install, so it works as a free alternative to paid tools like Logic.ly for building and simulating digital logic circuits.'
+						}
+					},
+					{
+						'@type': 'Question',
 						name: 'Where are my circuits saved?',
 						acceptedAnswer: {
 							'@type': 'Answer',
@@ -104,10 +112,10 @@
 </script>
 
 <svelte:head>
-	<title>About Logic Nodes | Free Online Logic Gate Simulator</title>
+	<title>Logic Nodes — Logic Gate Simulator, Truth Tables &amp; Boolean Algebra</title>
 	<meta
 		name="description"
-		content="What Logic Nodes is and how to use it: a free online logic gate simulator with truth tables, custom nodes, and shareable circuits."
+		content="Free online logic gate simulator and digital circuit builder — an open-source alternative to Logic.ly. Truth tables, boolean expressions, custom nodes, shareable circuits."
 	/>
 	<link rel="canonical" href="https://nodes.kriyak.com/about" />
 	<meta property="og:type" content="website" />
@@ -133,8 +141,9 @@
 		<div class="hero-copy">
 			<h1>Build logic circuits in your&nbsp;browser</h1>
 			<p class="sub">
-				A free logic gate simulator for students, hobbyists, and anyone learning digital logic.
-				Wire up gates, watch the signals flow, and read off the truth table.
+				A free logic gate simulator and digital circuit builder for students, hobbyists, and
+				anyone learning digital logic — an open-source alternative to Logic.ly. Wire up gates,
+				watch the signals flow, and read off the truth table.
 			</p>
 			<div class="hero-actions">
 				<a class="cta" href="/">Start building</a>
@@ -302,10 +311,11 @@
 	<section class="learn">
 		<h2>Made for learning digital logic</h2>
 		<p>
-			Logic Nodes started as a way to understand logic gates properly and grew into a full
-			circuit editor. It's well suited for boolean algebra homework, building an SR latch or a
-			half adder for the first time, or experimenting with feedback and clocks. Teachers can
-			share example circuits with a link, and students need nothing but a browser.
+			Logic Nodes started as a way to understand logic gates properly and grew into a full logic
+			gate editor — a node-based editor (a hand-built node canvas) and digital circuit simulator
+			in one. It's well suited for boolean algebra homework, building an SR latch or a half adder
+			for the first time, or experimenting with feedback and clocks. Teachers can share example
+			circuits with a link, and students need nothing but a browser.
 		</p>
 		<a class="screenshot-frame" href="/" aria-label="Open the simulator">
 			<img
@@ -326,6 +336,14 @@
 			<p>
 				Yes. Free, open source under Apache 2.0, and it runs entirely in your browser. No
 				account, no tracking.
+			</p>
+		</details>
+		<details>
+			<summary>Is it a free alternative to Logic.ly?</summary>
+			<p>
+				Yes. Logic Nodes is a free, open-source logic gate simulator in the browser, so it works
+				as a free alternative to paid tools like Logic.ly for building and simulating digital
+				logic circuits.
 			</p>
 		</details>
 		<details>
