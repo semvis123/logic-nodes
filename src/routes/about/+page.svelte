@@ -112,10 +112,10 @@
 </script>
 
 <svelte:head>
-	<title>Logic Nodes — Logic Gate Simulator, Truth Tables &amp; Boolean Algebra</title>
+	<title>Logic Nodes | Logic Gate Simulator, Truth Tables &amp; Boolean Algebra</title>
 	<meta
 		name="description"
-		content="Free online logic gate simulator and digital circuit builder — an open-source alternative to Logic.ly. Truth tables, boolean expressions, custom nodes, shareable circuits."
+		content="Free online logic gate simulator and digital circuit builder, an open-source alternative to Logic.ly. Truth tables, boolean expressions, custom nodes, shareable circuits."
 	/>
 	<link rel="canonical" href="https://nodes.kriyak.com/about" />
 	<meta property="og:type" content="website" />
@@ -142,7 +142,7 @@
 			<h1>Build logic circuits in your&nbsp;browser</h1>
 			<p class="sub">
 				A free logic gate simulator and digital circuit builder for students, hobbyists, and
-				anyone learning digital logic — an open-source alternative to tools like Logic.ly and
+				anyone learning digital logic, an open-source alternative to tools like Logic.ly and
 				Logisim. Wire up gates,
 				watch the signals flow, and read off the truth table.
 			</p>
@@ -313,7 +313,7 @@
 		<h2>Made for learning digital logic</h2>
 		<p>
 			Logic Nodes started as a way to understand logic gates properly and grew into a full logic
-			gate editor — a node-based editor (a hand-built node canvas) and digital circuit simulator
+			gate editor: a node-based editor (a hand-built node canvas) and digital circuit simulator
 			in one. It's well suited for boolean algebra homework, building an SR latch or a half adder
 			for the first time, or experimenting with feedback and clocks. Teachers can share example
 			circuits with a link, and students need nothing but a browser.
