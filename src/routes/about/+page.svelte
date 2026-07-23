@@ -75,10 +75,10 @@
 					},
 					{
 						'@type': 'Question',
-						name: 'Is Logic Nodes a free alternative to Logic.ly?',
+						name: 'Is Logic Nodes a free alternative to Logic.ly or Logisim?',
 						acceptedAnswer: {
 							'@type': 'Answer',
-							text: 'Yes. Logic Nodes is a free, open-source logic gate simulator that runs in your browser with no account and no install, so it works as a free alternative to paid tools like Logic.ly for building and simulating digital logic circuits.'
+							text: 'Yes. Logic Nodes is a free, open-source logic gate simulator that runs entirely in your browser with no account and no install, so it works as an alternative to paid tools like Logic.ly and to desktop apps like Logisim for building and simulating digital logic circuits online.'
 						}
 					},
 					{
@@ -142,7 +142,8 @@
 			<h1>Build logic circuits in your&nbsp;browser</h1>
 			<p class="sub">
 				A free logic gate simulator and digital circuit builder for students, hobbyists, and
-				anyone learning digital logic — an open-source alternative to Logic.ly. Wire up gates,
+				anyone learning digital logic — an open-source alternative to tools like Logic.ly and
+				Logisim. Wire up gates,
 				watch the signals flow, and read off the truth table.
 			</p>
 			<div class="hero-actions">
@@ -339,11 +340,11 @@
 			</p>
 		</details>
 		<details>
-			<summary>Is it a free alternative to Logic.ly?</summary>
+			<summary>Is it a free alternative to Logic.ly or Logisim?</summary>
 			<p>
-				Yes. Logic Nodes is a free, open-source logic gate simulator in the browser, so it works
-				as a free alternative to paid tools like Logic.ly for building and simulating digital
-				logic circuits.
+				Yes. Logic Nodes is a free, open-source logic gate simulator that runs in the browser, so
+				it works as an alternative to paid tools like Logic.ly and to desktop apps like Logisim
+				for building and simulating digital logic circuits online.
 			</p>
 		</details>
 		<details>

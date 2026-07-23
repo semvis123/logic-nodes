@@ -84,8 +84,8 @@
 	<h1 class="sr-only">Online Logic Gate Simulator</h1>
 	<p class="sr-only">
 		Free online logic gate simulator and digital circuit builder — a no-signup, open-source
-		alternative to Logic.ly. Build circuits with AND, OR, NOT, XOR, NAND and NOR gates, generate
-		truth tables and boolean expressions, and share them with a link.
+		alternative to tools like Logic.ly and Logisim. Build circuits with AND, OR, NOT, XOR, NAND
+		and NOR gates, generate truth tables and boolean expressions, and share them with a link.
 		<a href="/about">Learn how it works</a>.
 	</p>
 	<noscript>
