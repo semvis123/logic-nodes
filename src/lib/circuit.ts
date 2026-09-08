@@ -186,22 +186,41 @@ export function buildCircuit(ast: Ast): Circuit {
 		const columnHeight = col.length * rowHeight - ROW_GAP;
 		const top = PAD + (height - PAD * 2 - columnHeight) / 2;
 		col.forEach((slot) => {
-			const x = PAD + c * (GATE_W + COL_GAP);
-			const cy = top + slot.row * rowHeight + GATE_H / 2;
-			centreY.set(slot.id, cy);
-			laneX.set(slot.id, x);
-			const node = slot.node;
-			if (!node) return;
-			node.x = x;
-			node.y = cy - node.height / 2;
-			node.outX = node.x + node.width;
-			node.outY = cy;
-			node.inputPorts = pinYs(node.children.length).map((dy) => ({
-				x: node.x,
-				y: node.y + (node.kind === 'gate' ? dy : node.height / 2)
-			}));
+			centreY.set(slot.id, top + slot.row * rowHeight + GATE_H / 2);
+			laneX.set(slot.id, PAD + c * (GATE_W + COL_GAP));
 		});
 	});
+
+	// Sorting the rows decides where each gate sits, but not which of its two
+	// pins a wire lands on: that was taken from the order the operands happened
+	// to be written in. So `b | a` sent b to the top pin while the input column
+	// put a on top, and the two wires crossed for no reason at all. AND, OR and
+	// XOR do not care about the order of their inputs, so the pins are free to
+	// follow the wires rather than the text.
+	const arrivesAt = (route: { from: string; chain: string[] }) => centreY.get(route.chain.at(-1) ?? route.from)!;
+	const heights = new Map<string, number>();
+	for (const route of routes) heights.set(`${route.to}#${route.pin}`, arrivesAt(route));
+
+	const swapped = new Set<string>();
+	for (const node of nodes.values()) {
+		if (node.children.length !== 2) continue;
+		const [top, bottom] = [heights.get(`${node.id}#0`), heights.get(`${node.id}#1`)];
+		if (top == null || bottom == null || top <= bottom) continue;
+		node.children = [node.children[1], node.children[0]];
+		swapped.add(node.id);
+	}
+
+	for (const node of nodes.values()) {
+		const cy = centreY.get(node.id)!;
+		node.x = laneX.get(node.id)!;
+		node.y = cy - node.height / 2;
+		node.outX = node.x + node.width;
+		node.outY = cy;
+		node.inputPorts = pinYs(node.children.length).map((dy) => ({
+			x: node.x,
+			y: node.y + (node.kind === 'gate' ? dy : node.height / 2)
+		}));
+	}
 
 	const root = nodes.get(rootId)!;
 	const output = {
@@ -229,8 +248,11 @@ export function buildCircuit(ast: Ast): Circuit {
 	}
 	const round = (n: number) => Math.round(n * 10) / 10;
 
-	const wires: CircuitWire[] = routes.map(({ from, to, pin, chain }) => {
+	const wires: CircuitWire[] = routes.map(({ from, to, pin: written, chain }) => {
 		const child = nodes.get(from)!;
+		// The pin the route was built with is the one it was written at; if the
+		// gate's inputs were swapped above, it arrives at the other one.
+		const pin = swapped.has(to) ? 1 - written : written;
 		const port = nodes.get(to)!.inputPorts[pin];
 		const points = [{ x: child.outX, y: child.outY }];
 		// Cross each intermediate column along its own free lane.

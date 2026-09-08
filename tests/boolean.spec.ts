@@ -685,6 +685,30 @@ test.describe('circuit diagram layout', () => {
 		expect(violations.slice(0, 5)).toEqual([]);
 	});
 
+	test('two wires into one gate never cross each other', () => {
+		// Which operand is written first says nothing about where its wire comes
+		// from, and AND, OR and XOR do not care about the order of their inputs.
+		// Taking the pins in written order made `b | a` cross for no reason.
+		const swaps = (src: string) => {
+			const circuit = buildCircuit(parseExpression(src));
+			const byId = new Map(circuit.nodes.map((n) => [n.id, n]));
+			const bad: string[] = [];
+			for (const gate of circuit.nodes) {
+				if (gate.children.length !== 2) continue;
+				const arrival = (pin: number) => {
+					const wire = circuit.wires.find((w) => w.to === gate.id && w.pin === pin);
+					return wire ? wire.points.at(-2)!.y : byId.get(gate.children[pin])!.outY;
+				};
+				if (arrival(0) > arrival(1)) bad.push(`${gate.label} in ${src}`);
+			}
+			return bad;
+		};
+
+		const written = ['b | a', 'a | b', 'b & a', 'b ^ a', '!b | a', 'c | (b & a)', '(c & d) | (a & b)'];
+		expect(written.flatMap(swaps)).toEqual([]);
+		for (const { ast } of randomCases(200)) expect(swaps(format(ast, 'math'))).toEqual([]);
+	});
+
 	test('gates sit strictly to the right of everything feeding them', () => {
 		for (const { ast } of randomCases(120)) {
 			const circuit = buildCircuit(ast);
