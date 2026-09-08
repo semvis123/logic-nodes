@@ -16,7 +16,8 @@
 		"cards": "node_modules/.pnpm/esbuild@0.16.4/node_modules/esbuild/bin/esbuild scripts/reference-cards.ts --bundle --platform=node --format=esm --external:@playwright/test --outfile=.svelte-kit/reference-cards.mjs && node .svelte-kit/reference-cards.mjs",
 		"icons": "node scripts/icons.mjs",
 		"lastmod": "node scripts/lastmod.mjs",
-		"prebuild": "node scripts/lastmod.mjs"
+		"prebuild": "node scripts/lastmod.mjs",
+		"timing": "node_modules/.pnpm/esbuild@0.16.4/node_modules/esbuild/bin/esbuild scripts/timing-cards.ts --bundle --platform=node --format=esm --external:@playwright/test --outfile=.svelte-kit/timing-cards.mjs && node .svelte-kit/timing-cards.mjs"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.28.1",

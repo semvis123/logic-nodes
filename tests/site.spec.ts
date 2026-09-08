@@ -213,6 +213,28 @@ test('every page is well linked and close to the homepage', async ({ request }) 
 	expect(lonely, `fewer than three inbound internal links: ${lonely.join(', ')}`).toEqual([]);
 });
 
+test('every image in the sitemap exists and is on the page it is listed under', async ({ request }) => {
+	const xml = await (await request.get('/sitemap.xml')).text();
+	const problems: string[] = [];
+
+	for (const block of xml.match(/<url>[\s\S]*?<\/url>/g) ?? []) {
+		const path = (block.match(/<loc>[^<]*?logicgates\.org([^<]*)<\/loc>/)?.[1] || '/') as string;
+		const images = [...block.matchAll(/<image:loc>[^<]*?logicgates\.org(\/[^<]+)<\/image:loc>/g)].map((m) => m[1]);
+		if (!images.length) continue;
+
+		const html = await (await request.get(path)).text();
+		for (const image of images) {
+			// The file has to be served...
+			const response = await request.get(image);
+			if (response.status() !== 200) problems.push(`${path}: ${image} returns ${response.status()}`);
+			// ...and it has to actually appear on the page it is claimed for, or
+			// Google has no reason to associate the two.
+			if (!html.includes(image)) problems.push(`${path}: lists ${image} but does not show it`);
+		}
+	}
+	expect(problems, problems.join('\n')).toEqual([]);
+});
+
 test('llms.txt lists every page', async ({ request }) => {
 	const llms = await (await request.get('/llms.txt')).text();
 	const paths = await sitemapPaths(request);

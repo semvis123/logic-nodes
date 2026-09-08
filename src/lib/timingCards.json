@@ -1,0 +1,74 @@
+[
+	{
+		"file": "sr-flip-flop-timing-diagram.png",
+		"title": "SR flip-flop timing diagram",
+		"alt": "SR flip-flop timing diagram: clock, S and R inputs, and the Q output changing on each rising clock edge",
+		"url": "logicgates.org/flip-flops/sr",
+		"width": 1600,
+		"height": 918
+	},
+	{
+		"file": "d-flip-flop-timing-diagram.png",
+		"title": "D flip-flop timing diagram",
+		"alt": "D flip-flop timing diagram: clock, D inputs, and the Q output changing on each rising clock edge",
+		"url": "logicgates.org/flip-flops/d",
+		"width": 1600,
+		"height": 830
+	},
+	{
+		"file": "jk-flip-flop-timing-diagram.png",
+		"title": "JK flip-flop timing diagram",
+		"alt": "JK flip-flop timing diagram: clock, J and K inputs, and the Q output changing on each rising clock edge",
+		"url": "logicgates.org/flip-flops/jk",
+		"width": 1600,
+		"height": 918
+	},
+	{
+		"file": "t-flip-flop-timing-diagram.png",
+		"title": "T flip-flop timing diagram",
+		"alt": "T flip-flop timing diagram: clock, T inputs, and the Q output changing on each rising clock edge",
+		"url": "logicgates.org/flip-flops/t",
+		"width": 1600,
+		"height": 832
+	},
+	{
+		"file": "binary-counter-timing-diagram.png",
+		"title": "3 bit binary counter timing diagram",
+		"alt": "Timing diagram of a 3 bit binary counter, showing Q0 toggling every cycle, Q1 every second cycle and Q2 every fourth",
+		"url": "logicgates.org/counters",
+		"width": 1600,
+		"height": 918
+	},
+	{
+		"file": "decade-counter-timing-diagram.png",
+		"title": "Decade counter timing diagram",
+		"alt": "Timing diagram of a decade counter counting 0 to 9 and clearing back to 0",
+		"url": "logicgates.org/counters",
+		"width": 1668,
+		"height": 1006
+	},
+	{
+		"file": "shift-register-timing-diagram.png",
+		"title": "4 bit shift register timing diagram",
+		"alt": "Timing diagram of a 4 bit shift register, showing the input pattern moving one stage per clock edge",
+		"url": "logicgates.org/shift-registers",
+		"width": 1600,
+		"height": 1094
+	},
+	{
+		"file": "ring-counter-timing-diagram.png",
+		"title": "Ring counter timing diagram",
+		"alt": "Timing diagram of a 4 stage ring counter, one high bit moving one place per clock edge",
+		"url": "logicgates.org/shift-registers",
+		"width": 1568,
+		"height": 960
+	},
+	{
+		"file": "johnson-counter-timing-diagram.png",
+		"title": "Johnson counter timing diagram",
+		"alt": "Timing diagram of a 4 stage Johnson counter filling with ones and then emptying, giving eight states",
+		"url": "logicgates.org/shift-registers",
+		"width": 1600,
+		"height": 1006
+	}
+]

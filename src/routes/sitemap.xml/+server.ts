@@ -2,6 +2,7 @@ import { SITE } from '$lib/site';
 import { gates } from '$lib/gates';
 import { flipFlops } from '$lib/flipflops';
 import { lastModified } from '$lib/lastmod';
+import { timingCards } from '$lib/timingCards';
 
 export const prerender = true;
 
@@ -22,8 +23,15 @@ const IMAGES: Record<string, { file: string; title: string }[]> = {
 	// The homepage carousel. These used to be keyed to /about, which now only
 	// redirects and so is left out of the sitemap entirely, which meant these
 	// three were listed nowhere.
+	// The generated timing diagrams, grouped by the page each one belongs to.
+	...timingCards.reduce<Record<string, { file: string; title: string }[]>>((map, card) => {
+		const path = card.url.replace('logicgates.org', '');
+		(map[path] ??= []).push({ file: `img/${card.file}`, title: card.title });
+		return map;
+	}, {}),
+	// og-image.png is a social card, not something the page displays, so it is
+	// left out: an image sitemap is for images a visitor actually sees.
 	'/': [
-		{ file: 'og-image.png', title: 'The Logic Nodes logic gate simulator' },
 		{ file: 'boolean-algebra.png', title: 'Truth table and boolean expression from a logic circuit' },
 		{ file: 'seven-segment.png', title: 'A seven segment decoder built from logic gates' },
 		{ file: 'calculator.png', title: 'A four bit calculator built from logic gates' }

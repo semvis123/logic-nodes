@@ -5,6 +5,7 @@
 	import { countSequence, counterWaveforms, counterKinds, bitsOf } from '$lib/sequential';
 	import { clockSignal, timingToSvg, timingAlt } from '$lib/timing';
 	import { flipFlops } from '$lib/flipflops';
+	import { timingCard } from '$lib/timingCards';
 
 	// Everything below is generated, so the tables, the waveforms and the prose
 	// counts cannot drift apart.
@@ -40,6 +41,7 @@
 	});
 
 	const tFlipFlop = flipFlops.find((ff) => ff.slug === 't');
+	const cards = ['binary-counter-timing-diagram.png', 'decade-counter-timing-diagram.png'].map(timingCard);
 
 	const faqs = [
 		{
@@ -277,6 +279,23 @@
 		<p class="cta-row"><a class="cta" href="/simulator">Build a counter in the simulator</a></p>
 	</section>
 
+	<section>
+		<h2>Reference cards</h2>
+		<p class="section-intro">Both waveforms as images, black on white, for notes or a slide.</p>
+		{#each [...cards] as shot}
+			<a class="card-image" href="/img/{shot.file}" download>
+				<img
+					src="/img/{shot.file}"
+					alt={shot.alt}
+					width={shot.width}
+					height={shot.height}
+					loading="lazy"
+					decoding="async"
+				/>
+				<span class="card-caption">Click to download: {shot.title}</span>
+			</a>
+		{/each}
+	</section>
 	<section class="faq">
 		<h2>Questions about counters</h2>
 		{#each faqs as item}
@@ -289,6 +308,31 @@
 </ContentPage>
 
 <style>
+	.card-image {
+		display: block;
+		border: 1px solid rgba(255, 255, 255, 0.35);
+		border-radius: 3px;
+		overflow: hidden;
+		text-decoration: none;
+		max-width: 640px;
+	}
+
+	.card-image img {
+		display: block;
+		width: 100%;
+		height: auto;
+		/* The card art is black on white, so it carries its own page colour. */
+		background: #fff;
+	}
+
+	.card-caption {
+		display: block;
+		background: #161618;
+		color: #8ede8e;
+		font-size: 0.8rem;
+		padding: 0.5rem 0.8rem;
+	}
+
 	.print-only {
 		display: none;
 	}
