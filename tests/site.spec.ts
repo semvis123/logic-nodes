@@ -213,6 +213,25 @@ test('every page is well linked and close to the homepage', async ({ request }) 
 	expect(lonely, `fewer than three inbound internal links: ${lonely.join(', ')}`).toEqual([]);
 });
 
+test('the binary converter agrees with itself', async ({ page }) => {
+	// 202 in eight bits IS -54, so the negation steps have to start from 54.
+	await page.goto('/binary-converter?value=202&base=decimal&bits=8');
+	const bits = (await page.locator('.bit-value').allTextContents()).join('');
+	expect(bits).toBe('11001010');
+
+	const steps = (await page.locator('.steps-list li').allTextContents()).map((s) => s.replace(/[^01]/g, ''));
+	expect(steps[0], 'starts from the magnitude of the signed value').toBe('00110110');
+	expect(steps[1], 'every bit inverted').toBe('11001001');
+	expect(steps[2], 'plus one, landing on the pattern shown above').toBe(bits);
+
+	// And every rendering of the same pattern must agree.
+	const shown = await page.locator('.answer-value, .primary-value').allTextContents();
+	expect(shown.some((t) => t.trim() === '202')).toBe(true);
+	expect(shown.some((t) => t.replace(/\s/g, '') === '11001010')).toBe(true);
+	expect(shown.some((t) => t.trim() === 'CA')).toBe(true);
+	expect(shown.some((t) => t.trim() === '-54' || t.trim() === '\u221254')).toBe(true);
+});
+
 test('every image in the sitemap exists and is on the page it is listed under', async ({ request }) => {
 	const xml = await (await request.get('/sitemap.xml')).text();
 	const problems: string[] = [];
