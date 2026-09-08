@@ -81,7 +81,7 @@
 	const faqs = [
 		{
 			q: 'Where do the questions come from?',
-			a: 'They are generated, not drawn from a fixed list, so you can keep going indefinitely. Each one is built and marked by the same expression engine that powers the truth table generator and the Karnaugh map solver, which is also how the distractors are checked to be genuinely wrong.'
+			a: 'They are built fresh rather than drawn from a fixed list, so you can keep going indefinitely. The wrong answers are real alternatives rather than filler, so you cannot get there by eliminating the obviously silly ones.'
 		},
 		{
 			q: 'What is covered?',
@@ -273,10 +273,7 @@
 
 	<section>
 		<h2>What comes up</h2>
-		<p class="section-intro">
-			Five kinds of question, mixed at random. Every one is generated and then marked by the same engine behind the rest
-			of the site, so the answers are worked out rather than looked up.
-		</p>
+		<p class="section-intro">Five kinds of question, mixed at random.</p>
 		<div class="table-wrap">
 			<table class="data-table">
 				<thead>

@@ -67,7 +67,7 @@
 	const page = {
 		title: 'Counters in Digital Logic: Ripple, Synchronous and Decade',
 		description:
-			'How binary counters work, from toggling flip-flops to ripple, synchronous, decade and up/down designs, with generated count tables and timing diagrams.',
+			'How binary counters work, from toggling flip-flops to ripple, synchronous, decade and up/down designs, with count tables and timing diagrams.',
 		url: `${SITE}/counters`,
 		image: `${SITE}/og/counters.png`,
 		imageAlt: 'Logic Nodes: counters'

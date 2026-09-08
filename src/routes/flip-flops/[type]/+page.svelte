@@ -252,8 +252,7 @@
 			</div>
 			<div class="timing-scroll print-only" aria-hidden="true">{@html timingPrintSvg}</div>
 			<figcaption>
-				Q is computed from <span class="mono">{ff.equationText}</span>, the same equation as the table above, so the
-				waveform and the table cannot disagree.
+				Q follows <span class="mono">{ff.equationText}</span>, the same equation as the table above.
 			</figcaption>
 		</figure>
 	</section>

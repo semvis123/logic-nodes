@@ -74,7 +74,7 @@
 	const page = {
 		title: 'Shift Registers: SIPO, PISO, Ring and Johnson Counters',
 		description:
-			'How shift registers work, the four serial and parallel arrangements, and the ring and Johnson counters built from them, with generated timing diagrams.',
+			'How shift registers work, the four serial and parallel arrangements, and the ring and Johnson counters built from them, with timing diagrams.',
 		url: `${SITE}/shift-registers`,
 		image: `${SITE}/og/shift-registers.png`,
 		imageAlt: 'Logic Nodes: shift registers'

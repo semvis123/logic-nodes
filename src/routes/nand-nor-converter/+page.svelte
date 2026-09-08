@@ -295,7 +295,7 @@
 		<p class="reducer">
 			The OR rule is <a href="/boolean-algebra-laws">De Morgan's law</a> written as gates: inverting both inputs of a NAND
 			turns it into an OR. The AND rule is simpler still, just double negation, since a NAND followed by an inverter is an
-			AND. Every identity on this page is checked against a full truth table in the test suite.
+			AND.
 		</p>
 	</section>
 

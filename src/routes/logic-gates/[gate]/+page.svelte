@@ -139,8 +139,8 @@
 	<section>
 		<h2>Building it from other gates</h2>
 		<p class="section-intro">
-			Each of these is equivalent to the {gate.name} gate, verified against the full truth table. Paste any of them into
-			the simulator with <kbd>ctrl</kbd>+<kbd>E</kbd> to see the circuit.
+			Each of these is equivalent to the {gate.name} gate. Paste any of them into the simulator with
+			<kbd>ctrl</kbd>+<kbd>E</kbd> to see the circuit.
 		</p>
 		<table class="data-table equivalences">
 			<thead>

@@ -125,7 +125,7 @@
 		<h1>Common logic circuits</h1>
 		<p class="lede">
 			The handful of combinational blocks that everything else is assembled from. Each one is given as boolean
-			expressions, with the complete truth table generated from them.
+			expressions, with its complete truth table.
 		</p>
 		<ol class="toc">
 			{#each built as circuit}

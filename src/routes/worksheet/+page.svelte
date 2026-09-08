@@ -288,8 +288,8 @@
 	<section class="no-print">
 		<h2>How it works without an account</h2>
 		<p class="section-intro">
-			There is no database behind this, and no sign-up. The questions are built from the sheet number by the same engine
-			that marks them, so the number is the worksheet.
+			There is no database behind this, and no sign-up. The questions come from the sheet number in the address, so the
+			number is the worksheet.
 		</p>
 		<ul class="how">
 			<li>

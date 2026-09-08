@@ -124,7 +124,7 @@
 		<h1>The laws of boolean algebra</h1>
 		<p class="lede">
 			{laws.length} identities for rewriting logic without changing what it does. Each one is shown with the truth table
-			that proves it, generated here rather than typed out.
+			that proves it.
 		</p>
 		<p class="reducer">
 			Want to check your own? The <a href="/boolean-algebra-calculator">calculator</a> compares any two expressions row by

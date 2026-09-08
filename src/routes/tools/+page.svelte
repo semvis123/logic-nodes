@@ -168,10 +168,6 @@
 			<span class="mono">a∧b</span>, <span class="mono">ab</span> — and the simplification is Quine-McCluskey, the same algorithm
 			whether you see it as algebra or as groups on a map.
 		</p>
-		<p class="reducer">
-			It is covered by a property-based test suite: thousands of generated expressions are simplified and then
-			re-checked against their original truth table, so a wrong answer fails the build.
-		</p>
 		<p>
 			<a class="cta" href="/simulator">Open the simulator</a>
 		</p>
