@@ -1,10 +1,9 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { shiftRegisterStages, ringCounter, johnsonCounter, registerKinds } from '$lib/sequential';
 	import { clockSignal, timingToSvg, timingAlt, type Level } from '$lib/timing';
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	// Every waveform here is generated from the stage definitions, so the picture
 	// and the description cannot disagree.

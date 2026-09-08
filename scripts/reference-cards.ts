@@ -105,7 +105,7 @@ const gateCard = (slug: string) => {
     </div>
     ${tableHtml(slug)}
     <p class="note">Output is high when ${gate.outputHigh}.</p>
-    <p class="foot">nodes.kriyak.com/logic-gates/${slug}</p>
+    <p class="foot">logicgates.org/logic-gates/${slug}</p>
   </div></body></html>`;
 };
 
@@ -123,7 +123,7 @@ const chart = () => `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${S
     </div>`
 			)
 			.join('')}
-    <p class="foot">nodes.kriyak.com/logic-gates</p>
+    <p class="foot">logicgates.org/logic-gates</p>
   </div></body></html>`;
 
 mkdirSync(OUT_DIR, { recursive: true });

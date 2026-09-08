@@ -1,9 +1,8 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { tools } from '$lib/tools';
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	const page = {
 		title: 'Digital Logic Tools: Truth Tables, K-Maps, Boolean Algebra',

@@ -1,11 +1,10 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { countSequence, counterWaveforms, counterKinds, bitsOf } from '$lib/sequential';
 	import { clockSignal, timingToSvg, timingAlt } from '$lib/timing';
 	import { flipFlops } from '$lib/flipflops';
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	// Everything below is generated, so the tables, the waveforms and the prose
 	// counts cannot drift apart.

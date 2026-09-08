@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { flipFlops } from '$lib/flipflops';
@@ -7,8 +8,6 @@
 	import type { PageData } from './$types';
 
 	export let data: PageData;
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	$: ff = data.flipFlop;
 	$: others = flipFlops.filter((f) => f.slug !== ff.slug);

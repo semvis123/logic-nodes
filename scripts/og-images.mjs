@@ -93,7 +93,7 @@ const card = ({ title, subtitle, kicker }) => `<!DOCTYPE html>
     ${subtitle ? `<p>${subtitle}</p>` : ''}
   </div>
   <div class="foot">
-    <span class="url">nodes.kriyak.com</span>
+    <span class="url">logicgates.org</span>
     <span class="wires">
       ${[18, 34, 26, 46, 30, 22, 38]
 				.map((h, i) => `<i style="height:${h}px;background:${i % 3 === 1 ? '#f23' : '#5db65d'}"></i>`)

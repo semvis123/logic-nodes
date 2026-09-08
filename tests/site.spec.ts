@@ -2,6 +2,7 @@
 // shipped with the SvelteKit template and never matched this project.
 
 import { expect, test } from '@playwright/test';
+import { sitemapPaths } from './sitemap.js';
 
 test('the homepage introduces the simulator', async ({ page }) => {
 	await page.goto('/');
@@ -110,8 +111,7 @@ test('the calculator shows its working, and every law it cites exists', async ({
 });
 
 test('every page is reachable by keyboard, with no duplicate ids', async ({ page, request }) => {
-	const sitemap = await (await request.get('/sitemap.xml')).text();
-	const paths = [...sitemap.matchAll(/<loc>https:\/\/nodes\.kriyak\.com(.*?)<\/loc>/g)].map((m) => m[1] || '/');
+	const paths = await sitemapPaths(request);
 	const problems: string[] = [];
 
 	for (const path of paths) {
@@ -154,8 +154,7 @@ test('a wrong address gets a useful page, not a bare error', async ({ page }) =>
 });
 
 test('every page is well linked and close to the homepage', async ({ request }) => {
-	const sitemap = await (await request.get('/sitemap.xml')).text();
-	const paths = [...sitemap.matchAll(/<loc>https:\/\/nodes\.kriyak\.com(.*?)<\/loc>/g)].map((m) => m[1] || '/');
+	const paths = await sitemapPaths(request);
 	const html = new Map<string, string>();
 	for (const path of paths) html.set(path, await (await request.get(path)).text());
 
@@ -190,19 +189,17 @@ test('every page is well linked and close to the homepage', async ({ request }) 
 
 test('llms.txt lists every page', async ({ request }) => {
 	const llms = await (await request.get('/llms.txt')).text();
-	const sitemap = await (await request.get('/sitemap.xml')).text();
-	const paths = [...sitemap.matchAll(/<loc>https:\/\/nodes\.kriyak\.com(.*?)<\/loc>/g)].map((m) => m[1] || '/');
+	const paths = await sitemapPaths(request);
 
 	// Detail pages are covered by their hub entry, so only top level ones count.
 	const missing = paths
 		.filter((p) => p === '/' || p.split('/').length === 2)
-		.filter((p) => !llms.includes(`nodes.kriyak.com${p === '/' ? '/)' : `${p})`}`));
+		.filter((p) => !llms.includes(`logicgates.org${p === '/' ? '/)' : `${p})`}`));
 	expect(missing, `llms.txt does not mention: ${missing.join(', ')}`).toEqual([]);
 });
 
 test('no page is orphaned: everything is linked from somewhere', async ({ request }) => {
-	const sitemap = await (await request.get('/sitemap.xml')).text();
-	const paths = [...sitemap.matchAll(/<loc>https:\/\/nodes\.kriyak\.com(.*?)<\/loc>/g)].map((m) => m[1] || '/');
+	const paths = await sitemapPaths(request);
 
 	// Collect every internal href on the site.
 	const linked = new Set<string>();
@@ -219,8 +216,7 @@ test('no page is orphaned: everything is linked from somewhere', async ({ reques
 });
 
 test('every page in the sitemap is reachable', async ({ page, request }) => {
-	const sitemap = await (await request.get('/sitemap.xml')).text();
-	const paths = [...sitemap.matchAll(/<loc>https:\/\/nodes\.kriyak\.com(.*?)<\/loc>/g)].map((m) => m[1] || '/');
+	const paths = await sitemapPaths(request);
 	expect(paths.length).toBeGreaterThan(20);
 	for (const path of paths) {
 		const response = await request.get(path);

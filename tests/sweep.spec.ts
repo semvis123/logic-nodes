@@ -1,15 +1,14 @@
 import { test, expect } from '@playwright/test';
+import { sitemapPaths } from './sitemap.js';
 
 const paths: string[] = [];
 
 test.beforeAll(async ({ request }) => {
-	const xml = await (await request.get('/sitemap.xml')).text();
-	for (const m of xml.matchAll(/<loc>https:\/\/nodes\.kriyak\.com(.*?)<\/loc>/g)) paths.push(m[1] || '/');
+	paths.push(...(await sitemapPaths(request)));
 });
 
 test('every page is legible and fits at 1280 and 390', async ({ page, request }) => {
-	const xml = await (await request.get('/sitemap.xml')).text();
-	const all = [...xml.matchAll(/<loc>https:\/\/nodes\.kriyak\.com(.*?)<\/loc>/g)].map((m) => m[1] || '/');
+	const all = await sitemapPaths(request);
 	const problems: string[] = [];
 
 	for (const width of [1280, 390]) {

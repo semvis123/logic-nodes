@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import {
@@ -15,8 +16,6 @@
 	import { readUrl, syncUrl, safeText, safeOption } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import { onMount } from 'svelte';
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	// Every setting lives in the query string, so a link reopens this exactly.
 	const DEFAULTS = { expr: 'a!b + abc + !a!bc', notation: 'math' };

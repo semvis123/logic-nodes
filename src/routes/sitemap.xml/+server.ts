@@ -1,10 +1,9 @@
+import { SITE } from '$lib/site';
 import { gates } from '$lib/gates';
 import { flipFlops } from '$lib/flipflops';
 import { lastModified } from '$lib/lastmod';
 
 export const prerender = true;
-
-const SITE = 'https://nodes.kriyak.com';
 
 // Screenshots worth surfacing in Google Images, per page.
 const IMAGES: Record<string, { file: string; title: string }[]> = {

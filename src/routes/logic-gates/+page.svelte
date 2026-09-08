@@ -1,10 +1,9 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { gates } from '$lib/gates';
 	import { parseExpression, truthTable } from '$lib/boolean';
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	// Tables come from the expression engine, so the reference cannot drift.
 	const rows = gates.map((gate) => ({ ...gate, table: truthTable(parseExpression(gate.source)) }));

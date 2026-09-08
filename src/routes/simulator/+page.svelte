@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import { NodeSystem } from '../../nodesystem/NodeSystem';
 	import { onMount, onDestroy } from 'svelte';
 	import { modifiedFields } from '$lib/lastmod';
@@ -38,8 +39,6 @@
 		dpi = devicePixelRatio || 1;
 		nodeSystem.nodeRenderer.setDPI(dpi);
 	};
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	// Same @id values as the about page, so both pages describe one entity.
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -101,7 +100,7 @@
 		name="description"
 		content="Build and simulate digital logic circuits in your browser. Free logic gate simulator with truth tables, boolean expressions, and custom nodes."
 	/>
-	<link rel="canonical" href="https://nodes.kriyak.com/simulator" />
+	<link rel="canonical" href="https://logicgates.org/simulator" />
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="website" />
@@ -111,8 +110,8 @@
 		property="og:description"
 		content="Build and simulate digital logic circuits in your browser. Truth tables, boolean expressions, custom nodes, and example circuits. Free, no signup."
 	/>
-	<meta property="og:url" content="https://nodes.kriyak.com/simulator" />
-	<meta property="og:image" content="https://nodes.kriyak.com/og/simulator.png" />
+	<meta property="og:url" content="https://logicgates.org/simulator" />
+	<meta property="og:image" content="https://logicgates.org/og/simulator.png" />
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
 	<meta property="og:image:alt" content="The Logic Nodes editor with a logic circuit on the canvas" />
@@ -123,7 +122,7 @@
 		name="twitter:description"
 		content="Build and simulate digital logic circuits in your browser. Truth tables, boolean expressions, custom nodes, and example circuits. Free, no signup."
 	/>
-	<meta name="twitter:image" content="https://nodes.kriyak.com/og/home.png" />
+	<meta name="twitter:image" content="https://logicgates.org/og/home.png" />
 	<meta name="twitter:image:alt" content="The Logic Nodes editor with a logic circuit on the canvas" />
 	{@html jsonLd}
 </svelte:head>

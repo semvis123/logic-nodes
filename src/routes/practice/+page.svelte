@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { onMount } from 'svelte';
@@ -13,8 +14,6 @@
 	} from '$lib/quiz';
 
 	import { readUrl, syncUrl, safeOption } from '$lib/urlState';
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	// Every setting lives in the query string, so a link reopens this exactly.
 	const DEFAULTS = { topic: 'mixed' };

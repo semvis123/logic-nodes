@@ -1,9 +1,8 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { parseExpression, truthTable } from '$lib/boolean';
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	// A worked contrast: the same two inputs, one circuit without memory and one
 	// with. The combinational side is generated; the sequential side cannot be,

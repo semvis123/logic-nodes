@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://nodes.kriyak.com/sitemap.xml
+Sitemap: https://logicgates.org/sitemap.xml

@@ -1,11 +1,10 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { laws, lawCategories, lawSlug } from '$lib/laws';
 
 	import { parseExpression, truthTable, variablesOf } from '$lib/boolean';
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	// Each law gets a generated proof: both sides evaluated over every row.
 	const proven = laws.map((law) => {

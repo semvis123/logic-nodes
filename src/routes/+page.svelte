@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import { onMount } from 'svelte';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
@@ -89,8 +90,6 @@
 	const wire = (on: boolean) => (on ? '#5db65d' : '#f23');
 	const lamp = (on: boolean) => (on ? '#372' : '#40191c');
 
-	const SITE = 'https://nodes.kriyak.com';
-
 	// Single source of truth for the FAQ: the same array renders the visible
 	// <details> list and the FAQPage schema, so the markup can never drift from
 	// the structured data (Google requires them to match).
@@ -117,7 +116,7 @@
 		},
 		{
 			q: 'Can I share a circuit with someone else?',
-			a: 'Export it to a file and send that, or select the nodes and copy: the circuit lands on your clipboard as JSON that anyone can paste straight onto their own canvas. The built-in examples also have direct links, such as nodes.kriyak.com/#example:Calculator.'
+			a: 'Export it to a file and send that, or select the nodes and copy: the circuit lands on your clipboard as JSON that anyone can paste straight onto their own canvas. The built-in examples also have direct links, such as logicgates.org/simulator#example:Calculator.'
 		},
 		{
 			q: 'Does it work on a phone or tablet?',

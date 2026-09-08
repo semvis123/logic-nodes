@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { gates } from '$lib/gates';
@@ -6,8 +7,6 @@
 	import type { PageData } from './$types';
 
 	export let data: PageData;
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	$: gate = data.gate;
 	$: table = truthTable(parseExpression(gate.source));

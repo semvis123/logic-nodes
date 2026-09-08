@@ -1,11 +1,10 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import GateSymbol from '$lib/GateSymbol.svelte';
 	import { gates } from '$lib/gates';
 	import { shapes } from '$lib/symbols';
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	let standard: 'ansi' | 'iec' = 'ansi';
 

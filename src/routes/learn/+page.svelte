@@ -1,9 +1,8 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { parseExpression, truthTable, evaluate } from '$lib/boolean';
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	// Every table on this page is computed, not typed out, so none of it can be
 	// quietly wrong.

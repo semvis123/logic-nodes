@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import ShareLink from '$lib/ShareLink.svelte';
@@ -6,7 +7,6 @@
 	import { makeQuestion, questionSignature, topics, type Topic, type Question } from '$lib/quiz';
 	import { readUrl, syncUrl, safeInt, safeOption } from '$lib/urlState';
 
-	const SITE = 'https://nodes.kriyak.com';
 	const DEFAULTS = { seed: '1', n: '10', topic: 'mixed', key: '' };
 
 	let seed = 1;
@@ -281,7 +281,7 @@
 		</ol>
 
 		<p class="sheet-foot">
-			Sheet {seed} · generated at nodes.kriyak.com/worksheet · free to copy and use
+			Sheet {seed} · generated at logicgates.org/worksheet · free to copy and use
 		</p>
 	</section>
 

@@ -2,7 +2,7 @@
 
 A free online logic gate simulator, hand-written in TypeScript on an HTML5 canvas.
 
-**Try it: [nodes.kriyak.com](https://nodes.kriyak.com/simulator)**, no account, no install. New here? Start at the [home page](https://nodes.kriyak.com/).
+**Try it: [logicgates.org](https://logicgates.org/simulator)**, no account, no install. New here? Start at the [home page](https://logicgates.org/).
 
 ![The Logic Nodes editor with a circuit of gates, delays, and displays](static/og-image.png)
 
@@ -36,16 +36,16 @@ The editor is one page of a larger reference site, all statically prerendered fr
 codebase:
 
 - **Learn**: a guided path from one gate to a four bit adder, plus references for the
-  [six gates](https://nodes.kriyak.com/logic-gates), their
-  [symbols](https://nodes.kriyak.com/logic-gate-symbols),
-  [flip-flops](https://nodes.kriyak.com/flip-flops),
-  [common circuits](https://nodes.kriyak.com/common-circuits) and the
-  [laws of boolean algebra](https://nodes.kriyak.com/boolean-algebra-laws).
-- **[Tools](https://nodes.kriyak.com/tools)**: truth tables, boolean simplification, Karnaugh maps
+  [six gates](https://logicgates.org/logic-gates), their
+  [symbols](https://logicgates.org/logic-gate-symbols),
+  [flip-flops](https://logicgates.org/flip-flops),
+  [common circuits](https://logicgates.org/common-circuits) and the
+  [laws of boolean algebra](https://logicgates.org/boolean-algebra-laws).
+- **[Tools](https://logicgates.org/tools)**: truth tables, boolean simplification, Karnaugh maps
   with don't cares, SOP/POS, NAND/NOR conversion, Gray code, and a circuit diagram generator that
   exports SVG or PNG.
-- **[Practice](https://nodes.kriyak.com/practice)** and a
-  [worksheet generator](https://nodes.kriyak.com/worksheet) with an answer key, both driven by a
+- **[Practice](https://logicgates.org/practice)** and a
+  [worksheet generator](https://logicgates.org/worksheet) with an answer key, both driven by a
   seeded question generator, so a link reproduces the exact same questions with no account or
   database involved.
 

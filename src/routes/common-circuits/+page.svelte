@@ -1,10 +1,9 @@
 <script lang="ts">
+	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { commonCircuits } from '$lib/commonCircuits';
 	import { parseExpression, evaluate } from '$lib/boolean';
-
-	const SITE = 'https://nodes.kriyak.com';
 
 	// One combined table per circuit: every input combination, every output.
 	const built = commonCircuits.map((circuit) => {
