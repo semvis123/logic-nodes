@@ -94,11 +94,19 @@
 
 <style>
 	:global(html),
-	:global(body),
-	:global(main) {
+	:global(body) {
 		margin: 0;
 		padding: 0;
 		background-color: #1d1e20;
+	}
+
+	/* The main landmark sits inside .content, which draws the grid, so it must
+	   not paint a background of its own over it. It used to live in app.html,
+	   wrapping everything from the outside, where a background was harmless. */
+	:global(main) {
+		margin: 0;
+		padding: 0;
+		background: none;
 	}
 
 	.skip {

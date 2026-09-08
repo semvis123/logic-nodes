@@ -153,6 +153,32 @@ test('a wrong address gets a useful page, not a bare error', async ({ page }) =>
 	await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
 });
 
+test('the grid background is visible, not painted over', async ({ page, request }) => {
+	// The grid lives on .content, which wraps everything. Anything between it and
+	// the viewport with an opaque background hides it, which is exactly what
+	// happened when the main landmark moved inside .content carrying one.
+	const paths = (await sitemapPaths(request)).filter((p) => p !== '/simulator');
+	const flat: string[] = [];
+	for (const path of paths.slice(0, 8)) {
+		await page.goto(path);
+		const painted = await page.evaluate(() => {
+			const content = document.querySelector('.content');
+			if (!content) return 'no .content element';
+			if (!getComputedStyle(content).backgroundImage.includes('gradient')) return 'no grid on .content';
+			// Any ancestor of the page body between .content and the text must be
+			// see-through, or the grid never reaches the screen.
+			for (const el of Array.from(content.children)) {
+				if (el.tagName !== 'MAIN') continue;
+				const bg = getComputedStyle(el).backgroundColor;
+				if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return `main paints ${bg} over the grid`;
+			}
+			return '';
+		});
+		if (painted) flat.push(`${path}: ${painted}`);
+	}
+	expect(flat, flat.join('\n')).toEqual([]);
+});
+
 test('every page is well linked and close to the homepage', async ({ request }) => {
 	const paths = await sitemapPaths(request);
 	const html = new Map<string, string>();
