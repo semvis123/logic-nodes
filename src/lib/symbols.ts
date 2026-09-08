@@ -9,7 +9,12 @@ export type GateShape = {
 	extra?: string;
 	/** x of the inverting bubble, if the gate has one. */
 	bubble?: number;
-	/** Where the input leads stop and the output lead starts. */
+	/**
+	 * Where the input leads stop and the output lead starts. On the curved back
+	 * shapes this is set slightly inside the body: at the pin heights the back
+	 * has already bowed right, so a lead that stops at the leftmost point of the
+	 * curve floats short of it.
+	 */
 	leadIn: number;
 	leadOut: number;
 	/** Number of input pins the symbol is drawn with. */
@@ -33,7 +38,7 @@ export const shapes: Record<string, GateShape> = {
 	// A curved back drawn into a point.
 	or: {
 		body: 'M6 4 Q22 25 6 46 Q34 46 50 25 Q34 4 6 4 Z',
-		leadIn: 10,
+		leadIn: 13,
 		leadOut: 50,
 		inputs: 2,
 		iec: '≥1',
@@ -60,7 +65,7 @@ export const shapes: Record<string, GateShape> = {
 	nor: {
 		body: 'M6 4 Q22 25 6 46 Q34 46 50 25 Q34 4 6 4 Z',
 		bubble: 54,
-		leadIn: 10,
+		leadIn: 13,
 		leadOut: 58,
 		inputs: 2,
 		iec: '≥1',
@@ -70,7 +75,7 @@ export const shapes: Record<string, GateShape> = {
 	xor: {
 		body: 'M12 4 Q28 25 12 46 Q40 46 56 25 Q40 4 12 4 Z',
 		extra: 'M4 4 Q20 25 4 46',
-		leadIn: 14,
+		leadIn: 19,
 		leadOut: 56,
 		inputs: 2,
 		iec: '=1',

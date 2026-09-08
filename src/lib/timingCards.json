@@ -2,7 +2,7 @@
 	{
 		"file": "sr-flip-flop-timing-diagram.png",
 		"title": "SR flip-flop timing diagram",
-		"alt": "SR flip-flop timing diagram: clock, S and R inputs, and the Q output changing on each rising clock edge",
+		"alt": "SR flip-flop timing diagram: clock, S and R inputs, and the Q output changing only on rising clock edges",
 		"url": "logicgates.org/flip-flops/sr",
 		"width": 1600,
 		"height": 918
@@ -10,7 +10,7 @@
 	{
 		"file": "d-flip-flop-timing-diagram.png",
 		"title": "D flip-flop timing diagram",
-		"alt": "D flip-flop timing diagram: clock, D inputs, and the Q output changing on each rising clock edge",
+		"alt": "D flip-flop timing diagram: clock, D inputs, and the Q output changing only on rising clock edges",
 		"url": "logicgates.org/flip-flops/d",
 		"width": 1600,
 		"height": 830
@@ -18,7 +18,7 @@
 	{
 		"file": "jk-flip-flop-timing-diagram.png",
 		"title": "JK flip-flop timing diagram",
-		"alt": "JK flip-flop timing diagram: clock, J and K inputs, and the Q output changing on each rising clock edge",
+		"alt": "JK flip-flop timing diagram: clock, J and K inputs, and the Q output changing only on rising clock edges",
 		"url": "logicgates.org/flip-flops/jk",
 		"width": 1600,
 		"height": 918
@@ -26,7 +26,7 @@
 	{
 		"file": "t-flip-flop-timing-diagram.png",
 		"title": "T flip-flop timing diagram",
-		"alt": "T flip-flop timing diagram: clock, T inputs, and the Q output changing on each rising clock edge",
+		"alt": "T flip-flop timing diagram: clock, T inputs, and the Q output changing only on rising clock edges",
 		"url": "logicgates.org/flip-flops/t",
 		"width": 1600,
 		"height": 832

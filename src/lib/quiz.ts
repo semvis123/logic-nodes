@@ -103,21 +103,46 @@ function isClean(source: Ast): boolean {
 	} catch {
 		return false;
 	}
+	// AND binds tighter than OR everywhere, but XOR's rank against OR is not a
+	// settled convention: plenty of texts give the two equal precedence. So a
+	// printed `b ∨ ¬c ⊻ a` has two defensible readings and two defensible
+	// answers, which is no good in a question that marks you. Rather than pick a
+	// side, do not ask it.
+	const text = format(source, 'math');
+	if (text.includes('⊻') && (text.includes('∨') || text.includes('∧'))) return false;
+
 	const constant = (node: Ast): boolean => {
 		const names = variablesOf(node);
 		if (!names.length) return true;
 		const rows = truthTable(node, names).rows;
 		return rows.every((v) => v === rows[0]);
 	};
+	// AND, OR and XOR are associative, so `a ⊻ c ⊻ a` prints as a flat chain and
+	// reads as one. Comparing only the two halves of each node misses that: the
+	// repeat is between a node and its grandchild, not between siblings.
+	const operands = (node: Ast, t: Ast['t']): Ast[] =>
+		node.t === t && (node.t === 'and' || node.t === 'or' || node.t === 'xor')
+			? [...operands(node.a, t), ...operands(node.b, t)]
+			: [node];
+
 	const walk = (node: Ast): boolean => {
 		if (node.t === 'var') return true;
 		if (node.t === 'const') return false;
 		if (node.t === 'not') return walk(node.a);
-		// Neither half may be dead, and the two halves may not be identical.
+		// No half may be dead, and no two operands of one chain may be the same.
 		if (constant(node.a) || constant(node.b)) return false;
-		if (format(node.a, 'math') === format(node.b, 'math')) return false;
+		const flat = operands(node, node.t).map((x) => format(x, 'math'));
+		if (new Set(flat).size !== flat.length) return false;
 		return walk(node.a) && walk(node.b);
 	};
+	// A variable that cannot change the answer is the same kind of giveaway as a
+	// dead sub-expression, so reject those too.
+	const names = variablesOf(ast);
+	const table = truthTable(ast, names);
+	const allMatter = names.every((_, i) =>
+		table.rows.some((out, row) => out !== table.rows[row ^ (1 << (names.length - 1 - i))])
+	);
+	if (!allMatter) return false;
 	return !constant(ast) && walk(ast);
 }
 
@@ -271,7 +296,9 @@ function diagramOf(
 			svg: circuitToSvg(circuit, { ...base, outputLabel: 'Q' }),
 			// Worksheets end up on paper, where the dark palette is a waste of ink.
 			print: circuitToSvg(circuit, { ...base, palette: 'mono', outputLabel: 'Q' }),
-			alt: `A logic circuit diagram with ${circuit.gateCount} gates and inputs ${variablesOf(ast).join(', ')}`,
+			// Deliberately no gate count: for the read-the-circuit question that would
+			// hand a screen reader user the answer the sighted reader has to work for.
+			alt: `A logic circuit diagram with inputs ${variablesOf(ast).join(', ')}`,
 			// With the inputs applied, every wire shows its state.
 			solved: circuitToSvg(circuit, {
 				...base,
@@ -293,10 +320,23 @@ function circuitExpression(random: () => number): Question | null {
 	const correct = format(ast, 'math');
 	const drawing = diagramOf(ast, { caption: correct });
 	if (!drawing) return null;
+	let gateCount: number;
+	try {
+		gateCount = buildCircuit(ast).gateCount;
+	} catch {
+		return null;
+	}
 	const candidates: string[] = [];
-	for (let attempt = 0; attempt < 40 && candidates.length < 3; attempt++) {
+	for (let attempt = 0; attempt < 120 && candidates.length < 3; attempt++) {
 		const other = randomAst(random, table.variables, 2);
 		if (!isClean(other)) continue;
+		// A wrong answer with a different number of gates can be dismissed by
+		// counting the shapes in the picture, without reading any of them.
+		try {
+			if (buildCircuit(other).gateCount !== gateCount) continue;
+		} catch {
+			continue;
+		}
 		const text = format(other, 'math');
 		if (text === correct || candidates.includes(text)) continue;
 		if (equivalent(other, ast)) continue; // must actually be a wrong answer
@@ -390,13 +430,25 @@ export const questionSignature = (q: Question) =>
  */
 export function makeQuestion(seed: number, topic: Topic = 'mixed'): Question {
 	const generators = BY_TOPIC[topic] ?? GENERATORS;
-	for (let attempt = 0; attempt < 40; attempt++) {
-		const random = rng(seed + attempt * 7919);
-		const generator = generators[(seed + attempt) % generators.length];
-		const question = generator(random);
+	// The generator is chosen from the seed alone and then retried with fresh
+	// randomness. Advancing to the next generator on every refusal would pour
+	// them all into whichever one never refuses, and a mixed run would be most
+	// of that one kind.
+	const chosen = generators[seed % generators.length];
+	for (let attempt = 0; attempt < 200; attempt++) {
+		const question = chosen(rng(seed + attempt * 7919));
 		if (question) return question;
 	}
-	// Every generator refused, which should not happen; fall back to the simplest.
+	// It will not produce anything for this seed at all. Only now try the rest,
+	// and only ones this topic actually offers.
+	for (let i = 1; i < generators.length; i++) {
+		for (let attempt = 0; attempt < 50; attempt++) {
+			const question = generators[(seed + i) % generators.length](rng(seed + i * 104729 + attempt * 7919));
+			if (question) return question;
+		}
+	}
+	// Nothing at all, which should not happen; the one generator that cannot
+	// refuse is at least always a real question.
 	return gateOutput(rng(seed))!;
 }
 

@@ -79,6 +79,20 @@ export const laws: Law[] = [
 		note: 'Two inverters in a row cancel out, though they are still useful as a buffer.'
 	},
 	{
+		name: 'Constant negation',
+		category: 'Negation',
+		left: '¬0',
+		right: '1',
+		note: 'An inverter tied low sits high, which is how a 1 is made where no signal supplies one.'
+	},
+	{
+		name: 'Constant negation',
+		category: 'Negation',
+		left: '¬1',
+		right: '0',
+		note: 'And the other way round. Not much of a theorem, but it is the step that clears a negated constant out of an expression.'
+	},
+	{
 		name: 'Commutativity',
 		category: 'Order',
 		left: 'a ∧ b',

@@ -50,7 +50,7 @@
 		},
 		{
 			q: 'What is the difference between a ripple counter and a synchronous counter?',
-			a: 'In a ripple counter each flip-flop is clocked by the one before it, so the change ripples along the chain and the outputs are briefly wrong after every count. In a synchronous counter every flip-flop shares the clock and extra AND gates decide which ones toggle, so all the bits change together. Ripple is cheaper; synchronous is correct at speed.'
+			a: 'In a ripple counter each flip-flop is clocked by the one before it, so the change ripples along the chain and the outputs pass through wrong intermediate values whenever a carry ripples, worst of all at the wrap back to zero. In a synchronous counter every flip-flop shares the clock and extra AND gates decide which ones toggle, so all the bits change together. Ripple is cheaper; synchronous is correct at speed.'
 		},
 		{
 			q: 'How do I build a counter that stops at a number that is not a power of two?',
@@ -58,7 +58,7 @@
 		},
 		{
 			q: 'How many flip-flops does an n bit counter need?',
-			a: 'One per bit, so a counter that reaches 2^n needs n of them: three flip-flops count to 8, four count to 16, eight count to 256. To count up to a number m that is not a power of two you need enough bits to hold m, so ceil(log2(m)) flip-flops plus the gate that clears it.'
+			a: 'One per bit, so n flip-flops give 2^n states, counting 0 to 2^n - 1: three flip-flops count 0 to 7, four count 0 to 15, eight count 0 to 255. To count up to a number m that is not a power of two you need enough bits to hold m, so ceil(log2(m)) flip-flops plus the gate that clears it.'
 		},
 		{
 			q: 'Why does the top bit of a counter run at half the speed of the one below it?',
@@ -228,9 +228,10 @@
 	<section id="decade">
 		<h2>Counting to something that is not a power of two</h2>
 		<p>
-			A chain of n flip-flops naturally counts to 2<sup>n</sup>. To stop anywhere else you watch for the state just past
-			the last one you want and use it to clear the counter. A decade counter is four bits with a detector on 10, so the
-			sequence runs {decade.slice(0, 10).join(', ')} and then starts again.
+			A chain of n flip-flops naturally runs through all 2<sup>n</sup> of its states, counting 0 to 2<sup>n</sup> − 1.
+			To stop anywhere else you watch for the state just past the last one you want and use it to clear the counter. A
+			decade counter is four bits with a detector on 10, so the sequence runs {decade.slice(0, 10).join(', ')} and then starts
+			again.
 		</p>
 		<figure class="timing">
 			<div

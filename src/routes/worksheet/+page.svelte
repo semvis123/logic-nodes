@@ -54,8 +54,11 @@
 		const out: Question[] = [];
 		const seen: string[] = [];
 		let step = 0;
+		// The stride has to exceed the largest number of seeds a sheet can burn
+		// through, or a long sheet runs into the next sheet's numbers and two
+		// different links produce overlapping papers.
 		while (out.length < howMany && step < howMany * 40) {
-			const question = makeQuestion(from * 1000 + step, subject);
+			const question = makeQuestion(from * 100_000 + step, subject);
 			step += 1;
 			const signature = questionSignature(question);
 			if (seen.includes(signature)) continue; // no repeats on one sheet

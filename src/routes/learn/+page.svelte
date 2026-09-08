@@ -334,7 +334,8 @@
 		<h2>6. Clocks, delays and edges</h2>
 		<p>
 			Once a circuit has memory it needs a sense of when. The Misc menu has an Interval node that flips between high and
-			low on its own, which is a clock, and a Delay node that passes its input through a fixed number of ticks later.
+			low on its own, which is a clock, and a Delay node that passes its input through a set number of milliseconds
+			later.
 		</p>
 		<p>
 			Those two make edge detection possible. AND a signal with the inverted, delayed copy of itself and the output is

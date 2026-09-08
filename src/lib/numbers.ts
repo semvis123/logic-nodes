@@ -87,7 +87,7 @@ export function signedValue(bits: (0 | 1)[]): number {
 export function groupBits(bits: (0 | 1)[], size = 4): string {
 	const text = bits.join('');
 	const head = text.length % size;
-	const groups = [head ? text.slice(0, head) : '', ...(text.slice(head).match(/.{4}/g) ?? [])];
+	const groups = [head ? text.slice(0, head) : '', ...(text.slice(head).match(new RegExp(`.{${size}}`, 'g')) ?? [])];
 	return groups.filter(Boolean).join(' ');
 }
 
@@ -113,9 +113,12 @@ export function render(bits: (0 | 1)[], base: Base): string {
  * Binary coded decimal: each decimal digit in its own four bits. Wasteful, but
  * it is what a seven segment display wants, because each digit drives its own
  * decoder without anyone having to divide by ten.
+ *
+ * Unpacked, and unsigned. Packed BCD does carry a sign, as a trailing nibble,
+ * but that is a storage format rather than anything a display decoder sees.
  */
 export function toBcd(value: number): { digit: number; bits: (0 | 1)[] }[] {
-	if (value < 0) throw new NumberError('BCD has no sign');
+	if (value < 0) throw new NumberError('This BCD form holds no sign');
 	return String(Math.trunc(value))
 		.split('')
 		.map((d) => ({ digit: Number(d), bits: toBits(Number(d), 4) }));

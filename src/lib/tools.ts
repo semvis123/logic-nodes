@@ -18,7 +18,7 @@ export const tools: Tool[] = [
 		href: '/boolean-algebra-calculator',
 		name: 'Boolean algebra calculator',
 		short: 'Boolean algebra',
-		blurb: 'Simplify to a minimal sum of products, or check whether two expressions are equivalent.'
+		blurb: 'Simplify to an irredundant sum of products, or check whether two expressions are equivalent.'
 	},
 	{
 		href: '/karnaugh-map-solver',

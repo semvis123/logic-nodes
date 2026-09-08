@@ -92,4 +92,39 @@ test.describe('HDL export', () => {
 		expect(toHdlExpression(parseExpression('a ^ b'), 'vhdl')).toBe('a xor b');
 		expect(toHdlExpression(parseExpression('!a'), 'vhdl')).toBe('not a');
 	});
+
+	test('the output port never collides with an input, whatever it is called', () => {
+		// `y` is the conventional output name and also a perfectly legal variable.
+		// Emitting both declares the port twice and assigns it from itself, which
+		// neither language will take.
+		for (const source of ['x & y', 'y', 'y | (a & y)']) {
+			const ast = parseExpression(source);
+			for (const { id } of hdlTargets) {
+				const text = toHdl(ast, id);
+				const ports = text
+					.split('\n')
+					.filter((line) => line.includes(' wire ') || line.includes(' std_logic'))
+					.map((line) =>
+						line
+							.trim()
+							.replace(/^(input|output)\s+wire\s+/, '')
+							.replace(/\s*:.*$/, '')
+							.replace(/,$/, '')
+					);
+				expect(new Set(ports).size, `${id} declared a port twice for ${source}`).toBe(ports.length);
+			}
+		}
+	});
+
+	test('the module name is always a legal identifier', () => {
+		// Both languages need an identifier to start with a letter, and an
+		// expression can perfectly well start with a constant.
+		for (const name of ['1', '0_or_1', '9lives']) {
+			for (const { id } of hdlTargets) {
+				const text = toHdl(parseExpression('a & b'), id, name);
+				const declared = text.match(id === 'verilog' ? /module (\S+)/ : /entity (\S+)/)?.[1] ?? '';
+				expect(declared, `${id} emitted ${declared}`).toMatch(/^[a-zA-Z]/);
+			}
+		}
+	});
 });

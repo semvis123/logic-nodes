@@ -183,7 +183,7 @@ export const gates: Gate[] = [
 		behaviour:
 			'A NAND gate outputs 0 only when all of its inputs are 1, and 1 in every other case. It is an AND gate with the output inverted, which is where the name comes from: Not AND.',
 		intuition:
-			'NAND is functionally complete: every other gate can be built from NAND gates alone, so an entire processor could in principle be made of nothing else. That is not just a curiosity. In CMOS a NAND is the cheapest two input gate to build, and faster than a NOR of the same drive strength, so real chips genuinely are dominated by it. Only the inverter, at two transistors, is cheaper still.',
+			'NAND is functionally complete: every other gate can be built from NAND gates alone, so an entire processor could in principle be made of nothing else. That is not just a curiosity. In CMOS a NAND and a NOR both take four transistors, but the NAND puts its series devices on the fast side and its slow ones in parallel, so for the same drive strength it ends up smaller and quicker. That is why real chips are dominated by it. Only the inverter, at two transistors, is smaller still.',
 		uses: [
 			'Building any other gate, which is why NAND is the workhorse of real logic families.',
 			'Cross-coupling two NAND gates gives an SR latch, the simplest circuit that remembers a bit.',

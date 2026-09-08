@@ -194,7 +194,7 @@ export const commonCircuits: CommonCircuit[] = [
 			'XOR gates chained together answer one question: is the number of high inputs odd? Send that bit along with the data and the receiver can recompute it. If the two disagree, something flipped on the way, which catches any single bit error.',
 		uses: [
 			'Error detection on serial links and older memory buses.',
-			'Building a checksum, which is parity generalised to more bits.',
+			'The starting point for a CRC, which is the same idea run over many bits at once.',
 			'The sum output of an adder, which is the parity of its three inputs.'
 		],
 		buildTip: 'Two XOR gates in a chain. Adding a NOT gives even parity instead.'

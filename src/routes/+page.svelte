@@ -154,7 +154,7 @@
 		},
 		{
 			q: 'Where are my circuits saved?',
-			a: 'In your own browser, using localStorage, with an autosave a few seconds after every change. You can also export a design to a JSON file and import it again later. Nothing is uploaded to a server.'
+			a: 'In your own browser, using localStorage, with an autosave ten seconds after a change. You can also export a design to a JSON file and import it again later. Nothing is uploaded to a server.'
 		},
 		{
 			q: 'Can I share a circuit with someone else?',
@@ -166,7 +166,7 @@
 		},
 		{
 			q: 'Does it need an internet connection?',
-			a: 'Only to load the page. Simulation, saving, truth tables and expressions all run locally in your browser. The single optional exception is Wolfram Alpha simplification, which calls out to their API.'
+			a: 'Only to load the page. Simulation, saving, truth tables and expressions all run locally in your browser. The single optional exception is Wolfram Alpha simplification, which sends your expression to their API by way of a CORS proxy — the proxy is a setting, so you can point it at your own.'
 		}
 	];
 
@@ -520,7 +520,7 @@
 	<section class="gates" id="gates">
 		<h2>Every gate, and what it does</h2>
 		<p class="section-intro">
-			Six logic gates cover everything in digital logic. These are the ones you get, with the boolean expression the
+			Six logic gates cover everything you will build here. These are the ones you get, with the boolean expression the
 			editor writes for each.
 		</p>
 		<table class="data-table gate-table">

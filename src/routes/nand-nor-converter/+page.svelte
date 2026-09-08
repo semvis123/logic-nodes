@@ -302,7 +302,7 @@
 	<section>
 		<h2>What it costs</h2>
 		<p class="section-intro">
-			Rewriting with one gate type is never free. These are the counts for the basic operations.
+			Rewriting with one gate type is rarely free. These are the counts for the basic operations.
 		</p>
 		<div class="table-wrap">
 			<table class="data-table">
@@ -339,8 +339,9 @@
 		<p>
 			The same argument works for <a href="/logic-gates/nor">NOR</a>, and those two are the only two input gates with
 			this property. It is not merely a theoretical curiosity: the
-			<a href="/logic-gates/nand">NAND gate</a> is the cheapest two input gate in CMOS, so real silicon leans on exactly
-			this result. The Apollo Guidance Computer went the other way and was built almost entirely from three input NOR gates.
+			<a href="/logic-gates/nand">NAND gate</a> is the fastest and best behaved two input gate in CMOS, because it puts the
+			slow transistors in parallel rather than in series, so real silicon leans on exactly this result. The Apollo Guidance
+			Computer went the other way and was built almost entirely from three input NOR gates.
 		</p>
 		<p>
 			<a class="cta" href="/simulator">Open the simulator</a>

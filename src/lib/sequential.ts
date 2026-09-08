@@ -89,7 +89,7 @@ export const counterKinds: CounterKind[] = [
 		slug: 'ripple',
 		name: 'Ripple (asynchronous)',
 		blurb: 'Each flip-flop clocks the next one.',
-		note: 'The simplest to wire and the cheapest in gates, but each stage waits for the one before it, so the delays add up and the outputs are briefly wrong after every count. Fine for driving a display, not for feeding other logic.'
+		note: 'The simplest to wire and the cheapest in gates, but each stage waits for the one before it, so the delays add up and the outputs pass through wrong intermediate values whenever a carry ripples — worst at the wrap from all ones back to zero, where every stage changes in turn. Fine for driving a display, not for feeding other logic.'
 	},
 	{
 		slug: 'synchronous',

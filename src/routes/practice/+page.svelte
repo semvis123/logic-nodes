@@ -85,7 +85,7 @@
 		},
 		{
 			q: 'What is covered?',
-			a: 'Gate outputs, identifying a gate from its truth table, evaluating an expression at given inputs, spotting an equivalent expression, and counting the rows where a function is true. That is most of what an introductory digital logic exercise sheet asks.'
+			a: 'Gate outputs, identifying a gate from its truth table, evaluating an expression at given inputs, spotting an equivalent expression, counting the rows where a function is true, and two kinds of question on a gate diagram: reading its expression off it, and tracing signals to its output. That is most of what an introductory digital logic exercise sheet asks.'
 		},
 		{
 			q: 'Is there a time limit or a score to beat?',
@@ -273,7 +273,7 @@
 
 	<section>
 		<h2>What comes up</h2>
-		<p class="section-intro">Five kinds of question, mixed at random.</p>
+		<p class="section-intro">Seven kinds of question, mixed at random.</p>
 		<div class="table-wrap">
 			<table class="data-table">
 				<thead>
@@ -308,6 +308,16 @@
 						<th scope="row">Count the ones</th>
 						<td>Building a truth table in your head</td>
 						<td><a href="/karnaugh-map-solver">Karnaugh map solver</a></td>
+					</tr>
+					<tr>
+						<th scope="row">Read a circuit</th>
+						<td>Getting from a gate diagram to an expression</td>
+						<td><a href="/logic-circuit-generator">Logic circuit generator</a></td>
+					</tr>
+					<tr>
+						<th scope="row">Trace a circuit</th>
+						<td>Following signals through a diagram to its output</td>
+						<td><a href="/logic-circuit-generator">Logic circuit generator</a></td>
 					</tr>
 				</tbody>
 			</table>

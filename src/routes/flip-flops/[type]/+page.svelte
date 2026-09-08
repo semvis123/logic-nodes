@@ -240,9 +240,10 @@
 	<section id="timing">
 		<h2>Timing</h2>
 		<p class="section-intro">
-			The same behaviour in time rather than in a table. Each dashed line is a rising clock edge, and Q only ever
-			changes on one: that is what makes it a flip-flop rather than a latch. The inputs walk through every legal
-			combination in turn, held for two cycles so you can see the response arrive a cycle late.
+			The same behaviour in time rather than in a table. Each dashed line marks a clock cycle boundary — a rising edge,
+			except for the last, which is just the end of the diagram — and Q only ever changes on an edge: that is what makes
+			it a flip-flop rather than a latch. The inputs walk through every legal combination in turn, held for two cycles
+			so you can see the response arrive a cycle late.
 		</p>
 		<figure class="timing">
 			<div

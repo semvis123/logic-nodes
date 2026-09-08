@@ -66,7 +66,7 @@
 		},
 		{
 			q: 'What is the difference between a ring counter and a Johnson counter?',
-			a: 'A ring counter feeds the last stage straight back to the first, so a single high bit walks round and n stages give n states. A Johnson counter inverts on the way back, so the register fills with 1s and then empties, giving 2n states from the same hardware. Neither needs a decoder: in a ring counter each state is already one wire.'
+			a: 'A ring counter feeds the last stage straight back to the first, so a single high bit walks round and n stages give n states. A Johnson counter inverts on the way back, so the register fills with 1s and then empties, giving 2n states from the same hardware. A ring counter needs no decoding at all, because each state is already one wire; a Johnson counter is not one-hot, so it needs a gate per state, but only a two input one. Neither is self-correcting, so both have to be forced into a known state at reset.'
 		},
 		{
 			q: 'How many flip-flops does a shift register need?',
@@ -159,9 +159,16 @@
 	<section id="how">
 		<h2>Stage k is the input, k+1 cycles ago</h2>
 		<p>
-			Each flip-flop takes whatever its neighbour was holding when the edge arrived. Because they all sample at the same
-			instant, every stage gets the <em>old</em> value of the one before it, not the new one, so the data moves exactly one
-			place per edge rather than racing to the end.
+			Each flip-flop takes whatever its neighbour was holding when the edge arrived, so every stage gets the <em>old</em
+			>
+			value of the one before it, not the new one, and the data moves exactly one place per edge rather than racing to the
+			end.
+		</p>
+		<p class="note">
+			What actually stops the race is a delay, not simultaneity: a flip-flop takes time to change its output after the
+			edge, and by then its neighbour has already captured the old value. That is also why clock skew along a long
+			register is dangerous — let one stage see the edge late enough and it captures its neighbour's <em>new</em> value,
+			and a bit vanishes.
 		</p>
 		<figure class="timing">
 			<div
@@ -255,7 +262,7 @@
 
 		<p>
 			Invert on the way back instead and the register fills with 1s, then empties again. The same four flip-flops now
-			give eight distinct states, which is the best you can do without decoding logic.
+			give eight distinct states, twice the ring's, for the cost of one inverter in the feedback.
 		</p>
 		<figure class="timing">
 			<div class="timing-scroll screen-only" role="img" aria-label="Timing diagram of a 4 stage Johnson counter">
@@ -268,7 +275,16 @@
 		</figure>
 		<p class="note">
 			Neither counts in binary, so neither is a substitute for a <a href="/counters">binary counter</a> when you want a number.
-			What they buy is that reading the state needs no gates at all.
+			What they buy is a cheap decode. A ring counter needs none at all, because each state is already one wire. A Johnson
+			counter is not one-hot, so it does need gates — but only one two-input gate per state, against the n-input gate a binary
+			counter needs, and the decode is free of the glitches a rippling binary count produces.
+		</p>
+		<p class="note">
+			Both have a catch worth knowing: neither is self-correcting. A four stage ring has sixteen possible states and
+			only four of them are on the ring, so a bad power-up or a single upset leaves it circulating in a loop it can
+			never leave. The Johnson counter has a second closed loop of its own, <span class="mono">0101 → 1010 → 0101</span
+			>. Real designs either force a known state at reset, or replace the plain feedback with a gate that steers any
+			illegal state back into the sequence within n clocks.
 		</p>
 	</section>
 

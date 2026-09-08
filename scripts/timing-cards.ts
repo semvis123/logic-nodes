@@ -73,7 +73,7 @@ for (const ff of flipFlops) {
 		url: `logicgates.org/flip-flops/${ff.slug}`,
 		alt: `${ff.shortName} flip-flop timing diagram: clock, ${ff.inputs
 			.map((i) => i.toUpperCase())
-			.join(' and ')} inputs, and the Q output changing on each rising clock edge`
+			.join(' and ')} inputs, and the Q output changing only on rising clock edges`
 	});
 }
 

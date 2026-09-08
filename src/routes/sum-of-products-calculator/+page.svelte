@@ -58,7 +58,7 @@
 	const faqs = [
 		{
 			q: 'What is the difference between a minterm and a maxterm?',
-			a: 'A minterm is one row of the truth table where the output is 1, written as an AND of every variable. A maxterm is a row where the output is 0, written as an OR of every variable with the polarities flipped. Every function is the OR of its minterms, and equally the AND of its maxterms.'
+			a: 'A minterm is one row of the truth table where the output is 1, written as an AND of every variable. A maxterm is a row where the output is 0, written as an OR of every variable with the polarities flipped. Every function is the OR of its minterms, and equally the AND of its maxterms, the two constant functions aside, where one of the two lists is empty.'
 		},
 		{
 			q: 'What do Σm and ΠM mean?',
@@ -319,7 +319,8 @@
 			</li>
 			<li>
 				<strong>Merge the neighbours.</strong> Two terms differing in one variable collapse into one, by the adjacency
-				law. Repeating that until nothing merges is exactly what Quine-McCluskey does, and what circling groups on a
+				law. Repeating that until nothing merges is the first half of Quine-McCluskey — the second half picks which of
+				the groups it found to keep — and it is what circling groups on a
 				<a href="/karnaugh-map-solver">Karnaugh map</a> does by eye.
 			</li>
 			<li>

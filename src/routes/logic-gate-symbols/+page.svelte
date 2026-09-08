@@ -14,7 +14,7 @@
 	const faqs = [
 		{
 			q: 'What is the difference between ANSI and IEC logic gate symbols?',
-			a: 'ANSI, also called the distinctive shape or MIL-STD-806 style, gives each gate its own outline: a D for AND, a shield for OR, a triangle for NOT. IEC 60617 uses one rectangle for every gate with a label inside saying what it does: & for AND, ≥1 for OR, 1 for a buffer, =1 for XOR. American schematics tend to use ANSI, European and formal standards documents tend to use IEC.'
+			a: 'The distinctive shapes give each gate its own outline: a D for AND, a shield for OR, a triangle for NOT. They come from MIL-STD-806 and are kept in ANSI/IEEE Std 91-1984, which is why they are usually just called the ANSI symbols — though that standard defines rectangular forms too. IEC 60617-12 uses one rectangle for every gate with a label inside saying what it does: & for AND, ≥1 for OR, 1 for a buffer, =1 for XOR. American schematics tend to use ANSI, European and formal standards documents tend to use IEC.'
 		},
 		{
 			q: 'What does the little circle on a gate symbol mean?',

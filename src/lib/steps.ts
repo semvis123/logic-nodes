@@ -165,7 +165,9 @@ function ruleFor(n: N, notation: Notation, sop: boolean): Rewrite | null {
 		if (n.a.t === 'const') {
 			return {
 				n: { t: 'const', v: !n.a.v },
-				law: 'Inversion',
+				// Not the XOR law of the same name in laws.ts: this is bookkeeping,
+				// and pointing at that anchor would send the reader somewhere unrelated.
+				law: 'Constant negation',
 				detail: `the opposite of ${n.a.v ? 1 : 0} is ${n.a.v ? 0 : 1}`
 			};
 		}
@@ -185,7 +187,7 @@ function ruleFor(n: N, notation: Notation, sop: boolean): Rewrite | null {
 
 	if (n.t === 'xor') {
 		if (n.xs.length === 2 && same(n.xs[0], n.xs[1])) {
-			return { n: { t: 'const', v: false }, law: 'Self cancel', detail: `${show(n.xs[0])} differs from itself never` };
+			return { n: { t: 'const', v: false }, law: 'Self cancel', detail: `nothing ever differs from itself` };
 		}
 		// Expanding XOR puts the whole expression in terms the other laws handle.
 		const [a, b] = [n.xs[0], n.xs.length === 2 ? n.xs[1] : ({ t: 'xor', xs: n.xs.slice(1) } as N)];

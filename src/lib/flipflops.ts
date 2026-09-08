@@ -106,7 +106,7 @@ export const flipFlops: FlipFlop[] = [
 			'Dividing a clock by two: feed the inverted output back into D and the output flips every edge.'
 		],
 		buildFrom:
-			'An SR latch with S = D and R = ¬D, so the forbidden combination can never be reached. The edge triggered version chains two such latches on opposite clock phases, which is why it is called a master-slave arrangement.',
+			'An SR latch with S = D and R = ¬D, so the forbidden combination can never be reached. One common way to make it edge triggered is to chain two such latches on opposite clock phases, the master-slave arrangement; the classic 74LS74 uses a genuinely edge triggered circuit instead, which is not the same thing.',
 		faqs: [
 			{
 				q: 'What does the D stand for?',
@@ -129,7 +129,7 @@ export const flipFlops: FlipFlop[] = [
 		behaviour:
 			'J sets and K resets, exactly like S and R. The difference is the case where both are high: instead of being forbidden, it toggles the output. That makes every one of the four input combinations meaningful, which is why the JK was for a long time the general purpose flip-flop.',
 		intuition:
-			'Take an SR flip-flop and feed the outputs back into the input gates, so the circuit knows its own state. Now "set" can only act when the output is 0 and "reset" only when it is 1, which is what removes the contradiction. The freed-up combination is then wired to invert, giving a toggle for nothing.',
+			'Take an SR flip-flop and feed the outputs back into the input gates, so the circuit knows its own state. Now "set" can only act when the output is 0 and "reset" only when it is 1, which is what removes the contradiction. The freed-up combination then toggles on its own: the same feedback that removed the contradiction routes the state back to the opposite input, so the toggle costs nothing extra.',
 		characteristic: [
 			{ inputs: ['0', '0'], q: '0', next: '0', note: 'hold' },
 			{ inputs: ['0', '0'], q: '1', next: '1', note: 'hold' },

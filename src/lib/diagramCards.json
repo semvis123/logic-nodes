@@ -82,10 +82,10 @@
 	{
 		"file": "boolean-algebra-laws-chart.png",
 		"title": "Boolean algebra laws",
-		"alt": "Boolean algebra laws reference: 28 identities including De Morgan, distributivity, absorption and consensus",
+		"alt": "Boolean algebra laws reference: 30 identities including De Morgan, distributivity, absorption and consensus",
 		"url": "logicgates.org/boolean-algebra-laws",
 		"width": 2678,
-		"height": 1810
+		"height": 1870
 	},
 	{
 		"file": "flip-flops-comparison-chart.png",

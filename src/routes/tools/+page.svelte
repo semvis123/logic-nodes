@@ -7,7 +7,7 @@
 	const page = {
 		title: 'Digital Logic Tools: Truth Tables, K-Maps, Boolean Algebra',
 		description:
-			'Seven free tools for digital logic: truth tables, boolean simplification, Karnaugh maps, SOP and POS, NAND conversion, circuit diagrams and Gray code.',
+			'Nine free tools for digital logic: truth tables, boolean simplification, Karnaugh maps, SOP and POS, NAND conversion, circuit diagrams, worksheets, binary and Gray code.',
 		url: `${SITE}/tools`,
 		image: `${SITE}/og/tools.png`,
 		imageAlt: 'Logic Nodes: tools'
@@ -84,8 +84,9 @@
 	<section class="intro">
 		<h1>Digital logic tools</h1>
 		<p class="lede">
-			Seven calculators for the things you actually have to work out: truth tables, simplification, Karnaugh maps,
-			canonical forms, universal gates, gate diagrams and Gray code. All free, all in your browser, nothing uploaded.
+			Nine calculators for the things you actually have to work out: truth tables, simplification, Karnaugh maps,
+			canonical forms, universal gates, gate diagrams, printable worksheets, fixed width binary and Gray code. All free,
+			all in your browser, nothing uploaded.
 		</p>
 	</section>
 
@@ -150,6 +151,16 @@
 						<td><a href="/gray-code-converter">Gray code converter</a></td>
 					</tr>
 					<tr>
+						<th scope="row">A number</th>
+						<td>it in another base, or in two's complement</td>
+						<td><a href="/binary-converter">Binary converter</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A class to teach</th>
+						<td>a printable question sheet with answers</td>
+						<td><a href="/worksheet">Worksheet generator</a></td>
+					</tr>
+					<tr>
 						<th scope="row">An idea</th>
 						<td>to build and run it</td>
 						<td><a href="/simulator">The simulator</a></td>
@@ -160,10 +171,11 @@
 	</section>
 
 	<section>
-		<h2>They all share one engine</h2>
+		<h2>The expression tools share one engine</h2>
 		<p class="section-intro">
-			The same parser and minimiser sits behind every tool here, so an expression you type into one means exactly the
-			same thing in the next. It accepts whichever notation you use —
+			The same parser and minimiser sits behind every tool here that takes an expression, so what you type into one
+			means exactly the same thing in the next. (The binary and Gray code converters work on bit patterns rather than
+			expressions, so they are their own thing.) It accepts whichever notation you use —
 			<span class="mono">a·b</span>, <span class="mono">a&amp;b</span>,
 			<span class="mono">a∧b</span>, <span class="mono">ab</span> — and the simplification is Quine-McCluskey, the same algorithm
 			whether you see it as algebra or as groups on a map.

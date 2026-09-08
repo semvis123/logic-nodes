@@ -224,9 +224,9 @@
 	<section class="intro">
 		<h1>Boolean algebra calculator</h1>
 		<p class="lede">
-			Simplify an expression to its minimal sum of products, with the working shown one law at a time, or check whether
-			two expressions are really the same. Both are exact: the answer comes from the complete truth table, worked out in
-			your browser.
+			Simplify an expression to a minimal sum of products — one with no term left to drop — with the working shown one
+			law at a time, or check whether two expressions are really the same. Both are exact: the answer comes from the
+			complete truth table, worked out in your browser.
 		</p>
 
 		<div class="card tool">
@@ -321,7 +321,7 @@
 										Which is the same answer the minimiser gives, reached by laws alone.
 									{:else}
 										The laws stop there. The minimiser gets to <span class="mono">{working.minimalText}</span>: it
-										searches the truth table for the smallest cover, so it can find reductions that no single law spells
+										searches the truth table for a cover instead, so it can find reductions that no single law spells
 										out.
 									{/if}
 								</p>

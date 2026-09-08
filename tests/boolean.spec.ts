@@ -371,6 +371,19 @@ test.describe('universal gate conversion', () => {
 		expect(count('a ^ b', 'nor')).toBe(5);
 	});
 
+	test('recognises the gate it is converting to instead of rebuilding it', () => {
+		const count = (src: string, kind: 'nand' | 'nor') => countUniversalGates(toUniversal(parseExpression(src), kind));
+		// A negated AND is one NAND. Expanding it operator by operator gives three,
+		// which is a silly thing to print on a page about NAND conversion.
+		expect(count('!(a & b)', 'nand')).toBe(1);
+		expect(count('!(a | b)', 'nor')).toBe(1);
+		// And a two level sum of products is the NAND-NAND circuit every textbook
+		// draws: one gate per product, one to join them.
+		expect(count('(a & b) | (c & d)', 'nand')).toBe(3);
+		expect(count('(a | b) & (c | d)', 'nor')).toBe(3);
+		expect(count('a | (b & !c)', 'nand')).toBe(4);
+	});
+
 	test('prints nested gate calls', () => {
 		expect(formatUniversal(toUniversal(parseExpression('!a'), 'nand'), 'nand')).toBe('NAND(a, a)');
 		expect(formatUniversal(toUniversal(parseExpression('a & b'), 'nand'), 'nand')).toBe('NAND(NAND(a, b), NAND(a, b))');
@@ -886,6 +899,47 @@ test.describe('practice topics and repeats', () => {
 			firsts.add(questionSignature(nextQuestion('mixed', [], random).question));
 		}
 		expect(firsts.size).toBeGreaterThan(15);
+	});
+});
+
+test.describe('quiz questions cannot be shortcut', () => {
+	test('a diagram question is not answerable by counting the gates', () => {
+		for (let seed = 1; seed <= 400; seed++) {
+			const q = makeQuestion(seed, 'diagrams');
+			if (q.kind !== 'circuit-expression') continue;
+			const counts = q.options.map((text) => buildCircuit(parseExpression(text)).gateCount);
+			expect(new Set(counts).size, `seed ${seed} offered ${counts.join(', ')} gates`).toBe(1);
+			// And the alt text must not simply state it either.
+			expect(q.svgAlt ?? '', `seed ${seed} put the gate count in the alt text`).not.toMatch(/\d+ gates/);
+		}
+	});
+
+	test('no question is printed with an ambiguous precedence', () => {
+		// XOR's rank against OR is not a settled convention, so `b ∨ ¬c ⊻ a` has
+		// two defensible answers and cannot be marked.
+		for (let seed = 1; seed <= 600; seed++) {
+			const q = makeQuestion(seed);
+			const texts = [q.prompt, q.detail ?? '', ...q.options];
+			for (const text of texts) {
+				if (!text.includes('⊻')) continue;
+				expect(text.includes('∨') || text.includes('∧'), `seed ${seed}: ${text}`).toBe(false);
+			}
+		}
+	});
+
+	test('a mixed run is not dominated by one kind of question', () => {
+		const counts = new Map<string, number>();
+		const total = 1400;
+		for (let seed = 1; seed <= total; seed++) {
+			const kind = makeQuestion(seed).kind;
+			counts.set(kind, (counts.get(kind) ?? 0) + 1);
+		}
+		// Seven generators, so an even mix is about 14% each. A generator that
+		// absorbed everyone else's refusals used to take nearly 40%.
+		for (const [kind, n] of counts) {
+			expect(n / total, `${kind} took ${Math.round((n / total) * 100)}% of the run`).toBeLessThan(0.25);
+		}
+		expect(counts.size).toBe(7);
 	});
 });
 

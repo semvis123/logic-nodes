@@ -64,7 +64,11 @@
 				</a>
 			{/each}
 		</nav>
-		<a class="toolbar-btn" href="/simulator">Open the simulator</a>
+		<!-- Two labels rather than one: on a phone the long one squeezes the nav
+		     until the current section is cut off mid-word. -->
+		<a class="toolbar-btn" href="/simulator"
+			><span class="btn-long">Open the simulator</span><span class="btn-short">Simulator</span></a
+		>
 	</header>
 
 	<main id="main" tabindex="-1">
@@ -179,9 +183,15 @@
 		gap: 2px;
 		flex: 1;
 		min-width: 0;
-		/* Narrow screens scroll the nav sideways rather than wrapping the bar. */
+		/* Narrow screens scroll the nav sideways rather than wrapping the bar.
+		   The fade on the trailing edge is what says so: without it a clipped
+		   item just looks like a rendering fault. */
 		overflow-x: auto;
 		scrollbar-width: none;
+	}
+
+	.btn-short {
+		display: none;
 	}
 
 	.nav::-webkit-scrollbar {
@@ -219,6 +229,21 @@
 		/* The brand text is redundant next to the nav on a phone. */
 		.brand-text {
 			display: none;
+		}
+
+		.btn-long {
+			display: none;
+		}
+
+		.btn-short {
+			display: inline;
+		}
+
+		/* Only where the bar can actually overflow: the fade is what marks a cut
+		   off item as scrollable rather than broken. */
+		.nav {
+			mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent);
+			-webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent);
 		}
 	}
 

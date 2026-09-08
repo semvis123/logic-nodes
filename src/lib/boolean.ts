@@ -712,45 +712,63 @@ const nor = (a: Ast, b: Ast): Ast => ({ t: 'not', a: { t: 'or', a, b } });
 export function toUniversal(ast: Ast, kind: UniversalKind): Ast {
 	const folded = foldConstants(ast);
 	const g = kind === 'nand' ? nand : nor;
+	const invert = (x: Ast): Ast => g(x, x);
 
-	const convert = (n: Ast): Ast => {
+	// Both universal gates are inverting, so every node is wanted in one of two
+	// ways: as itself, or as its complement. Asking for the complement directly
+	// is what makes the standard constructions fall out — a negated AND is one
+	// NAND, and a sum of products is the NAND-NAND circuit every textbook draws.
+	// Rewriting operator by operator instead leaves a double inversion at every
+	// join, which is correct but several gates larger than it needs to be.
+	const pos = (n: Ast): Ast => {
 		switch (n.t) {
 			case 'var':
-				return n;
 			case 'const':
-				// Only reachable when the whole expression is constant.
 				return n;
-			case 'not': {
-				const a = convert(n.a);
-				return g(a, a);
-			}
-			case 'and': {
-				const a = convert(n.a);
-				const b = convert(n.b);
-				// NAND: invert the NAND. NOR: OR the two inverted inputs.
-				return kind === 'nand' ? g(g(a, b), g(a, b)) : g(g(a, a), g(b, b));
-			}
-			case 'or': {
-				const a = convert(n.a);
-				const b = convert(n.b);
-				return kind === 'nand' ? g(g(a, a), g(b, b)) : g(g(a, b), g(a, b));
-			}
+			case 'not':
+				return neg(n.a);
+			case 'and':
+				return kind === 'nand' ? invert(neg(n)) : g(neg(n.a), neg(n.b));
+			case 'or':
+				return kind === 'nand' ? g(neg(n.a), neg(n.b)) : invert(neg(n));
 			case 'xor': {
-				const a = convert(n.a);
-				const b = convert(n.b);
+				const a = pos(n.a);
+				const b = pos(n.b);
 				if (kind === 'nand') {
 					// The classic four gate NAND XOR.
 					const c = g(a, b);
 					return g(g(a, c), g(b, c));
 				}
 				// The dual gives XNOR, so invert it: five NOR gates in total.
-				const c = g(a, b);
-				const xnor = g(g(a, c), g(b, c));
-				return g(xnor, xnor);
+				return invert(neg(n));
 			}
 		}
 	};
-	return convert(folded);
+
+	const neg = (n: Ast): Ast => {
+		switch (n.t) {
+			case 'var':
+			case 'const':
+				return invert(n);
+			case 'not':
+				return pos(n.a);
+			case 'and':
+				return kind === 'nand' ? g(pos(n.a), pos(n.b)) : invert(pos(n));
+			case 'or':
+				return kind === 'nand' ? invert(pos(n)) : g(pos(n.a), pos(n.b));
+			case 'xor': {
+				if (kind === 'nand') return invert(pos(n));
+				// NOR's four gate dual of the NAND XOR is an XNOR, which is what a
+				// negated XOR wants anyway.
+				const a = pos(n.a);
+				const b = pos(n.b);
+				const c = g(a, b);
+				return g(g(a, c), g(b, c));
+			}
+		}
+	};
+
+	return pos(folded);
 }
 
 /** A structural key: identical subtrees share one key, and one gate. */

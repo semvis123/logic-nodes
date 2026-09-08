@@ -24,7 +24,7 @@
 		},
 		{
 			q: 'How can I tell which one a circuit is?',
-			a: 'Look for a loop. If you can trace a path from an output back round to an input, the circuit is sequential. With no feedback anywhere it is combinational, no matter how many gates deep it goes.'
+			a: 'Look for a loop. If you can trace a path from an output back round to an input, the circuit is almost certainly sequential; with no feedback anywhere it is combinational, no matter how many gates deep it goes. Treat it as a quick test rather than a definition: a schematic drawn with flip-flop symbols hides its loops inside them, and a rare feedback loop exists only to suppress a hazard and stores nothing.'
 		},
 		{
 			q: 'Is a multiplexer combinational or sequential?',

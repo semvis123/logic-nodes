@@ -88,8 +88,8 @@
 	<section class="intro">
 		<h1>The six logic gates</h1>
 		<p class="lede">
-			Every digital circuit ever built, from a doorbell to a processor, is made of these six operations. Each one
-			combines binary inputs, one for NOT and two or more for the rest, into a single binary output.
+			Every digital logic function, from a doorbell to a processor, is built out of these six operations. Each one
+			combines binary inputs — one for NOT, two for XOR, two or more for the rest — into a single binary output.
 		</p>
 	</section>
 

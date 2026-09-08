@@ -166,7 +166,9 @@
 		<h1>Gray code converter</h1>
 		<p class="lede">
 			Convert either way between binary and Gray code, and read off the full sequence for any width. Consecutive Gray
-			values always differ in exactly one bit.
+			values always differ in exactly one bit. Its formal name, <strong>reflected binary code</strong>, describes how
+			the sequence is built: write the list out, mirror it, and prefix a 0 to the original half and a 1 to the
+			reflection.
 		</p>
 
 		<div class="card tool">
@@ -273,8 +275,10 @@
 		<h2>How the conversion works</h2>
 		<p class="section-intro">
 			Both directions are only <a href="/logic-gates/xor">XOR gates</a>, which is why the hardware is trivial. Binary to
-			Gray is a single layer, one XOR per bit, all working at once. Gray to binary is a chain, because each bit needs
-			the one above it before it can be worked out, so a wide converter is deeper than it looks.
+			Gray is a single layer of <em>n</em> − 1 XORs, one for every bit below the top, all working at once. Gray to
+			binary reads as a chain, because each bit needs the one above it, but the chain is a running XOR and those fold
+			into a tree: <em>n</em> bits need only log<sub>2</sub> <em>n</em> layers, which is the same trick the shift-and-XOR
+			version below uses.
 		</p>
 		<div class="two-up">
 			<div class="card way">
@@ -295,7 +299,8 @@
 			</div>
 		</div>
 		<p class="reducer">
-			Build it yourself: an <a href="/logic-gates/xor">XOR</a> per bit converts binary to Gray in one layer of gates.
+			Build it yourself: an <a href="/logic-gates/xor">XOR</a> per bit below the top converts binary to Gray in one
+			layer of gates.
 			<a href="/simulator">Open the simulator</a> and wire four toggles through three XORs to see it work.
 		</p>
 	</section>

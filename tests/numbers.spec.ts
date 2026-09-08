@@ -151,4 +151,19 @@ test.describe('fixed width numbers', () => {
 			}
 		}
 	});
+
+	test('grouping honours the size it was asked for', () => {
+		// The head was sized from the argument while the body was hardcoded to
+		// four, so any other size came out in fours anyway.
+		for (const size of [2, 3, 4, 5]) {
+			for (const width of [8, 12, 16]) {
+				const grouped = groupBits(toBits(2741, width), size);
+				const groups = grouped.split(' ');
+				for (const group of groups.slice(1)) {
+					expect(group.length, `size ${size} produced a group of ${group.length}`).toBe(size);
+				}
+				expect(grouped.replace(/ /g, '')).toBe(toBits(2741, width).join(''));
+			}
+		}
+	});
 });

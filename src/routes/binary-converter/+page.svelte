@@ -88,13 +88,24 @@
 	// Driven by the signed reading, not by what was typed: 202 in eight bits IS
 	// -54, and the steps have to start from 54, not from 202.
 	$: steps = signed < 0 ? negationSteps(signed, width) : null;
+	// The most negative value has no positive twin to be negated from, so it
+	// cannot be introduced as one: the steps below land back where they started,
+	// which is the whole reason the range is lopsided.
+	$: stepsTitle =
+		signed === range.signedMin
+			? `${signed} negates to itself, which is why it has no positive twin`
+			: `How ${Math.abs(signed)} is stored as ${signed}`;
 
-	/** Clicking a bit flips it, which is the point of showing them as a register. */
+	/**
+	 * Clicking a bit flips it, which is the point of showing them as a register.
+	 * The new pattern is written back in whichever base the reader chose, rather
+	 * than switching them to binary: changing the mode under someone means their
+	 * next keystroke is read in a base they did not pick.
+	 */
 	function flip(index: number) {
 		const next = [...bits];
 		next[index] = next[index] ? 0 : 1;
-		base = 'binary';
-		input = next.join('');
+		input = renderBase(next, base);
 	}
 
 	const faqs = [
@@ -199,37 +210,57 @@
 		</p>
 
 		<div class="card tool">
-			<label class="input-label" for="value">Value</label>
-			<div class="input-row">
-				<input id="value" type="text" bind:value={input} spellcheck="false" autocomplete="off" />
-				<select class="base-select" bind:value={base} aria-label="Read the value as">
-					{#each bases as option}
-						<option value={option.id}>{option.label}</option>
-					{/each}
-				</select>
-			</div>
-
-			<div class="presets">
-				{#each presets as preset}
-					<button type="button" class="preset" on:click={() => load(preset)}>{preset.label}</button>
-				{/each}
-			</div>
-
-			<div class="row second">
-				<label class="field inline">
-					Width
-					<select bind:value={width}>
+			<div class="fields">
+				<div class="field-group wide">
+					<label class="field" for="value">Value</label>
+					<input
+						id="value"
+						class="value-input"
+						type="text"
+						bind:value={input}
+						spellcheck="false"
+						autocomplete="off"
+						aria-invalid={error ? 'true' : 'false'}
+						aria-describedby={error ? 'value-error' : undefined}
+					/>
+				</div>
+				<div class="field-group">
+					<label class="field" for="base">Read as</label>
+					<select id="base" bind:value={base}>
+						{#each bases as option}
+							<option value={option.id}>{option.label}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="field-group">
+					<label class="field" for="bit-width">Width</label>
+					<select id="bit-width" bind:value={width}>
 						{#each widths as option}
 							<option value={option}>{option} bits</option>
 						{/each}
 					</select>
-				</label>
-				<ShareLink what="this conversion" />
+				</div>
 			</div>
 
+			<!-- Directly under the field it belongs to, not below the controls. -->
 			{#if error}
-				<p class="error" role="status">{error}</p>
-			{:else}
+				<p class="error" id="value-error" role="alert">{error}</p>
+			{/if}
+
+			<div class="presets">
+				{#each presets as preset}
+					<button type="button" class="preset" on:click={() => load(preset)}>
+						{preset.label}<span class="preset-value">{preset.value}</span>
+					</button>
+				{/each}
+			</div>
+
+			<p class="share-row"><ShareLink what="this conversion" /></p>
+
+			<!-- The results stay put while the value is unparseable, showing the last
+			     thing that did parse. Unmounting them means a single stray keystroke
+			     collapses the page and scrolls everything underneath it. -->
+			<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
 				<div class="register-wrap">
 					<div class="register" role="group" aria-label="Bit pattern, most significant bit first">
 						{#each nibbles as nibble}
@@ -240,6 +271,7 @@
 										type="button"
 										class="bit"
 										class:on={bit === 1}
+										tabindex={error ? -1 : 0}
 										aria-label={`Bit ${index}, currently ${bit}. Click to flip.`}
 										on:click={() => flip(nibble.offset + j)}
 									>
@@ -254,20 +286,24 @@
 						Click any bit to flip it. Bit {width - 1} is the most significant, and the sign bit when the value is read as
 						signed.
 					</p>
-					<p class="primary">
-						<span class="primary-label">Binary</span>
-						<span class="mono primary-value">{groupBits(bits)}</span>
-					</p>
 				</div>
 
 				{#if warning}
 					<p class="warning" role="status">{warning}</p>
 				{/if}
 
-				<div class="answers" role="status">
+				<div class="answers" role={error ? undefined : 'status'}>
+					<div class="answer headline">
+						<span class="answer-label"
+							>Binary{#if base === 'binary'}<span class="echo">&nbsp;· as entered</span>{/if}</span
+						>
+						<span class="mono primary-value">{groupBits(bits)}</span>
+					</div>
 					{#each otherBases as option}
 						<div class="answer">
-							<span class="answer-label">{option.label}</span>
+							<span class="answer-label"
+								>{option.label}{#if option.id === base}<span class="echo">&nbsp;· as entered</span>{/if}</span
+							>
 							<span class="mono answer-value">{renderBase(bits, option.id)}</span>
 						</div>
 					{/each}
@@ -282,7 +318,7 @@
 					<div class="extra">
 						<span class="extra-label">Gray code</span>
 						<span class="mono extra-value">{groupBits(toBits(toGray(unsigned), width))}</span>
-						<a class="extra-note" href="/gray-code-converter">one bit changes at a time</a>
+						<a class="extra-note" href="/gray-code-converter" tabindex={error ? -1 : 0}>one bit changes at a time</a>
 					</div>
 					{#if bcd.length}
 						<div class="extra">
@@ -299,7 +335,7 @@
 
 				{#if steps}
 					<div class="steps-box">
-						<p class="steps-title">How {Math.abs(signed)} is stored as {signed}</p>
+						<p class="steps-title">{stepsTitle}</p>
 						<ol class="steps-list">
 							<li>
 								<span class="step-label">Start with {Math.abs(signed)}</span><span class="mono"
@@ -313,7 +349,7 @@
 						</ol>
 					</div>
 				{/if}
-			{/if}
+			</div>
 		</div>
 	</section>
 
@@ -325,9 +361,9 @@
 		</p>
 		<ul class="points">
 			<li>
-				<strong>It wraps rather than overflows.</strong> An eight bit register holding 255 and asked for one more gives
-				0, because the ninth bit has nowhere to go. That is the same wrap a
-				<a href="/counters">counter</a> relies on to start again at zero.
+				<strong>It wraps.</strong> An eight bit register holding 255 and asked for one more gives 0, because the ninth
+				bit has nowhere to go. Nothing is lost by accident — the carry out records that it happened — and it is the same
+				wrap a <a href="/counters">counter</a> relies on to start again at zero.
 			</li>
 			<li>
 				<strong>The same pattern means two things.</strong> Nothing in the register records whether the top bit is worth
@@ -351,8 +387,18 @@
 		</p>
 		<p class="note">
 			The one asymmetry is worth knowing: an <em>n</em> bit register reaches −2<sup>n−1</sup> but only +2<sup>n−1</sup
-			>−1, because zero takes up one of the positive slots. In eight bits that is −128 to 127, and −(−128) has no
-			answer.
+			>−1. The patterns split evenly, half with the sign bit clear and half with it set, and zero sits in the clear
+			half, which leaves that half one pattern short for the positive numbers. In eight bits that is −128 to 127, and
+			−(−128) has no answer.
+		</p>
+		<p>
+			Two different things can go wrong when a sum does not fit, and they are worth keeping apart. <strong
+				>Carry out</strong
+			>
+			is the bit that falls off the top, and it says the <em>unsigned</em> answer was too big. <strong>Overflow</strong>
+			says the <em>signed</em> answer was too big, and the circuit spots it when the carry into the top bit differs from
+			the carry out of it — which is exactly the case where adding two positives lands on a negative. The same adder produces
+			both flags, and which one you look at depends on how you decided to read the register.
 		</p>
 	</section>
 
@@ -395,6 +441,12 @@
 </ContentPage>
 
 <style>
+	/* Every other tool page starts its content clear of the nav; this one was
+	   the only one that did not. */
+	.intro {
+		padding-top: 64px;
+	}
+
 	/* .card draws the box; every page that uses it supplies its own padding.
 	   Matching the truth table generator and the K-map solver. */
 	.tool {
@@ -402,36 +454,65 @@
 		margin-bottom: 1rem;
 	}
 
-	/* Input, laid out like the other tools: label above, one wide field. */
-	.input-label {
+	/* One labelling pattern for all three controls, the same three column row
+	   the Gray code converter uses. Width is the premise of this page, so it is
+	   a full sized control rather than something trailing after the presets. */
+	.fields {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 12px;
+		align-items: flex-end;
+	}
+
+	.field-group {
+		flex: 1;
+		min-width: 8rem;
+	}
+
+	.field-group.wide {
+		flex: 2;
+		min-width: 12rem;
+	}
+
+	.field {
 		color: #ddd;
 		display: block;
-		font-size: 0.9rem;
-		margin-bottom: 0.4rem;
+		font-size: 0.85rem;
+		margin-bottom: 0.35rem;
 	}
 
-	.input-row {
-		display: flex;
-		gap: 0.5rem;
+	/* Native controls are a light bevelled OS widget on this dark card, which
+	   reads as a browser artefact rather than part of the page. */
+	.value-input,
+	.fields select {
+		width: 100%;
+		box-sizing: border-box;
+		background-color: #0d0d0f;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		border-radius: 3px;
+		color: #fff;
+		font: 1rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		padding: 0.55rem 0.6rem;
 	}
 
-	.input-row input {
-		flex: 1;
-		min-width: 0;
-		font-family: 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
-		font-size: 1.2rem;
-		padding: 0.6rem 0.8rem;
+	.value-input:focus,
+	.fields select:focus {
+		outline: none;
+		border-color: #5db65d;
 	}
 
-	.base-select {
-		font-size: 0.95rem;
+	/* A green outline is the site's success colour, so a rejected value must not
+	   keep wearing it. */
+	.value-input[aria-invalid='true'],
+	.value-input[aria-invalid='true']:focus {
+		border-color: #f66;
 	}
 
 	.presets {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 0.4rem;
-		margin-top: 0.6rem;
+		margin-top: 0.8rem;
 	}
 
 	.preset {
@@ -441,8 +522,15 @@
 		color: #ddd;
 		cursor: pointer;
 		font-size: 0.8rem;
-		padding: 0.3rem 0.7rem;
+		padding: 0.35rem 0.7rem;
 		white-space: nowrap;
+	}
+
+	/* The value it will load, so a chip is not a guess. */
+	.preset-value {
+		color: #8ede8e;
+		font-family: 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
+		margin-left: 0.45rem;
 	}
 
 	.preset:hover {
@@ -450,18 +538,25 @@
 		color: #fff;
 	}
 
-	.row.second {
+	.share-row {
 		display: flex;
-		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.8rem;
-		margin-top: 0.8rem;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+		margin: 0.8rem 0 0;
 	}
 
 	.error {
 		color: #f66;
 		font-size: 0.9rem;
-		margin: 0.9rem 0 0;
+		margin: 0.35rem 0 0;
+	}
+
+	/* Held, not hidden: the last value that parsed stays on screen, dimmed, so
+	   the card keeps its height and nothing below it jumps. */
+	.results.stale {
+		opacity: 0.35;
+		pointer-events: none;
 	}
 
 	.warning {
@@ -521,8 +616,11 @@
 		line-height: 1.1;
 	}
 
+	/* "Which one is bit 12?" is the question the register exists to answer, so
+	   the index cannot be the least legible text on the page. */
 	.bit-index {
-		font-size: 0.62rem;
+		color: #a6a6a6;
+		font-size: 0.7rem;
 		letter-spacing: 0.02em;
 	}
 
@@ -542,30 +640,6 @@
 		margin: 0.7rem 0 0;
 	}
 
-	/* The headline answer: this is the binary converter, so the binary string
-	   gets the weight, the way the K-map solver shows its simplified form. */
-	.primary {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 0.3rem 0.9rem;
-		margin: 0.9rem 0 0;
-	}
-
-	.primary-label {
-		color: #888;
-		font-size: 0.72rem;
-		letter-spacing: 0.05em;
-		text-transform: uppercase;
-		min-width: 5.5rem;
-	}
-
-	.primary-value {
-		color: #8ede8e;
-		font-size: 1.5rem;
-		overflow-wrap: anywhere;
-	}
-
 	/* The conversions themselves, as a grid rather than a stack of equal rows. */
 	.answers {
 		display: grid;
@@ -574,6 +648,28 @@
 		border-top: 1px solid rgba(255, 255, 255, 0.12);
 		margin-top: 1rem;
 		padding-top: 1rem;
+	}
+
+	/* This is the binary converter, so the binary string gets a whole row and
+	   the largest type, rather than reading as a caption between four boxes. */
+	.answer.headline {
+		grid-column: 1 / -1;
+		border-color: rgba(93, 182, 93, 0.5);
+	}
+
+	.primary-value {
+		color: #8ede8e;
+		display: block;
+		font-size: 1.6rem;
+		margin-top: 0.15rem;
+		overflow-wrap: anywhere;
+	}
+
+	/* One of these cards always restates the input. Saying so is clearer than
+	   leaving the reader to wonder why it looks familiar. */
+	.echo {
+		color: #7a7a7a;
+		text-transform: none;
 	}
 
 	.answer {
@@ -711,9 +807,21 @@
 		color: #fff;
 	}
 
+	/* Four short strings do not need 330px of a phone screen, which is what one
+	   column costs here and it pushes the steps below the fold. */
+	@media (max-width: 640px) {
+		.answers {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.primary-value {
+			font-size: 1.35rem;
+		}
+	}
+
 	@media (max-width: 560px) {
-		.input-row input {
-			font-size: 1.05rem;
+		.field-group.wide {
+			flex-basis: 100%;
 		}
 
 		.bit {

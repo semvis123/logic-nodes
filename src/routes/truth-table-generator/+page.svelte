@@ -356,8 +356,8 @@
 			</tbody>
 		</table>
 		<p class="reducer">
-			Read the last row: 1 + 1 is 0 carry 1, which is binary for 2. Chain two half adders and a carry input and you have
-			a full adder; chain four of those and you can
+			Read the last row: 1 + 1 is 0 carry 1, which is binary for 2. Chain two half adders, then OR their two carry
+			outputs together, and you have a full adder; chain four of those and you can
 			<a href="/simulator#example:Calculator">add two four bit numbers</a>.
 		</p>
 	</section>
