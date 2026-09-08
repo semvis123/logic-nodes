@@ -134,9 +134,24 @@
 	</div>
 	<div class="overlayContainer" bind:this={overlayContainer} />
 	<div class="toast-message-container" id="toast-container" />
-	<!-- The editor is all canvas, so the page still needs a heading for screen
-	     readers and for search results. -->
-	<h1 class="visually-hidden">Logic Nodes circuit editor</h1>
+	<!-- The editor is all canvas, so the page still needs a heading and some
+	     copy for screen readers and for search results. Present in the
+	     prerendered HTML, since a crawler that does not run the script would
+	     otherwise see nothing but an empty canvas. -->
+	<h1 class="visually-hidden">Online logic gate simulator</h1>
+	<p class="visually-hidden">
+		A free logic gate simulator and digital circuit builder that runs in the browser, and an open-source alternative to
+		tools like Logic.ly and Logisim. Build circuits from AND, OR, NOT, XOR, NAND and NOR gates, then generate their
+		truth tables and boolean expressions.
+		<a href="/">Learn how it works</a>.
+	</p>
+	<noscript>
+		<p class="noscript-note">
+			Logic Nodes is a free online logic gate simulator. Enable JavaScript to build and simulate circuits, or read the <a
+				href="/">feature overview and guide</a
+			>.
+		</p>
+	</noscript>
 	<div class="corner-links">
 		<a href="https://kriyak.com/" rel="author">by kriyak</a>
 		<a href="/">about</a>
@@ -187,6 +202,20 @@
 		position: fixed;
 		top: 0;
 		left: 0;
+	}
+
+	.noscript-note {
+		position: absolute;
+		top: 48px;
+		left: 12px;
+		right: 12px;
+		z-index: 5;
+		background: #0d0d0f;
+		border: 1px solid #5db65d;
+		border-radius: 3px;
+		color: #ddd;
+		font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		padding: 0.8rem 1rem;
 	}
 
 	.visually-hidden {

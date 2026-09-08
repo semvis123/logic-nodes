@@ -99,6 +99,10 @@
 			a: 'Yes. Free, open source under Apache 2.0, and it runs entirely in your browser. No account, no install, no tracking.'
 		},
 		{
+			q: 'Is it a free alternative to Logic.ly or Logisim?',
+			a: 'Yes. Logic Nodes is a free, open-source logic gate simulator that runs in the browser, so it works as an alternative to paid tools like Logic.ly and to desktop apps like Logisim for building and simulating digital logic circuits online. There is nothing to install and no account to make.'
+		},
+		{
 			q: 'Which logic gates does it support?',
 			a: 'AND, OR, NOT, XOR, NAND and NOR. AND, OR, NAND and NOR take as many inputs as you need, not just two. On top of the gates there are input, toggle, button, constant and microphone nodes, display, output, counter and tone nodes, and interval, delay, splitter, label and HTML overlay nodes.'
 		},
@@ -183,7 +187,7 @@
 	const page = {
 		title: 'Logic Nodes: Free Online Logic Gate Simulator',
 		description:
-			'What the Logic Nodes logic gate simulator does: AND, OR, NOT, XOR, NAND and NOR gates, instant truth tables, boolean expressions and reusable custom nodes.',
+			'A free online logic gate simulator and open-source Logic.ly alternative. Build circuits from AND, OR, NOT, XOR, NAND and NOR gates and get instant truth tables.',
 		url: `${SITE}/`,
 		image: `${SITE}/og/home.png`,
 		imageAlt: 'Logic Nodes: about'
