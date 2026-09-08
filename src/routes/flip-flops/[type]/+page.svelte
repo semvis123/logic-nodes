@@ -3,7 +3,7 @@
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { flipFlops } from '$lib/flipflops';
-	import { timingCard } from '$lib/timingCards';
+	import { generatedImage } from '$lib/generatedImages';
 	import { parseExpression, evaluate } from '$lib/boolean';
 	import { clockSignal, pattern, simulateClocked, timingToSvg, timingAlt } from '$lib/timing';
 	import type { PageData } from './$types';
@@ -39,7 +39,7 @@
 		palette: 'mono'
 	});
 	$: timingDescription = timingAlt(timingSignals);
-	$: timingImage = timingCard(`${ff.slug}-flip-flop-timing-diagram.png`);
+	$: timingImage = generatedImage(`${ff.slug}-flip-flop-timing-diagram.png`);
 	$: equation = parseExpression(ff.equation);
 
 	// Live demo: hold the inputs, press the clock, watch the state move.

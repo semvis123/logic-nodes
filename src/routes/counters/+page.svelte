@@ -5,7 +5,7 @@
 	import { countSequence, counterWaveforms, counterKinds, bitsOf } from '$lib/sequential';
 	import { clockSignal, timingToSvg, timingAlt } from '$lib/timing';
 	import { flipFlops } from '$lib/flipflops';
-	import { timingCard } from '$lib/timingCards';
+	import { generatedImage } from '$lib/generatedImages';
 
 	// Everything below is generated, so the tables, the waveforms and the prose
 	// counts cannot drift apart.
@@ -41,7 +41,7 @@
 	});
 
 	const tFlipFlop = flipFlops.find((ff) => ff.slug === 't');
-	const cards = ['binary-counter-timing-diagram.png', 'decade-counter-timing-diagram.png'].map(timingCard);
+	const cards = ['binary-counter-timing-diagram.png', 'decade-counter-timing-diagram.png'].map(generatedImage);
 
 	const faqs = [
 		{

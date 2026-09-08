@@ -4,7 +4,7 @@
 	import { modifiedFields } from '$lib/lastmod';
 	import { shiftRegisterStages, ringCounter, johnsonCounter, registerKinds } from '$lib/sequential';
 	import { clockSignal, timingToSvg, timingAlt, type Level } from '$lib/timing';
-	import { timingCard } from '$lib/timingCards';
+	import { generatedImage } from '$lib/generatedImages';
 
 	// Every waveform here is generated from the stage definitions, so the picture
 	// and the description cannot disagree.
@@ -47,7 +47,7 @@
 		'shift-register-timing-diagram.png',
 		'ring-counter-timing-diagram.png',
 		'johnson-counter-timing-diagram.png'
-	].map(timingCard);
+	].map(generatedImage);
 
 	const table = serial.slice(0, 8).map((bit, cycle) => ({
 		cycle: cycle + 1,

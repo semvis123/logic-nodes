@@ -190,11 +190,15 @@ export function circuitToSvg(circuit: Circuit, options: CircuitSvgOptions = {}):
 	const outOn = states ? !!states[circuit.rootId] : false;
 	const outFill = palette === 'mono' ? theme.background : outOn ? '#372' : '#40191c';
 	const outText = options.outputLabel ?? (states ? (outOn ? '1' : '0') : 'Q');
+	// The layout reserves a fixed box, which a label longer than a couple of
+	// characters spills out of. Grow it to the right, so the wire still meets its
+	// left edge where the layout put it.
+	const outWidth = Math.max(out.width, outText.length * 9 + 16);
 	parts.push(
-		`<rect x="${round(out.x)}" y="${round(out.y)}" width="${out.width}" height="${
+		`<rect x="${round(out.x)}" y="${round(out.y)}" width="${round(outWidth)}" height="${
 			out.height
 		}" rx="3" fill="${outFill}" stroke="${theme.line}" stroke-width="2"/>`,
-		`<text x="${round(out.x + out.width / 2)}" y="${round(out.y + 20)}" text-anchor="middle" fill="${
+		`<text x="${round(out.x + outWidth / 2)}" y="${round(out.y + 20)}" text-anchor="middle" fill="${
 			theme.text
 		}" font-family="${MONO}" font-size="15" font-weight="600">${esc(outText)}</text>`
 	);
@@ -209,7 +213,7 @@ export function circuitToSvg(circuit: Circuit, options: CircuitSvgOptions = {}):
 	}
 
 	return document_(
-		circuit.width,
+		Math.max(circuit.width, out.x + outWidth + 12),
 		circuit.height + captionHeight,
 		caption || 'Logic circuit diagram',
 		parts.join('\n'),

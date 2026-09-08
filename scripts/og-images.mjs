@@ -44,7 +44,9 @@ const strip = (s) =>
 
 function pageInfo(file) {
 	const html = readFileSync(file, 'utf8');
-	const path = '/' + relative(PAGES_DIR, file).replace(/\.html$/, '');
+	// The homepage prerenders to index.html, so normalise that back to "/" or
+	// the slug below never resolves to "home".
+	const path = ('/' + relative(PAGES_DIR, file).replace(/\.html$/, '')).replace(/\/index$/, '/');
 	const h1 = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/);
 	const lede = html.match(/class="lede[^"]*"[^>]*>([\s\S]*?)<\/p>/);
 	const desc = html.match(/<meta name="description" content="([^"]*)"/);
@@ -118,18 +120,6 @@ for (const file of files) {
 	count++;
 	console.log(`  ${info.slug}.png  ${info.title}`);
 }
-
-// The editor route has no prerendered HTML of its own, so give it a card too.
-await page.setContent(
-	card({
-		title: 'Build logic circuits in your browser',
-		subtitle: 'A free logic gate simulator. Wire up gates, watch the signals flow, and read off the truth table.',
-		kicker: ''
-	}),
-	{ waitUntil: 'load' }
-);
-await page.screenshot({ path: join(OUT_DIR, 'home.png') });
-count++;
 
 await browser.close();
 console.log(`\n${count} social cards written to ${OUT_DIR}/`);

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import { imagesFor } from '$lib/generatedImages';
 	import { modifiedFields } from '$lib/lastmod';
 	import { flipFlops } from '$lib/flipflops';
 
@@ -183,9 +184,52 @@
 			one is built on. <a href="/learn#memory">The learning path</a> walks through it.
 		</p>
 	</section>
+	<section>
+		<h2>Reference card</h2>
+		<p class="section-intro">All four flip-flops with their equations and tables on one image.</p>
+		{#each imagesFor('/flip-flops') as shot}
+			<a class="card-image" href="/img/{shot.file}" download>
+				<img
+					src="/img/{shot.file}"
+					alt={shot.alt}
+					width={shot.width}
+					height={shot.height}
+					loading="lazy"
+					decoding="async"
+				/>
+				<span class="card-caption">Click to download: {shot.title}</span>
+			</a>
+		{/each}
+	</section>
 </ContentPage>
 
 <style>
+	.card-image {
+		display: block;
+		border: 1px solid rgba(255, 255, 255, 0.35);
+		border-radius: 3px;
+		overflow: hidden;
+		text-decoration: none;
+		max-width: 640px;
+		margin-bottom: 0.9rem;
+	}
+
+	.card-image img {
+		display: block;
+		width: 100%;
+		height: auto;
+		/* The card art is black on white, so it carries its own page colour. */
+		background: #fff;
+	}
+
+	.card-caption {
+		display: block;
+		background: #161618;
+		color: #8ede8e;
+		font-size: 0.8rem;
+		padding: 0.5rem 0.8rem;
+	}
+
 	.intro {
 		padding-top: 64px;
 	}

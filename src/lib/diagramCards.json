@@ -1,0 +1,98 @@
+[
+	{
+		"file": "half-adder-circuit-diagram.png",
+		"title": "Half adder circuit diagram",
+		"alt": "Half adder logic circuit diagram with inputs a = A, b = B: sum from a ⊻ b, carry from a ∧ b",
+		"url": "logicgates.org/common-circuits#half-adder",
+		"width": 986,
+		"height": 1108
+	},
+	{
+		"file": "full-adder-circuit-diagram.png",
+		"title": "Full adder circuit diagram",
+		"alt": "Full adder logic circuit diagram with inputs a = A, b = B, c = Cin: sum from a ⊻ b ⊻ c, cout from a ∧ b ∨ c ∧ (a ⊻ b)",
+		"url": "logicgates.org/common-circuits#full-adder",
+		"width": 1752,
+		"height": 1380
+	},
+	{
+		"file": "multiplexer-circuit-diagram.png",
+		"title": "2-to-1 multiplexer circuit diagram",
+		"alt": "2-to-1 multiplexer logic circuit diagram with inputs a = A, b = B, s = S: out from ¬s ∧ a ∨ s ∧ b",
+		"url": "logicgates.org/common-circuits#multiplexer",
+		"width": 1228,
+		"height": 874
+	},
+	{
+		"file": "demultiplexer-circuit-diagram.png",
+		"title": "1-to-2 demultiplexer circuit diagram",
+		"alt": "1-to-2 demultiplexer logic circuit diagram with inputs d = D, s = S: y0 from ¬s ∧ d, y1 from s ∧ d",
+		"url": "logicgates.org/common-circuits#demultiplexer",
+		"width": 1300,
+		"height": 1108
+	},
+	{
+		"file": "decoder-circuit-diagram.png",
+		"title": "2-to-4 decoder circuit diagram",
+		"alt": "2-to-4 decoder logic circuit diagram with inputs a = A, b = B: y0 from ¬a ∧ ¬b, y1 from ¬a ∧ b, y2 from a ∧ ¬b, y3 from a ∧ b",
+		"url": "logicgates.org/common-circuits#decoder",
+		"width": 1132,
+		"height": 1848
+	},
+	{
+		"file": "encoder-circuit-diagram.png",
+		"title": "4-to-2 encoder circuit diagram",
+		"alt": "4-to-2 encoder logic circuit diagram with inputs a = I0, b = I1, c = I2, d = I3: o1 from c ∨ d, o0 from b ∨ d",
+		"url": "logicgates.org/common-circuits#encoder",
+		"width": 1340,
+		"height": 1108
+	},
+	{
+		"file": "comparator-circuit-diagram.png",
+		"title": "1-bit comparator circuit diagram",
+		"alt": "1-bit comparator logic circuit diagram with inputs a = A, b = B: equal from ¬(a ⊻ b), greater from a ∧ ¬b, less from ¬a ∧ b",
+		"url": "logicgates.org/common-circuits#comparator",
+		"width": 1320,
+		"height": 1478
+	},
+	{
+		"file": "parity-circuit-diagram.png",
+		"title": "3-bit parity generator circuit diagram",
+		"alt": "3-bit parity generator logic circuit diagram with inputs a = A, b = B, c = C: odd from a ⊻ b ⊻ c",
+		"url": "logicgates.org/common-circuits#parity",
+		"width": 1330,
+		"height": 874
+	},
+	{
+		"file": "majority-circuit-diagram.png",
+		"title": "Majority voter circuit diagram",
+		"alt": "Majority voter logic circuit diagram with inputs a = A, b = B, c = C: out from a ∧ b ∨ b ∧ c ∨ a ∧ c",
+		"url": "logicgates.org/common-circuits#majority",
+		"width": 1278,
+		"height": 874
+	},
+	{
+		"file": "logic-gate-symbols-chart.png",
+		"title": "Logic gate symbols chart",
+		"alt": "Logic gate symbols chart: ANSI distinctive shapes and IEC rectangles side by side for AND, OR, NOT, XOR, NAND, NOR",
+		"url": "logicgates.org/logic-gate-symbols",
+		"width": 1988,
+		"height": 1098
+	},
+	{
+		"file": "boolean-algebra-laws-chart.png",
+		"title": "Boolean algebra laws",
+		"alt": "Boolean algebra laws reference: 28 identities including De Morgan, distributivity, absorption and consensus",
+		"url": "logicgates.org/boolean-algebra-laws",
+		"width": 2678,
+		"height": 1810
+	},
+	{
+		"file": "flip-flops-comparison-chart.png",
+		"title": "Flip-flop comparison chart",
+		"alt": "Comparison of the SR, D, JK and T flip-flops: next-state equation and characteristic table for each",
+		"url": "logicgates.org/flip-flops",
+		"width": 1676,
+		"height": 1136
+	}
+]

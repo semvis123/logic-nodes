@@ -2,7 +2,7 @@ import { SITE } from '$lib/site';
 import { gates } from '$lib/gates';
 import { flipFlops } from '$lib/flipflops';
 import { lastModified } from '$lib/lastmod';
-import { timingCards } from '$lib/timingCards';
+import { generatedImages } from '$lib/generatedImages';
 
 export const prerender = true;
 
@@ -23,10 +23,11 @@ const IMAGES: Record<string, { file: string; title: string }[]> = {
 	// The homepage carousel. These used to be keyed to /about, which now only
 	// redirects and so is left out of the sitemap entirely, which meant these
 	// three were listed nowhere.
-	// The generated timing diagrams, grouped by the page each one belongs to.
-	...timingCards.reduce<Record<string, { file: string; title: string }[]>>((map, card) => {
-		const path = card.url.replace('logicgates.org', '');
-		(map[path] ??= []).push({ file: `img/${card.file}`, title: card.title });
+	// Every generated reference image, grouped by the page it belongs to. The
+	// recorded URL can carry a fragment, which is not part of the sitemap entry.
+	...generatedImages.reduce<Record<string, { file: string; title: string }[]>>((map, image) => {
+		const path = image.url.replace('logicgates.org', '').split('#')[0];
+		(map[path] ??= []).push({ file: `img/${image.file}`, title: image.title });
 		return map;
 	}, {}),
 	// og-image.png is a social card, not something the page displays, so it is
