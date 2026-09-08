@@ -6,7 +6,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
-// The mark is the editor's own idiom: a lit node with a wire leaving it.
+// The mark is the editor's own idiom: two wires into a gate, one lit wire out.
 const icon = (size, padding) => {
 	const inset = Math.round(size * padding);
 	const box = size - inset * 2;
@@ -18,10 +18,14 @@ const icon = (size, padding) => {
   </style></head><body>
   <svg width="${box}" height="${box}" viewBox="0 0 100 100">
     <rect x="2" y="2" width="96" height="96" rx="16" fill="#161618" stroke="#ffffff" stroke-width="5"/>
-    <!-- two inputs meeting a lit output, the shape of every circuit here -->
-    <line x1="18" y1="34" x2="46" y2="34" stroke="#5db65d" stroke-width="7" stroke-linecap="round"/>
-    <line x1="18" y1="66" x2="46" y2="66" stroke="#f23" stroke-width="7" stroke-linecap="round"/>
-    <path d="M46 20 H62 A22 22 0 0 1 62 80 H46 Z" fill="#0d0d0f" stroke="#ffffff" stroke-width="6" stroke-linejoin="round"/>
+    <!-- An OR gate holding a true statement: one input high, one low, output
+         high. It was an AND before, with the same colours, which reads as
+         1 AND 0 = 1. A logic site should not ship a wrong gate as its mark.
+         The leads stop at x = 51 because that is where the curved back sits at
+         the pin heights, not at its leftmost point. -->
+    <line x1="18" y1="34" x2="52" y2="34" stroke="#5db65d" stroke-width="7" stroke-linecap="round"/>
+    <line x1="18" y1="66" x2="52" y2="66" stroke="#f23" stroke-width="7" stroke-linecap="round"/>
+    <path d="M46 20 Q60 50 46 80 Q68 80 84 50 Q68 20 46 20 Z" fill="#0d0d0f" stroke="#ffffff" stroke-width="6" stroke-linejoin="round"/>
     <line x1="84" y1="50" x2="94" y2="50" stroke="#5db65d" stroke-width="7" stroke-linecap="round"/>
     <circle cx="88" cy="50" r="0.1" fill="#5db65d"/>
   </svg>
