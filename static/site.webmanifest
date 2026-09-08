@@ -1,0 +1,22 @@
+{
+	"name": "Logic Nodes",
+	"short_name": "Logic Nodes",
+	"description": "A free logic gate simulator that runs in your browser. Build circuits, generate truth tables and boolean expressions, and share them with a link.",
+	"start_url": "/simulator",
+	"scope": "/",
+	"display": "standalone",
+	"orientation": "any",
+	"background_color": "#1d1e20",
+	"theme_color": "#1d1e20",
+	"categories": ["education", "productivity", "utilities"],
+	"icons": [
+		{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+		{ "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+		{ "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+	],
+	"shortcuts": [
+		{ "name": "Open the simulator", "url": "/simulator" },
+		{ "name": "Truth table generator", "url": "/truth-table-generator" },
+		{ "name": "Practice", "url": "/practice" }
+	]
+}

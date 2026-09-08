@@ -43,7 +43,8 @@ input:invalid {
 	min-width: 5rem;
 }
 
-ul {
+/* Scoped: a bare `ul` selector leaked onto the content pages. */
+.popup ul {
 	padding-left: 0;
 	margin-right: 0.67em;
 	margin-left: 0;

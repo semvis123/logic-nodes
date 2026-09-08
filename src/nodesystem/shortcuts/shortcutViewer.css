@@ -1,4 +1,5 @@
-kbd {
+/* Scoped: a bare `kbd` selector leaked onto the content pages. */
+.shortcut-container kbd {
 	background-color: #f7f7f7;
 	border: 1px solid #ccc;
 	border-radius: 3px;

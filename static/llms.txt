@@ -1,22 +1,45 @@
 # Logic Nodes
 
-> Free online logic gate simulator that runs entirely in the browser. Build digital logic circuits with AND, OR, NOT, XOR, NAND, and NOR gates, generate truth tables and boolean expressions, construct circuits from expressions or truth tables, and share circuits with a link. No account, no install, no tracking.
+> Free online logic gate simulator that runs entirely in the browser. Build digital logic circuits with AND, OR, NOT, XOR, NAND, and NOR gates, generate truth tables and boolean expressions, construct circuits from expressions or truth tables, and package circuits into reusable custom nodes. No account, no install, no tracking.
 
 Logic Nodes is a hand-written TypeScript application rendering on an HTML5 canvas, open source under Apache 2.0.
 
 ## Pages
 
-- [Simulator](https://nodes.kriyak.com/): the editor itself, opens with an example circuit
-- [About](https://nodes.kriyak.com/about): feature tour, how to use it, and FAQ
+- [Simulator](https://nodes.kriyak.com/simulator): the editor itself, opens with an example circuit
+- [Home](https://nodes.kriyak.com/): what it is, feature tour, how to use it, and FAQ
+- [Learn digital logic](https://nodes.kriyak.com/learn): an eight step path from a single wire to a four bit adder, with a live full adder
+- [Logic gates reference](https://nodes.kriyak.com/logic-gates): all six gates, each with its own page (/logic-gates/and, /or, /not, /xor, /nand, /nor)
+- [Logic gate symbols](https://nodes.kriyak.com/logic-gate-symbols): ANSI distinctive shapes and IEC rectangles side by side
+- [Flip-flops](https://nodes.kriyak.com/flip-flops): SR, D, JK and T, each with characteristic and excitation tables, a generated timing diagram and a clockable demo (/flip-flops/sr, /d, /jk, /t)
+- [Counters](https://nodes.kriyak.com/counters): how binary counters work, ripple vs synchronous, decade and up/down, with generated count tables and timing diagrams
+- [Shift registers](https://nodes.kriyak.com/shift-registers): SISO, SIPO, PISO and PIPO, plus ring and Johnson counters, with generated timing diagrams
+- [Circuit diagram generator](https://nodes.kriyak.com/logic-circuit-generator): draws an expression as a gate diagram with live signal colours
+- [Practice](https://nodes.kriyak.com/practice): endless generated questions on gates, truth tables and expressions, marked instantly, filterable by topic
+- [Worksheet generator](https://nodes.kriyak.com/worksheet): a printable worksheet with an optional answer key, rebuilt from the sheet number in the link, so a class can be given the same questions without any account or storage
+- [Common circuits](https://nodes.kriyak.com/common-circuits): half and full adders, multiplexer, demultiplexer, decoder, encoder, comparator, parity and majority, each with expressions and a generated truth table
+- [Combinational vs sequential logic](https://nodes.kriyak.com/combinational-vs-sequential): what changes once a circuit has feedback, and why a clock appears
+- [Tools index](https://nodes.kriyak.com/tools): every calculator and generator in one place
+- [Karnaugh map solver](https://nodes.kriyak.com/karnaugh-map-solver): draws the K-map with the groups highlighted, 2 to 6 variables, supports don't cares (click a square to cycle 0/1/X, or list the row numbers)
+- [Sum of products calculator](https://nodes.kriyak.com/sum-of-products-calculator): minterms, maxterms, canonical and minimal SOP and POS
+- [NAND and NOR converter](https://nodes.kriyak.com/nand-nor-converter): rewrites an expression using only NAND or only NOR gates, with gate counts
+- [Gray code converter](https://nodes.kriyak.com/gray-code-converter): binary to Gray and back, with the full sequence for 2 to 8 bits
+- [Boolean algebra laws](https://nodes.kriyak.com/boolean-algebra-laws): 28 identities, each proved with a generated truth table
+- [Truth table generator](https://nodes.kriyak.com/truth-table-generator): turns a typed boolean expression into its truth table, plus the truth tables of the six basic gates
+- [Boolean algebra calculator](https://nodes.kriyak.com/boolean-algebra-calculator): simplifies an expression to a minimal sum of products (Quine-McCluskey), shows the working one named law at a time, checks whether two expressions are equivalent, and lists the laws
 
 ## Key facts
 
 - Free and open source (Apache 2.0): https://github.com/semvis123/logic-nodes
-- Gates: AND, OR, NOT, XOR, NAND, NOR, plus clock, delay, counter, button, toggle, and display nodes
+- Gates: AND, OR, NOT, XOR, NAND, NOR (AND/OR/NAND/NOR accept any number of inputs), plus interval, delay, counter, button, toggle, constant, splitter, label, microphone, tone, display and output nodes
 - Generates truth tables and boolean expressions from circuits, and circuits from truth tables or expressions
-- Circuits save in the browser (localStorage), export/import as files, and encode into shareable URLs
+- Circuit diagrams and truth tables export as SVG or PNG, in colour or black and white, with ANSI or IEC gate symbols
+- Circuits save in the browser (localStorage) with autosave, export and import as JSON files, and copy to the clipboard as JSON
+- Built-in examples open from a link: https://nodes.kriyak.com/simulator#example:Calculator (also Introduction, 7 Segment-display, Rising edge detector, Falling edge detector)
 - Custom nodes let you package circuits into reusable components
 - Suited for learning digital logic: boolean algebra, SR latches, half adders, counters
+- Built for mouse and keyboard: no pinch to zoom or touch panning, so desktop is the better experience
+- Optional boolean expression simplification via Wolfram Alpha requires the user's own App ID
 
 ## Author
 

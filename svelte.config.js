@@ -16,7 +16,13 @@ const config = {
 		}
 	},
 	kit: {
-		adapter: adapter()
+		adapter: adapter(),
+		prerender: {
+			// The editor reads `#example:Name` at runtime to load a built-in
+			// circuit, so those fragments are not anchors on the page. Warn rather
+			// than fail, so a genuinely broken in-page link still shows up.
+			handleMissingId: 'warn'
+		}
 	}
 };
 

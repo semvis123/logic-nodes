@@ -1,0 +1,21 @@
+# Cloudflare Pages headers.
+
+# Everything under /_app/immutable is content hashed by Vite: a change gets a
+# new filename, so these can be cached for a year and never revalidated.
+/_app/immutable/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Generated images change only when the build regenerates them, and are always
+# fetched by a stable path, so a day of caching with revalidation is right.
+/og/*
+  Cache-Control: public, max-age=86400, must-revalidate
+
+/*.png
+  Cache-Control: public, max-age=86400, must-revalidate
+
+# Pages themselves are prerendered but can change on any deploy, so let the
+# browser reuse them briefly and check back.
+/*
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin

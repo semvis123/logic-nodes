@@ -3,11 +3,17 @@
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.png" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
+		<link rel="manifest" href="%sveltekit.assets%/site.webmanifest" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="theme-color" content="#1d1e20" />
+		<!-- The whole site is dark, so form controls should be too. -->
+		<meta name="color-scheme" content="dark" />
 		%sveltekit.head%
 	</head>
 	<body>
-		<main>%sveltekit.body%</main>
+		<!-- The main landmark lives in ContentPage, after the site header, so the
+		     nav is not inside it. The editor route manages its own layout. -->
+		%sveltekit.body%
 	</body>
 </html>

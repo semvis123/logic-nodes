@@ -7,3 +7,7 @@ node_modules
 .env.*
 !.env.example
 src-tauri
+# Playwright artefacts
+test-results
+playwright-report
+.playwright-mcp
