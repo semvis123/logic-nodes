@@ -325,6 +325,10 @@
 		gap: 0.8rem;
 	}
 
+	.kind {
+		padding: 1rem 1.1rem 1.1rem;
+	}
+
 	.kind h3 {
 		font-size: 1rem;
 		margin: 0 0 0.2rem;

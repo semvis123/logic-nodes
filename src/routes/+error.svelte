@@ -106,15 +106,28 @@
 		gap: 0.8rem;
 	}
 
+	/* .card supplies the box; each page supplies its own padding, the same way
+	   the tools hub and the flip-flop hub do. */
 	.link-card {
 		display: flex;
 		flex-direction: column;
 		gap: 0.3rem;
+		padding: 1rem 1.1rem 1.1rem;
 		text-decoration: none;
+		transition: border-color 0.15s ease, transform 0.15s ease;
 	}
 
 	.link-card:hover {
 		border-color: #5db65d;
+		transform: translateY(-2px);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.link-card,
+		.link-card:hover {
+			transition: none;
+			transform: none;
+		}
 	}
 
 	.card-title {
