@@ -1,6 +1,6 @@
 # Logic Nodes
 
-A free online logic gate simulator, hand-written in TypeScript on an HTML5 canvas.
+A free online logic gate simulator and digital logic reference: truth tables, Karnaugh maps, boolean algebra and circuit diagrams.
 
 **Try it: [logicgates.org](https://logicgates.org/simulator)**, no account, no install. New here? Start at the [home page](https://logicgates.org/).
 
