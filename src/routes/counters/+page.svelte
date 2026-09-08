@@ -183,7 +183,9 @@
 			</table>
 		</div>
 		<p class="note">
-			Read the last column down and you have the wiring: Q0 always toggles, so its
+			A counter wrapping back to zero is just fixed-width binary running out of room, which the
+			<a href="/binary-converter">binary converter</a> shows directly. Read the last column down and you have the
+			wiring: Q0 always toggles, so its
 			{#if tFlipFlop}<a href="/flip-flops/t">T input</a>{:else}T input{/if} is tied high. Q1 toggles when Q0 is high, so
 			its T input is Q0. Q2 toggles when Q0 and Q1 are both high, so its T input is one AND gate. That pattern continues
 			for as many bits as you want.

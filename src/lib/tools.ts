@@ -51,6 +51,12 @@ export const tools: Tool[] = [
 		blurb: 'A printable set of questions with an answer key, rebuilt from the number in the link.'
 	},
 	{
+		href: '/binary-converter',
+		name: 'Binary converter',
+		short: 'Binary',
+		blurb: "Decimal, binary, hex and octal at a fixed width, with two's complement and BCD."
+	},
+	{
 		href: '/gray-code-converter',
 		name: 'Gray code converter',
 		short: 'Gray code',

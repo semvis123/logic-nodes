@@ -218,7 +218,9 @@
 		</p>
 		<p class="reducer">
 			Or draw any of the expressions above with the
-			<a href="/logic-circuit-generator">circuit diagram generator</a>.
+			<a href="/logic-circuit-generator">circuit diagram generator</a>. The adders are also where
+			<a href="/binary-converter#twos-complement">two's complement</a> earns its keep: feed one input its complement and
+			the same circuit subtracts.
 		</p>
 	</section>
 

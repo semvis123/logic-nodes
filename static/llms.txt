@@ -23,6 +23,7 @@ Logic Nodes is a hand-written TypeScript application rendering on an HTML5 canva
 - [Karnaugh map solver](https://logicgates.org/karnaugh-map-solver): draws the K-map with the groups highlighted, 2 to 6 variables, supports don't cares (click a square to cycle 0/1/X, or list the row numbers)
 - [Sum of products calculator](https://logicgates.org/sum-of-products-calculator): minterms, maxterms, canonical and minimal SOP and POS
 - [NAND and NOR converter](https://logicgates.org/nand-nor-converter): rewrites an expression using only NAND or only NOR gates, with gate counts
+- [Binary converter](https://logicgates.org/binary-converter): decimal, binary, hex and octal at a fixed bit width, with two's complement, BCD and Gray code, and a clickable register
 - [Gray code converter](https://logicgates.org/gray-code-converter): binary to Gray and back, with the full sequence for 2 to 8 bits
 - [Boolean algebra laws](https://logicgates.org/boolean-algebra-laws): 28 identities, each proved with a generated truth table
 - [Truth table generator](https://logicgates.org/truth-table-generator): turns a typed boolean expression into its truth table, plus the truth tables of the six basic gates
