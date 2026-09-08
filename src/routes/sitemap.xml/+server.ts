@@ -19,8 +19,11 @@ const IMAGES: Record<string, { file: string; title: string }[]> = {
 			]
 		])
 	),
-	'/': [{ file: 'og-image.png', title: 'The Logic Nodes logic gate simulator' }],
-	'/about': [
+	// The homepage carousel. These used to be keyed to /about, which now only
+	// redirects and so is left out of the sitemap entirely, which meant these
+	// three were listed nowhere.
+	'/': [
+		{ file: 'og-image.png', title: 'The Logic Nodes logic gate simulator' },
 		{ file: 'boolean-algebra.png', title: 'Truth table and boolean expression from a logic circuit' },
 		{ file: 'seven-segment.png', title: 'A seven segment decoder built from logic gates' },
 		{ file: 'calculator.png', title: 'A four bit calculator built from logic gates' }
