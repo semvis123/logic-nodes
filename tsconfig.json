@@ -1,6 +1,9 @@
 {
 	"extends": "./.svelte-kit/tsconfig.json",
 	"compilerOptions": {
-		"resolveJsonModule": true
+		"resolveJsonModule": true,
+		// The generated cards are default-imported from JSON, which needs this;
+		// the config SvelteKit writes does not set it.
+		"allowSyntheticDefaultImports": true
 	}
 }

@@ -102,6 +102,13 @@
 		}
 	];
 
+	// The originals are 1800px wide for a 2x desktop column; a phone paints the
+	// slide at a third of that. `scripts/screenshot-variants.mjs` writes the
+	// smaller WebP copies, and these two let the browser pick one.
+	const VARIANT_WIDTHS = [600, 900, 1200, 1800];
+	const SIZES = '(max-width: 980px) 100vw, 900px';
+	const srcset = (src: string) => VARIANT_WIDTHS.map((w) => `${src.replace(/\.png$/, '')}-${w}.webp ${w}w`).join(', ');
+
 	let track: HTMLDivElement;
 	let slide = 0;
 
@@ -589,14 +596,18 @@
 			<div class="track" bind:this={track} on:scroll={onScroll}>
 				{#each shots as shot, i}
 					<figure class="slide" role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${shots.length}`}>
-						<img
-							src={shot.src}
-							alt={shot.alt}
-							width="1800"
-							height="826"
-							loading={i === 0 ? 'eager' : 'lazy'}
-							decoding="async"
-						/>
+						<picture>
+							<source type="image/webp" srcset={srcset(shot.src)} sizes={SIZES} />
+							<img
+								src={shot.src}
+								alt={shot.alt}
+								width="1800"
+								height="826"
+								loading={i === 0 ? 'eager' : 'lazy'}
+								decoding="async"
+								{...i === 0 ? { fetchpriority: 'high' } : {}}
+							/>
+						</picture>
 						<figcaption>{shot.caption}</figcaption>
 					</figure>
 				{/each}
@@ -1018,6 +1029,10 @@
 		min-width: 0;
 	}
 
+	.slide picture {
+		display: block;
+	}
+
 	.slide img {
 		display: block;
 		width: 100%;
@@ -1070,21 +1085,34 @@
 	.dots {
 		display: flex;
 		justify-content: center;
-		gap: 8px;
-		margin-top: 0.7rem;
+		margin-top: 0.35rem;
 	}
 
+	/* A 10px dot is far too small to hit with a thumb, so the button is 24px
+	   square and the dot is drawn inside it. The target grows, the design does
+	   not, and the buttons sit edge to edge so no gap is left unclickable. */
 	.dot-btn {
-		width: 10px;
-		height: 10px;
+		width: 24px;
+		height: 24px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
 		padding: 0;
-		border: 1px solid rgba(255, 255, 255, 0.5);
-		border-radius: 50%;
-		background-color: transparent;
+		border: 0;
+		background: none;
 		cursor: pointer;
 	}
 
-	.dot-btn.current {
+	.dot-btn::before {
+		content: '';
+		width: 10px;
+		height: 10px;
+		box-sizing: border-box;
+		border: 1px solid rgba(255, 255, 255, 0.5);
+		border-radius: 50%;
+	}
+
+	.dot-btn.current::before {
 		background-color: #5db65d;
 		border-color: #5db65d;
 	}

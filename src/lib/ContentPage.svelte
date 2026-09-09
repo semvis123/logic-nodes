@@ -226,9 +226,16 @@
 	}
 
 	@media (max-width: 700px) {
-		/* The brand text is redundant next to the nav on a phone. */
+		/* The brand text is redundant next to the nav on a phone, but the box on
+		   its own is decorative, so hiding it outright leaves the home link with
+		   no name at all. Take it out of the layout, not out of the page. */
 		.brand-text {
-			display: none;
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip: rect(0 0 0 0);
+			white-space: nowrap;
 		}
 
 		.btn-long {
@@ -248,6 +255,7 @@
 	}
 
 	.brand {
+		position: relative;
 		display: inline-flex;
 		align-items: center;
 		gap: 0.5rem;

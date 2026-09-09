@@ -17,6 +17,11 @@ const config = {
 	},
 	kit: {
 		adapter: adapter(),
+		// Every route's stylesheet is under 12 KB, and fetching them was two
+		// extra round trips in front of the first paint. Inlining them costs a
+		// couple of KB of gzipped HTML on a cold load, which is the only time it
+		// is paid: client side navigation never refetches the document.
+		inlineStyleThreshold: 12288,
 		prerender: {
 			// The editor reads `#example:Name` at runtime to load a built-in
 			// circuit, so those fragments are not anchors on the page. Warn rather
