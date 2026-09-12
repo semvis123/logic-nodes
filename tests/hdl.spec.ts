@@ -3,7 +3,7 @@
 // turned into a truth table and compared with the one it came from.
 
 import { expect, test } from '@playwright/test';
-import { parseExpression, truthTable, variablesOf, type Ast } from '../src/lib/boolean.js';
+import { parseExpression, parseSystem, truthTable, truthTables, variablesOf, type Ast } from '../src/lib/boolean.js';
 import { toHdl, toHdlExpression, hdlTargets, type Hdl } from '../src/lib/hdl.js';
 
 let seed = 20260909;
@@ -112,6 +112,46 @@ test.describe('HDL export', () => {
 							.replace(/,$/, '')
 					);
 				expect(new Set(ports).size, `${id} declared a port twice for ${source}`).toBe(ports.length);
+			}
+		}
+	});
+
+	test('several outputs become several ports, each with its own assignment', () => {
+		const sources = [
+			'sum = a ^ b; carry = a & b',
+			'lt = !a & b; eq = !(a ^ b); gt = a & !b',
+			'sum = a ^ b ^ c; carry = (a & b) | (c & (a ^ b))',
+			'a & b; a | b'
+		];
+		for (const source of sources) {
+			const outputs = parseSystem(source);
+			const table = truthTables(outputs);
+			for (const { id } of hdlTargets) {
+				const text = toHdl(outputs, id);
+				for (const v of table.variables) {
+					expect(text).toContain(id === 'verilog' ? `input  wire ${v},` : `${v} : in  std_logic;`);
+				}
+				outputs.forEach((o, i) => {
+					expect(text).toContain(id === 'verilog' ? `output wire ${o.name}` : `${o.name} : out std_logic`);
+					// Read the assignment back and check it is the right function.
+					const line = text
+						.split('\n')
+						.find((l) => l.trim().startsWith(id === 'verilog' ? `assign ${o.name} =` : `${o.name} <=`));
+					expect(line, `${id} has no assignment for ${o.name}`).toBeTruthy();
+					const body = line!.replace(/^.*?(=|<=)\s*/, '').replace(/;\s*$/, '');
+					const rows = truthTable(parseExpression(readBack(body, id)), table.variables).rows;
+					expect(rows, `${id}: ${o.name}`).toEqual(table.outputs[i].rows);
+				});
+				// The port list is punctuated so it compiles: no separator after the last port.
+				const ports = text.split('\n').filter((l) => / wire |: (in|out) +std_logic/.test(l));
+				expect(ports.length).toBe(table.variables.length + outputs.length);
+				expect(
+					ports
+						.at(-1)!
+						.trim()
+						.endsWith(id === 'verilog' ? ',' : ';')
+				).toBe(false);
+				for (const port of ports.slice(0, -1)) expect(port.trim().endsWith(id === 'verilog' ? ',' : ';')).toBe(true);
 			}
 		}
 	});

@@ -18,6 +18,11 @@ import {
 	countUniversalGates,
 	formatUniversal,
 	foldConstants,
+	parseSystem,
+	truthTables,
+	formatSystem,
+	systemVariables,
+	MAX_OUTPUTS,
 	BooleanError,
 	type Ast,
 	type Notation
@@ -593,9 +598,10 @@ test.describe('circuit diagram layout', () => {
 		for (const { ast } of randomCases(150)) {
 			const circuit = buildCircuit(ast);
 			const ids = new Set(circuit.nodes.map((n) => n.id));
+			const outputIds = new Set(circuit.outputs.map((o) => o.id));
 			for (const wire of circuit.wires) {
 				expect(ids.has(wire.from)).toBe(true);
-				expect(wire.to === 'output' || ids.has(wire.to)).toBe(true);
+				expect(outputIds.has(wire.to) || ids.has(wire.to)).toBe(true);
 				expect(wire.path).not.toContain('NaN');
 			}
 			for (const node of circuit.nodes) {
@@ -716,6 +722,117 @@ test.describe('circuit diagram layout', () => {
 			for (const node of circuit.nodes) {
 				for (const childId of node.children) {
 					expect(byId.get(childId)!.x, `${node.label} <- ${byId.get(childId)!.label}`).toBeLessThan(node.x);
+				}
+			}
+		}
+	});
+
+	// Layouts of several outputs at once, from small named pairs to eight at once.
+	const systems = [
+		'sum = a ^ b; carry = a & b',
+		'sum = a ^ b ^ c; carry = (a & b) | (c & (a ^ b))',
+		'lt = !a & b; eq = !(a ^ b); gt = a & !b',
+		'q = a; r = a & b & c & d',
+		'x = a & b; y = a & b',
+		'a; b; c; !a; !b; !c; a & b; a | b',
+		'p = (a | b) & c; q = !(a | b); r = a | b',
+		'deep = ((a & b) | c) ^ d; shallow = a'
+	];
+
+	test('a circuit with several outputs computes every one of them', () => {
+		for (const src of systems) {
+			const outputs = parseSystem(src);
+			const table = truthTables(outputs);
+			const circuit = buildCircuit(outputs);
+			expect(circuit.outputs.map((o) => o.name)).toEqual(outputs.map((o) => o.name));
+			for (let row = 0; row < 1 << table.variables.length; row++) {
+				const values: Record<string, boolean> = {};
+				table.variables.forEach((name, bit) => {
+					values[name] = !!(row & (1 << (table.variables.length - 1 - bit)));
+				});
+				const states = circuitStates(circuit, values);
+				circuit.outputs.forEach((out, i) => {
+					expect(states[out.rootId], `${out.name} row ${row} of ${src}`).toBe(table.outputs[i].rows[row]);
+				});
+			}
+		}
+	});
+
+	test('every output gets its own box, wired, inside the canvas, and not on top of another', () => {
+		for (const src of systems) {
+			const circuit = buildCircuit(parseSystem(src));
+			const ids = new Set(circuit.nodes.map((n) => n.id));
+			for (const out of circuit.outputs) {
+				expect(out.x).toBeGreaterThanOrEqual(0);
+				expect(out.y).toBeGreaterThanOrEqual(0);
+				expect(out.x + out.width).toBeLessThanOrEqual(circuit.width);
+				expect(out.y + out.height).toBeLessThanOrEqual(circuit.height);
+				// Exactly one wire feeds each output, and it leaves the right node.
+				const feeding = circuit.wires.filter((w) => w.to === out.id);
+				expect(feeding.length, `${out.name} in ${src}`).toBe(1);
+				expect(feeding[0].from).toBe(out.rootId);
+				expect(ids.has(out.rootId)).toBe(true);
+				expect(feeding[0].points.at(-1)).toEqual({ x: out.x, y: out.y + out.height / 2 });
+				// Outputs sit right of every gate.
+				for (const node of circuit.nodes) expect(node.x + node.width).toBeLessThanOrEqual(out.x);
+			}
+			const sorted = [...circuit.outputs].sort((a, b) => a.y - b.y);
+			for (let i = 1; i < sorted.length; i++) {
+				expect(sorted[i].y, `${src}`).toBeGreaterThanOrEqual(sorted[i - 1].y + sorted[i - 1].height);
+			}
+			// All in one column.
+			expect(new Set(circuit.outputs.map((o) => o.x)).size).toBe(1);
+		}
+	});
+
+	test('a term two outputs share is drawn once', () => {
+		// The full adder: sum = a ^ b ^ c and carry = ab + c(a ^ b) share a ^ b.
+		const circuit = buildCircuit(parseSystem('sum = a ^ b ^ c; carry = (a & b) | (c & (a ^ b))'));
+		expect(circuit.nodes.filter((n) => n.op === 'xor').length).toBe(2);
+		expect(circuit.gateCount).toBe(5);
+		// And two identical outputs share their whole circuit.
+		const twins = buildCircuit(parseSystem('x = a & b; y = a & b'));
+		expect(twins.gateCount).toBe(1);
+		expect(twins.outputs[0].rootId).toBe(twins.outputs[1].rootId);
+	});
+
+	test('a single output still sits straight across from its gate', () => {
+		// The multi output layout must not have moved the ordinary case: the
+		// output box is level with the root, so the last wire is a straight line.
+		for (const { ast } of randomCases(100)) {
+			const circuit = buildCircuit(ast);
+			expect(circuit.outputs.length).toBe(1);
+			const root = circuit.nodes.find((n) => n.id === circuit.rootId)!;
+			expect(circuit.output.y + circuit.output.height / 2).toBeCloseTo(root.outY, 5);
+			expect(circuit.output).toEqual({
+				x: circuit.outputs[0].x,
+				y: circuit.outputs[0].y,
+				width: circuit.outputs[0].width,
+				height: circuit.outputs[0].height
+			});
+		}
+	});
+
+	test('no wire to an output is routed across a gate body', () => {
+		// A shallow output's wire has to pass the deeper gates on its way to the
+		// output column, and must go around them.
+		for (const src of systems) {
+			const circuit = buildCircuit(parseSystem(src));
+			for (const wire of circuit.wires) {
+				if (!wire.to.startsWith('output:')) continue;
+				for (const box of circuit.nodes.filter((n) => n.kind === 'gate' && n.id !== wire.from)) {
+					for (let i = 1; i < wire.points.length; i++) {
+						const [p, q] = [wire.points[i - 1], wire.points[i]];
+						const inside = (pt: { x: number; y: number }) =>
+							pt.x > box.x && pt.x < box.x + box.width && pt.y > box.y && pt.y < box.y + box.height;
+						// Segments are axis aligned lanes or column hops; the hop
+						// between lanes is checked at both ends and at its midpoint.
+						const mid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+						expect(
+							inside(p) || inside(q) || inside(mid),
+							`${wire.from} -> ${wire.to} crosses ${box.label} in ${src}`
+						).toBe(false);
+					}
 				}
 			}
 		}
@@ -1084,12 +1201,128 @@ test.describe('SVG export', () => {
 		}
 	});
 
+	test('a circuit with several outputs prints their names on the boxes', () => {
+		const circuit = buildCircuit(parseSystem('sum = a ^ b; carry = a & b'));
+		const states: Record<string, boolean> = {};
+		for (const node of circuit.nodes) states[node.id] = true;
+		for (const standard of ['ansi', 'iec'] as const) {
+			for (const palette of ['colour', 'mono'] as const) {
+				const svg = circuitToSvg(circuit, { standard, palette, states, caption: 'half adder' });
+				expect(wellFormed(svg), `${standard}/${palette}`).toBe(null);
+				expect(svg).toContain('>sum</text>');
+				expect(svg).toContain('>carry</text>');
+				expect(svg).toContain('data-output="sum"');
+				// The value is never printed in place of a name, whatever was asked for.
+				expect(circuitToSvg(circuit, { states, outputLabel: 'Q' })).not.toContain('>Q</text>');
+				// A long name grows its box rather than spilling out of the canvas.
+				const width = Number(svg.match(/width="([\d.]+)"/)?.[1]);
+				expect(width).toBeGreaterThanOrEqual(circuit.outputs[1].x + 'carry'.length * 9 + 16);
+			}
+		}
+	});
+
+	test('truth table exports get a column per output', () => {
+		for (const src of ['sum = a ^ b; carry = a & b', 'lt = !a & b; eq = !(a ^ b); gt = a & !b', 'a; b & c']) {
+			const table = truthTables(parseSystem(src));
+			for (const palette of ['colour', 'mono'] as const) {
+				const svg = truthTableToSvg(table, { palette, caption: src });
+				expect(wellFormed(svg), `${src}/${palette}`).toBe(null);
+				expect(svg).not.toContain('NaN');
+				const digits = (svg.match(/>[01]<\/text>/g) ?? []).length;
+				const rows = 1 << table.variables.length;
+				expect(digits).toBe(rows * (table.variables.length + table.outputs.length));
+				for (const { name } of table.outputs) expect(svg).toContain(`>${name}</text>`);
+				// One vertical rule between each pair of columns.
+				const rules = (svg.match(/<line x1="[\d.]+" y1="0"/g) ?? []).length;
+				expect(rules).toBe(table.variables.length + table.outputs.length - 1);
+			}
+		}
+	});
+
 	test('filenames stay readable and safe', () => {
 		expect(slugifyExpression('a & b')).toBe('a-and-b');
 		expect(slugifyExpression('¬(a ∨ b)')).toBe('not-a-or-b');
 		expect(slugifyExpression('   ')).toBe('circuit');
 		expect(slugifyExpression('a'.repeat(200)).length).toBeLessThanOrEqual(60);
 		expect(slugifyExpression('a/b\\c')).not.toMatch(/[/\\]/);
+	});
+});
+
+test.describe('several outputs at once', () => {
+	test('a semicolon separates outputs and = names them', () => {
+		const outputs = parseSystem('sum = a ^ b; carry = a & b');
+		expect(outputs.map((o) => o.name)).toEqual(['sum', 'carry']);
+		expect(format(outputs[0].ast)).toBe('a ⊻ b');
+		expect(format(outputs[1].ast)).toBe('a ∧ b');
+		// A colon works too, and so does a line break.
+		expect(parseSystem('s: a ^ b\nc: a & b').map((o) => o.name)).toEqual(['s', 'c']);
+		// Unnamed outputs are numbered, a lone one is Q as always.
+		expect(parseSystem('a ^ b; a & b').map((o) => o.name)).toEqual(['Q1', 'Q2']);
+		expect(parseSystem('a ^ b').map((o) => o.name)).toEqual(['Q']);
+		// A trailing separator is not an empty output.
+		expect(parseSystem('a ^ b;').length).toBe(1);
+		expect(parseSystem('a ^ b;;a').length).toBe(2);
+	});
+
+	test('the tables of every output line up over the shared variables', () => {
+		const table = truthTables(parseSystem('lt = !a & b; eq = !(a ^ b); gt = a & !b'));
+		expect(table.variables).toEqual(['a', 'b']);
+		const bits = (rows: boolean[]) => rows.map((v) => (v ? '1' : '0')).join('');
+		expect(bits(table.outputs[0].rows)).toBe('0100');
+		expect(bits(table.outputs[1].rows)).toBe('1001');
+		expect(bits(table.outputs[2].rows)).toBe('0010');
+		// Exactly one of the three is true in every row, as a comparator must be.
+		for (let row = 0; row < 4; row++) {
+			expect(table.outputs.filter((o) => o.rows[row]).length).toBe(1);
+		}
+		// An output that ignores a variable still has a row for every combination.
+		const wide = truthTables(parseSystem('q = a; r = c & d'));
+		expect(wide.variables).toEqual(['a', 'c', 'd']);
+		expect(wide.outputs[0].rows.length).toBe(8);
+		expect(systemVariables(parseSystem('b; a'))).toEqual(['a', 'b']);
+	});
+
+	test('each output is its own truth table', () => {
+		for (const { ast } of randomCases(100)) {
+			const other = randomCases(1)[0].ast;
+			const outputs = [
+				{ name: 'p', ast },
+				{ name: 'q', ast: other }
+			];
+			const table = truthTables(outputs);
+			outputs.forEach((o, i) => {
+				expect(table.outputs[i].rows).toEqual(truthTable(o.ast, table.variables).rows);
+			});
+		}
+	});
+
+	test('formats as name = expression pairs', () => {
+		expect(formatSystem(parseSystem('sum = a ^ b; carry = a & b'))).toBe('sum = a ⊻ b; carry = a ∧ b');
+		expect(formatSystem(parseSystem('sum = a ^ b; carry = a & b'), 'programming')).toBe('sum = a ^ b; carry = a && b');
+		// A lone unnamed output reads exactly as it always did.
+		expect(formatSystem(parseSystem('a & b | !c'))).toBe(format(parseExpression('a & b | !c')));
+		expect(formatSystem(parseSystem('a ^ b; a & b'))).toBe('Q1 = a ⊻ b; Q2 = a ∧ b');
+	});
+
+	test('rejects names that would not work', () => {
+		expect(() => parseSystem('a = a & b')).toThrow(BooleanError);
+		expect(() => parseSystem('b = a; c = b')).toThrow(/both an input and an output/);
+		expect(() => parseSystem('x = a; x = b')).toThrow(/Two outputs/);
+		expect(() => parseSystem('and = a')).toThrow(BooleanError);
+		expect(() => parseSystem('1st = a')).toThrow(BooleanError);
+		expect(() => parseSystem('a b = c')).toThrow(BooleanError);
+		expect(() => parseSystem('sum = ')).toThrow(BooleanError);
+		expect(() => parseSystem(' ; ')).toThrow(/Type an expression/);
+		expect(() =>
+			parseSystem(
+				Array(MAX_OUTPUTS + 1)
+					.fill('a')
+					.join(';')
+			)
+		).toThrow(/more than/);
+		expect(parseSystem(Array(MAX_OUTPUTS).fill('a').join(';')).length).toBe(MAX_OUTPUTS);
+		// The variable limit applies to the union, not each output alone.
+		expect(() => truthTables(parseSystem('abcde; fghi'))).toThrow(/variables/);
 	});
 });
 

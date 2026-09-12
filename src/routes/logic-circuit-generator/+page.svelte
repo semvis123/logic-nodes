@@ -2,7 +2,7 @@
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
-	import { parseExpression, truthTable, format, BooleanError, variablesOf, type Ast } from '$lib/boolean';
+	import { parseSystem, truthTables, formatSystem, BooleanError, type Output } from '$lib/boolean';
 	import { buildCircuit, circuitStates, CircuitTooLarge, type Circuit } from '$lib/circuit';
 	import { circuitToSvg, type Palette, type Standard } from '$lib/exportSvg';
 	import { downloadSvg, downloadPng, downloadText, copyText, slugifyExpression } from '$lib/download';
@@ -56,16 +56,17 @@
 	let reading = '';
 	let error = '';
 	let lastVars = '';
-	// Kept around so the HDL export works from the same tree the diagram does.
-	let parsed: Ast | null = null;
+	// Kept around so the HDL export works from the same trees the diagram does.
+	let parsed: Output[] | null = null;
 	$: {
 		try {
-			const ast = parseExpression(expression);
-			parsed = ast;
-			truthTable(ast); // enforces the variable limit
-			circuit = buildCircuit(ast);
-			variables = variablesOf(ast);
-			reading = format(ast, 'math');
+			// One expression, or several separated by semicolons: `sum = a ^ b; carry = a & b`.
+			const outputs = parseSystem(expression);
+			parsed = outputs;
+			const table = truthTables(outputs); // enforces the variable limit
+			circuit = buildCircuit(outputs);
+			variables = table.variables;
+			reading = formatSystem(outputs, 'math');
 			// Keep the toggles when the variables have not changed.
 			const key = variables.join(',');
 			if (key !== lastVars) {
@@ -81,7 +82,8 @@
 	}
 
 	$: states = circuit ? circuitStates(circuit, values) : {};
-	$: outputState = circuit ? states[circuit.rootId] : false;
+	$: outputStates = circuit ? circuit.outputs.map((out) => ({ name: out.name, on: !!states[out.rootId] })) : [];
+	$: several = outputStates.length > 1;
 	$: depth = circuit ? Math.max(0, ...circuit.nodes.map((n) => n.depth)) : 0;
 
 	// The preview is the exported file, rendered inline. Nothing can drift
@@ -92,7 +94,7 @@
 				palette,
 				states,
 				caption: showCaption ? reading : '',
-				outputLabel: labelOutput ? outputLabel.trim() || 'Q' : undefined
+				outputLabel: labelOutput && !several ? outputLabel.trim() || 'Q' : undefined
 		  })
 		: '';
 
@@ -113,7 +115,9 @@
 	let hdl: Hdl = 'verilog';
 	let copied = false;
 	let copyTimer: ReturnType<typeof setTimeout>;
-	$: hdlText = parsed ? toHdl(parsed, hdl, slugifyExpression(reading).replace(/-/g, '_') || 'logic_nodes') : '';
+	// A lone unnamed output keeps the conventional port name `y`; named outputs keep their names.
+	$: hdlSource = parsed && parsed.length === 1 && parsed[0].name === 'Q' ? parsed[0].ast : parsed;
+	$: hdlText = hdlSource ? toHdl(hdlSource, hdl, slugifyExpression(reading).replace(/-/g, '_') || 'logic_nodes') : '';
 	$: hdlExtension = hdlTargets.find((t) => t.id === hdl)?.extension ?? 'txt';
 
 	async function copyHdl() {
@@ -126,16 +130,23 @@
 
 	const examples = [
 		{ label: 'Multiplexer', value: '(a & b) | (!a & c)' },
-		{ label: 'Half adder sum', value: 'a ^ b' },
 		{ label: 'Majority of three', value: 'ab + bc + ac' },
 		{ label: 'Shared term', value: '((a & b) | c) & ((a & b) | d)' },
-		{ label: 'De Morgan', value: '!(a & b)' }
+		{ label: 'De Morgan', value: '!(a & b)' },
+		// Several outputs in one diagram, separated by semicolons.
+		{ label: 'Half adder', value: 'sum = a ^ b; carry = a & b' },
+		{ label: 'Full adder', value: 'sum = a ^ b ^ c; carry = (a & b) | (c & (a ^ b))' },
+		{ label: '1-bit comparator', value: 'lt = !a & b; eq = !(a ^ b); gt = a & !b' }
 	];
 
 	const faqs = [
 		{
 			q: 'Can I get the expression as Verilog or VHDL?',
-			a: 'Yes. Open "export as Verilog or VHDL" under the diagram and you get a complete module or entity: one port per variable, one output, and a single combinational assignment. Copy it or download a .v or .vhd file. Every operator is bracketed, because VHDL defines no precedence between and and or, so an unbracketed expression would not compile there.'
+			a: 'Yes. Open "export as Verilog or VHDL" under the diagram and you get a complete module or entity: one port per variable, one port per output, and a combinational assignment for each. Copy it or download a .v or .vhd file. Every operator is bracketed, because VHDL defines no precedence between and and or, so an unbracketed expression would not compile there.'
+		},
+		{
+			q: 'Can a circuit have more than one output?',
+			a: 'Yes. Separate the expressions with semicolons and name each one, as in "sum = a ^ b; carry = a & b". Every output gets its own box on the right, the inputs are shared, and a term that two outputs have in common is drawn once and wired to both, which is how a full adder ends up with a single XOR feeding both its sum and its carry. The truth table generator takes the same syntax and gives one column per output.'
 		},
 		{
 			q: 'Can I download the diagram?',
@@ -243,7 +254,7 @@
 		<p class="lede">
 			Type a boolean expression and get the circuit drawn with proper gate symbols, ready to download as an SVG or a
 			PNG. Pick <a href="/logic-gate-symbols">ANSI or IEC shapes</a>, colour or black and white, and flip the inputs to
-			watch the signals move.
+			watch the signals move. A circuit with several outputs is one line with a semicolon between the expressions.
 		</p>
 
 		<div class="card tool">
@@ -256,7 +267,13 @@
 				spellcheck="false"
 				autocomplete="off"
 				autocapitalize="off"
+				aria-describedby="expression-help"
 			/>
+			<p class="field-help" id="expression-help">
+				<span class="mono">&amp; | ! ^</span> or words for AND, OR, NOT and XOR. For more than one output, separate the
+				expressions with <span class="mono">;</span> and name them:
+				<span class="mono">sum = a ^ b; carry = a &amp; b</span>.
+			</p>
 			<div class="chips">
 				{#each examples as example}
 					<button type="button" class="chip-btn" on:click={() => (expression = example.value)}>
@@ -292,9 +309,11 @@
 							{name} <span class="val">{values[name] ? 1 : 0}</span>
 						</button>
 					{/each}
-					<span class="result">
-						output <span class="val" class:on={outputState}>{outputState ? 1 : 0}</span>
-					</span>
+					{#each outputStates as out}
+						<span class="result">
+							{several ? out.name : 'output'} <span class="val" class:on={out.on}>{out.on ? 1 : 0}</span>
+						</span>
+					{/each}
 				</div>
 
 				<div class="export">
@@ -332,12 +351,15 @@
 						<input type="checkbox" bind:checked={showCaption} />
 						Caption
 					</label>
-					<label class="check">
-						<input type="checkbox" bind:checked={labelOutput} />
-						Label output
-					</label>
-					{#if labelOutput}
-						<input class="label-input" type="text" bind:value={outputLabel} maxlength="4" aria-label="Output label" />
+					<!-- Several outputs are always labelled with their names. -->
+					{#if !several}
+						<label class="check">
+							<input type="checkbox" bind:checked={labelOutput} />
+							Label output
+						</label>
+						{#if labelOutput}
+							<input class="label-input" type="text" bind:value={outputLabel} maxlength="4" aria-label="Output label" />
+						{/if}
 					{/if}
 					<ShareLink what="this diagram" />
 					<div class="opt downloads">
@@ -385,8 +407,8 @@
 					</div>
 					<pre class="hdl-code"><code>{hdlText}</code></pre>
 					<p class="hint">
-						One combinational assignment over the same expression the diagram draws. Every operator is bracketed because
-						VHDL defines no precedence between <span class="mono">and</span> and
+						One combinational assignment per output, over the same expressions the diagram draws. Every operator is
+						bracketed because VHDL defines no precedence between <span class="mono">and</span> and
 						<span class="mono">or</span>.
 					</p>
 				</details>
@@ -432,6 +454,10 @@
 					<tr>
 						<th scope="row">A repeated subexpression</th>
 						<td>one gate, with its output wired to both places</td>
+					</tr>
+					<tr>
+						<th scope="row" class="mono">sum = …; carry = …</th>
+						<td>two outputs on the right of one circuit, sharing the inputs and any common gates</td>
 					</tr>
 				</tbody>
 			</table>
@@ -563,6 +589,13 @@
 	.expression-input:focus {
 		outline: none;
 		border-color: #5db65d;
+	}
+
+	.field-help {
+		color: #999;
+		font-size: 0.8rem;
+		margin: 0.4rem 0 0;
+		line-height: 1.5;
 	}
 
 	.chips {

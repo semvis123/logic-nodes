@@ -12,7 +12,7 @@ export const tools: Tool[] = [
 		href: '/truth-table-generator',
 		name: 'Truth table generator',
 		short: 'Truth tables',
-		blurb: 'Type an expression, get its full truth table, plus the tables of all six basic gates.'
+		blurb: 'Type an expression, or several for a multi-output circuit, and get the full truth table, plus the tables of all six basic gates.'
 	},
 	{
 		href: '/boolean-algebra-calculator',
@@ -42,7 +42,7 @@ export const tools: Tool[] = [
 		href: '/logic-circuit-generator',
 		name: 'Circuit diagram generator',
 		short: 'Circuit diagrams',
-		blurb: 'Draws an expression as a gate diagram you can click through, with live signal colours.'
+		blurb: 'Draws one expression, or several outputs at once, as a gate diagram you can click through, with live signal colours.'
 	},
 	{
 		href: '/worksheet',

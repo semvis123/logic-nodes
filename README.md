@@ -43,7 +43,8 @@ codebase:
   [laws of boolean algebra](https://logicgates.org/boolean-algebra-laws).
 - **[Tools](https://logicgates.org/tools)**: truth tables, boolean simplification, Karnaugh maps
   with don't cares, SOP/POS, NAND/NOR conversion, Gray code, and a circuit diagram generator that
-  exports SVG or PNG.
+  exports SVG, PNG, Verilog or VHDL. The truth table and circuit generators take several outputs at
+  once (`sum = a ^ b; carry = a & b`), sharing inputs and any common gates.
 - **[Practice](https://logicgates.org/practice)** and a
   [worksheet generator](https://logicgates.org/worksheet) with an answer key, both driven by a
   seeded question generator, so a link reproduces the exact same questions with no account or

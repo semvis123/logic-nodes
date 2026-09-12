@@ -240,6 +240,84 @@ export function parseExpression(input: string): Ast {
 	return parse(tokenize(input));
 }
 
+// --- several outputs ---------------------------------------------------------
+//
+// A circuit with more than one output is written as several expressions
+// separated by semicolons or line breaks, each optionally named:
+//
+//     sum = a ^ b; carry = a & b
+//
+// The outputs share one set of variables, so their truth tables line up row
+// for row and their gates can share subexpressions in a single diagram.
+
+export type Output = { name: string; ast: Ast };
+
+export const MAX_OUTPUTS = 8;
+
+const NAME = /^[a-zA-Z][a-zA-Z0-9_]{0,11}$/;
+
+/** Splits on `;` and line breaks, then reads each `name = expression`. */
+export function parseSystem(input: string): Output[] {
+	const parts = input
+		.split(/[;\n]/)
+		.map((part) => part.trim())
+		.filter(Boolean);
+	if (!parts.length) throw new BooleanError('Type an expression first');
+	if (parts.length > MAX_OUTPUTS) throw new BooleanError(`That is more than ${MAX_OUTPUTS} outputs`);
+
+	const outputs = parts.map((part, i) => {
+		// Only the first `=` or `:` names the output; the rest is the expression.
+		const match = part.match(/^([^=:]*?)\s*[=:]\s*(.*)$/);
+		let name = parts.length === 1 ? 'Q' : `Q${i + 1}`;
+		let source = part;
+		if (match) {
+			name = match[1].trim();
+			source = match[2];
+			if (!NAME.test(name)) {
+				throw new BooleanError(`"${name}" is not a name an output can have: letters, digits and _ only`);
+			}
+			if (KEYWORDS[name.toLowerCase()]) throw new BooleanError(`An output cannot be called "${name}"`);
+		}
+		return { name, ast: parseExpression(source) };
+	});
+
+	const names = new Set<string>();
+	const variables = new Set(outputs.flatMap((o) => variablesOf(o.ast)));
+	for (const { name } of outputs) {
+		if (names.has(name)) throw new BooleanError(`Two outputs are called "${name}"`);
+		if (variables.has(name)) throw new BooleanError(`"${name}" is both an input and an output`);
+		names.add(name);
+	}
+	return outputs;
+}
+
+/** Every variable any output mentions, sorted, so the columns line up. */
+export function systemVariables(outputs: Output[]): string[] {
+	const found = new Set(outputs.flatMap((o) => variablesOf(o.ast)));
+	return [...found].sort((x, y) => x.localeCompare(y));
+}
+
+export type SystemTable = {
+	variables: string[];
+	/** One column per output, each with a row per input combination. */
+	outputs: { name: string; rows: boolean[] }[];
+};
+
+/** One truth table with a column per output, all over the same variables. */
+export function truthTables(outputs: Output[]): SystemTable {
+	const variables = systemVariables(outputs);
+	return {
+		variables,
+		outputs: outputs.map((o) => ({ name: o.name, rows: truthTable(o.ast, variables).rows }))
+	};
+}
+
+/** `sum = a ⊻ b; carry = a ∧ b`, or just the expression when there is one unnamed output. */
+export function formatSystem(outputs: Output[], notation: Notation = 'math'): string {
+	if (outputs.length === 1 && outputs[0].name === 'Q') return format(outputs[0].ast, notation);
+	return outputs.map((o) => `${o.name} = ${format(o.ast, notation)}`).join('; ');
+}
+
 // --- simplification (Quine-McCluskey) ---------------------------------------
 
 /** A cube: `bits` holds the fixed values, `mask` marks the don't-care slots. */

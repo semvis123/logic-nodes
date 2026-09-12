@@ -26,6 +26,20 @@ for (const tool of tools) {
 	});
 }
 
+test('several outputs travel in the link on both generators', async ({ page }) => {
+	const system = 'lt = !a & b; eq = !(a ^ b); gt = a & !b';
+	for (const path of ['/truth-table-generator', '/logic-circuit-generator']) {
+		await page.goto(path);
+		await page.fill('#expression', system);
+		await expect(page).toHaveURL(/expr=/);
+		const shared = page.url();
+		await page.goto('about:blank');
+		await page.goto(shared);
+		await expect(page.locator('#expression')).toHaveValue(system);
+		await expect(page.locator('.reading')).toContainText('gt = a ∧ ¬b');
+	}
+});
+
 test('the gray code converter round trips', async ({ page }) => {
 	await page.goto('/gray-code-converter?value=1011&mode=binary');
 	await expect(page.locator('#value')).toHaveValue('1011');

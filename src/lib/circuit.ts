@@ -1,8 +1,10 @@
-// Turns an expression into a positioned circuit diagram: a small DAG layout
-// with gates in columns by depth and wires routed between them. Identical
-// subexpressions collapse into one gate, the way they would in a real circuit.
+// Turns an expression, or several of them, into a positioned circuit diagram:
+// a small DAG layout with gates in columns by depth and wires routed between
+// them. Identical subexpressions collapse into one gate, the way they would in
+// a real circuit, and that holds across outputs too: a full adder's two
+// outputs share their XOR.
 
-import { astKey, type Ast } from './boolean.js';
+import { astKey, type Ast, type Output } from './boolean.js';
 
 export type CircuitNode = {
 	id: string;
@@ -35,12 +37,26 @@ export type CircuitWire = {
 	path: string;
 };
 
+export type CircuitOutput = {
+	/** `output:0`, `output:1`, ...; what a wire's `to` names. */
+	id: string;
+	name: string;
+	/** Id of the node driving this output. */
+	rootId: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+};
+
 export type Circuit = {
 	nodes: CircuitNode[];
 	wires: CircuitWire[];
 	width: number;
 	height: number;
-	/** Id of the node driving the output. */
+	/** The output boxes, in the order they were written. */
+	outputs: CircuitOutput[];
+	/** The first output, for the common single output case. */
 	rootId: string;
 	output: { x: number; y: number; width: number; height: number };
 	gateCount: number;
@@ -62,7 +78,9 @@ export class CircuitTooLarge extends Error {}
 /** Input pin offsets within a gate body, matching the drawn symbol. */
 const pinYs = (count: number) => (count === 0 ? [] : count === 1 ? [GATE_H / 2] : [GATE_H * 0.32, GATE_H * 0.68]);
 
-export function buildCircuit(ast: Ast): Circuit {
+/** One expression draws one output; a list of named outputs draws them all. */
+export function buildCircuit(source: Ast | Output[]): Circuit {
+	const wanted: Output[] = Array.isArray(source) ? source : [{ name: 'Q', ast: source }];
 	const nodes = new Map<string, CircuitNode>();
 
 	// Collapse identical subtrees so a shared term becomes one gate.
@@ -111,7 +129,7 @@ export function buildCircuit(ast: Ast): Circuit {
 		};
 	}
 
-	const rootId = add(ast);
+	const roots = wanted.map((o, i) => ({ id: `output:${i}`, name: o.name, rootId: add(o.ast) }));
 	const gateCount = [...nodes.values()].filter((n) => n.kind === 'gate').length;
 	if (gateCount > MAX_CIRCUIT_GATES) {
 		throw new CircuitTooLarge(`That needs ${gateCount} gates, more than this page will draw`);
@@ -126,8 +144,10 @@ export function buildCircuit(ast: Ast): Circuit {
 	};
 	for (const node of nodes.values()) node.depth = depthOf(node.id);
 
-	// Inputs all share the leftmost column even if they feed deep gates.
+	// Inputs all share the leftmost column even if they feed deep gates, and
+	// the outputs share the column after the deepest gate.
 	const maxDepth = Math.max(...[...nodes.values()].map((n) => n.depth));
+	const outputColumn = maxDepth + 1;
 	for (const node of nodes.values()) node.column = node.kind === 'gate' ? node.depth : 0;
 
 	// A wire that spans more than one column would otherwise cut straight across
@@ -141,21 +161,29 @@ export function buildCircuit(ast: Ast): Circuit {
 
 	/** Each edge as the chain of slots a wire travels through. */
 	const routes: { from: string; to: string; pin: number; chain: string[] }[] = [];
+	const route = (childId: string, toId: string, toColumn: number, pin: number) => {
+		const child = nodes.get(childId)!;
+		const chain: string[] = [];
+		for (let c = child.column + 1; c < toColumn; c++) {
+			const id = `bend:${childId}->${toId}@${c}`;
+			slots.set(id, { id, column: c, row: 0, from: [chain.at(-1) ?? childId] });
+			chain.push(id);
+		}
+		slots.get(toId)!.from.push(chain.at(-1) ?? childId);
+		routes.push({ from: childId, to: toId, pin, chain });
+	};
 	for (const node of nodes.values()) {
-		node.children.forEach((childId, pin) => {
-			const child = nodes.get(childId)!;
-			const chain: string[] = [];
-			for (let c = child.column + 1; c < node.column; c++) {
-				const id = `bend:${childId}->${node.id}@${c}`;
-				slots.set(id, { id, column: c, row: 0, from: [chain.at(-1) ?? childId] });
-				chain.push(id);
-			}
-			slots.get(node.id)!.from.push(chain.at(-1) ?? childId);
-			routes.push({ from: childId, to: node.id, pin, chain });
-		});
+		node.children.forEach((childId, pin) => route(childId, node.id, node.column, pin));
+	}
+	// An output box is a slot like any other, so two outputs never land on the
+	// same row, and a wire from a shallow gate to the output column is routed
+	// around the deeper gates rather than across them.
+	for (const out of roots) {
+		slots.set(out.id, { id: out.id, column: outputColumn, row: 0, from: [] });
+		route(out.rootId, out.id, outputColumn, 0);
 	}
 
-	const columns: Slot[][] = Array.from({ length: maxDepth + 1 }, () => []);
+	const columns: Slot[][] = Array.from({ length: outputColumn + 1 }, () => []);
 	for (const slot of slots.values()) columns[slot.column].push(slot);
 
 	// Inputs in alphabetical order; each later column ordered by the average
@@ -191,6 +219,18 @@ export function buildCircuit(ast: Ast): Circuit {
 		});
 	});
 
+	// An output box lines up with the wire feeding it wherever it can, so a lone
+	// output sits straight across from its gate. Only when two would collide are
+	// they nudged apart, and the column is kept inside the canvas.
+	const outCol = columns[outputColumn];
+	const ys = outCol.map((slot) => centreY.get(slot.from[0])!);
+	for (let i = 1; i < ys.length; i++) ys[i] = Math.max(ys[i], ys[i - 1] + rowHeight);
+	const bottom = height - PAD - GATE_H / 2;
+	for (let i = ys.length - 1; i >= 0; i--) {
+		ys[i] = Math.min(ys[i], i === ys.length - 1 ? bottom : ys[i + 1] - rowHeight);
+	}
+	outCol.forEach((slot, i) => centreY.set(slot.id, ys[i]));
+
 	// Sorting the rows decides where each gate sits, but not which of its two
 	// pins a wire lands on: that was taken from the order the operands happened
 	// to be written in. So `b | a` sent b to the top pin while the input column
@@ -222,14 +262,14 @@ export function buildCircuit(ast: Ast): Circuit {
 		}));
 	}
 
-	const root = nodes.get(rootId)!;
-	const output = {
-		x: root.x + GATE_W + COL_GAP,
-		y: root.outY - IO_H / 2,
+	const outputs: CircuitOutput[] = roots.map((out) => ({
+		...out,
+		x: laneX.get(out.id)!,
+		y: centreY.get(out.id)! - IO_H / 2,
 		width: OUT_W,
 		height: IO_H
-	};
-	const width = output.x + output.width + PAD;
+	}));
+	const width = Math.max(...outputs.map((out) => out.x + out.width)) + PAD;
 
 	/** Smooth horizontal-tangent curve through the points, hull-safe. */
 	function pathThrough(points: { x: number; y: number }[]): string {
@@ -248,12 +288,14 @@ export function buildCircuit(ast: Ast): Circuit {
 	}
 	const round = (n: number) => Math.round(n * 10) / 10;
 
+	const outputById = new Map(outputs.map((out) => [out.id, out]));
 	const wires: CircuitWire[] = routes.map(({ from, to, pin: written, chain }) => {
 		const child = nodes.get(from)!;
 		// The pin the route was built with is the one it was written at; if the
 		// gate's inputs were swapped above, it arrives at the other one.
 		const pin = swapped.has(to) ? 1 - written : written;
-		const port = nodes.get(to)!.inputPorts[pin];
+		const target = outputById.get(to);
+		const port = target ? { x: target.x, y: target.y + target.height / 2 } : nodes.get(to)!.inputPorts[pin];
 		const points = [{ x: child.outX, y: child.outY }];
 		// Cross each intermediate column along its own free lane.
 		for (const id of chain) {
@@ -263,24 +305,16 @@ export function buildCircuit(ast: Ast): Circuit {
 		points.push(port);
 		return { from, to, pin, points, path: pathThrough(points) };
 	});
-	wires.push({
-		from: rootId,
-		to: 'output',
-		pin: 0,
-		points: [
-			{ x: root.outX, y: root.outY },
-			{ x: output.x, y: root.outY }
-		],
-		path: `M${round(root.outX)} ${round(root.outY)} L${round(output.x)} ${round(root.outY)}`
-	});
 
+	const [first] = outputs;
 	return {
 		nodes: [...nodes.values()],
 		wires,
 		width,
 		height,
-		rootId,
-		output,
+		outputs,
+		rootId: first.rootId,
+		output: { x: first.x, y: first.y, width: first.width, height: first.height },
 		gateCount
 	};
 }

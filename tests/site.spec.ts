@@ -39,6 +39,33 @@ test('the truth table generator computes as you type', async ({ page }) => {
 	await expect(rows.nth(0).locator('td').last()).toHaveText('0');
 });
 
+test('both generators take several outputs at once', async ({ page }) => {
+	await page.goto('/truth-table-generator');
+	await page.fill('#expression', 'lt = !a & b; eq = !(a ^ b); gt = a & !b');
+	// Two inputs, three outputs: five columns, four rows.
+	await expect(page.locator('.result thead th')).toHaveCount(5);
+	await expect(page.locator('.result thead th').nth(2)).toHaveText('lt');
+	await expect(page.locator('.result thead th').nth(4)).toHaveText('gt');
+	const rows = page.locator('.result tbody tr');
+	await expect(rows).toHaveCount(4);
+	// a=0, b=1: less than.
+	await expect(rows.nth(1).locator('td.out')).toHaveText(['1', '0', '0']);
+	// a=1, b=1: equal.
+	await expect(rows.nth(3).locator('td.out')).toHaveText(['0', '1', '0']);
+
+	// The example chip on the circuit page draws three output boxes.
+	await page.goto('/logic-circuit-generator');
+	await page.getByRole('button', { name: '1-bit comparator' }).click();
+	await expect(page.locator('.canvas [data-output]')).toHaveCount(3);
+	await expect(page.locator('.canvas [data-output="eq"] text')).toHaveText('eq');
+	await expect(page.locator('.canvas [data-gate]')).toHaveCount(6);
+	// Each output has its own live readout, and the Verilog export declares each port.
+	await expect(page.locator('.result')).toHaveCount(3);
+	await page.locator('.hdl summary').click();
+	await expect(page.locator('.hdl-code')).toContainText('output wire gt');
+	await expect(page.locator('.hdl-code')).toContainText('assign eq =');
+});
+
 test('tool state travels in the URL', async ({ page }) => {
 	await page.goto('/karnaugh-map-solver?expr=a%20%26%20b&notation=engineering');
 	// Engineering notation renders AND as juxtaposition.

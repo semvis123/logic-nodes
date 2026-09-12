@@ -5,7 +5,7 @@
 // version alongside the on-screen colours.
 
 import type { Circuit } from './circuit.js';
-import type { TruthTable } from './boolean.js';
+import type { TruthTable, SystemTable } from './boolean.js';
 import { shapes, inputYs } from './symbols.js';
 
 export type Palette = 'colour' | 'mono';
@@ -133,7 +133,8 @@ export type CircuitSvgOptions = {
 	/**
 	 * What to print in the output box. Left unset it shows the live value, or Q
 	 * when there are no states; set it to label the output instead, which is what
-	 * you want for a diagram in a document.
+	 * you want for a diagram in a document. A circuit with several outputs
+	 * always prints their names, since a bare 0 or 1 would not say which is which.
 	 */
 	outputLabel?: string;
 };
@@ -186,22 +187,27 @@ export function circuitToSvg(circuit: Circuit, options: CircuitSvgOptions = {}):
 		}
 	}
 
-	const out = circuit.output;
-	const outOn = states ? !!states[circuit.rootId] : false;
-	const outFill = palette === 'mono' ? theme.background : outOn ? '#372' : '#40191c';
-	const outText = options.outputLabel ?? (states ? (outOn ? '1' : '0') : 'Q');
-	// The layout reserves a fixed box, which a label longer than a couple of
-	// characters spills out of. Grow it to the right, so the wire still meets its
-	// left edge where the layout put it.
-	const outWidth = Math.max(out.width, outText.length * 9 + 16);
-	parts.push(
-		`<rect x="${round(out.x)}" y="${round(out.y)}" width="${round(outWidth)}" height="${
-			out.height
-		}" rx="3" fill="${outFill}" stroke="${theme.line}" stroke-width="2"/>`,
-		`<text x="${round(out.x + outWidth / 2)}" y="${round(out.y + 20)}" text-anchor="middle" fill="${
-			theme.text
-		}" font-family="${MONO}" font-size="15" font-weight="600">${esc(outText)}</text>`
-	);
+	let rightEdge = circuit.width;
+	for (const out of circuit.outputs) {
+		const outOn = states ? !!states[out.rootId] : false;
+		const outFill = palette === 'mono' ? theme.background : outOn ? '#372' : '#40191c';
+		const outText = circuit.outputs.length > 1 ? out.name : options.outputLabel ?? (states ? (outOn ? '1' : '0') : 'Q');
+		// The layout reserves a fixed box, which a label longer than a couple of
+		// characters spills out of. Grow it to the right, so the wire still meets
+		// its left edge where the layout put it.
+		const outWidth = Math.max(out.width, outText.length * 9 + 16);
+		rightEdge = Math.max(rightEdge, out.x + outWidth + 12);
+		parts.push(
+			`<g data-output="${esc(out.name)}">`,
+			`<rect x="${round(out.x)}" y="${round(out.y)}" width="${round(outWidth)}" height="${
+				out.height
+			}" rx="3" fill="${outFill}" stroke="${theme.line}" stroke-width="2"/>`,
+			`<text x="${round(out.x + outWidth / 2)}" y="${round(out.y + 20)}" text-anchor="middle" fill="${
+				theme.text
+			}" font-family="${MONO}" font-size="15" font-weight="600">${esc(outText)}</text>`,
+			`</g>`
+		);
+	}
 
 	const captionHeight = caption ? 30 : 0;
 	if (caption) {
@@ -213,7 +219,7 @@ export function circuitToSvg(circuit: Circuit, options: CircuitSvgOptions = {}):
 	}
 
 	return document_(
-		Math.max(circuit.width, out.x + outWidth + 12),
+		rightEdge,
 		circuit.height + captionHeight,
 		caption || 'Logic circuit diagram',
 		parts.join('\n'),
@@ -224,23 +230,30 @@ export function circuitToSvg(circuit: Circuit, options: CircuitSvgOptions = {}):
 export type TableSvgOptions = {
 	palette?: Palette;
 	caption?: string;
-	/** Extra column headings beyond the variables; defaults to a single Q. */
+	/** Heading of the output column of a single output table; defaults to Q. */
 	outputLabel?: string;
 };
 
 const CELL_W = 46;
 const CELL_H = 30;
 
-export function truthTableToSvg(table: TruthTable, options: TableSvgOptions = {}): string {
+/** A single output table, or one with a column per output. */
+export function truthTableToSvg(table: TruthTable | SystemTable, options: TableSvgOptions = {}): string {
 	const palette = options.palette ?? 'colour';
 	const theme = THEMES[palette];
 	const caption = options.caption ?? '';
-	const outputLabel = options.outputLabel ?? 'Q';
+	const outputs = 'outputs' in table ? table.outputs : [{ name: options.outputLabel ?? 'Q', rows: table.rows }];
+	const rowCount = outputs[0]?.rows.length ?? 0;
 
-	const columns = table.variables.length + 1;
-	const width = Math.max(columns * CELL_W, 120);
+	// A name longer than a bit needs a wider column than a digit does.
+	const cellWidth = (label: string) => Math.max(CELL_W, label.length * 9 + 16);
+	const widths = [...table.variables.map(cellWidth), ...outputs.map((o) => cellWidth(o.name))];
+	const edges = widths.reduce<number[]>((acc, w) => [...acc, acc[acc.length - 1] + w], [0]);
+	const centre = (column: number) => edges[column] + widths[column] / 2;
+	const columns = widths.length;
+	const width = Math.max(edges[columns], 120);
 	const headerH = CELL_H + 4;
-	const bodyH = table.rows.length * CELL_H;
+	const bodyH = rowCount * CELL_H;
 	const captionH = caption ? 28 : 0;
 	const height = headerH + bodyH + captionH + 8;
 
@@ -249,44 +262,34 @@ export function truthTableToSvg(table: TruthTable, options: TableSvgOptions = {}
 	parts.push(
 		`<rect x="0" y="0" width="${width}" height="${headerH}" fill="${palette === 'mono' ? '#eeeeee' : '#101012'}"/>`
 	);
-	table.variables.forEach((name, i) => {
+	[...table.variables, ...outputs.map((o) => o.name)].forEach((name, i) => {
 		parts.push(
-			`<text x="${i * CELL_W + CELL_W / 2}" y="${headerH - 10}" text-anchor="middle" fill="${
+			`<text x="${centre(i)}" y="${headerH - 10}" text-anchor="middle" fill="${
 				theme.text
 			}" font-family="${MONO}" font-size="15" font-weight="600">${esc(name)}</text>`
 		);
 	});
-	parts.push(
-		`<text x="${table.variables.length * CELL_W + CELL_W / 2}" y="${headerH - 10}" text-anchor="middle" fill="${
-			theme.text
-		}" font-family="${MONO}" font-size="15" font-weight="600">${esc(outputLabel)}</text>`
-	);
 
-	table.rows.forEach((value, row) => {
+	const bit = (value: boolean, x: number, y: number) =>
+		`<text x="${x}" y="${y + 20}" text-anchor="middle" fill="${
+			value ? theme.high : theme.low
+		}" font-family="${MONO}" font-size="15">${value ? 1 : 0}</text>`;
+	for (let row = 0; row < rowCount; row++) {
 		const y = headerH + row * CELL_H;
-		table.variables.forEach((_, bit) => {
-			const on = !!(row & (1 << (table.variables.length - 1 - bit)));
-			parts.push(
-				`<text x="${bit * CELL_W + CELL_W / 2}" y="${y + 20}" text-anchor="middle" fill="${
-					on ? theme.high : theme.low
-				}" font-family="${MONO}" font-size="15">${on ? 1 : 0}</text>`
-			);
+		table.variables.forEach((_, i) => {
+			parts.push(bit(!!(row & (1 << (table.variables.length - 1 - i))), centre(i), y));
 		});
-		parts.push(
-			`<text x="${table.variables.length * CELL_W + CELL_W / 2}" y="${y + 20}" text-anchor="middle" fill="${
-				value ? theme.high : theme.low
-			}" font-family="${MONO}" font-size="15">${value ? 1 : 0}</text>`
-		);
-	});
+		outputs.forEach((o, i) => parts.push(bit(o.rows[row], centre(table.variables.length + i), y)));
+	}
 
 	// Grid lines, drawn after the values so they sit crisply on top.
 	const grid = palette === 'mono' ? '#000000' : 'rgba(255,255,255,0.25)';
 	for (let c = 1; c < columns; c++) {
 		parts.push(
-			`<line x1="${c * CELL_W}" y1="0" x2="${c * CELL_W}" y2="${headerH + bodyH}" stroke="${grid}" stroke-width="1"/>`
+			`<line x1="${edges[c]}" y1="0" x2="${edges[c]}" y2="${headerH + bodyH}" stroke="${grid}" stroke-width="1"/>`
 		);
 	}
-	for (let r = 0; r <= table.rows.length; r++) {
+	for (let r = 0; r <= rowCount; r++) {
 		parts.push(
 			`<line x1="0" y1="${headerH + r * CELL_H}" x2="${width}" y2="${
 				headerH + r * CELL_H
