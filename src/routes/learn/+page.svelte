@@ -59,7 +59,7 @@
 			'A hands-on path through digital logic: gates, half and full adders, latches, clocks and decoders, each built and run in a free browser simulator.',
 		url: `${SITE}/learn`,
 		image: `${SITE}/og/learn.png`,
-		imageAlt: 'Logic Nodes: learn'
+		imageAlt: 'LogicGates.org: learn'
 	};
 
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -109,7 +109,7 @@
 				'@type': 'BreadcrumbList',
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Learn digital logic' }
 				]
 			}
@@ -124,7 +124,7 @@
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="article" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={page.title} />
 	<meta property="og:description" content={page.description} />

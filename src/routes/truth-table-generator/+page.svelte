@@ -129,7 +129,7 @@
 			'Type a boolean expression and get its truth table instantly. Supports AND, OR, NOT, XOR, NAND and NOR in any notation. Free, no signup, runs in your browser.',
 		url: `${SITE}/truth-table-generator`,
 		image: `${SITE}/og/truth-table-generator.png`,
-		imageAlt: 'Logic Nodes: truth table generator'
+		imageAlt: 'LogicGates.org: truth table generator'
 	};
 
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -156,7 +156,7 @@
 				'@type': 'BreadcrumbList',
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Truth table generator' }
 				]
 			},
@@ -164,7 +164,7 @@
 				'@type': 'SoftwareApplication',
 				'@id': `${SITE}/#app`,
 				name: 'Logic Nodes',
-				url: `${SITE}/`,
+				url: `${SITE}/simulator`,
 				applicationCategory: 'EducationalApplication',
 				operatingSystem: 'Web browser',
 				isAccessibleForFree: true,
@@ -182,7 +182,7 @@
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={page.title} />
 	<meta property="og:description" content={page.description} />
@@ -202,7 +202,8 @@
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },
 		{ href: '/logic-gates', label: 'The six logic gates' },
-		{ href: '/learn', label: 'Learn digital logic' }
+		{ href: '/learn', label: 'Learn digital logic' },
+		{ href: '/tools', label: 'All tools' }
 	]}
 >
 	<section class="intro">

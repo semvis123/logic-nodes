@@ -36,7 +36,7 @@
 			'Every logic gate symbol in both standards, ANSI distinctive shapes and IEC rectangles, with what the inversion bubble means and each truth table.',
 		url: `${SITE}/logic-gate-symbols`,
 		image: `${SITE}/og/logic-gate-symbols.png`,
-		imageAlt: 'Logic Nodes: logic gate symbols'
+		imageAlt: 'LogicGates.org: logic gate symbols'
 	};
 
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -63,7 +63,7 @@
 				'@type': 'BreadcrumbList',
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Logic gates', item: `${SITE}/logic-gates` },
 					{ '@type': 'ListItem', position: 3, name: 'Symbols' }
 				]
@@ -79,7 +79,7 @@
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={page.title} />
 	<meta property="og:description" content={page.description} />

@@ -140,19 +140,27 @@
 	// the structured data (Google requires them to match).
 	const faqs = [
 		{
-			q: 'Is Logic Nodes free?',
-			a: 'Yes. Free, open source under Apache 2.0, and it runs entirely in your browser. No account, no install, no tracking.'
+			q: 'Is LogicGates.org free?',
+			a: 'Yes. Every tool, reference page and practice question is free, open source under Apache 2.0, and runs entirely in your browser. No account, no install, no tracking.'
 		},
 		{
-			q: 'Is it a free alternative to Logic.ly or Logisim?',
-			a: 'Yes. Logic Nodes is a free, open-source logic gate simulator that runs in the browser, so it works as an alternative to paid tools like Logic.ly and to desktop apps like Logisim for building and simulating digital logic circuits online. There is nothing to install and no account to make.'
+			q: 'What can I do on this site?',
+			a: 'Three things. Look something up: the six logic gates, their symbols in both standards, flip-flops, counters, shift registers, the common circuits and all the laws of boolean algebra. Work something out: truth tables, Karnaugh maps with don’t cares, boolean simplification, sum of products and product of sums, NAND and NOR conversion, circuit diagrams, and binary and Gray code conversion. Or practise: generated questions that never repeat, and printable worksheets with an answer key.'
 		},
 		{
-			q: 'Which logic gates does it support?',
+			q: 'How do I get a truth table from a boolean expression?',
+			a: 'Type it into the truth table generator and the full table appears as you type, including several outputs at once if you separate them with semicolons. Every operator notation works, from AND and OR through to the symbols and the programming operators.'
+		},
+		{
+			q: 'How do I simplify a boolean expression?',
+			a: 'Three tools do it, and they agree because they share one engine. The boolean algebra calculator shows the working line by line with the law named at each step. The Karnaugh map solver draws the map with each group highlighted, for two to six variables. The sum of products calculator gives the canonical and minimal SOP and POS with the minterm and maxterm lists.'
+		},
+		{
+			q: 'Which logic gates does the simulator support?',
 			a: 'AND, OR, NOT, XOR, NAND and NOR. AND, OR, NAND and NOR take as many inputs as you need, not just two. On top of the gates there are input, toggle, button, constant and microphone nodes, display, output, counter and tone nodes, and interval, delay, splitter, label and HTML overlay nodes.'
 		},
 		{
-			q: 'Can it generate a truth table?',
+			q: 'Can the simulator generate a truth table?',
 			a: 'Yes, and in both directions. Build a circuit and the simulator prints its full truth table; or start from an empty canvas, fill in a truth table, and it builds a working circuit that matches.'
 		},
 		{
@@ -217,25 +225,18 @@
 		}
 	];
 
-	// Mirrors the "What it can do" cards; also feeds SoftwareApplication.featureList.
-	const featureList = [
-		'AND, OR, NOT, XOR, NAND and NOR logic gates',
-		'Clock, delay, counter, button, toggle and display nodes',
-		'Truth table generator, and circuit generation from a truth table',
-		'Boolean expression from a circuit, and a circuit from an expression',
-		'Custom nodes: package any circuit into a reusable component',
-		'Automatic browser saves, file import and export, clipboard copy and paste',
-		'Built-in example circuits, including a working four bit calculator',
-		'Editor tools: pan, zoom, undo and redo, copy and paste, layers, minimap'
-	];
-
+	// The homepage is the hub for the whole site, not a landing page for the
+	// editor: the tools and the reference are what people arrive looking for,
+	// and the simulator is one of the things on offer rather than the offer.
+	// The "logic gate simulator" query belongs to /simulator, which is the page
+	// that can actually answer it, so nothing here competes for it.
 	const page = {
-		title: 'Logic Nodes: Free Online Logic Gate Simulator',
+		title: 'LogicGates.org: Digital Logic Tools and Reference',
 		description:
-			'A free online logic gate simulator and open-source Logic.ly alternative. Build circuits from AND, OR, NOT, XOR, NAND and NOR gates and get instant truth tables.',
+			'Free tools and a full reference for digital logic: truth tables, Karnaugh maps, boolean algebra, the six logic gates, flip-flops, practice and a simulator.',
 		url: `${SITE}/`,
 		image: `${SITE}/og/home.png`,
-		imageAlt: 'Logic Nodes: about'
+		imageAlt: 'LogicGates.org: digital logic tools and reference'
 	};
 
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -245,32 +246,25 @@
 				'@type': 'WebSite',
 				'@id': `${SITE}/#website`,
 				url: `${SITE}/`,
-				name: 'Logic Nodes',
-				description: 'Free online logic gate simulator',
+				name: 'LogicGates.org',
+				description: 'Free digital logic tools and reference',
 				inLanguage: 'en',
 				publisher: { '@id': 'https://kriyak.com/#person' }
 			},
 			{
-				// Same @id as the one the simulator page emits, so both pages
-				// describe one entity instead of two competing ones.
-				'@type': 'SoftwareApplication',
-				'@id': `${SITE}/#app`,
-				name: 'Logic Nodes',
-				url: `${SITE}/simulator`,
-				applicationCategory: 'EducationalApplication',
-				applicationSubCategory: 'Logic gate simulator',
-				operatingSystem: 'Web browser',
-				browserRequirements: 'Requires JavaScript and HTML5 canvas support',
-				isAccessibleForFree: true,
-				offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
-				description:
-					'Free online logic gate simulator. Build and simulate digital logic circuits in the browser, generate truth tables and boolean expressions, and package circuits into reusable custom nodes.',
-				featureList,
-				screenshot: [`${SITE}/boolean-algebra.png`, `${SITE}/seven-segment.png`, `${SITE}/calculator.png`],
-				softwareHelp: { '@id': `${SITE}/#webpage` },
-				inLanguage: 'en',
-				author: { '@id': 'https://kriyak.com/#person' },
-				license: 'https://www.apache.org/licenses/LICENSE-2.0'
+				// The tools, as one list, so the homepage describes itself as the
+				// hub it is. The editor's SoftwareApplication entity is emitted by
+				// /simulator, the page that actually is the application: declaring
+				// it here too told crawlers the site as a whole was one app.
+				'@type': 'ItemList',
+				'@id': `${SITE}/#tools`,
+				name: 'Digital logic tools',
+				itemListElement: tools.map((tool, i) => ({
+					'@type': 'ListItem',
+					position: i + 1,
+					name: tool.name,
+					url: `${SITE}${tool.href}`
+				}))
 			},
 			{
 				'@type': 'Person',
@@ -281,13 +275,15 @@
 				sameAs: ['https://github.com/semvis123', 'https://kriyak.com/']
 			},
 			{
-				'@type': ['WebPage', 'FAQPage'],
+				// A hub that collects the tools and the reference, not a page about
+				// a piece of software.
+				'@type': ['CollectionPage', 'FAQPage'],
 				'@id': `${SITE}/#webpage`,
 				url: page.url,
 				name: page.title,
 				description: page.description,
 				isPartOf: { '@id': `${SITE}/#website` },
-				about: { '@id': `${SITE}/#app` },
+				hasPart: { '@id': `${SITE}/#tools` },
 				primaryImageOfPage: { '@id': `${SITE}/#primaryimage` },
 				breadcrumb: { '@id': `${SITE}/#breadcrumb` },
 				inLanguage: 'en',
@@ -310,7 +306,7 @@
 			{
 				'@type': 'BreadcrumbList',
 				'@id': `${SITE}/#breadcrumb`,
-				itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` }]
+				itemListElement: [{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` }]
 			}
 		]
 	})}${'<'}/script>`;
@@ -324,7 +320,7 @@
 	<!-- Let Google use full-size image previews and untruncated snippets. -->
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={page.title} />
 	<meta property="og:description" content={page.description} />
@@ -343,6 +339,7 @@
 
 <ContentPage
 	related={[
+		{ href: '/tools', label: 'All tools' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/logic-gates', label: 'The six logic gates' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
@@ -352,17 +349,19 @@
 >
 	<section class="hero">
 		<div class="hero-copy">
-			<h1>Build logic circuits in your&nbsp;browser</h1>
+			<h1>Free digital logic tools and reference</h1>
 			<p class="sub">
-				A free logic gate simulator for students, hobbyists, and anyone learning digital logic. Wire up gates, watch the
-				signals flow, and read off the truth table.
+				Truth tables, Karnaugh maps, boolean algebra and circuit diagrams, worked out as you type. Plus a full reference
+				for the <a href="/logic-gates">six logic gates</a>, <a href="/flip-flops">flip-flops</a> and the
+				<a href="/common-circuits">circuits built from them</a>, and a
+				<a href="/simulator">simulator</a> to try it all in.
 			</p>
 			<div class="hero-actions">
-				<a class="cta" href="/simulator">Start building</a>
-				<a class="ghost" href="https://github.com/semvis123/logic-nodes">Source on GitHub</a>
+				<a class="cta" href="/tools">Open the tools</a>
+				<a class="ghost" href="/learn">Start learning</a>
 			</div>
 			<p class="reducer">Free and open source. No account, nothing to install.</p>
-			<p class="reducer">Hand-written TypeScript on an HTML5 canvas.</p>
+			<p class="reducer">Every table and identity here is generated, then property-tested.</p>
 		</div>
 
 		<div class="demo card">
@@ -450,8 +449,45 @@
 		</div>
 	</section>
 
+	<section id="tools">
+		<h2>Free digital logic tools</h2>
+		<p class="section-intro">
+			Type an expression and get the table, the map, the minimal form or the diagram. Every one of them works on its
+			own, in the browser, with no account. <a href="/tools">See all nine on the tools page</a>.
+		</p>
+		<div class="link-grid">
+			{#each tools as tool}
+				<a class="card link-card" href={tool.href}>
+					<span class="link-title">{tool.name}</span>
+					<span class="link-blurb">{tool.blurb}</span>
+				</a>
+			{/each}
+		</div>
+	</section>
+
+	<section>
+		<h2>The reference behind the tools</h2>
+		<p class="section-intro">
+			The theory the tools rest on: how each gate behaves, how flip-flops hold a value, and how the standard building
+			blocks are put together. Every truth table and identity on these pages is generated from the same engine the tools
+			use, so the two can never disagree.
+		</p>
+		<div class="link-grid">
+			{#each guides as guide}
+				<a class="card link-card" href={guide.href}>
+					<span class="link-title">{guide.name}</span>
+					<span class="link-blurb">{guide.blurb}</span>
+				</a>
+			{/each}
+		</div>
+	</section>
+
 	<section class="features" id="features">
-		<h2>What it can do</h2>
+		<h2>And a simulator to build circuits in</h2>
+		<p class="section-intro">
+			The tools above answer one question at a time. The <a href="/simulator">simulator</a> is the other way round: wire
+			up gates on a canvas and watch the signals move.
+		</p>
 		<div class="grid">
 			<div class="card feature">
 				<h3><span class="chip">AND</span> All the basic gates</h3>
@@ -648,38 +684,6 @@
 		<p class="reducer carousel-hint">
 			Built with the editor itself. <a href="/simulator">Open the simulator</a> to poke at circuits like these.
 		</p>
-	</section>
-
-	<section>
-		<h2>Tools that go with it</h2>
-		<p class="section-intro">
-			Everything here works on its own, in the browser, with no account. Type an expression and get the table, the map,
-			the minimal form or the diagram.
-		</p>
-		<div class="link-grid">
-			{#each tools as tool}
-				<a class="card link-card" href={tool.href}>
-					<span class="link-title">{tool.name}</span>
-					<span class="link-blurb">{tool.blurb}</span>
-				</a>
-			{/each}
-		</div>
-	</section>
-
-	<section>
-		<h2>And the reference to go with them</h2>
-		<p class="section-intro">
-			The background for the tools: how each gate behaves, how flip-flops hold a value, and how the standard building
-			blocks are put together.
-		</p>
-		<div class="link-grid">
-			{#each guides as guide}
-				<a class="card link-card" href={guide.href}>
-					<span class="link-title">{guide.name}</span>
-					<span class="link-blurb">{guide.blurb}</span>
-				</a>
-			{/each}
-		</div>
 	</section>
 
 	<section class="faq" id="faq">

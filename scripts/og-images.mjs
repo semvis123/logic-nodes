@@ -54,7 +54,7 @@ function pageInfo(file) {
 	return {
 		path,
 		slug: path === '/' ? 'home' : path.slice(1).replace(/\//g, '-'),
-		title: h1 ? strip(h1[1]) : 'Logic Nodes',
+		title: h1 ? strip(h1[1]) : 'LogicGates.org',
 		subtitle: lede ? strip(lede[1]) : desc ? decode(desc[1]) : '',
 		kicker: kicker ? strip(kicker[1]) : ''
 	};
@@ -88,7 +88,7 @@ const card = ({ title, subtitle, kicker }) => `<!DOCTYPE html>
   .wires i { display: block; width: 7px; border-radius: 2px; }
 </style></head>
 <body>
-  <div class="brand"><span class="box"></span> Logic Nodes</div>
+  <div class="brand"><span class="box"></span> LogicGates.org</div>
   <div>
     ${kicker ? `<div class="kicker">${kicker}</div>` : ''}
     <h1>${title}</h1>

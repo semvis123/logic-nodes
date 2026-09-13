@@ -4,16 +4,16 @@
 import { expect, test } from '@playwright/test';
 import { sitemapPaths } from './sitemap.js';
 
-test('the homepage introduces the simulator', async ({ page }) => {
+test('the homepage leads with the tools and the reference', async ({ page }) => {
 	await page.goto('/');
-	await expect(page.locator('h1')).toHaveText('Build logic circuits in your browser');
-	await expect(page).toHaveTitle(/Logic Nodes/);
+	await expect(page.locator('h1')).toHaveText('Free digital logic tools and reference');
+	await expect(page).toHaveTitle(/LogicGates\.org/);
 });
 
 test('the old about URL still reaches the homepage', async ({ page }) => {
 	await page.goto('/about');
 	await expect(page).toHaveURL(/\/$/);
-	await expect(page.locator('h1')).toHaveText('Build logic circuits in your browser');
+	await expect(page.locator('h1')).toHaveText('Free digital logic tools and reference');
 });
 
 test('the simulator loads its canvas and toolbar', async ({ page }) => {

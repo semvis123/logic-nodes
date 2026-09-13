@@ -75,12 +75,12 @@
 	];
 
 	const page = {
-		title: 'Sum of Products Calculator: SOP, POS, Minterms & Maxterms',
+		title: 'Sum of Products Calculator: SOP, POS and Minterms',
 		description:
 			'Convert a boolean expression into canonical and minimal sum of products and product of sums, with minterm and maxterm lists. Free, in your browser.',
 		url: `${SITE}/sum-of-products-calculator`,
 		image: `${SITE}/og/sum-of-products-calculator.png`,
-		imageAlt: 'Logic Nodes: sum of products calculator'
+		imageAlt: 'LogicGates.org: sum of products calculator'
 	};
 
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -107,7 +107,7 @@
 				'@type': 'BreadcrumbList',
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Tools', item: `${SITE}/tools` },
 					{ '@type': 'ListItem', position: 3, name: 'Sum of products calculator' }
 				]
@@ -123,7 +123,7 @@
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={page.title} />
 	<meta property="og:description" content={page.description} />

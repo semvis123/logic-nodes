@@ -84,7 +84,7 @@
 			'How shift registers work, the four serial and parallel arrangements, and the ring and Johnson counters built from them, with timing diagrams.',
 		url: `${SITE}/shift-registers`,
 		image: `${SITE}/og/shift-registers.png`,
-		imageAlt: 'Logic Nodes: shift registers'
+		imageAlt: 'LogicGates.org: shift registers'
 	};
 
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -111,7 +111,7 @@
 				'@type': 'BreadcrumbList',
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Shift registers' }
 				]
 			}
@@ -126,7 +126,7 @@
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="article" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={page.title} />
 	<meta property="og:description" content={page.description} />

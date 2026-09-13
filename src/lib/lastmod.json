@@ -12,7 +12,7 @@
 	"/gray-code-converter": "2026-09-09",
 	"/karnaugh-map-solver": "2026-09-08",
 	"/learn": "2026-09-09",
-	"/logic-circuit-generator": "2026-09-08",
+	"/logic-circuit-generator": "2026-09-12",
 	"/logic-gate-symbols": "2026-09-09",
 	"/logic-gates": "2026-09-09",
 	"/logic-gates/[gate]": "2026-09-08",
@@ -22,6 +22,6 @@
 	"/simulator": "2026-09-08",
 	"/sum-of-products-calculator": "2026-09-09",
 	"/tools": "2026-09-09",
-	"/truth-table-generator": "2026-09-09",
+	"/truth-table-generator": "2026-09-12",
 	"/worksheet": "2026-09-09"
 }

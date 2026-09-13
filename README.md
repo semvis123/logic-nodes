@@ -1,8 +1,10 @@
-# Logic Nodes
+# LogicGates.org
 
-A free online logic gate simulator and digital logic reference: truth tables, Karnaugh maps, boolean algebra and circuit diagrams.
+Free digital logic tools and reference: truth tables, Karnaugh maps, boolean algebra, circuit
+diagrams, and a logic gate simulator called Logic Nodes.
 
-**Try it: [logicgates.org](https://logicgates.org/simulator)**, no account, no install. New here? Start at the [home page](https://logicgates.org/).
+**Try it: [logicgates.org](https://logicgates.org/)**, no account, no install. Straight to the
+[tools](https://logicgates.org/tools), or to the [simulator](https://logicgates.org/simulator).
 
 ![The Logic Nodes editor with a circuit of gates, delays, and displays](static/og-image.png)
 
@@ -30,10 +32,10 @@ Editor:
 - Built-in examples open straight from a link, e.g. `/simulator#example:Calculator`
 - Built-in examples, including a working four bit calculator
 
-## The site around it
+## The site
 
-The editor is one page of a larger reference site, all statically prerendered from the same
-codebase:
+Most of the site is the reference and the tools; the editor is one page of it. Everything is
+statically prerendered from the same codebase:
 
 - **Learn**: a guided path from one gate to a four bit adder, plus references for the
   [six gates](https://logicgates.org/logic-gates), their
@@ -68,6 +70,6 @@ The whole editor is hand-written: rendering happens on a canvas with no diagramm
 
 ## About
 
-Built by [Sem](https://kriyak.com/), a freelance software developer. There's a short [project page](https://kriyak.com/project/logic-nodes/) on my site as well.
+Built by [Sem](https://kriyak.com/), a freelance software developer. There's a short [project page](https://kriyak.com/project/logic-nodes/) on my site as well. The site is LogicGates.org; Logic Nodes is the name of the canvas editor it ships.
 
 Licensed under Apache 2.0.

@@ -7,10 +7,10 @@
 	const page = {
 		title: 'Digital Logic Tools: Truth Tables, K-Maps, Boolean Algebra',
 		description:
-			'Nine free tools for digital logic: truth tables, boolean simplification, Karnaugh maps, SOP and POS, NAND conversion, circuit diagrams, worksheets, binary and Gray code.',
+			'Nine free digital logic tools: truth table generator, boolean algebra calculator, Karnaugh map solver, SOP and POS, NAND conversion and circuit diagrams.',
 		url: `${SITE}/tools`,
 		image: `${SITE}/og/tools.png`,
-		imageAlt: 'Logic Nodes: tools'
+		imageAlt: 'LogicGates.org: tools'
 	};
 
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -45,7 +45,7 @@
 				'@type': 'BreadcrumbList',
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Tools' }
 				]
 			}
@@ -60,7 +60,7 @@
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={page.title} />
 	<meta property="og:description" content={page.description} />

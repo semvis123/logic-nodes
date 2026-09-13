@@ -202,7 +202,7 @@
 			"Build a K-map from an expression or by clicking squares, mark don't cares, and get the groups highlighted with the minimal expression. Two to six variables.",
 		url: `${SITE}/karnaugh-map-solver`,
 		image: `${SITE}/og/karnaugh-map-solver.png`,
-		imageAlt: 'Logic Nodes: karnaugh map solver'
+		imageAlt: 'LogicGates.org: karnaugh map solver'
 	};
 
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -229,7 +229,7 @@
 				'@type': 'BreadcrumbList',
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Karnaugh map solver' }
 				]
 			},
@@ -237,7 +237,7 @@
 				'@type': 'SoftwareApplication',
 				'@id': `${SITE}/#app`,
 				name: 'Logic Nodes',
-				url: `${SITE}/`,
+				url: `${SITE}/simulator`,
 				applicationCategory: 'EducationalApplication',
 				operatingSystem: 'Web browser',
 				isAccessibleForFree: true,
@@ -255,7 +255,7 @@
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={page.title} />
 	<meta property="og:description" content={page.description} />
@@ -274,7 +274,8 @@
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },
-		{ href: '/learn', label: 'Learn digital logic' }
+		{ href: '/learn', label: 'Learn digital logic' },
+		{ href: '/tools', label: 'All tools' }
 	]}
 >
 	<section class="intro">

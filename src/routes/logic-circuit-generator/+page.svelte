@@ -184,7 +184,7 @@
 			'Draw a logic gate diagram from any boolean expression in ANSI or IEC symbols, download it as SVG or PNG, and export the same logic as Verilog or VHDL.',
 		url: `${SITE}/logic-circuit-generator`,
 		image: `${SITE}/og/logic-circuit-generator.png`,
-		imageAlt: 'Logic Nodes: logic circuit generator'
+		imageAlt: 'LogicGates.org: logic circuit generator'
 	};
 
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -211,7 +211,7 @@
 				'@type': 'BreadcrumbList',
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Tools', item: `${SITE}/tools` },
 					{ '@type': 'ListItem', position: 3, name: 'Circuit diagram generator' }
 				]
@@ -227,7 +227,7 @@
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={page.title} />
 	<meta property="og:description" content={page.description} />

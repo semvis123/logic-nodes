@@ -18,7 +18,7 @@
 </script>
 
 <svelte:head>
-	<title>{$page.status === 404 ? 'Page not found' : 'Something went wrong'} · Logic Nodes</title>
+	<title>{$page.status === 404 ? 'Page not found' : 'Something went wrong'} · LogicGates.org</title>
 	<!-- An error page must never be indexed, whatever URL it was reached at. -->
 	<meta name="robots" content="noindex, follow" />
 </svelte:head>

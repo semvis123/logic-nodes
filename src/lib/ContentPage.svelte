@@ -56,7 +56,7 @@
 	<a class="skip" href="#main">Skip to content</a>
 
 	<header class="topbar">
-		<a class="brand" href="/"><span class="brand-box" /> <span class="brand-text">Logic Nodes</span></a>
+		<a class="brand" href="/"><span class="brand-box" /> <span class="brand-text">LogicGates.org</span></a>
 		<nav class="nav" aria-label="Sections">
 			{#each nav as item}
 				<a href={item.href} aria-current={current(item.href) ? 'page' : undefined}>
@@ -85,7 +85,7 @@
 			</p>
 		{/if}
 		<p>
-			Logic Nodes is free and open source under Apache 2.0.
+			LogicGates.org is free and open source under Apache 2.0.
 			<a href="https://github.com/semvis123/logic-nodes">Source on GitHub</a>.
 		</p>
 		<p>

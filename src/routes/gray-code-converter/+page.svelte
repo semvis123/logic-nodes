@@ -96,7 +96,7 @@
 			'Convert between binary and Gray code, with the full sequence for any width up to 8 bits and the one-bit-change rule shown row by row.',
 		url: `${SITE}/gray-code-converter`,
 		image: `${SITE}/og/gray-code-converter.png`,
-		imageAlt: 'Logic Nodes: gray code converter'
+		imageAlt: 'LogicGates.org: gray code converter'
 	};
 
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -123,7 +123,7 @@
 				'@type': 'BreadcrumbList',
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Tools', item: `${SITE}/tools` },
 					{ '@type': 'ListItem', position: 3, name: 'Gray code converter' }
 				]
@@ -139,7 +139,7 @@
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={page.title} />
 	<meta property="og:description" content={page.description} />

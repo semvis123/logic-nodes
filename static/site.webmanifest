@@ -1,6 +1,6 @@
 {
-	"name": "Logic Nodes",
-	"short_name": "Logic Nodes",
+	"name": "LogicGates.org",
+	"short_name": "LogicGates",
 	"description": "A free logic gate simulator that runs in your browser. Build circuits, generate truth tables and boolean expressions, and share them with a link.",
 	"start_url": "/simulator",
 	"scope": "/",

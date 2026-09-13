@@ -99,7 +99,7 @@
 			'Generate a printable digital logic worksheet with an answer key. Pick a topic and a length, share the link, and everyone gets the same questions.',
 		url: `${SITE}/worksheet`,
 		image: `${SITE}/og/worksheet.png`,
-		imageAlt: 'Logic Nodes: worksheet generator'
+		imageAlt: 'LogicGates.org: worksheet generator'
 	};
 
 	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
@@ -126,7 +126,7 @@
 				'@type': 'BreadcrumbList',
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Worksheet generator' }
 				]
 			}
@@ -141,7 +141,7 @@
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={page.title} />
 	<meta property="og:description" content={page.description} />

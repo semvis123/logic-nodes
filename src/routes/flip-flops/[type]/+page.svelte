@@ -97,7 +97,7 @@
 				'@type': 'BreadcrumbList',
 				'@id': `${url}#breadcrumb`,
 				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'Logic Nodes', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Flip-flops', item: `${SITE}/flip-flops` },
 					{ '@type': 'ListItem', position: 3, name: `${ff.shortName} flip-flop` }
 				]
@@ -113,13 +113,13 @@
 	<meta name="author" content="Sem" />
 	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 	<meta property="og:type" content="article" />
-	<meta property="og:site_name" content="Logic Nodes" />
+	<meta property="og:site_name" content="LogicGates.org" />
 	<meta property="og:locale" content="en" />
 	<meta property="og:title" content={title} />
 	<meta property="og:description" content={description} />
 	<meta property="og:url" content={url} />
 	<meta property="og:image" content={ogImage} />
-	<meta property="og:image:alt" content={`Logic Nodes: ${ff.name}`} />
+	<meta property="og:image:alt" content={`LogicGates.org: ${ff.name}`} />
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={title} />
 	<meta name="twitter:description" content={description} />
