@@ -277,8 +277,8 @@
 		<h2>Where it is used</h2>
 		<ul class="uses">
 			<li>
-				<strong>Switch debouncing.</strong> A mechanical switch bounces for milliseconds. Wire its two contacts to set and
-				reset and the latch flips on the first touch and ignores every bounce after it.
+				<strong>Switch debouncing.</strong> A mechanical switch bounces for milliseconds. Wire the two contacts of a changeover
+				switch to set and reset and the latch flips on the first touch and ignores every bounce after it.
 			</li>
 			<li>
 				<strong>Fault and alarm flags.</strong> A condition that lasted a microsecond sets the latch, and the flag stays

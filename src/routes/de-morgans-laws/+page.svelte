@@ -328,7 +328,8 @@
 			Engineers use this to make a schematic read the way the design was thought about, with active-low signals shown as
 			bubbles rather than as extra inverters. It is also why <a href="/logic-gates#universal-gates"
 				>NAND and NOR are universal</a
-			>: the OR that NAND seems to lack is a NAND with its inputs inverted, exactly the last worked example above. The
+			>: the OR that NAND seems to lack is a NAND with its inputs inverted, which is the "OR gate from NAND gates"
+			example above. The
 			<a href="/nand-nor-converter">NAND and NOR converter</a> applies the laws to a whole expression and counts the gates.
 		</p>
 	</section>

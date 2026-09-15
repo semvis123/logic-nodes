@@ -149,10 +149,20 @@
 			truth table <em>is</em> the gate: two circuits with the same table are interchangeable, however they are built.
 		</p>
 		<p>
-			And they are built in many ways. In a modern chip a gate is a few transistors; the first computers made the same
-			gates from relays and vacuum tubes, and two switches on a battery make a working AND gate. In a diagram a gate is
-			a symbol, and in boolean algebra it is an operator: <span class="mono">a ∧ b</span> and an AND gate are the same thing,
-			written down or wired up.
+			And they are built in many ways. Two switches on a battery make a working AND gate: wire them in series and the
+			lamp only lights when both are closed. Wire them in parallel and you have an OR. The first computers made the same
+			gates from relays, then from vacuum tubes. In a diagram a gate is a symbol, and in boolean algebra it is an
+			operator: <span class="mono">a ∧ b</span> and an AND gate are the same thing, written down or wired up.
+		</p>
+		<h3>From transistors to gates</h3>
+		<p>
+			In a modern chip every gate is a handful of transistors used as switches. A CMOS inverter is two of them: one
+			connects the output to the supply when the input is low, the other connects it to ground when the input is high,
+			so the output is always the opposite of the input. Put two of the ground-side transistors in series and the output
+			can only be pulled low when both inputs are high: that is a NAND gate, four transistors in all. Put them in
+			parallel instead and you get a NOR. An AND is a NAND followed by an inverter, six transistors, which is why real
+			chips are built mostly from NAND and NOR and let the algebra absorb the inversions. A processor is a few billion
+			of these, switching a few billion times a second.
 		</p>
 		<p>
 			Two values are used instead of ten because a circuit only has to tell "high" from "low", which it can do reliably
@@ -161,7 +171,8 @@
 		</p>
 		<p class="reducer">
 			On their own, gates have no memory: the output depends only on the inputs right now. Feed an output back into an
-			input and the circuit can hold a value, which is where <a href="/flip-flops">flip-flops</a> and the rest of
+			input and the circuit can hold a value, which is where the <a href="/sr-latch">SR latch</a>,
+			<a href="/flip-flops">flip-flops</a> and the rest of
 			<a href="/combinational-vs-sequential">sequential logic</a> begin.
 		</p>
 	</section>
