@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { gates } from '$lib/gates';
 	import { SITE } from '$lib/site';
 	import { onMount } from 'svelte';
 	import ContentPage from '$lib/ContentPage.svelte';
@@ -157,7 +158,7 @@
 		},
 		{
 			q: 'Which logic gates does the simulator support?',
-			a: 'AND, OR, NOT, XOR, NAND and NOR. AND, OR, NAND and NOR take as many inputs as you need, not just two. On top of the gates there are input, toggle, button, constant and microphone nodes, display, output, counter and tone nodes, and interval, delay, splitter, label and HTML overlay nodes.'
+			a: 'AND, OR, NOT, XOR, NAND and NOR, and XNOR as an XOR into a NOT. AND, OR, NAND and NOR take as many inputs as you need, not just two. On top of the gates there are input, toggle, button, constant and microphone nodes, display, output, counter and tone nodes, and interval, delay, splitter, label and HTML overlay nodes.'
 		},
 		{
 			q: 'Can the simulator generate a truth table?',
@@ -187,14 +188,13 @@
 
 	// Gate reference. Symbols use the mathematical notation, one of the five the
 	// editor can render boolean expressions in.
-	const gates = [
-		{ name: 'AND', expr: 'a \u2227 b', rule: 'every input is high' },
-		{ name: 'OR', expr: 'a \u2228 b', rule: 'at least one input is high' },
-		{ name: 'NOT', expr: '\u00ACa', rule: 'its single input is low' },
-		{ name: 'XOR', expr: 'a \u22BB b', rule: 'exactly one of its two inputs is high' },
-		{ name: 'NAND', expr: '\u00AC(a \u2227 b)', rule: 'any input is low, the inverse of AND' },
-		{ name: 'NOR', expr: '\u00AC(a \u2228 b)', rule: 'every input is low, the inverse of OR' }
-	];
+	// The gate table comes from the same data as the reference pages, so the
+	// homepage can never list a gate differently from its own page.
+	const gateRows = gates.map((gate) => ({
+		...gate,
+		// The editor has no XNOR node; it is built from the two gates it is made of.
+		note: gate.slug === 'xnor' ? 'in the editor: an XOR into a NOT' : ''
+	}));
 
 	// Built-in circuits, openable straight from a link (the editor reads the hash).
 	const examples = [
@@ -563,8 +563,8 @@
 	<section class="gates" id="gates">
 		<h2>Every gate, and what it does</h2>
 		<p class="section-intro">
-			Six gate nodes cover everything you will build here. These are the ones you get, with the boolean expression the
-			editor writes for each; the seventh gate, <a href="/logic-gates/xnor">XNOR</a>, is an XOR into a NOT.
+			The seven logic gates, with the boolean expression the editor writes for each. Every name links to that gate's
+			page, with its truth table, symbol and uses.
 		</p>
 		<table class="data-table gate-table">
 			<thead>
@@ -575,11 +575,13 @@
 				</tr>
 			</thead>
 			<tbody>
-				{#each gates as gate}
+				{#each gateRows as gate}
 					<tr>
-						<th scope="row">{gate.name}</th>
-						<td class="expr">{gate.expr}</td>
-						<td>{gate.rule}</td>
+						<th scope="row"><a href="/logic-gates/{gate.slug}">{gate.name}</a></th>
+						<td class="expr">{gate.symbol}</td>
+						<td>
+							{gate.outputHigh}{#if gate.note}<span class="gate-note"> · {gate.note}</span>{/if}
+						</td>
 					</tr>
 				{/each}
 			</tbody>
@@ -957,9 +959,17 @@
 	}
 
 	.gate-table :global(tbody th) {
-		color: #fff;
 		font: 600 0.9rem ui-monospace, SFMono-Regular, Menlo, monospace;
 		width: 5.5rem;
+	}
+
+	.gate-table :global(tbody th a) {
+		color: #fff;
+	}
+
+	.gate-note {
+		color: #999;
+		font-size: 0.85rem;
 	}
 
 	.expr {
