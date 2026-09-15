@@ -40,7 +40,7 @@
 		},
 		{
 			q: 'How do you build an SR latch from NAND gates?',
-			a: 'Exactly the same wiring with NAND gates instead. The difference is polarity: a NAND latch is set and reset by a 0 rather than a 1, so its inputs are written S̄ and R̄, the resting state is both inputs high, and both low is the forbidden case. Most latches inside real chips are the NAND kind, because NAND is the cheaper gate in CMOS.'
+			a: 'Exactly the same wiring with NAND gates instead. The difference is polarity: a NAND latch is set and reset by a 0 rather than a 1, so its inputs are written S̄ and R̄, the resting state is both inputs high, and both low is the forbidden case. It is the version most textbooks draw and the one on classic parts such as the 74279 quad latch, since NAND is the cheaper gate in CMOS.'
 		},
 		{
 			q: 'Why is S = R = 1 forbidden on an SR latch?',
@@ -48,7 +48,7 @@
 		},
 		{
 			q: 'What is the difference between an SR latch and an SR flip-flop?',
-			a: 'A latch is level sensitive: it responds the moment its inputs change, for as long as they stay changed. A flip-flop is edge triggered: it looks at its inputs only at the instant of a clock edge and ignores them the rest of the time. A gated latch is halfway between the two, responding only while an enable line is high. In practice an SR flip-flop is an SR latch with the inputs gated by a clock.'
+			a: 'A latch is level sensitive: it responds the moment its inputs change, for as long as they stay changed. A flip-flop is edge triggered: it looks at its inputs only at the instant of a clock edge and ignores them the rest of the time. A gated latch is halfway between the two, responding only while an enable line is high. An edge-triggered SR flip-flop is two gated latches in a master-slave pair, driven by opposite phases of the clock, so the output can only move at the edge between them.'
 		},
 		{
 			q: 'What is a D latch?',
@@ -56,7 +56,7 @@
 		},
 		{
 			q: 'What is an SR latch used for?',
-			a: 'Debouncing a mechanical switch, holding a fault or alarm flag until it is explicitly cleared, arbitrating between two requests so that whichever arrives first wins, and as the storage element inside every flip-flop, register and static RAM cell. Anything that needs to remember a single bit without a clock is an SR latch or something built from one.'
+			a: 'Debouncing a mechanical switch, holding a fault or alarm flag until it is explicitly cleared, arbitrating between two requests so that whichever arrives first wins, and as the storage element inside flip-flops and registers. Anything that needs to remember a single bit without a clock is a latch of this kind, or something built on the same feedback loop.'
 		}
 	];
 
@@ -139,7 +139,7 @@
 		<h1>The SR latch</h1>
 		<p class="lede">
 			Two gates, each feeding the other, and suddenly a circuit can remember. The SR latch is the smallest piece of
-			memory in digital logic and the part inside every flip-flop, register and static RAM cell.
+			memory in digital logic and the idea inside every flip-flop, register and static RAM cell.
 		</p>
 	</section>
 
@@ -176,9 +176,9 @@
 			{:else if latch.slug === 'nand'}
 				<p>
 					The same wiring with <a href="/logic-gates/nand">NAND gates</a> gives a latch that is set and reset by a 0 rather
-					than a 1, because a NAND output is forced only when an input goes low. Its inputs are therefore written S̄ and R̄,
-					both sit at 1 when idle, and a 0 on S̄ sets while a 0 on R̄ resets. It is the same machine with the polarity flipped,
-					and the more common of the two inside real chips, since NAND is the smaller and faster gate in CMOS.
+					than a 1, because a NAND output is forced, to 1, only when an input goes low. Its inputs are therefore written
+					S̄ and R̄, both sit at 1 when idle, and a 0 on S̄ sets while a 0 on R̄ resets. It is the same machine with the polarity
+					flipped, and the more common of the two inside real chips, since NAND is the smaller and faster gate in CMOS.
 				</p>
 			{:else if latch.slug === 'gated'}
 				<p>
@@ -288,8 +288,8 @@
 				<strong>Arbitration.</strong> Two requests race for a resource; whichever sets the latch first wins and holds it.
 			</li>
 			<li>
-				<strong>Inside every flip-flop.</strong> D, JK and T flip-flops are all an SR latch with logic in front of it, and
-				a static RAM cell is a latch with two access transistors.
+				<strong>Inside every flip-flop.</strong> D, JK and T flip-flops are classically an SR latch with logic in front of
+				it, and a static RAM cell is the same feedback loop, two cross-coupled inverters, behind two access transistors.
 			</li>
 		</ul>
 	</section>

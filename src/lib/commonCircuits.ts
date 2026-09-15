@@ -57,7 +57,7 @@ export const commonCircuits: CommonCircuit[] = [
 			},
 			{
 				q: 'How many gates does a half adder need?',
-				a: 'Two, an XOR and an AND. Built from NAND gates only it takes five, four for the XOR and one more for the AND, and a common trick shares one of the NANDs between the two so the total is five rather than six.'
+				a: 'Two, an XOR and an AND. Built from NAND gates only it takes five: four for the XOR, and although a separate AND would cost two more, the NAND of the two inputs already sits inside the XOR, so one extra NAND inverting it gives the carry.'
 			}
 		]
 	},
@@ -244,7 +244,7 @@ export const commonCircuits: CommonCircuit[] = [
 			},
 			{
 				q: 'What is a priority encoder?',
-				a: 'An encoder that gives a defined answer when more than one input is active: the highest numbered active input wins. A plain encoder simply ORs the codes of the active inputs together, which is wrong for every case except a single input, so real designs almost always add priority and a valid output that says whether any input was active at all.'
+				a: 'An encoder that gives a defined answer when more than one input is active: the highest numbered active input wins. A plain encoder simply ORs the codes of the active inputs together, which gives the wrong number whenever two active inputs have different codes, so real designs almost always add priority and a valid output that says whether any input was active at all.'
 			}
 		]
 	},
@@ -306,7 +306,8 @@ export const commonCircuits: CommonCircuit[] = [
 			'The starting point for a CRC, which is the same idea run over many bits at once.',
 			'The sum output of an adder, which is the parity of its three inputs.'
 		],
-		buildTip: 'Two XOR gates in a chain. Adding a NOT gives even parity instead.',
+		buildTip:
+			'Two XOR gates in a chain, which is the even parity bit. Adding a NOT on the end gives odd parity instead.',
 		faqs: [
 			{
 				q: 'What is the difference between odd and even parity?',

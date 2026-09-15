@@ -62,7 +62,7 @@
 		},
 		{
 			q: 'Who was De Morgan?',
-			a: "Augustus De Morgan, a British mathematician and logician, who stated the laws in their modern algebraic form in the 1840s alongside George Boole's work. The idea itself is older: medieval logicians, William of Ockham among them, had written out the same rule in words."
+			a: "Augustus De Morgan, a British mathematician and logician, who stated the laws formally in 1847, alongside George Boole's work. The idea itself is older: medieval logicians, William of Ockham among them, had written out the same rule in words."
 		}
 	];
 
@@ -373,10 +373,10 @@
 		<h2>Where the name comes from</h2>
 		<p>
 			Augustus De Morgan (1806–1871) was a British mathematician and logician, a contemporary and correspondent of
-			George Boole, and he stated the laws in their modern algebraic form in the 1840s. The observation itself is much
-			older: medieval logicians knew it, and William of Ockham wrote out the same rule in words in the fourteenth
-			century. What De Morgan added was the algebra, which is what makes the rule mechanical enough to build circuits
-			with.
+			George Boole, and he stated the laws formally in his <em>Formal Logic</em> of 1847; the algebraic notation used here
+			came with the Boolean algebra that followed. The observation itself is much older: medieval logicians knew it, and
+			William of Ockham wrote out the same rule in words in the fourteenth century. What De Morgan added was the algebra,
+			which is what makes the rule mechanical enough to build circuits with.
 		</p>
 	</section>
 

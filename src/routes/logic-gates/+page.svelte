@@ -35,7 +35,7 @@
 		},
 		{
 			q: 'Who invented logic gates?',
-			a: "Nobody in a single step. George Boole published the algebra of true and false in 1847 and 1854. Charles Sanders Peirce noted in 1886 that electrical switches could carry out that algebra. Claude Shannon's 1937 master's thesis showed that relay circuits and boolean algebra are the same thing, which is the founding paper of digital logic design. The first electronic gates were built from vacuum tubes in the 1940s, from transistors in the 1950s, and as integrated circuits from the early 1960s."
+			a: "Nobody in a single step. George Boole published the algebra of true and false in 1847 and 1854. Charles Sanders Peirce noted in 1886 that electrical switches could carry out that algebra. Claude Shannon's 1937 master's thesis showed that relay circuits and boolean algebra are the same thing, which is the founding paper of digital logic design. Vacuum tube logic circuits date from the 1920s and 1930s, the first electronic computers built from them from the 1940s, transistor gates from the 1950s, and integrated circuits from the early 1960s."
 		},
 		{
 			q: 'What is the difference between a logic gate and boolean algebra?',
@@ -332,13 +332,14 @@
 		<h2>A short history</h2>
 		<p>
 			The algebra came first. George Boole set out the arithmetic of true and false in 1847 and, in full, in
-			<em>The Laws of Thought</em> in 1854, a century before anyone had a use for it in hardware. Charles Sanders Peirce
-			saw in 1886 that electrical switches could carry it out, and Henry Sheffer showed in 1913 that a single operation,
-			the stroke we now write as NAND, is enough on its own. The decisive step was Claude Shannon's 1937 master's thesis,
-			which showed that relay switching circuits and boolean algebra are the same subject: from then on a circuit could be
-			designed by writing an expression and simplifying it. The first electronic gates were vacuum tubes in the 1940s, transistors
-			followed in the 1950s, and the integrated circuits of the early 1960s put whole gates on one chip, where they have
-			been shrinking ever since.
+			<em>The Laws of Thought</em> in 1854, the better part of a century before anyone had a use for it in hardware. Charles
+			Sanders Peirce saw in 1886 that electrical switches could carry it out, and Henry Sheffer showed in 1913 that a single
+			operation is enough on its own: the Sheffer stroke, defined as NOR in his paper and usually read as NAND today. The
+			decisive step was Claude Shannon's 1937 master's thesis, which showed that relay switching circuits and boolean algebra
+			are the same subject: from then on a circuit could be designed by writing an expression and simplifying it. Vacuum
+			tube logic circuits date from the 1920s and 1930s, and the first electronic computers built from them, Colossus and
+			ENIAC, from the 1940s. Transistors followed in the 1950s, and the integrated circuits of the early 1960s put whole
+			gates on one chip, where they have been shrinking ever since.
 		</p>
 	</section>
 

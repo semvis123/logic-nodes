@@ -205,7 +205,7 @@ export const gates: Gate[] = [
 			},
 			{
 				q: 'What is the difference between NAND and NOR?',
-				a: "NAND is an inverted AND: it outputs 0 only when every input is 1. NOR is an inverted OR: it outputs 1 only when every input is 0. So NAND is 1 on three of its four rows and NOR on just one. Both are universal, and each is the other with every signal inverted, which is De Morgan's law."
+				a: "NAND is an inverted AND: it outputs 0 only when every input is 1. NOR is an inverted OR: it outputs 1 only when every input is 0. So NAND is 1 on three of its four rows and NOR on just one. Invert every input and the output of a NAND and you get a NOR, which is De Morgan's law in gate form. Both are universal."
 			},
 			{
 				q: 'How do you make a NOT gate from a NAND gate?',
@@ -247,7 +247,7 @@ export const gates: Gate[] = [
 			},
 			{
 				q: 'What is the difference between NOR and NAND?',
-				a: "NOR outputs 1 only when all inputs are 0; NAND outputs 0 only when all inputs are 1. Put the two truth tables side by side and each is the other read upside down: invert every input and the output of a NAND and you get a NOR, which is De Morgan's law in gate form. Both are universal."
+				a: "NOR outputs 1 only when all inputs are 0; NAND outputs 0 only when all inputs are 1. So NOR is 1 on just one of its four rows and NAND on three. Invert every input and the output of a NAND and you get a NOR, which is De Morgan's law in gate form. Both are universal."
 			},
 			{
 				q: 'Is NOR or NAND better for building everything?',
@@ -267,10 +267,10 @@ export const gates: Gate[] = [
 		behaviour:
 			'An exclusive NOR gate outputs 1 when its two inputs are the same, both 0 or both 1, and 0 when they differ. It is an XOR gate with the output inverted, which makes it a one bit equality detector. Because of that it is also called the equivalence gate, and written a ≡ b or a ⊙ b.',
 		intuition:
-			'Where XOR asks "are these two different?", XNOR asks "are these two the same?". That is the question a processor puts to every pair of bits when it compares two numbers, so a comparator is a row of XNOR gates feeding an AND. XNOR is not universal though: chain XORs and XNORs however you like and the result still only ever counts whether an odd or even number of inputs are high, so AND and OR are out of reach without another gate.',
+			'Where XOR asks "are these two different?", XNOR asks "are these two the same?". That is the question a processor puts to every pair of bits when it compares two numbers, so a comparator is a row of XNOR gates feeding an AND. XNOR is not universal though: chain XORs and XNORs however you like and the result still only ever counts whether an odd or even number of some of its inputs are high, so AND and OR are out of reach without another gate.',
 		uses: [
 			'One bit of an equality comparator: a XNOR per bit pair, then an AND across them, says whether two words are identical.',
-			'The final stage of an even parity checker: XOR the data bits together, then XNOR the result with the received parity bit to raise a flag when they match.',
+			'The final stage of an even parity checker: XOR the data bits together, then XNOR the result with the received parity bit: the output is high when they match, so a 0 means a bit was flipped.',
 			'A controlled buffer: XNOR a signal with 1 to pass it unchanged, or with 0 to invert it, the opposite sense to XOR.',
 			'Counting matching bits between two patterns, which is how correlators and binary neural networks score a match: XNOR each pair, then count the 1s.'
 		],
@@ -294,11 +294,11 @@ export const gates: Gate[] = [
 			},
 			{
 				q: 'Is XNOR a universal gate?',
-				a: 'No. NAND and NOR can each build every other gate, but XNOR cannot, and neither can XOR. Any circuit made only of XOR and XNOR gates still only reports whether an even or odd number of its inputs are high, however it is wired, so it can never behave like an AND or an OR. Add a single AND and the set becomes complete.'
+				a: 'No. NAND and NOR can each build every other gate, but XNOR cannot, and neither can XOR. Any circuit made only of XOR and XNOR gates still only reports whether an even or odd number of its inputs are high, however it is wired, so it can never behave like an AND or an OR. Add an AND gate to XOR and XNOR together and the set becomes complete: XNOR of a signal with itself supplies a constant 1, and XOR with 1 is NOT.'
 			},
 			{
 				q: 'How many NAND gates does XNOR need?',
-				a: 'Five. XOR takes four NAND gates, and XNOR is XOR with either the output or one of the inputs inverted, which is one more NAND with its inputs tied together. That is one more than XOR and two more than AND, so in NAND-only designs an equality test is comparatively expensive.'
+				a: 'Five. XOR takes four NAND gates, and XNOR is XOR with either the output or one of the inputs inverted, which is one more NAND with its inputs tied together. That is one more than XOR and three more than AND, so in NAND-only designs an equality test is comparatively expensive.'
 			},
 			{
 				q: 'Why is XNOR called the equivalence gate?',
