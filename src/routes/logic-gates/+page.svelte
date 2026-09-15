@@ -8,10 +8,37 @@
 	// Tables come from the expression engine, so the reference cannot drift.
 	const rows = gates.map((gate) => ({ ...gate, table: truthTable(parseExpression(gate.source)) }));
 
+	const faqs = [
+		{
+			q: 'What is a logic gate?',
+			a: 'A logic gate is a small circuit that takes one or more binary inputs, each either 1 or 0, and produces a single binary output according to a fixed rule. An AND gate outputs 1 only when every input is 1; an OR gate outputs 1 when any input is 1. Its complete behaviour fits in a truth table, and in hardware each gate is a handful of transistors.'
+		},
+		{
+			q: 'How many logic gates are there?',
+			a: 'Six basic gates: AND, OR, NOT, XOR, NAND and NOR. Some courses list a seventh, XNOR, which is XOR with the output inverted. Strictly only three are fundamental, AND, OR and NOT, since the others are combinations of those; and NAND alone can build everything.'
+		},
+		{
+			q: 'What are logic gates made of?',
+			a: 'In modern chips, transistors: a CMOS NAND gate is four of them, a NOT gate is two. Earlier computers built the same gates from relays and vacuum tubes, and you can make one from two switches on a battery. The rule is what matters, not the material, which is why a simulator can run the same gate as a few lines of code.'
+		},
+		{
+			q: 'What are logic gates used for?',
+			a: 'Everything digital. Gates add numbers, compare them, pick one signal out of several, decode addresses and drive displays. Wired back on themselves they store bits, which is how memory and counters work. A processor is billions of gates doing exactly these jobs at once.'
+		},
+		{
+			q: 'Why are NAND and NOR called universal gates?',
+			a: 'Because every other gate can be built from NAND gates alone, or from NOR gates alone. Tie both inputs of a NAND together and you get NOT; add that inverter to a NAND and you get AND. Chips are largely made of NAND and NOR for this reason: one well made gate covers every function.'
+		},
+		{
+			q: 'What is the difference between a logic gate and boolean algebra?',
+			a: 'They are the same thing seen two ways. Boolean algebra is the maths: variables that are 1 or 0 and operators such as AND, OR and NOT. A logic gate is that operator built as a circuit. Every boolean expression can be drawn as gates, and every gate circuit without feedback can be written as an expression.'
+		}
+	];
+
 	const page = {
 		title: 'The 6 Logic Gates: Truth Tables, Symbols and Uses',
 		description:
-			'AND, OR, NOT, XOR, NAND and NOR explained, each with its truth table, boolean expression and what it is actually used for. Free reference, no signup.',
+			'What a logic gate is, then all six: AND, OR, NOT, XOR, NAND and NOR, each with its truth table, boolean expression and real uses. Free reference, no signup.',
 		url: `${SITE}/logic-gates`,
 		image: `${SITE}/og/logic-gates.png`,
 		imageAlt: 'LogicGates.org: logic gates'
@@ -21,7 +48,7 @@
 		'@context': 'https://schema.org',
 		'@graph': [
 			{
-				'@type': 'WebPage',
+				'@type': ['WebPage', 'FAQPage'],
 				'@id': `${page.url}#webpage`,
 				url: page.url,
 				name: page.title,
@@ -31,7 +58,12 @@
 				breadcrumb: { '@id': `${page.url}#breadcrumb` },
 				inLanguage: 'en',
 				...modifiedFields(page.url),
-				mainEntity: { '@id': `${page.url}#list` }
+				mainEntity: faqs.map((f) => ({
+					'@type': 'Question',
+					name: f.q,
+					acceptedAnswer: { '@type': 'Answer', text: f.a }
+				})),
+				hasPart: { '@id': `${page.url}#list` }
 			},
 			{
 				'@type': 'ItemList',
@@ -90,6 +122,37 @@
 		<p class="lede">
 			Every digital logic function, from a doorbell to a processor, is built out of these six operations. Each one
 			combines binary inputs — one for NOT, two for XOR, two or more for the rest — into a single binary output.
+		</p>
+	</section>
+
+	<section id="what-is-a-logic-gate">
+		<h2>What is a logic gate?</h2>
+		<p>
+			A logic gate is a circuit with one or more inputs and one output, where every wire carries one of two values:
+			<span class="mono">1</span> or <span class="mono">0</span>, high or low, on or off. The gate applies a fixed rule
+			to its inputs and puts the answer on its output. That is the whole idea. An AND gate's rule is "1 only if every
+			input is 1"; a NOT gate's rule is "the opposite of the input".
+		</p>
+		<p>
+			Because the inputs can only be 1 or 0, a gate's behaviour can be written out in full. Two inputs give four
+			combinations, three give eight, and a table listing the output for each is a <strong>truth table</strong>. The
+			truth table <em>is</em> the gate: two circuits with the same table are interchangeable, however they are built.
+		</p>
+		<p>
+			And they are built in many ways. In a modern chip a gate is a few transistors; the first computers made the same
+			gates from relays and vacuum tubes, and two switches on a battery make a working AND gate. In a diagram a gate is
+			a symbol, and in boolean algebra it is an operator: <span class="mono">a ∧ b</span> and an AND gate are the same thing,
+			written down or wired up.
+		</p>
+		<p>
+			Two values are used instead of ten because a circuit only has to tell "high" from "low", which it can do reliably
+			even when the signal is noisy. Everything else, numbers, text, pictures, is encoded as strings of those bits and
+			handled by gates a bit at a time.
+		</p>
+		<p class="reducer">
+			On their own, gates have no memory: the output depends only on the inputs right now. Feed an output back into an
+			input and the circuit can hold a value, which is where <a href="/flip-flops">flip-flops</a> and the rest of
+			<a href="/combinational-vs-sequential">sequential logic</a> begin.
 		</p>
 	</section>
 
@@ -207,6 +270,16 @@
 			chips are largely made of them. Each gate page shows the construction, and every identity on this site is machine
 			checked against its truth table.
 		</p>
+	</section>
+
+	<section class="faq">
+		<h2>Questions about logic gates</h2>
+		{#each faqs as faq, i}
+			<details open={i === 0}>
+				<summary>{faq.q}</summary>
+				<p>{faq.a}</p>
+			</details>
+		{/each}
 	</section>
 
 	<section>
