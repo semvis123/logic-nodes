@@ -57,6 +57,9 @@ const STYLE = `
   .row:first-of-type { border-top: none; }
   .row .name { width: 96px; font-size: 26px; font-weight: 700; font-family: ui-monospace, Menlo, monospace; }
   .row .e { width: 130px; font-family: ui-monospace, Menlo, monospace; font-size: 19px; color: #333; }
+  /* A fixed slot for the table, so the NOT row's two column table does not
+     pull its description left of every other row's. */
+  .row .tbl { width: 150px; flex: none; }
   .row table { font-size: 15px; }
   .row th, .row td { padding: 3px 11px; }
   .row .desc { font-size: 16px; color: #444; flex: 1; }
@@ -89,7 +92,7 @@ const chart = () => `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${S
       <div class="name">${gate.name}</div>
       ${symbolSvg(gate.slug, 'ansi')}
       <div class="e">${gate.symbol}</div>
-      ${tableHtml(gate.slug)}
+      <div class="tbl">${tableHtml(gate.slug)}</div>
       <div class="desc">High when ${gate.outputHigh}.</div>
     </div>`
 			)
