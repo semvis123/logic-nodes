@@ -33,7 +33,7 @@
 	const page = {
 		title: 'Logic Gate Symbols: ANSI and IEC Shapes Compared',
 		description:
-			'Every logic gate symbol in both standards, ANSI distinctive shapes and IEC rectangles, with what the inversion bubble means and each truth table.',
+			'All seven logic gate symbols in both standards, ANSI distinctive shapes and IEC rectangles, with what the inversion bubble means and each truth table.',
 		url: `${SITE}/logic-gate-symbols`,
 		image: `${SITE}/og/logic-gate-symbols.png`,
 		imageAlt: 'LogicGates.org: logic gate symbols'
@@ -95,7 +95,7 @@
 
 <ContentPage
 	related={[
-		{ href: '/logic-gates', label: 'The six logic gates' },
+		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },
 		{ href: '/learn', label: 'Learn digital logic' }
 	]}
@@ -123,7 +123,7 @@
 	</section>
 
 	<section>
-		<h2>The six symbols</h2>
+		<h2>The seven symbols</h2>
 		<div class="grid">
 			{#each rows as gate}
 				<div class="card symbol-card">
@@ -145,11 +145,12 @@
 		<p class="reducer">
 			{#if standard === 'ansi'}
 				Note that NAND is simply the AND shape with a bubble, and NOR is OR with a bubble. XOR is OR with one extra line
-				across its back, which is easy to miss on a dense drawing.
+				across its back, which is easy to miss on a dense drawing, and XNOR is that shape with a bubble.
 			{:else}
 				In IEC form every gate is the same rectangle and only the label changes: <span class="mono">&amp;</span>
-				for AND, <span class="mono">≥1</span> for OR, <span class="mono">1</span> for a buffer and
-				<span class="mono">=1</span> for XOR. Inversion is still a bubble on the output.
+				for AND, <span class="mono">≥1</span> for OR, <span class="mono">1</span> for a buffer,
+				<span class="mono">=1</span> for XOR and <span class="mono">=</span> for XNOR. Inversion is still a bubble on the
+				output.
 			{/if}
 		</p>
 	</section>
@@ -195,7 +196,7 @@
 			<li>
 				<strong>On an input</strong>, it means that pin is active low: the signal is inverted before the gate sees it.
 				An AND with both inputs bubbled behaves as a NOR, which is
-				<a href="/boolean-algebra-laws">De Morgan's law</a> drawn rather than written.
+				<a href="/de-morgans-laws">De Morgan's law</a> drawn rather than written.
 			</li>
 			<li>
 				<strong>On a clock pin</strong> of a <a href="/flip-flops">flip-flop</a>, it means the part triggers on the
@@ -218,8 +219,8 @@
 			expect.
 		</p>
 		<p>
-			Logic Nodes itself uses neither. The editor draws every node as a labelled box, which is closer to IEC in spirit
-			and keeps custom nodes and gates looking consistent.
+			The simulator on this site uses neither. The editor draws every node as a labelled box, which is closer to IEC in
+			spirit and keeps custom nodes and gates looking consistent.
 		</p>
 		<p>
 			<a class="cta" href="/simulator">Open the simulator</a>
@@ -228,7 +229,7 @@
 
 	<section>
 		<h2>Reference card</h2>
-		<p class="section-intro">All six gates in both standards on one image, for notes or a slide.</p>
+		<p class="section-intro">All seven gates in both standards on one image, for notes or a slide.</p>
 		{#each imagesFor('/logic-gate-symbols') as shot}
 			<a class="card-image" href="/img/{shot.file}" download>
 				<img

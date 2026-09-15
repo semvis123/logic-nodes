@@ -15,8 +15,8 @@
 		},
 		{
 			href: '/logic-gates',
-			name: 'The six logic gates',
-			blurb: 'AND, OR, NOT, XOR, NAND and NOR, each with its own page.'
+			name: 'The seven logic gates',
+			blurb: 'AND, OR, NOT, XOR, NAND, NOR and XNOR, each with its own page.'
 		},
 		{ href: '/flip-flops', name: 'Flip-flops', blurb: 'SR, D, JK and T, with timing diagrams and excitation tables.' },
 		{ href: '/counters', name: 'Counters', blurb: 'Ripple, synchronous, decade and up/down, and why each bit halves.' },
@@ -85,7 +85,7 @@
 		{
 			src: '/boolean-algebra.png',
 			title: 'truth table and boolean expression',
-			alt: 'A circuit of OR, AND, NOR, NAND and XOR gates in the Logic Nodes editor, next to its generated truth table and boolean expression',
+			alt: 'A circuit of OR, AND, NOR, NAND and XOR gates in the LogicGates.org simulator, next to its generated truth table and boolean expression',
 			caption: 'Every circuit comes with its truth table and boolean expression, generated live.'
 		},
 		{
@@ -97,7 +97,7 @@
 		{
 			src: '/calculator.png',
 			title: 'four bit calculator',
-			alt: 'A four bit calculator in the Logic Nodes editor, built from switches, a four bit adder and seven segment decoder nodes driving three digits',
+			alt: 'A four bit calculator in the LogicGates.org simulator, built from switches, a four bit adder and seven segment decoder nodes driving three digits',
 			caption: 'The built-in calculator, assembled from custom adder and decoder nodes.'
 		}
 	];
@@ -145,7 +145,7 @@
 		},
 		{
 			q: 'What can I do on this site?',
-			a: 'Three things. Look something up: the six logic gates, their symbols in both standards, flip-flops, counters, shift registers, the common circuits and all the laws of boolean algebra. Work something out: truth tables, Karnaugh maps with don’t cares, boolean simplification, sum of products and product of sums, NAND and NOR conversion, circuit diagrams, and binary and Gray code conversion. Or practise: generated questions that never repeat, and printable worksheets with an answer key.'
+			a: 'Three things. Look something up: the seven logic gates, their symbols in both standards, flip-flops, counters, shift registers, the common circuits and all the laws of boolean algebra. Work something out: truth tables, Karnaugh maps with don’t cares, boolean simplification, sum of products and product of sums, NAND and NOR conversion, circuit diagrams, and binary and Gray code conversion. Or practise: generated questions that never repeat, and printable worksheets with an answer key.'
 		},
 		{
 			q: 'How do I get a truth table from a boolean expression?',
@@ -233,7 +233,7 @@
 	const page = {
 		title: 'LogicGates.org: Digital Logic Tools and Reference',
 		description:
-			'Free tools and a full reference for digital logic: truth tables, Karnaugh maps, boolean algebra, the six logic gates, flip-flops, practice and a simulator.',
+			'Free tools and a full reference for digital logic: truth tables, Karnaugh maps, boolean algebra, the seven logic gates, flip-flops, practice and a simulator.',
 		url: `${SITE}/`,
 		image: `${SITE}/og/home.png`,
 		imageAlt: 'LogicGates.org: digital logic tools and reference'
@@ -341,7 +341,7 @@
 	related={[
 		{ href: '/tools', label: 'All tools' },
 		{ href: '/learn', label: 'Learn digital logic' },
-		{ href: '/logic-gates', label: 'The six logic gates' },
+		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' }
@@ -352,7 +352,7 @@
 			<h1>Free digital logic tools and reference</h1>
 			<p class="sub">
 				Truth tables, Karnaugh maps, boolean algebra and circuit diagrams, worked out as you type. Plus a full reference
-				for the <a href="/logic-gates">six logic gates</a>, <a href="/flip-flops">flip-flops</a> and the
+				for the <a href="/logic-gates">seven logic gates</a>, <a href="/flip-flops">flip-flops</a> and the
 				<a href="/common-circuits">circuits built from them</a>, and a
 				<a href="/simulator">simulator</a> to try it all in.
 			</p>
@@ -563,8 +563,8 @@
 	<section class="gates" id="gates">
 		<h2>Every gate, and what it does</h2>
 		<p class="section-intro">
-			Six logic gates cover everything you will build here. These are the ones you get, with the boolean expression the
-			editor writes for each.
+			Six gate nodes cover everything you will build here. These are the ones you get, with the boolean expression the
+			editor writes for each; the seventh gate, <a href="/logic-gates/xnor">XNOR</a>, is an XOR into a NOT.
 		</p>
 		<table class="data-table gate-table">
 			<thead>
@@ -616,16 +616,16 @@
 	<section class="learn" id="examples">
 		<h2>Made for learning digital logic</h2>
 		<p>
-			Logic Nodes started as a way to understand logic gates properly and grew into a full circuit editor. It's well
-			suited for boolean algebra homework, building an SR latch or a half adder for the first time, or experimenting
-			with feedback and clocks. Teachers can share example circuits with a link, and students need nothing but a
-			browser.
+			The simulator, originally released as Logic Nodes, started as a way to understand logic gates properly and grew
+			into a full circuit editor. It's well suited for boolean algebra homework, building an SR latch or a half adder
+			for the first time, or experimenting with feedback and clocks. Teachers can share example circuits with a link,
+			and students need nothing but a browser.
 		</p>
 		<div
 			class="carousel"
 			role="group"
 			aria-roledescription="carousel"
-			aria-label="Screenshots of circuits built in Logic Nodes"
+			aria-label="Screenshots of circuits built in the simulator"
 			on:keydown={onCarouselKeydown}
 		>
 			<!-- Native scroll-snap track: swipes on touch and works without JS. -->

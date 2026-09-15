@@ -78,7 +78,7 @@
 					'@type': 'ListItem',
 					position: i + 1,
 					name: circuit.name,
-					url: `${page.url}#${circuit.slug}`
+					url: `${page.url}/${circuit.slug}`
 				}))
 			},
 			{
@@ -116,7 +116,7 @@
 
 <ContentPage
 	related={[
-		{ href: '/logic-gates', label: 'The six logic gates' },
+		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/flip-flops', label: 'Flip-flops' },
 		{ href: '/combinational-vs-sequential', label: 'Combinational vs sequential' },
 		{ href: '/learn', label: 'Learn digital logic' }
@@ -137,7 +137,7 @@
 
 	{#each built as circuit}
 		<section id={circuit.slug}>
-			<h2>{circuit.name}</h2>
+			<h2><a href="/common-circuits/{circuit.slug}">{circuit.name}</a></h2>
 			<p class="section-intro">{circuit.tagline}</p>
 
 			<div class="layout">
@@ -191,6 +191,9 @@
 					<li>{use}</li>
 				{/each}
 			</ul>
+			<p class="more">
+				<a href="/common-circuits/{circuit.slug}">{circuit.name}: live diagram, reference card and questions →</a>
+			</p>
 		</section>
 	{/each}
 
@@ -378,6 +381,14 @@
 
 	.uses li {
 		margin-bottom: 0.4rem;
+	}
+
+	.more {
+		font-size: 0.88rem;
+	}
+
+	.more a {
+		color: #8ede8e;
 	}
 
 	.compose {

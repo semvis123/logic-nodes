@@ -77,7 +77,7 @@
 <ContentPage
 	related={[
 		{ href: '/learn', label: 'Learn digital logic' },
-		{ href: '/logic-gates', label: 'The six logic gates' },
+		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' }
 	]}
 >

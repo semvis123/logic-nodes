@@ -91,7 +91,8 @@
 		{ name: 'XOR', expr: 'a ^ b', symbol: 'a ⊻ b', note: 'high when the inputs differ' },
 		{ name: 'NAND', expr: '!(a & b)', symbol: '¬(a ∧ b)', note: 'the inverse of AND' },
 		{ name: 'NOR', expr: '!(a | b)', symbol: '¬(a ∨ b)', note: 'the inverse of OR' },
-		{ name: 'NOT', expr: '!a', symbol: '¬a', note: 'inverts its single input' }
+		{ name: 'NOT', expr: '!a', symbol: '¬a', note: 'inverts its single input' },
+		{ name: 'XNOR', expr: '!(a ^ b)', symbol: '¬(a ⊻ b)', note: 'the inverse of XOR: high when the inputs match' }
 	].map((gate) => ({ ...gate, table: truthTable(parseExpression(gate.expr)) }));
 
 	// The classic worked example: one input pair, two outputs.
@@ -119,14 +120,14 @@
 		},
 		{
 			q: 'Can I get a circuit out of a truth table?',
-			a: 'Yes, in the simulator. Open Logic Nodes on an empty canvas and press ctrl+T (or cmd+T), fill in the output column, and it builds a working circuit of real gates that matches your table.'
+			a: 'Yes, in the simulator. Open it on an empty canvas and press ctrl+T (or cmd+T), fill in the output column, and it builds a working circuit of real gates that matches your table.'
 		}
 	];
 
 	const page = {
 		title: 'Truth Table Generator: Boolean Expression to Truth Table',
 		description:
-			'Type a boolean expression and get its truth table instantly. Supports AND, OR, NOT, XOR, NAND and NOR in any notation. Free, no signup, runs in your browser.',
+			'Type a boolean expression and get its truth table instantly. Supports AND, OR, NOT, XOR, NAND, NOR and XNOR in any notation. Free, no signup, runs in your browser.',
 		url: `${SITE}/truth-table-generator`,
 		image: `${SITE}/og/truth-table-generator.png`,
 		imageAlt: 'LogicGates.org: truth table generator'
@@ -163,7 +164,8 @@
 			{
 				'@type': 'SoftwareApplication',
 				'@id': `${SITE}/#app`,
-				name: 'Logic Nodes',
+				name: 'LogicGates.org simulator',
+				alternateName: 'Logic Nodes',
 				url: `${SITE}/simulator`,
 				applicationCategory: 'EducationalApplication',
 				operatingSystem: 'Web browser',
@@ -201,7 +203,7 @@
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },
-		{ href: '/logic-gates', label: 'The six logic gates' },
+		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/tools', label: 'All tools' }
 	]}
@@ -327,7 +329,7 @@
 	</section>
 
 	<section>
-		<h2>Truth tables of the six basic gates</h2>
+		<h2>Truth tables of the seven basic gates</h2>
 		<p class="section-intro">
 			Every digital circuit is built from these. The rows count up in binary, the same as the table above.
 		</p>
@@ -406,8 +408,8 @@
 	<section>
 		<h2>From a circuit, not an expression</h2>
 		<p class="section-intro">
-			The generator above starts from algebra. Logic Nodes goes the other way as well: build the circuit from real gates
-			and it works out the table for you.
+			The generator above starts from algebra. The simulator goes the other way as well: build the circuit from real
+			gates and it works out the table for you.
 		</p>
 		<ol class="steps">
 			<li>

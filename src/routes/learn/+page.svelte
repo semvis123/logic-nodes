@@ -25,7 +25,7 @@
 
 	const steps = [
 		{ id: 'signals', title: 'One wire, two values' },
-		{ id: 'gates', title: 'The six gates' },
+		{ id: 'gates', title: 'The seven gates' },
 		{ id: 'half-adder', title: 'Your first real circuit: the half adder' },
 		{ id: 'full-adder', title: 'Carrying: the full adder' },
 		{ id: 'memory', title: 'Making it remember: the SR latch' },
@@ -140,7 +140,7 @@
 
 <ContentPage
 	related={[
-		{ href: '/logic-gates', label: 'The six logic gates' },
+		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/practice', label: 'Practice questions' },
 		{ href: '/worksheet', label: 'Printable worksheets' }
@@ -178,25 +178,26 @@
 	</section>
 
 	<section id="gates">
-		<h2>2. The six gates</h2>
+		<h2>2. The seven gates</h2>
 		<p>
-			A gate takes one or more of those signals and produces a new one. There are six worth knowing: <a
+			A gate takes one or more of those signals and produces a new one. There are seven worth knowing: <a
 				href="/logic-gates/and">AND</a
 			>
 			is high when both inputs are high,
 			<a href="/logic-gates/or">OR</a> when at least one is,
 			<a href="/logic-gates/not">NOT</a> flips its single input, and
 			<a href="/logic-gates/xor">XOR</a> is high when the two inputs differ.
-			<a href="/logic-gates/nand">NAND</a> and <a href="/logic-gates/nor">NOR</a> are AND and OR with the output inverted.
+			<a href="/logic-gates/nand">NAND</a>, <a href="/logic-gates/nor">NOR</a> and
+			<a href="/logic-gates/xnor">XNOR</a> are AND, OR and XOR with the output inverted.
 		</p>
 		<p>
 			That is the entire alphabet. NAND on its own is enough to build the other five, so in a sense there is only one
-			gate, but the six are what you will actually reach for.
+			gate, but the seven are what you will actually reach for.
 		</p>
 		<p class="try">
 			<strong>Try it:</strong> place one of each from the Logic menu, wire two toggles into them, and work through all
 			four input combinations until the truth tables feel obvious.
-			<a href="/logic-gates">The gate reference</a> has all six tables side by side.
+			<a href="/logic-gates">The gate reference</a> has all seven tables side by side.
 		</p>
 	</section>
 
@@ -315,10 +316,10 @@
 			output back into an input and something new happens. The circuit gets state.
 		</p>
 		<p>
-			Take two <a href="/logic-gates/nor">NOR</a> gates and cross-couple them: the output of each one goes into an input
-			of the other. The two remaining inputs are set and reset. Raise set briefly and the output goes high and stays high
-			after set drops again. Raise reset and it goes back to low, and stays. The circuit remembers which one you touched
-			last, and that is a single bit of memory made of two gates.
+			Take two <a href="/logic-gates/nor">NOR</a> gates and cross-couple them into an <a href="/sr-latch">SR latch</a>:
+			the output of each one goes into an input of the other. The two remaining inputs are set and reset. Raise set
+			briefly and the output goes high and stays high after set drops again. Raise reset and it goes back to low, and
+			stays. The circuit remembers which one you touched last, and that is a single bit of memory made of two gates.
 		</p>
 		<p>
 			It also introduces a real hazard: raise both inputs at once and the latch has no valid state. Watching that happen

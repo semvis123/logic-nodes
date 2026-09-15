@@ -130,7 +130,8 @@
 <ContentPage
 	related={[
 		{ href: '/flip-flops', label: 'All four flip-flops' },
-		{ href: '/logic-gates', label: 'The six logic gates' },
+		{ href: '/sr-latch', label: 'The SR latch' },
+		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' }
 	]}
 >

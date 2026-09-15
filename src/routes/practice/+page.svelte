@@ -158,7 +158,7 @@
 <ContentPage
 	related={[
 		{ href: '/worksheet', label: 'Printable worksheets' },
-		{ href: '/logic-gates', label: 'The six logic gates' },
+		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/tools', label: 'All tools' }
 	]}
@@ -287,7 +287,7 @@
 					<tr>
 						<th scope="row">Gate output</th>
 						<td>Knowing each gate's behaviour cold</td>
-						<td><a href="/logic-gates">The six logic gates</a></td>
+						<td><a href="/logic-gates">The seven logic gates</a></td>
 					</tr>
 					<tr>
 						<th scope="row">Identify the gate</th>

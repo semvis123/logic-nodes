@@ -31,6 +31,8 @@ import { gates } from '../src/lib/gates.js';
 import { laws } from '../src/lib/laws.js';
 import { flipFlops } from '../src/lib/flipflops.js';
 import { commonCircuits } from '../src/lib/commonCircuits.js';
+import { demorganLaws, demorganExamples } from '../src/lib/demorgan.js';
+import { latches } from '../src/lib/latches.js';
 import {
 	makeQuestion,
 	nextQuestion,
@@ -273,6 +275,86 @@ test.describe('published gate reference', () => {
 			expect(gate.outputHigh.length).toBeGreaterThan(0);
 		}
 		expect(new Set(gates.map((g) => g.slug)).size).toBe(gates.length);
+	});
+});
+
+test.describe('published circuit pages', () => {
+	test('each circuit has the definition and questions its page needs', () => {
+		for (const circuit of commonCircuits) {
+			expect(circuit.definition, circuit.name).toMatch(/^A[n]? .+ (circuit|generator|voter) .+\.$/);
+			expect(circuit.faqs.length, circuit.name).toBeGreaterThanOrEqual(2);
+			for (const faq of circuit.faqs) expect(faq.q, circuit.name).toMatch(/\?$/);
+		}
+		expect(new Set(commonCircuits.map((c) => c.slug)).size).toBe(commonCircuits.length);
+	});
+});
+
+test.describe('published De Morgan page', () => {
+	test('each stated law holds', () => {
+		for (const law of demorganLaws) {
+			expect(equivalent(parseExpression(law.left), parseExpression(law.right)), `${law.left} = ${law.right}`).toBe(
+				true
+			);
+		}
+	});
+
+	test('every worked example keeps the function unchanged at every step', () => {
+		for (const example of demorganExamples) {
+			expect(example.steps.length, example.title).toBeGreaterThanOrEqual(2);
+			expect(example.steps[0].rule, `${example.title}: the first step is the starting point`).toBe('');
+			const start = parseExpression(example.steps[0].expression);
+			for (const step of example.steps.slice(1)) {
+				expect(step.rule.length, `${example.title}: ${step.expression} names no rule`).toBeGreaterThan(0);
+				expect(
+					equivalent(start, parseExpression(step.expression)),
+					`${example.title}: ${step.expression} is not equivalent to ${example.steps[0].expression}`
+				).toBe(true);
+			}
+		}
+		expect(new Set(demorganExamples.map((e) => e.id)).size).toBe(demorganExamples.length);
+	});
+});
+
+test.describe('published SR latch page', () => {
+	test('each latch equation reproduces its table, with X standing for both values', () => {
+		for (const latch of latches) {
+			const ast = parseExpression(latch.equation);
+			expect(latch.labels.length).toBe(latch.inputs.length);
+			for (const row of latch.characteristic) {
+				expect(row.inputs.length, latch.name).toBe(latch.inputs.length);
+				if (row.next === 'invalid') continue;
+				const free = row.inputs.map((bit, i) => i).filter((i) => row.inputs[i] === 'X');
+				for (let mask = 0; mask < 1 << free.length; mask++) {
+					const values: Record<string, boolean> = { q: row.q === '1' };
+					row.inputs.forEach((bit, i) => {
+						values[latch.inputs[i]] = bit === 'X' ? !!(mask & (1 << free.indexOf(i))) : bit === '1';
+					});
+					expect(evaluate(ast, values) ? '1' : '0', `${latch.name}: ${row.inputs.join('')} q=${row.q}`).toBe(row.next);
+				}
+			}
+			// Every input combination appears exactly once per present state.
+			const seen = new Set<string>();
+			for (const row of latch.characteristic) {
+				const free = row.inputs.map((bit, i) => i).filter((i) => row.inputs[i] === 'X');
+				for (let mask = 0; mask < 1 << free.length; mask++) {
+					const key = row.inputs.map((bit, i) => (bit === 'X' ? (mask >> free.indexOf(i)) & 1 : bit)).join('') + row.q;
+					expect(seen.has(key), `${latch.name}: ${key} listed twice`).toBe(false);
+					seen.add(key);
+				}
+			}
+			expect(seen.size, latch.name).toBe(2 ** (latch.inputs.length + 1));
+			// The demo sequences line up, and never drive the forbidden input.
+			expect(latch.demo.length).toBe(latch.inputs.length);
+			const length = latch.demo[0].length;
+			for (const bits of latch.demo) expect(bits.length).toBe(length);
+			for (let step = 0; step < length; step++) {
+				const inputs = latch.demo.map((bits) => bits[step]);
+				const forbidden = latch.characteristic.find(
+					(row) => row.next === 'invalid' && row.inputs.every((bit, i) => bit === 'X' || bit === inputs[i])
+				);
+				expect(forbidden, `${latch.name}: step ${step + 1} drives the forbidden input`).toBeUndefined();
+			}
+		}
 	});
 });
 

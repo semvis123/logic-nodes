@@ -115,6 +115,7 @@
 
 <ContentPage
 	related={[
+		{ href: '/de-morgans-laws', label: "De Morgan's laws, in depth" },
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/sum-of-products-calculator', label: 'Sum of products calculator' },
@@ -202,7 +203,7 @@
 				<a href="/karnaugh-map-solver">Karnaugh map</a>: one variable takes both values and cancels.
 			</li>
 			<li>
-				<strong>De Morgan</strong> converts between AND and OR forms, which is what makes
+				<strong><a href="/de-morgans-laws">De Morgan</a></strong> converts between AND and OR forms, which is what makes
 				<a href="/nand-nor-converter">NAND-only and NOR-only circuits</a> possible.
 			</li>
 			<li>

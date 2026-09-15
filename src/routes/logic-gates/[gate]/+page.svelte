@@ -75,7 +75,9 @@
 
 <ContentPage
 	related={[
-		{ href: '/logic-gates', label: 'All six gates' },
+		{ href: '/logic-gates', label: 'All seven gates' },
+		{ href: '/logic-gate-symbols', label: 'Gate symbols' },
+		{ href: '/de-morgans-laws', label: "De Morgan's laws" },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' }
 	]}

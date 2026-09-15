@@ -1,6 +1,7 @@
 import { SITE } from '$lib/site';
 import { gates } from '$lib/gates';
 import { flipFlops } from '$lib/flipflops';
+import { commonCircuits } from '$lib/commonCircuits';
 import { lastModified } from '$lib/lastmod';
 import { generatedImages } from '$lib/generatedImages';
 
@@ -52,6 +53,8 @@ function routes(): string[] {
 			for (const gate of gates) paths.add(path.replace('[gate]', gate.slug));
 		} else if (path.includes('[type]')) {
 			for (const ff of flipFlops) paths.add(path.replace('[type]', ff.slug));
+		} else if (path.includes('[circuit]')) {
+			for (const circuit of commonCircuits) paths.add(path.replace('[circuit]', circuit.slug));
 		} else if (path.includes('[')) {
 			// An unhandled dynamic route would silently go missing; fail loudly.
 			throw new Error(`sitemap: no expansion for dynamic route ${path}`);

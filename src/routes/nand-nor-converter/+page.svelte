@@ -334,7 +334,7 @@
 			A set of gates is called functionally complete when every boolean function can be built from it. AND, OR and NOT
 			together are complete, and the interesting fact is that NAND on its own already contains all three. Tie both its
 			inputs together and it is an inverter; follow it with that inverter and it is an AND; invert both inputs first
-			and, by De Morgan, it is an OR.
+			and, by <a href="/de-morgans-laws">De Morgan's law</a>, it is an OR.
 		</p>
 		<p>
 			The same argument works for <a href="/logic-gates/nor">NOR</a>, and those two are the only two input gates with

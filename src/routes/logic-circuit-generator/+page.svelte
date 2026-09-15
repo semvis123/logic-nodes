@@ -515,7 +515,7 @@
 		</div>
 		<p class="reducer">
 			Need the gate symbols on their own rather than a whole circuit? The
-			<a href="/logic-gate-symbols">symbol reference</a> has all six in both standards, and each
+			<a href="/logic-gate-symbols">symbol reference</a> has all seven in both standards, and each
 			<a href="/logic-gates">gate page</a> has a downloadable card with its truth table.
 		</p>
 	</section>

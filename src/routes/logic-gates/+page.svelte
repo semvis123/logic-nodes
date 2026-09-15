@@ -15,11 +15,15 @@
 		},
 		{
 			q: 'How many logic gates are there?',
-			a: 'Six basic gates: AND, OR, NOT, XOR, NAND and NOR. Some courses list a seventh, XNOR, which is XOR with the output inverted. Strictly only three are fundamental, AND, OR and NOT, since the others are combinations of those; and NAND alone can build everything.'
+			a: 'Seven: AND, OR, NOT, XOR, NAND, NOR and XNOR. Some courses stop at six and leave XNOR out, since it is XOR with the output inverted. Strictly only three are fundamental, AND, OR and NOT, because the other four are combinations of those; and NAND alone, or NOR alone, can build everything.'
+		},
+		{
+			q: 'What are the types of logic gates?',
+			a: 'Three basic gates, AND, OR and NOT; two universal gates, NAND and NOR, which are AND and OR with the output inverted; and two exclusive gates, XOR and XNOR, which are high when the inputs differ and when they match respectively. Every one of them is defined by its truth table, shown on this page.'
 		},
 		{
 			q: 'What are logic gates made of?',
-			a: 'In modern chips, transistors: a CMOS NAND gate is four of them, a NOT gate is two. Earlier computers built the same gates from relays and vacuum tubes, and you can make one from two switches on a battery. The rule is what matters, not the material, which is why a simulator can run the same gate as a few lines of code.'
+			a: 'In modern chips, transistors: a CMOS NOT gate is two of them, a NAND or NOR gate is four, and an AND gate is a NAND followed by a NOT, so six. Earlier computers built the same gates from relays and vacuum tubes, and you can make one from two switches on a battery. The rule is what matters, not the material, which is why a simulator can run the same gate as a few lines of code.'
 		},
 		{
 			q: 'What are logic gates used for?',
@@ -27,7 +31,11 @@
 		},
 		{
 			q: 'Why are NAND and NOR called universal gates?',
-			a: 'Because every other gate can be built from NAND gates alone, or from NOR gates alone. Tie both inputs of a NAND together and you get NOT; add that inverter to a NAND and you get AND. Chips are largely made of NAND and NOR for this reason: one well made gate covers every function.'
+			a: "Because every other gate can be built from NAND gates alone, or from NOR gates alone. Tie both inputs of a NAND together and you get NOT; add that inverter to a NAND and you get AND; invert both inputs first and, by De Morgan's law, you get OR. Chips are largely made of NAND and NOR for this reason: one well made gate covers every function."
+		},
+		{
+			q: 'Who invented logic gates?',
+			a: "Nobody in a single step. George Boole published the algebra of true and false in 1847 and 1854. Charles Sanders Peirce noted in 1886 that electrical switches could carry out that algebra. Claude Shannon's 1937 master's thesis showed that relay circuits and boolean algebra are the same thing, which is the founding paper of digital logic design. The first electronic gates were built from vacuum tubes in the 1940s, from transistors in the 1950s, and as integrated circuits from the early 1960s."
 		},
 		{
 			q: 'What is the difference between a logic gate and boolean algebra?',
@@ -36,9 +44,9 @@
 	];
 
 	const page = {
-		title: 'The 6 Logic Gates: Truth Tables, Symbols and Uses',
+		title: 'The 7 Logic Gates: Types, Truth Tables, Symbols and Uses',
 		description:
-			'What a logic gate is, then all six: AND, OR, NOT, XOR, NAND and NOR, each with its truth table, boolean expression and real uses. Free reference, no signup.',
+			'What a logic gate is, then all seven types: AND, OR, NOT, XOR, NAND, NOR and XNOR, each with its truth table, symbol, boolean expression and real uses.',
 		url: `${SITE}/logic-gates`,
 		image: `${SITE}/og/logic-gates.png`,
 		imageAlt: 'LogicGates.org: logic gates'
@@ -68,7 +76,7 @@
 			{
 				'@type': 'ItemList',
 				'@id': `${page.url}#list`,
-				name: 'The six basic logic gates',
+				name: 'The seven logic gates',
 				itemListElement: gates.map((gate, i) => ({
 					'@type': 'ListItem',
 					position: i + 1,
@@ -112,16 +120,18 @@
 <ContentPage
 	related={[
 		{ href: '/learn', label: 'Learn digital logic' },
+		{ href: '/logic-gate-symbols', label: 'Gate symbols' },
+		{ href: '/de-morgans-laws', label: "De Morgan's laws" },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
-		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },
-		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' }
+		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' }
 	]}
 >
 	<section class="intro">
-		<h1>The six logic gates</h1>
+		<h1>The seven logic gates</h1>
 		<p class="lede">
-			Every digital logic function, from a doorbell to a processor, is built out of these six operations. Each one
-			combines binary inputs — one for NOT, two for XOR, two or more for the rest — into a single binary output.
+			Every digital logic function, from a doorbell to a processor, is built out of these seven operations. Each one
+			combines binary inputs — one for NOT, two for XOR and XNOR, two or more for the rest — into a single binary
+			output.
 		</p>
 	</section>
 
@@ -156,8 +166,12 @@
 		</p>
 	</section>
 
-	<section>
-		<h2>All six at a glance</h2>
+	<section id="types">
+		<h2>The seven types of logic gate</h2>
+		<p class="section-intro">
+			Three basic gates (AND, OR, NOT), two universal gates (NAND, NOR) and two exclusive gates (XOR, XNOR). All seven
+			at a glance, each with a page of its own.
+		</p>
 		<div class="gate-grid">
 			{#each rows as gate}
 				<a class="card gate" href="/logic-gates/{gate.slug}">
@@ -196,14 +210,14 @@
 	<section>
 		<h2>The chart</h2>
 		<p class="section-intro">
-			All six with their symbols and truth tables on one image, if you want it on a wall or in a set of notes.
+			All seven with their symbols and truth tables on one image, if you want it on a wall or in a set of notes.
 		</p>
 		<a class="chart-image" href="/img/logic-gates-chart.png" download>
 			<img
 				src="/img/logic-gates-chart.png"
-				alt="Logic gates chart: AND, OR, NOT, XOR, NAND and NOR with their ANSI symbols, boolean expressions and truth tables"
+				alt="Logic gates chart: AND, OR, NOT, XOR, NAND, NOR and XNOR with their ANSI symbols, boolean expressions and truth tables"
 				width="1180"
-				height="700"
+				height="1191"
 				loading="lazy"
 				decoding="async"
 			/>
@@ -214,7 +228,7 @@
 	<section>
 		<h2>How they relate</h2>
 		<p class="section-intro">
-			The six are not independent. Three of them are the other three with the output inverted, and two of them can build
+			The seven are not independent. Three of them are three others with the output inverted, and two of them can build
 			all the rest on their own.
 		</p>
 		<table class="data-table">
@@ -263,12 +277,57 @@
 					<td>2</td>
 					<td>No</td>
 				</tr>
+				<tr>
+					<th scope="row">XNOR</th>
+					<td>XOR, inverted</td>
+					<td>2</td>
+					<td>No</td>
+				</tr>
 			</tbody>
 		</table>
 		<p class="reducer">
-			"Universal" means every other gate can be built from that one alone. NAND and NOR both qualify, which is why real
-			chips are largely made of them. Each gate page shows the construction, and every identity on this site is machine
-			checked against its truth table.
+			"Universal" means every other gate can be built from that one alone. Each gate page shows the construction, and
+			every identity on this site is machine checked against its truth table.
+		</p>
+	</section>
+
+	<section id="universal-gates">
+		<h2>Universal gates: NAND and NOR</h2>
+		<p>
+			A gate is universal, or functionally complete, when every boolean function can be built from copies of it and
+			nothing else. AND, OR and NOT together are complete, and any gate that can imitate all three is complete on its
+			own. NAND does it in three moves:
+		</p>
+		<ul class="universal">
+			<li>
+				<strong>NOT</strong> is a NAND with its two inputs tied together: <span class="mono">¬(a ∧ a) = ¬a</span>.
+			</li>
+			<li><strong>AND</strong> is a NAND followed by that inverter: <span class="mono">¬¬(a ∧ b) = a ∧ b</span>.</li>
+			<li>
+				<strong>OR</strong> is a NAND with both inputs inverted first:
+				<span class="mono">¬(¬a ∧ ¬b) = a ∨ b</span>, which is <a href="/de-morgans-laws">De Morgan's law</a>.
+			</li>
+		</ul>
+		<p>
+			NOR does the same with the roles of AND and OR swapped. No other two input gate qualifies: AND and OR cannot make
+			a NOT, and XOR and XNOR cannot make an AND. This is why real chips are largely made of NAND and NOR, and why the
+			Apollo Guidance Computer could be built from a single type of three input NOR gate. Every gate page shows its own
+			NAND and NOR constructions, and the <a href="/nand-nor-converter">NAND and NOR converter</a> rewrites any expression
+			that way with the gate count.
+		</p>
+	</section>
+
+	<section id="history">
+		<h2>A short history</h2>
+		<p>
+			The algebra came first. George Boole set out the arithmetic of true and false in 1847 and, in full, in
+			<em>The Laws of Thought</em> in 1854, a century before anyone had a use for it in hardware. Charles Sanders Peirce
+			saw in 1886 that electrical switches could carry it out, and Henry Sheffer showed in 1913 that a single operation,
+			the stroke we now write as NAND, is enough on its own. The decisive step was Claude Shannon's 1937 master's thesis,
+			which showed that relay switching circuits and boolean algebra are the same subject: from then on a circuit could be
+			designed by writing an expression and simplifying it. The first electronic gates were vacuum tubes in the 1940s, transistors
+			followed in the 1950s, and the integrated circuits of the early 1960s put whole gates on one chip, where they have
+			been shrinking ever since.
 		</p>
 	</section>
 
@@ -293,7 +352,7 @@
 		</p>
 		<p class="reducer">
 			Prefer to recognise them on a schematic? The
-			<a href="/logic-gate-symbols">symbol reference</a> has all six in both the ANSI and IEC styles.
+			<a href="/logic-gate-symbols">symbol reference</a> has all seven in both the ANSI and IEC styles.
 		</p>
 		<p class="reducer">
 			Or start from the <a href="/simulator#example:Introduction">introduction circuit</a>, generate a
@@ -330,6 +389,16 @@
 		color: #8ede8e;
 		font-size: 0.8rem;
 		padding: 0.5rem 0.8rem;
+	}
+
+	.universal {
+		color: #ddd;
+		max-width: 700px;
+		padding-left: 1.25rem;
+	}
+
+	.universal li {
+		margin-bottom: 0.4rem;
 	}
 
 	.gate-grid {

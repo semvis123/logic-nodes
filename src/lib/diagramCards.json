@@ -74,10 +74,10 @@
 	{
 		"file": "logic-gate-symbols-chart.png",
 		"title": "Logic gate symbols chart",
-		"alt": "Logic gate symbols chart: ANSI distinctive shapes and IEC rectangles side by side for AND, OR, NOT, XOR, NAND, NOR",
+		"alt": "Logic gate symbols chart: ANSI distinctive shapes and IEC rectangles side by side for AND, OR, NOT, XOR, NAND, NOR, XNOR",
 		"url": "logicgates.org/logic-gate-symbols",
 		"width": 1988,
-		"height": 1098
+		"height": 1458
 	},
 	{
 		"file": "boolean-algebra-laws-chart.png",

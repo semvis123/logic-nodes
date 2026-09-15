@@ -135,14 +135,14 @@
 		},
 		{
 			q: 'Does the simulator itself do boolean algebra?',
-			a: 'Yes. Logic Nodes turns any circuit into its boolean expression, and builds a circuit from an expression you paste in with ctrl+E. Optional simplification inside the simulator goes through the Wolfram Alpha API and needs your own free App ID in the settings; the calculator on this page needs nothing.'
+			a: 'Yes. The simulator turns any circuit into its boolean expression, and builds a circuit from an expression you paste in with ctrl+E. Optional simplification inside the simulator goes through the Wolfram Alpha API and needs your own free App ID in the settings; the calculator on this page needs nothing.'
 		}
 	];
 
 	const page = {
 		title: 'Boolean Algebra Calculator: Simplify Step by Step',
 		description:
-			'Simplify a boolean expression step by step, with the law named at every line, or check whether two expressions are equivalent. Free and runs in your browser.',
+			'A boolean expression simplifier that shows its working: simplify step by step with the law named at every line, or check whether two expressions are equivalent. Free.',
 		url: `${SITE}/boolean-algebra-calculator`,
 		image: `${SITE}/og/boolean-algebra-calculator.png`,
 		imageAlt: 'LogicGates.org: boolean algebra calculator'
@@ -179,7 +179,8 @@
 			{
 				'@type': 'SoftwareApplication',
 				'@id': `${SITE}/#app`,
-				name: 'Logic Nodes',
+				name: 'LogicGates.org simulator',
+				alternateName: 'Logic Nodes',
 				url: `${SITE}/simulator`,
 				applicationCategory: 'EducationalApplication',
 				operatingSystem: 'Web browser',
@@ -217,7 +218,7 @@
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },
-		{ href: '/logic-gates', label: 'The six logic gates' },
+		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/tools', label: 'All tools' }
 	]}
