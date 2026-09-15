@@ -23,9 +23,9 @@
 	// Pages that belong to a section without living under its path.
 	const alsoIn: Record<string, string[]> = {
 		'/logic-gates': ['/logic-gate-symbols'],
-		'/tools': [...toolPaths, '/boolean-algebra-laws'],
+		'/tools': [...toolPaths, '/boolean-algebra-laws', '/de-morgans-laws'],
 		'/learn': ['/common-circuits', '/combinational-vs-sequential'],
-		'/flip-flops': ['/counters', '/shift-registers']
+		'/flip-flops': ['/counters', '/shift-registers', '/sr-latch']
 	};
 	/** Printing should not hide answers behind a collapsed summary. */
 	function openAll() {
@@ -35,7 +35,7 @@
 	$: current = (href: string) => {
 		const path = $page.url.pathname;
 		if (path === href || path.startsWith(`${href}/`)) return true;
-		return (alsoIn[href] ?? []).includes(path);
+		return (alsoIn[href] ?? []).some((p) => path === p || path.startsWith(`${p}/`));
 	};
 </script>
 

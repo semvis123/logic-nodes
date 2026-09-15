@@ -66,7 +66,8 @@
 			{
 				'@type': 'SoftwareApplication',
 				'@id': `${SITE}/#app`,
-				name: 'Logic Nodes',
+				name: 'LogicGates.org simulator',
+				alternateName: 'Logic Nodes',
 				url: `${SITE}/simulator`,
 				applicationCategory: 'EducationalApplication',
 				applicationSubCategory: 'Logic gate simulator',
@@ -98,7 +99,7 @@
 	<title>Logic Gate Simulator: Build Circuits Online, Free</title>
 	<meta
 		name="description"
-		content="A free online logic gate simulator, and an open-source alternative to Logic.ly and Logisim. Build circuits from the six gates and get their truth tables."
+		content="A free online logic gate simulator, and an open-source alternative to Logic.ly and Logisim. Build circuits from logic gates and get their truth tables."
 	/>
 	<link rel="canonical" href="https://logicgates.org/simulator" />
 	<meta name="author" content="Sem" />
@@ -114,16 +115,16 @@
 	<meta property="og:image" content="https://logicgates.org/og/simulator.png" />
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
-	<meta property="og:image:alt" content="The Logic Nodes editor with a logic circuit on the canvas" />
+	<meta property="og:image:alt" content="The LogicGates.org simulator with a logic circuit on the canvas" />
 	<meta property="og:locale" content="en" />
 	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:title" content="The Logic Nodes circuit editor" />
+	<meta name="twitter:title" content="Logic gate simulator: build circuits online, free" />
 	<meta
 		name="twitter:description"
 		content="Build and simulate digital logic circuits in your browser. Truth tables, boolean expressions, custom nodes, and example circuits. Free, no signup."
 	/>
 	<meta name="twitter:image" content="https://logicgates.org/og/home.png" />
-	<meta name="twitter:image:alt" content="The Logic Nodes editor with a logic circuit on the canvas" />
+	<meta name="twitter:image:alt" content="The LogicGates.org simulator with a logic circuit on the canvas" />
 	{@html jsonLd}
 </svelte:head>
 
@@ -144,11 +145,11 @@
 		tools like Logic.ly and Logisim. Build circuits from AND, OR, NOT, XOR, NAND and NOR gates, then generate their
 		truth tables and boolean expressions.
 		<a href="/learn">Learn how it works</a>, or look up
-		<a href="/logic-gates">the six gates</a> and <a href="/flip-flops">flip-flops</a> in the reference.
+		<a href="/logic-gates">the seven gates</a> and <a href="/flip-flops">flip-flops</a> in the reference.
 	</p>
 	<noscript>
 		<p class="noscript-note">
-			Logic Nodes is a free online logic gate simulator. Enable JavaScript to build and simulate circuits, or read the <a
+			This is a free online logic gate simulator. Enable JavaScript to build and simulate circuits, or read the <a
 				href="/learn">guide to digital logic</a
 			>
 			and the <a href="/tools">tools that need no canvas</a>.

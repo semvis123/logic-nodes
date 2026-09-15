@@ -53,7 +53,7 @@ export const gates: Gate[] = [
 		faqs: [
 			{
 				q: 'Can an AND gate have more than two inputs?',
-				a: 'Yes. An AND gate of any width outputs 1 only when every input is 1. In Logic Nodes the input count is an option on the node, and in hardware three and four input AND gates are standard parts.'
+				a: 'Yes. An AND gate of any width outputs 1 only when every input is 1. In the simulator the input count is an option on the node, and in hardware three and four input AND gates are standard parts.'
 			},
 			{
 				q: 'What is the difference between AND and NAND?',
@@ -204,6 +204,10 @@ export const gates: Gate[] = [
 				a: 'Because NOT, AND and OR can all be built from NAND gates alone, and those three are enough to express any boolean function. So any circuit at all can be rewritten using only NAND gates. NOR is universal for the same reason.'
 			},
 			{
+				q: 'What is the difference between NAND and NOR?',
+				a: "NAND is an inverted AND: it outputs 0 only when every input is 1. NOR is an inverted OR: it outputs 1 only when every input is 0. So NAND is 1 on three of its four rows and NOR on just one. Invert every input and the output of a NAND and you get a NOR, which is De Morgan's law in gate form. Both are universal."
+			},
+			{
 				q: 'How do you make a NOT gate from a NAND gate?',
 				a: 'Tie both inputs together, or hold one input high. A NAND with both inputs fed by the same signal outputs the inverse of that signal.'
 			}
@@ -242,8 +246,63 @@ export const gates: Gate[] = [
 				a: "Take two NOR gates and feed each gate's output into one input of the other. The remaining free inputs become set and reset. Raising set drives one output high and it stays there after set returns low, which is what makes it a memory element."
 			},
 			{
+				q: 'What is the difference between NOR and NAND?',
+				a: "NOR outputs 1 only when all inputs are 0; NAND outputs 0 only when all inputs are 1. So NOR is 1 on just one of its four rows and NAND on three. Invert every input and the output of a NAND and you get a NOR, which is De Morgan's law in gate form. Both are universal."
+			},
+			{
 				q: 'Is NOR or NAND better for building everything?',
 				a: 'Both are universal, so either works. In practice NAND is preferred in CMOS because it is slightly faster and smaller for the same drive strength, but NOR-only designs have been built, most famously the Apollo Guidance Computer.'
+			}
+		]
+	},
+	{
+		slug: 'xnor',
+		name: 'XNOR',
+		symbol: '¬(a ⊻ b)',
+		expression: "(a ⊕ b)'",
+		source: '!(a ^ b)',
+		inputs: 2,
+		tagline: 'High when its two inputs agree.',
+		outputHigh: 'its two inputs are equal',
+		behaviour:
+			'An exclusive NOR gate outputs 1 when its two inputs are the same, both 0 or both 1, and 0 when they differ. It is an XOR gate with the output inverted, which makes it a one bit equality detector. Because of that it is also called the equivalence gate, and written a ≡ b or a ⊙ b.',
+		intuition:
+			'Where XOR asks "are these two different?", XNOR asks "are these two the same?". That is the question a processor puts to every pair of bits when it compares two numbers, so a comparator is a row of XNOR gates feeding an AND. XNOR is not universal though: chain XORs and XNORs however you like and the result still only ever counts whether an odd or even number of some of its inputs are high, so AND and OR are out of reach without another gate.',
+		uses: [
+			'One bit of an equality comparator: a XNOR per bit pair, then an AND across them, says whether two words are identical.',
+			'The final stage of an even parity checker: XOR the data bits together, then XNOR the result with the received parity bit: the output is high when they match, so a 0 means a bit was flipped.',
+			'A controlled buffer: XNOR a signal with 1 to pass it unchanged, or with 0 to invert it, the opposite sense to XOR.',
+			'Counting matching bits between two patterns, which is how correlators and binary neural networks score a match: XNOR each pair, then count the 1s.'
+		],
+		equivalences: [
+			{ label: 'XOR, inverted', expression: '!(a ^ b)', equals: '(a & b) | (!a & !b)' },
+			{ label: 'Sum of products', expression: '(a & b) | (!a & !b)', equals: '!(a ^ b)' },
+			{ label: 'Product of sums', expression: '(a | !b) & (!a | b)', equals: '!(a ^ b)' },
+			{ label: 'XOR with one input inverted', expression: 'a ^ !b', equals: '!(a ^ b)' },
+			{
+				label: 'From NAND gates only',
+				expression: '!(!(a & !(a & !(b & b))) & !(!(b & b) & !(a & !(b & b))))',
+				equals: '!(a ^ b)'
+			}
+		],
+		inSimulator:
+			'There is no XNOR node in the simulator. Place an XOR and feed its output into a NOT, or put the NOT on one of the XOR inputs instead, which gives the same table. Package the pair as a custom node and it behaves like a native gate.',
+		faqs: [
+			{
+				q: 'What is the difference between XOR and XNOR?',
+				a: 'They are opposites on every row. XOR outputs 1 when its two inputs differ; XNOR outputs 1 when they are the same. XNOR is exactly an XOR gate followed by a NOT gate, which is what the N in the name and the bubble on the symbol mean.'
+			},
+			{
+				q: 'Is XNOR a universal gate?',
+				a: 'No. NAND and NOR can each build every other gate, but XNOR cannot, and neither can XOR. Any circuit made only of XOR and XNOR gates still only reports whether an even or odd number of its inputs are high, however it is wired, so it can never behave like an AND or an OR. Add an AND gate to XOR and XNOR together and the set becomes complete: XNOR of a signal with itself supplies a constant 1, and XOR with 1 is NOT.'
+			},
+			{
+				q: 'How many NAND gates does XNOR need?',
+				a: 'Five. XOR takes four NAND gates, and XNOR is XOR with either the output or one of the inputs inverted, which is one more NAND with its inputs tied together. That is one more than XOR and three more than AND, so in NAND-only designs an equality test is comparatively expensive.'
+			},
+			{
+				q: 'Why is XNOR called the equivalence gate?',
+				a: 'Because its output is 1 precisely when the two inputs are equivalent, both 0 or both 1. In logic notation that is a ≡ b or a ⊙ b, and in a comparator that is the "these two bits match" signal.'
 			}
 		]
 	}

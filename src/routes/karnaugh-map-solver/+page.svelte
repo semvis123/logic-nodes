@@ -236,7 +236,8 @@
 			{
 				'@type': 'SoftwareApplication',
 				'@id': `${SITE}/#app`,
-				name: 'Logic Nodes',
+				name: 'LogicGates.org simulator',
+				alternateName: 'Logic Nodes',
 				url: `${SITE}/simulator`,
 				applicationCategory: 'EducationalApplication',
 				operatingSystem: 'Web browser',

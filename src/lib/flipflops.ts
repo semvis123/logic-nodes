@@ -67,7 +67,7 @@ export const flipFlops: FlipFlop[] = [
 		faqs: [
 			{
 				q: 'What is the difference between an SR latch and an SR flip-flop?',
-				a: 'A latch responds the moment its inputs change. A flip-flop only looks at its inputs on a clock edge, so its output changes at predictable instants. In practice an SR flip-flop is an SR latch with the inputs gated by a clock.'
+				a: 'A latch responds the moment its inputs change. A flip-flop only looks at its inputs on a clock edge, so its output changes at predictable instants. An edge-triggered SR flip-flop is two gated SR latches in a master-slave pair on opposite clock phases, so the output can only move at the edge.'
 			},
 			{
 				q: 'Why is S = R = 1 forbidden?',

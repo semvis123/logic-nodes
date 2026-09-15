@@ -106,7 +106,7 @@
 	related={[
 		{ href: '/common-circuits', label: 'Common logic circuits' },
 		{ href: '/flip-flops', label: 'Flip-flops' },
-		{ href: '/logic-gates', label: 'The six logic gates' },
+		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' }
 	]}
 >
@@ -278,8 +278,8 @@
 			<a class="cta" href="/simulator">Build one in the simulator</a>
 		</p>
 		<p class="reducer">
-			Try it directly: two <a href="/logic-gates/nor">NOR gates</a> cross-coupled make a latch you can set and reset,
-			and it is the smallest circuit with a memory.
+			Try it directly: two <a href="/logic-gates/nor">NOR gates</a> cross-coupled make an
+			<a href="/sr-latch">SR latch</a> you can set and reset, and it is the smallest circuit with a memory.
 			<a href="/learn#memory">The learning path</a> builds it step by step.
 		</p>
 		<p class="reducer">

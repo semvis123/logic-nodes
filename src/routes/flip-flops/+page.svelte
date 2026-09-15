@@ -152,8 +152,9 @@
 			</table>
 		</div>
 		<p class="reducer">
-			They are more alike than they look: each is an SR latch with different logic in front of it. Modern designs mostly
-			use D, because a synthesis tool would rather build the extra logic than manage a second control input.
+			They are more alike than they look: each is an <a href="/sr-latch">SR latch</a> with different logic in front of it.
+			Modern designs mostly use D, because a synthesis tool would rather build the extra logic than manage a second control
+			input.
 		</p>
 	</section>
 
@@ -180,8 +181,9 @@
 			<a class="cta" href="/simulator">Build one in the simulator</a>
 		</p>
 		<p class="reducer">
-			Start with two <a href="/logic-gates/nor">NOR gates</a> wired into each other, which is the SR latch every other
-			one is built on. <a href="/learn#memory">The learning path</a> walks through it.
+			Start with two <a href="/logic-gates/nor">NOR gates</a> wired into each other, which is the
+			<a href="/sr-latch">SR latch</a> every other one is built on. <a href="/learn#memory">The learning path</a> walks through
+			it.
 		</p>
 	</section>
 	<section>

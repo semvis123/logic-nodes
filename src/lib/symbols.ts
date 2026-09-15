@@ -80,6 +80,18 @@ export const shapes: Record<string, GateShape> = {
 		inputs: 2,
 		iec: '=1',
 		iecBubble: false
+	},
+	// The XOR shape with an inverting bubble on the nose. IEC labels the gate
+	// "=" (logic identity) rather than a bubbled "=1", though both are seen.
+	xnor: {
+		body: 'M12 4 Q28 25 12 46 Q40 46 56 25 Q40 4 12 4 Z',
+		extra: 'M4 4 Q20 25 4 46',
+		bubble: 60,
+		leadIn: 19,
+		leadOut: 64,
+		inputs: 2,
+		iec: '=',
+		iecBubble: false
 	}
 };
 

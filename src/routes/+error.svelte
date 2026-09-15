@@ -9,8 +9,8 @@
 		{ href: '/learn', label: 'Learn digital logic', blurb: 'Eight steps from one wire to a working adder.' },
 		{
 			href: '/logic-gates',
-			label: 'The six logic gates',
-			blurb: 'AND, OR, NOT, XOR, NAND and NOR, with truth tables.'
+			label: 'The seven logic gates',
+			blurb: 'AND, OR, NOT, XOR, NAND, NOR and XNOR, with truth tables.'
 		},
 		{ href: '/flip-flops', label: 'Flip-flops', blurb: 'D, JK, SR and T, with their excitation tables.' },
 		{ href: '/practice', label: 'Practice', blurb: 'Generated questions, marked as you go.' }

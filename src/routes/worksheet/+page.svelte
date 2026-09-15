@@ -158,7 +158,7 @@
 <ContentPage
 	related={[
 		{ href: '/practice', label: 'Practice questions' },
-		{ href: '/logic-gates', label: 'The six logic gates' },
+		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/tools', label: 'All tools' }
 	]}
