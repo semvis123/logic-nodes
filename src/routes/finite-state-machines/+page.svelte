@@ -180,9 +180,9 @@
 	];
 
 	const page = {
-		title: 'Finite State Machines: Moore vs Mealy, State Tables and Design',
+		title: 'Finite State Machines: Moore vs Mealy and a Worked Design',
 		description:
-			'What a finite state machine is, how Moore and Mealy machines differ, and the full design procedure worked through on a 101 sequence detector: state diagram, state table, encoding, K-map equations, circuit and timing.',
+			'What a state machine is, Moore vs Mealy, and a 101 sequence detector designed both ways: state diagram, state table, equations, circuit and timing.',
 		url: `${SITE}/finite-state-machines`,
 		image: `${SITE}/og/finite-state-machines.png`,
 		imageAlt: 'LogicGates.org: finite state machines'

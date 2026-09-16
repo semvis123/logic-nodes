@@ -79,7 +79,7 @@
 	const page = {
 		title: 'Seven-Segment Decoder: Truth Table, K-Maps and Circuit',
 		description:
-			"How a BCD to seven-segment decoder works: the truth table, a Karnaugh-map derived expression for each of the seven segments with the don't cares used, a live display, and the circuit.",
+			"How a BCD to seven-segment decoder works: the truth table, a Karnaugh-map expression for each segment with the don't cares used, a live display and the circuit.",
 		url: `${SITE}/seven-segment-decoder`,
 		image: `${SITE}/og/seven-segment-decoder.png`,
 		imageAlt: 'LogicGates.org: seven-segment decoder'
