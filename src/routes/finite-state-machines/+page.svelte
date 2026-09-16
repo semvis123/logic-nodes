@@ -159,7 +159,7 @@
 		},
 		{
 			q: 'What is the difference between a Moore machine and a Mealy machine?',
-			a: 'In a Moore machine the outputs depend only on the present state, so they change only on a clock edge and are stable for a whole cycle. In a Mealy machine the outputs depend on the present state and the inputs, so they can change as soon as an input does and can respond a cycle earlier. A Mealy machine often needs fewer states for the same job; a Moore machine has cleaner, glitch-free outputs.'
+			a: 'In a Moore machine the outputs depend only on the present state, so they change only on a clock edge and are stable for a whole cycle. In a Mealy machine the outputs depend on the present state and the inputs, so they can change as soon as an input does and can respond a cycle earlier. A Mealy machine often needs fewer states for the same job; a Moore machine has outputs that cannot glitch when an input does.'
 		},
 		{
 			q: 'How do you design a finite state machine?',
@@ -290,22 +290,23 @@
 				<h3>Moore machine</h3>
 				<p>
 					Outputs depend on the <strong>state alone</strong>. They are written inside the state circles, change only on
-					a clock edge, and stay steady for a whole cycle. Glitch free and easy to reason about, at the cost of
-					sometimes needing an extra state.
+					a clock edge, and stay steady for a whole cycle. Free of input-induced glitches and easy to reason about, at
+					the cost of sometimes needing an extra state.
 				</p>
 			</div>
 			<div class="card">
 				<h3>Mealy machine</h3>
 				<p>
 					Outputs depend on the <strong>state and the inputs</strong>. They are written on the arrows as input/output,
-					can change the moment an input does, and typically respond a cycle earlier with one state fewer. The price is
-					outputs that can glitch while inputs settle.
+					can change the moment an input does, and typically respond a cycle earlier, often with fewer states. The price
+					is outputs that can glitch while inputs settle.
 				</p>
 			</div>
 		</div>
 		<p class="reducer">
-			Any Moore machine can be rewritten as a Mealy machine and vice versa. The worked example below is done both ways,
-			so the difference is visible in the diagrams, the equations and the timing.
+			Any Moore machine can be rewritten as a Mealy machine and vice versa, though the Moore version may need more
+			states and its output lags by a cycle. The worked example below is done both ways, so the difference is visible in
+			the diagrams, the equations and the timing.
 		</p>
 	</section>
 
@@ -341,12 +342,7 @@
 
 	{#each built as machine, index}
 		<section id={machine.slug} class="machine">
-			<h2>
-				{index === 0 ? 'Worked example: ' : 'The same machine as a Mealy machine: '}{machine.name.replace(
-					/ sequence detector for 101$/,
-					''
-				)} detector for 101
-			</h2>
+			<h2>{index === 0 ? 'Worked example: a Moore detector for 101' : 'The same machine as a Mealy detector'}</h2>
 			<p class="section-intro">{machine.purpose}</p>
 
 			{#if index === 0}
@@ -415,7 +411,7 @@
 				{#each machine.labels as label, i}{i > 0 ? ' and ' : ''}<span class="mono">{label}</span>{/each}, written
 				<span class="mono">{machine.legend}</span> in the expressions.
 				{#if machine.kind === 'mealy'}
-					The unused code 11 is a don't care, which is what lets the equations come out this small.
+					The unused code 11 is a don't care, which is what lets d1 lose a literal.
 				{/if}
 			</p>
 			<dl class="equations">
@@ -477,6 +473,34 @@
 					{/if}
 				</figcaption>
 			</figure>
+
+			<details class="trace">
+				<summary>The same run as a table</summary>
+				<div class="table-wrap">
+					<table class="data-table trace-table">
+						<thead>
+							<tr>
+								<th scope="col">Cycle</th>
+								<th scope="col" class="mono">{machine.input}</th>
+								<th scope="col">State</th>
+								<th scope="col">Next</th>
+								<th scope="col" class="mono">z</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each machine.steps as step, i}
+								<tr class:flag={step.output === '1'}>
+									<td>{i + 1}</td>
+									<td class={step.input === '1' ? 'bit-1' : 'bit-0'}>{step.input}</td>
+									<td>{step.state}</td>
+									<td>{step.next}</td>
+									<td class={step.output === '1' ? 'bit-1' : 'bit-0'}>{step.output}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+			</details>
 		</section>
 	{/each}
 
@@ -494,9 +518,20 @@
 	<section id="build">
 		<h2>Build one</h2>
 		<p>
-			Two D flip-flops, a toggle for <span class="mono">x</span>, a clock, and the gates from the equations above. The
-			simulator has D flip-flops built in, so the Moore detector is about a dozen parts. Feed it 1, 0, 1 on successive
-			clocks and watch <span class="mono">z</span> rise one cycle later.
+			Two D flip-flops, a toggle for <span class="mono">x</span>, a clock, and the gates for the Moore equations:
+		</p>
+		<dl class="equations">
+			{#each built[0].equations as eq}
+				<dt class="mono">{eq.name}</dt>
+				<dd class="mono">{eq.text}</dd>
+			{/each}
+		</dl>
+		<p>
+			with <span class="mono">{built[0].legend}</span>. The simulator has no flip-flop node, so build a D flip-flop from
+			gates as the
+			<a href="/flip-flops/d">D flip-flop page</a> describes and package it as a custom node; two of those, a clock node
+			and the gates above make the whole detector. Feed it 1, 0, 1 on successive clocks and watch
+			<span class="mono">z</span> rise one cycle later.
 		</p>
 		<p>
 			<a class="cta" href="/simulator">Open the simulator</a>
@@ -713,5 +748,28 @@
 		color: #999;
 		font-size: 0.85rem;
 		margin-top: 0.5rem;
+	}
+
+	.trace {
+		margin-top: 0.8rem;
+	}
+
+	.trace summary {
+		cursor: pointer;
+		color: #8ede8e;
+		font-size: 0.9rem;
+	}
+
+	.trace-table {
+		margin-top: 0.6rem;
+	}
+
+	.trace-table td {
+		padding: 0.2rem 0.7rem;
+		text-align: center;
+	}
+
+	tr.flag td {
+		box-shadow: inset 0 0 0 1px rgba(93, 182, 93, 0.6);
 	}
 </style>

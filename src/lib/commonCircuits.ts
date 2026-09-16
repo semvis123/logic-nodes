@@ -373,7 +373,7 @@ export const commonCircuits: CommonCircuit[] = [
 			"Subtracting B from A one bit at a time has the same four cases as adding, and the difference column is the same XOR. What changes is the carry: subtraction borrows, and only one case needs it, 0 minus 1. So the borrow is 1 exactly when A is 0 and B is 1, which is ¬A ∧ B rather than the adder's A ∧ B.",
 		uses: [
 			'The least significant column of a subtractor, where nothing has been borrowed yet.',
-			'Decrementing a value by one, which is a subtractor with the second input tied to a constant.',
+			'The first column of a decrementer, a chain of these with a constant 1 fed into the rightmost column.',
 			'Showing why adders and subtractors are the same circuit apart from one inverted input.'
 		],
 		buildTip:
@@ -381,7 +381,7 @@ export const commonCircuits: CommonCircuit[] = [
 		faqs: [
 			{
 				q: 'What is the truth table of a half subtractor?',
-				a: 'Four rows. 0 minus 0 is difference 0, borrow 0; 1 minus 0 is difference 1, borrow 0; 1 minus 1 is difference 0, borrow 0; and 0 minus 1 is difference 1 with a borrow of 1, because taking 1 from 0 needs a 1 borrowed from the next column. The difference column is A ⊕ B and the borrow column is ¬A ∧ B.'
+				a: 'Four rows. 0 minus 0 is difference 0, borrow 0; 0 minus 1 is difference 1 with a borrow of 1, because taking 1 from 0 needs a 1 borrowed from the next column; 1 minus 0 is difference 1, borrow 0; and 1 minus 1 is difference 0, borrow 0. The difference column is A ⊕ B and the borrow column is ¬A ∧ B.'
 			},
 			{
 				q: 'What is the difference between a half adder and a half subtractor?',
@@ -416,7 +416,7 @@ export const commonCircuits: CommonCircuit[] = [
 			"The subtract half of an arithmetic unit, though most real designs add the two's complement instead and reuse the adder."
 		],
 		buildTip:
-			'Two half subtractors and an OR, mirroring the full adder: the first takes B from A, the second takes the borrow in from that difference, and the OR combines the two borrows.',
+			'Two half subtractors and an OR, mirroring the full adder: the first takes B from A, the second subtracts the borrow in from that difference, and the OR combines the two borrows.',
 		faqs: [
 			{
 				q: 'What is the truth table of a full subtractor?',
@@ -424,7 +424,7 @@ export const commonCircuits: CommonCircuit[] = [
 			},
 			{
 				q: 'What is the difference between a full adder and a full subtractor?',
-				a: "The sum and difference are the same XOR of three inputs. The carry out of an adder is 1 when at least two inputs are 1; the borrow out of a subtractor is 1 when B and the borrow in together outweigh A. Invert A in the adder's carry equation and you get the borrow equation, which is why one inverter and a shared XOR let an adder subtract."
+				a: "The sum and difference are the same XOR of three inputs. The carry out of an adder is 1 when at least two inputs are 1; the borrow out of a subtractor is 1 when B and the borrow in together outweigh A. Invert A in the adder's carry equation and you get the borrow equation. A practical adder-subtractor takes a different route, inverting B and setting the carry in to 1, which the next question explains."
 			},
 			{
 				q: 'Why do processors not use subtractors?',
@@ -454,7 +454,7 @@ export const commonCircuits: CommonCircuit[] = [
 			{ name: 'y7', expression: 'a & b & c', note: 'high for 111' }
 		],
 		explanation:
-			'The same idea as the 2-to-4 decoder with one more input bit: each output is a single three-input AND of the inputs in the right polarity, so the eight outputs are the eight minterms of A, B and C. Three inverters and eight AND gates make the whole circuit, and this is the size that turns up as a real part, the 74138, which adds enable inputs so that two of them can be wired into a 4-to-16.',
+			'The same idea as the 2-to-4 decoder with one more input bit: each output is a single three-input AND of the inputs in the right polarity, so the eight outputs are the eight minterms of A, B and C. Three inverters and eight AND gates make the whole circuit, and this is the size that turns up most often as a real part, the 74138, which adds enable inputs so that two of them can be wired into a 4-to-16.',
 		uses: [
 			'Selecting one of eight registers, memory chips or peripherals from three address bits.',
 			'Generating all the minterms of three variables at once, so any three-input function is an OR of some outputs.',
@@ -469,7 +469,7 @@ export const commonCircuits: CommonCircuit[] = [
 			},
 			{
 				q: 'How do you make a 4-to-16 decoder from 3-to-8 decoders?',
-				a: 'Use two of them and the fourth input bit as an enable: it enables the first decoder directly and the second through an inverter. Real 3-to-8 parts such as the 74138 have enable pins for exactly this purpose, and the same trick stacks any number of stages.'
+				a: 'Use two of them and the fourth, most significant, input bit as an enable: when it is 1 it enables the upper decoder, for outputs 8 to 15, and inverted it enables the lower one. Real 3-to-8 parts such as the 74138 have both an active-high and active-low enables, so with them no inverter is needed, and the same trick stacks any number of stages.'
 			},
 			{
 				q: 'What is the difference between a decoder and a demultiplexer?',
@@ -507,7 +507,7 @@ export const commonCircuits: CommonCircuit[] = [
 		uses: [
 			'Branch decisions on small fields such as priority levels or opcodes.',
 			'Detecting that a 2-bit counter has passed a threshold.',
-			'The building block of wider comparators, which chain these with the equal output of each stage enabling the next.'
+			'The building block of wider comparators, which chain these so that a lower stage only decides when every stage above it reports equal.'
 		],
 		buildTip:
 			'Two XNORs for the per-bit equality, then an AND for equal and two AND-OR networks for greater and less. Check that exactly one of the three outputs is high for every one of the sixteen input combinations.',

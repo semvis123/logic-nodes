@@ -12,6 +12,7 @@
 		codeBits,
 		type SegmentName
 	} from '$lib/sevenSegment';
+	import SevenSegment from '$lib/SevenSegment.svelte';
 	import { buildCircuit, circuitStates } from '$lib/circuit';
 	import { circuitToSvg } from '$lib/exportSvg';
 
@@ -39,16 +40,8 @@
 	$: states = circuitStates(circuit, bits);
 	$: circuitSvg = circuitToSvg(circuit, { standard: 'ansi', palette: 'colour', states });
 
-	// The segment geometry of the display, in a 64 by 108 box.
-	const geometry: Record<SegmentName, string> = {
-		a: 'M12,6 h40 l-6,6 h-28 z',
-		b: 'M58,10 v40 l-6,-6 v-28 z',
-		c: 'M58,58 v40 l-6,-6 v-28 z',
-		d: 'M12,102 h40 l-6,-6 h-28 z',
-		e: 'M6,58 v40 l6,-6 v-28 z',
-		f: 'M6,10 v40 l6,-6 v-28 z',
-		g: 'M12,54 h40 l-6,3 l6,3 h-40 l6,-3 z'
-	};
+	// Which digit, if any, the lit bars spell: the six spare codes show leftover shapes.
+	$: shown = digitSegments.indexOf([...lit].sort().join(''));
 
 	const kmapHref = (cells: (0 | 1 | 'x')[]) =>
 		`/karnaugh-map-solver?cells=${cells.map((c) => (c === 'x' ? 'x' : String(c))).join('')}`;
@@ -186,17 +179,12 @@
 				{/each}
 			</div>
 			<div class="demo-body">
-				<svg
-					viewBox="0 0 64 108"
-					class="display"
-					role="img"
-					aria-label={`Display showing the segments ${[...lit].sort().join(', ') || 'none'} for input ${code}`}
-				>
-					{#each segmentNames as segment}
-						<path d={geometry[segment]} class:lit={lit.has(segment)} />
-					{/each}
-				</svg>
+				<div class="display">
+					<SevenSegment {lit} labels label={`Display for input ${code}`} />
+				</div>
 				<dl class="readout">
+					<dt>Shows</dt>
+					<dd class="shows">{shown >= 0 ? `the digit ${shown}` : 'no digit: a leftover shape'}</dd>
 					<dt>Input</dt>
 					<dd class="mono">
 						{#each inputLabels as label, i}
@@ -222,13 +210,21 @@
 
 	<section id="how-it-works">
 		<h2>How it works</h2>
-		<p>
-			A seven-segment display is seven LEDs arranged as a figure eight, labelled <span class="mono">a</span> to
-			<span class="mono">g</span> clockwise from the top with <span class="mono">g</span> in the middle. Light the right
-			subset and you get a digit: all but <span class="mono">g</span> for 0, only <span class="mono">b</span>
-			and <span class="mono">c</span> for 1, and so on. The decoder's job is to turn the four bits of the digit into those
-			seven on-or-off signals.
-		</p>
+		<div class="how">
+			<div class="reference">
+				<SevenSegment lit={segmentNames} labels label="The seven segments, a to g, all lit and labelled" />
+				<p class="caption">Lettered clockwise from the top, with g across the middle.</p>
+			</div>
+			<p>
+				A seven-segment display is seven LEDs arranged as a figure eight. The bars are lettered
+				<span class="mono">a</span> across the top, then <span class="mono">b</span>, <span class="mono">c</span>
+				and <span class="mono">d</span> clockwise round to the bottom, <span class="mono">e</span> and
+				<span class="mono">f</span> back up the left side, and <span class="mono">g</span> across the middle. Light the
+				right subset and you get a digit: all but <span class="mono">g</span> for 0, only
+				<span class="mono">b</span> and <span class="mono">c</span> for 1, and so on. The decoder's job is to turn the four
+				bits of the digit into those seven on-or-off signals.
+			</p>
+		</div>
 		<p>
 			There is no clever trick in it, which is what makes it a good exercise. Each segment is its own boolean function
 			of the four input bits, read straight off a truth table with one row per digit. Simplify each of the seven columns
@@ -248,7 +244,7 @@
 			<table class="data-table decoder-table">
 				<thead>
 					<tr>
-						<th scope="col">Digit</th>
+						<th scope="col" colspan="2">Digit</th>
 						{#each inputLabels as label}
 							<th scope="col" class="mono">{label}</th>
 						{/each}
@@ -261,6 +257,9 @@
 					{#each rows as row}
 						<tr class:live={row.code === code}>
 							<th scope="row">{row.code}</th>
+							<td class="glyph">
+								<SevenSegment lit={digitSegments[row.code].split('')} label={`The digit ${row.code}`} />
+							</td>
 							{#each row.bits as bit}
 								<td class={bit ? 'bit-1' : 'bit-0'}>{bit ? 1 : 0}</td>
 							{/each}
@@ -270,7 +269,7 @@
 						</tr>
 					{/each}
 					<tr class="dc-row">
-						<th scope="row">10–15</th>
+						<th scope="row" colspan="2">10–15</th>
 						<td colspan="4" class="dc-cell">1010 to 1111</td>
 						{#each segmentNames as _, i}
 							<td class="out bit-x" class:first-out={i === 0}>X</td>
@@ -296,7 +295,10 @@
 			{#each functions as f}
 				<div class="card segment" class:lit={lit.has(f.segment)}>
 					<h3>
-						<span class="mono">{f.segment}</span>
+						<span class="which">
+							<span class="mini"><SevenSegment lit={[f.segment]} label={`Segment ${f.segment}`} /></span>
+							<span class="mono">{f.segment}</span>
+						</span>
 						<span class="count">{f.groups} {f.groups === 1 ? 'term' : 'terms'}</span>
 					</h3>
 					<p class="mono expr">{f.segment} = {f.text}</p>
@@ -344,12 +346,12 @@
 	<section id="real-parts">
 		<h2>In real hardware</h2>
 		<p>
-			The decoder has been a standard part since the 1960s: the TTL 7447 drives common anode displays with active-low
-			outputs, the 7448 drives common cathode displays, and the CMOS 4511 adds a latch so the input can change while the
-			display holds. All of them take a BCD input and add extras the pure logic does not need, such as a lamp test pin
-			that lights every segment and a ripple blanking input that suppresses leading zeros across several digits. In
-			anything designed today the decoding is a few lines of code in a microcontroller or a lookup table in an FPGA, but
-			the truth table is the same one as above.
+			The decoder has been a standard part since the late 1960s: the TTL 7447 drives common anode displays with
+			active-low outputs, the 7448 drives common cathode displays, and the CMOS 4511 adds a latch so the input can
+			change while the display holds. All of them take a BCD input and add extras the pure logic does not need: a lamp
+			test pin that lights every segment, a blanking input, and, on the 7447 and 7448, ripple blanking that suppresses
+			leading zeros across several digits. In anything designed today the decoding is a few lines of code in a
+			microcontroller or a lookup table in an FPGA, but the truth table is the same one as above.
 		</p>
 	</section>
 
@@ -422,19 +424,60 @@
 	}
 
 	.display {
-		width: 96px;
-		height: auto;
+		width: 120px;
 		background: #0d0d0f;
 		border-radius: 4px;
-		padding: 6px;
+		padding: 6px 4px;
 	}
 
-	.display path {
-		fill: #2a2a2e;
+	.how {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1.2rem;
+		align-items: flex-start;
 	}
 
-	.display path.lit {
-		fill: #f23;
+	.how p {
+		flex: 1 1 380px;
+		margin: 0;
+	}
+
+	.reference {
+		width: 130px;
+		background: #0d0d0f;
+		border-radius: 4px;
+		padding: 6px 4px 2px;
+	}
+
+	.caption {
+		color: #999;
+		font-size: 0.75rem;
+		text-align: center;
+		margin: 0.3rem 0 0;
+	}
+
+	.shows {
+		color: #fff;
+	}
+
+	.glyph {
+		width: 18px;
+		padding: 0.15rem 0.3rem;
+	}
+
+	.glyph :global(svg) {
+		width: 14px;
+	}
+
+	.which {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.mini {
+		display: inline-block;
+		width: 16px;
 	}
 
 	.readout {

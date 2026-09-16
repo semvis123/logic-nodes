@@ -223,7 +223,7 @@ export const glossary: GlossaryEntry[] = [
 		term: 'Latch',
 		slug: 'latch',
 		definition:
-			'A level-sensitive memory element: it responds to its inputs whenever they change, or whenever its enable is high, rather than only on a clock edge. The SR latch is the simplest.',
+			'A level-sensitive memory element, as opposed to an edge-triggered flip-flop. A plain SR latch responds whenever its inputs change; a gated latch responds whenever its enable is high. The SR latch is the simplest.',
 		href: '/sr-latch'
 	},
 	{
@@ -320,7 +320,7 @@ export const glossary: GlossaryEntry[] = [
 		term: 'Propagation delay',
 		slug: 'propagation-delay',
 		definition:
-			'The time between an input of a gate changing and its output settling, a few tens of picoseconds to a few nanoseconds depending on the technology. It sets the maximum clock rate of a circuit and is why ripple counters lag.',
+			'The time between an input of a gate changing and its output settling: tens of picoseconds for a gate inside a chip, tens of nanoseconds for a packaged TTL or CMOS gate. It sets the maximum clock rate of a circuit and is why ripple counters lag.',
 		href: '/counters'
 	},
 	{
@@ -348,7 +348,7 @@ export const glossary: GlossaryEntry[] = [
 		term: 'Seven-segment display',
 		slug: 'seven-segment-display',
 		definition:
-			'A digit made of seven bars, labelled a to g, lit in combinations to show 0 to 9. A seven-segment decoder turns a four-bit number into the seven segment signals.',
+			'A digit made of seven bars, labelled a to g, lit in combinations to show the digits 0 to 9 and, at a stretch, hexadecimal letters. A seven-segment decoder turns a four-bit number into the seven segment signals.',
 		href: '/seven-segment-decoder'
 	},
 	{
@@ -397,7 +397,7 @@ export const glossary: GlossaryEntry[] = [
 		term: "Two's complement",
 		slug: 'twos-complement',
 		definition:
-			'The usual way of representing negative binary numbers: invert every bit and add 1. It lets one adder handle addition and subtraction of signed numbers without a separate subtractor.',
+			'The usual representation of signed binary numbers, in which the top bit counts negative, so that a number is negated by inverting every bit and adding 1. It lets one adder handle addition and subtraction of signed numbers without a separate subtractor.',
 		href: '/binary-converter#twos-complement'
 	},
 	{

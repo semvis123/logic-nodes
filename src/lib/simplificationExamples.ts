@@ -25,28 +25,28 @@ export const simplificationExamples: SimplificationExample[] = [
 		title: 'A literal that cannot matter',
 		expression: 'a ∧ (¬a ∨ b)',
 		lesson:
-			'Inside the bracket, ¬a is dead: the outer a is already required, so ¬a can never be true when the whole expression is. Drop it and only b is left to do any work.'
+			'Inside the bracket, ¬a is dead: the outer a is already required, so ¬a can never be true when the whole expression is. Drop it and only b is left inside the bracket.'
 	},
 	{
 		id: 'combine-pair',
 		title: 'Two terms that differ in one literal',
 		expression: 'a ∧ b ∨ a ∧ ¬b',
 		lesson:
-			'The two terms agree on a and disagree on b, so between them they cover every value of b. That is exactly what a Karnaugh map group of two does, written out as algebra.'
+			'The two terms agree on a and disagree on b, so between them they cover every value of b. That is exactly what a Karnaugh map group of two does; in the laws it takes two moves, redundancy to drop the ¬b and then absorption.'
 	},
 	{
 		id: 'pos-pair',
 		title: 'The same trick for a product of sums',
 		expression: '(a ∨ b) ∧ (a ∨ ¬b)',
 		lesson:
-			'The laws are dual: everything that works on an OR of ANDs works on an AND of ORs with the operators swapped. The two brackets differ only in b, so b cancels.'
+			'The laws are dual: everything that works on an OR of ANDs works on an AND of ORs with the operators swapped. The two brackets differ only in b, so b cancels, by the same two moves as the previous example.'
 	},
 	{
 		id: 'demorgan-nor',
 		title: 'A negated bracket',
 		expression: '¬(a ∨ b) ∨ ¬a ∧ b',
 		lesson:
-			'Nothing can be simplified while the NOT sits over a bracket. De Morgan pushes it down onto the variables, and then absorption finishes the job.'
+			'Nothing can be simplified while the NOT sits over a bracket. De Morgan pushes it down onto the variables, and then redundancy and absorption finish the job.'
 	},
 	{
 		id: 'xor-plus-and',
@@ -81,7 +81,7 @@ export const simplificationExamples: SimplificationExample[] = [
 		title: 'Recognising an XOR',
 		expression: '¬(a ∧ b) ∧ (a ∨ b)',
 		lesson:
-			'"Not both, but at least one" is exactly exclusive or. De Morgan and one distribution turn the compact form into the sum of products that the definition of XOR uses.'
+			'"Not both, but at least one" is exactly exclusive or. De Morgan, one distribution and two redundancy steps turn the compact form into the sum of products that the definition of XOR uses.'
 	},
 	{
 		id: 'four-minterms',

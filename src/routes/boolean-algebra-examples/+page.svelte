@@ -46,7 +46,7 @@
 		},
 		{
 			q: 'Should I simplify by algebra or with a Karnaugh map?',
-			a: 'Up to four variables a Karnaugh map is faster and harder to get wrong, because the groupings are visible. Algebra is what you need when an expression is given to you as brackets rather than as a table, when there are more variables than a map can show, and when the question asks for a derivation with the laws named.'
+			a: 'Up to four variables a Karnaugh map is faster and harder to get wrong, because the groupings are visible. Algebra is what you need when an expression is given to you as brackets rather than as a table, when there are more than six variables, which is where maps stop being readable, and when the question asks for a derivation with the laws named.'
 		}
 	];
 
@@ -151,7 +151,7 @@
 			</li>
 			<li>
 				<strong>Merge terms that differ in one literal.</strong> a ∧ b and a ∧ ¬b together are just a. This is a Karnaugh
-				map group written as algebra.
+				map group written as algebra; in named laws it is redundancy followed by absorption.
 			</li>
 			<li>
 				<strong>Multiply out last.</strong> Distribution makes an expression bigger before it gets smaller, so only reach
