@@ -223,7 +223,7 @@ export const glossary: GlossaryEntry[] = [
 		term: 'Latch',
 		slug: 'latch',
 		definition:
-			'A level-sensitive memory element, as opposed to an edge-triggered flip-flop. A plain SR latch responds whenever its inputs change; a gated latch responds whenever its enable is high. The SR latch is the simplest.',
+			'A level-sensitive memory element, as opposed to an edge-triggered flip-flop. A plain SR latch responds whenever its inputs change; a gated latch responds whenever its enable is high.',
 		href: '/sr-latch'
 	},
 	{
@@ -404,7 +404,7 @@ export const glossary: GlossaryEntry[] = [
 		term: 'Universal gate',
 		slug: 'universal-gate',
 		definition:
-			'A gate from which every boolean function can be built using no other kind of gate. NAND and NOR are the two universal two-input gates.',
+			'A gate from which every boolean function can be built using no other kind of gate. NAND and NOR are the only two-input gates that are universal on their own.',
 		href: '/logic-gates#universal-gates'
 	},
 	{

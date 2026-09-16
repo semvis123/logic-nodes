@@ -25,7 +25,7 @@ export const simplificationExamples: SimplificationExample[] = [
 		title: 'A literal that cannot matter',
 		expression: 'a ∧ (¬a ∨ b)',
 		lesson:
-			'Inside the bracket, ¬a is dead: the outer a is already required, so ¬a can never be true when the whole expression is. Drop it and only b is left inside the bracket.'
+			'Inside the bracket, ¬a is dead: the outer a is already required, so ¬a can never be true when the whole expression is. Drop it and the bracket collapses to a ∧ b.'
 	},
 	{
 		id: 'combine-pair',
@@ -74,7 +74,7 @@ export const simplificationExamples: SimplificationExample[] = [
 		title: 'From a product of sums to a sum of products',
 		expression: '(a ∨ b) ∧ (¬a ∨ c) ∧ (b ∨ c)',
 		lesson:
-			'Multiplying out looks like it will make things worse, and it does at first. Then redundancy, absorption and consensus collapse the result to two terms. The third bracket was consensus all along.'
+			'Multiplying out looks like it will make things worse, and it does at first. Two rounds of it, with redundancy and absorption trimming in between, and then consensus removes the last term. The third bracket was consensus all along.'
 	},
 	{
 		id: 'xor-from-nand',

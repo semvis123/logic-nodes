@@ -40,8 +40,16 @@
 	$: states = circuitStates(circuit, bits);
 	$: circuitSvg = circuitToSvg(circuit, { standard: 'ansi', palette: 'colour', states });
 
-	// Which digit, if any, the lit bars spell: the six spare codes show leftover shapes.
+	// Which digit, if any, the lit bars spell. For the six spare codes this is
+	// whatever the minimal circuit happens to produce, digit or not.
 	$: shown = digitSegments.indexOf([...lit].sort().join(''));
+
+	// What the seven expressions cost in gates, counted from the expressions
+	// themselves so the FAQ cannot drift: single-literal terms need no AND, and
+	// only the complements that actually appear need an inverter.
+	const terms = functions.flatMap((f) => f.text.split(' ∨ '));
+	const andGates = terms.filter((t) => t.includes('∧')).length;
+	const inverters = new Set(terms.flatMap((t) => t.split(' ∧ ')).filter((l) => l.startsWith('¬'))).size;
 
 	const kmapHref = (cells: (0 | 1 | 'x')[]) =>
 		`/karnaugh-map-solver?cells=${cells.map((c) => (c === 'x' ? 'x' : String(c))).join('')}`;
@@ -57,7 +65,7 @@
 		},
 		{
 			q: "Why are codes 10 to 15 don't cares?",
-			a: "Because a BCD input never produces them, so whatever the decoder shows for them is never seen. Marking those rows as don't cares lets the Karnaugh map groups grow across them, which makes every one of the seven expressions shorter. On a real chip those codes display leftover shapes that mean nothing."
+			a: "Because a BCD input never produces them, so whatever the decoder shows for them is never seen. Marking those rows as don't cares lets the Karnaugh map groups grow across them, which makes every one of the seven expressions shorter. The circuit on this page happens to show a real digit for five of the six spare codes and a meaningless shape for 10; the 7447 shows partial shapes for all six."
 		},
 		{
 			q: 'What is the difference between common anode and common cathode displays?',
@@ -65,10 +73,7 @@
 		},
 		{
 			q: 'How many gates does a seven-segment decoder need?',
-			a: `With the don't cares used, the seven minimal expressions on this page have ${functions.reduce(
-				(n, f) => n + f.groups,
-				0
-			)} product terms between them, plus an OR per segment and four inverters for the input complements. Sharing identical terms between segments, which a real design does, brings the count down further.`
+			a: `With the don't cares used, the seven minimal expressions on this page have ${terms.length} terms between them, ${andGates} of which need an AND gate, plus an OR per segment and ${inverters} inverters: the 8s bit is never needed complemented. Sharing identical terms between segments, which a real design does, brings the count down further.`
 		},
 		{
 			q: 'What chip is a seven-segment decoder?',
@@ -156,7 +161,8 @@
 		<p class="lede">
 			A seven-segment decoder is a combinational circuit that turns a four-bit binary digit into the seven signals that
 			light the bars of a display, so that 1001 shows as a 9. It is seven boolean functions of the same four inputs,
-			each derived from a ten-row truth table, and the best everyday example of don't cares earning their keep.
+			each derived from a ten-row truth table, and the best everyday example of
+			<a href="/glossary#dont-care">don't cares</a> earning their keep.
 		</p>
 	</section>
 
@@ -199,8 +205,8 @@
 					</dd>
 					{#if code > 9}
 						<dd class="note">
-							{code} is not a BCD digit. Its rows were don't cares, so this shape is whatever the minimal circuit happens
-							to produce.
+							{code} is not a BCD digit. Its rows were don't cares, so what you see is whatever the minimal circuit happens
+							to produce{shown >= 0 ? `, which here is a ${shown}` : ''}.
 						</dd>
 					{/if}
 				</dl>
@@ -245,8 +251,8 @@
 				<thead>
 					<tr>
 						<th scope="col" colspan="2">Digit</th>
-						{#each inputLabels as label}
-							<th scope="col" class="mono">{label}</th>
+						{#each inputLabels as label, i}
+							<th scope="col" class="mono">{label}<span class="var">{inputVariables[i]}</span></th>
 						{/each}
 						{#each segmentNames as segment, i}
 							<th scope="col" class="mono out" class:first-out={i === 0}>{segment}</th>
@@ -337,7 +343,7 @@
 			</div>
 		</div>
 		<p class="reducer">
-			The full decoder is these seven circuits side by side, sharing the four inputs and their inverters. The
+			The full decoder is these seven circuits side by side, sharing the four inputs and the three inverters. The
 			<a href="/simulator#example:7%20Segment-display">simulator's seven-segment example</a> has it wired to a display node
 			you can drive from four switches.
 		</p>
@@ -346,12 +352,12 @@
 	<section id="real-parts">
 		<h2>In real hardware</h2>
 		<p>
-			The decoder has been a standard part since the late 1960s: the TTL 7447 drives common anode displays with
-			active-low outputs, the 7448 drives common cathode displays, and the CMOS 4511 adds a latch so the input can
-			change while the display holds. All of them take a BCD input and add extras the pure logic does not need: a lamp
-			test pin that lights every segment, a blanking input, and, on the 7447 and 7448, ripple blanking that suppresses
-			leading zeros across several digits. In anything designed today the decoding is a few lines of code in a
-			microcontroller or a lookup table in an FPGA, but the truth table is the same one as above.
+			The decoder has been a standard part since around 1970: the TTL 7447 drives common anode displays with active-low
+			outputs, the 7448 drives common cathode displays, and the CMOS 4511 adds a latch so the input can change while the
+			display holds. All of them take a BCD input and add extras the pure logic does not need: a lamp test pin that
+			lights every segment, a blanking input, and, on the 7447 and 7448, ripple blanking that suppresses leading zeros
+			across several digits. In anything designed today the decoding is a few lines of code in a microcontroller or a
+			lookup table in an FPGA, but the truth table is the same one as above.
 		</p>
 	</section>
 
@@ -524,6 +530,13 @@
 	.decoder-table td {
 		text-align: center;
 		padding: 0.25rem 0.55rem;
+	}
+
+	.decoder-table .var {
+		display: block;
+		color: #8ede8e;
+		font-weight: 400;
+		font-size: 0.75rem;
 	}
 
 	.decoder-table tbody th {

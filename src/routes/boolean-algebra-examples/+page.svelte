@@ -128,8 +128,8 @@
 		<h1>Boolean algebra simplification examples</h1>
 		<p class="lede">
 			{simplificationExamples.length} expressions simplified one law at a time, in the order you would meet them: first the
-			single moves, then the ones that combine, then a few that need several rounds. Every line names the law it applied,
-			and every derivation is checked against the truth table.
+			single moves, then the ones that combine, then consensus and a few that need several rounds. Every line names the law
+			it applied, and every derivation is checked against the truth table.
 		</p>
 		<ol class="toc">
 			{#each worked as example, i}
@@ -183,8 +183,8 @@
 					{/each}
 				</ol>
 				<p class="result">
-					Result: <span class="mono">{example.working.text}</span>. The minimiser agrees, and the truth table has
-					{example.ones} of {example.rows} rows high in both.
+					Result: <span class="mono">{example.working.text}</span>. The minimiser agrees, and the original and the
+					result are both high on {example.ones} of {example.rows} rows.
 				</p>
 				<p class="links">
 					<a href={example.calculatorHref}>Open in the calculator</a>

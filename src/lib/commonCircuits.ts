@@ -373,7 +373,7 @@ export const commonCircuits: CommonCircuit[] = [
 			"Subtracting B from A one bit at a time has the same four cases as adding, and the difference column is the same XOR. What changes is the carry: subtraction borrows, and only one case needs it, 0 minus 1. So the borrow is 1 exactly when A is 0 and B is 1, which is ¬A ∧ B rather than the adder's A ∧ B.",
 		uses: [
 			'The least significant column of a subtractor, where nothing has been borrowed yet.',
-			'The first column of a decrementer, a chain of these with a constant 1 fed into the rightmost column.',
+			'The rightmost column of a decrementer, which is a chain of these with a constant 1 fed into that column.',
 			'Showing why adders and subtractors are the same circuit apart from one inverted input.'
 		],
 		buildTip:
@@ -469,7 +469,7 @@ export const commonCircuits: CommonCircuit[] = [
 			},
 			{
 				q: 'How do you make a 4-to-16 decoder from 3-to-8 decoders?',
-				a: 'Use two of them and the fourth, most significant, input bit as an enable: when it is 1 it enables the upper decoder, for outputs 8 to 15, and inverted it enables the lower one. Real 3-to-8 parts such as the 74138 have both an active-high and active-low enables, so with them no inverter is needed, and the same trick stacks any number of stages.'
+				a: 'Use two of them and the fourth, most significant, input bit as an enable: when it is 1 it enables the upper decoder, for outputs 8 to 15, and inverted it enables the lower one. Real 3-to-8 parts such as the 74138 have an active-high enable and two active-low ones, so with them no inverter is needed, and the same trick stacks any number of stages.'
 			},
 			{
 				q: 'What is the difference between a decoder and a demultiplexer?',

@@ -409,7 +409,8 @@
 				With D flip-flops, each next-state bit is a function of the present state bits and the input, read straight off
 				the table and simplified on a Karnaugh map. The state bits are
 				{#each machine.labels as label, i}{i > 0 ? ' and ' : ''}<span class="mono">{label}</span>{/each}, written
-				<span class="mono">{machine.legend}</span> in the expressions.
+				<span class="mono">{machine.legend}</span> in the expressions; the timing diagram below writes the same signals
+				in capitals.
 				{#if machine.kind === 'mealy'}
 					The unused code 11 is a don't care, which is what lets d1 lose a literal.
 				{/if}
@@ -508,7 +509,7 @@
 		<h2>Unused states</h2>
 		<p>
 			Two bits give four codes, and the Mealy machine uses three of them. During design the fourth is a don't care, and
-			the minimal equations send it wherever made the maps simplest. A real design has to ask what that is: if a glitch
+			the minimal equations send it wherever makes the maps simplest. A real design has to ask what that is: if a glitch
 			at power-up lands the machine in the unused code, will it find its way back? Simulate the equations from every
 			code, or give every unused code an explicit arrow to the reset state and accept the extra gate or two. Either is
 			fine; not checking is not.
@@ -528,18 +529,19 @@
 		</dl>
 		<p>
 			with <span class="mono">{built[0].legend}</span>. The simulator has no flip-flop node, so build a D flip-flop from
-			gates as the
-			<a href="/flip-flops/d">D flip-flop page</a> describes and package it as a custom node; two of those, a clock node
-			and the gates above make the whole detector. Feed it 1, 0, 1 on successive clocks and watch
+			gates, as the <a href="/flip-flops/d">D flip-flop page</a> outlines and
+			<a href="/learn#memory">the learning path</a>
+			shows for the latch inside it, and package it as a custom node; two of those, an Interval node as the clock, and
+			the gates above make the whole detector. Feed it 1, 0, 1 on successive clocks and watch
 			<span class="mono">z</span> rise one cycle later.
 		</p>
 		<p>
 			<a class="cta" href="/simulator">Open the simulator</a>
 		</p>
 		<p class="reducer">
-			Counters are the same procedure with no input: the <a href="/counters">counters page</a> derives a decade counter
-			this way, and the <a href="/flip-flops">flip-flop pages</a> have the excitation tables you need if you use JK or T
-			flip-flops instead of D.
+			Counters are the same procedure with no input: the <a href="/counters">counters page</a> shows a decade counter
+			and how to design one that runs through any sequence you choose, and the <a href="/flip-flops">flip-flop pages</a>
+			have the excitation tables you need if you use JK or T flip-flops instead of D.
 		</p>
 	</section>
 
