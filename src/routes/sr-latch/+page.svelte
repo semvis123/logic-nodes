@@ -128,6 +128,7 @@
 		{ href: '/flip-flops', label: 'Flip-flops' },
 		{ href: '/flip-flops/sr', label: 'The SR flip-flop' },
 		{ href: '/combinational-vs-sequential', label: 'Combinational vs sequential' },
+		{ href: '/finite-state-machines', label: 'Finite state machines' },
 		{ href: '/learn#memory', label: 'Build one in the simulator' }
 	]}
 >

@@ -215,6 +215,7 @@
 
 <ContentPage
 	related={[
+		{ href: '/boolean-algebra-examples', label: 'Worked examples' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },

@@ -132,6 +132,7 @@
 	related={[
 		{ href: '/shift-registers', label: 'Shift registers' },
 		{ href: '/flip-flops', label: 'Flip-flops' },
+		{ href: '/finite-state-machines', label: 'Finite state machines' },
 		{ href: '/combinational-vs-sequential', label: 'Combinational vs sequential' },
 		{ href: '/learn', label: 'Learn digital logic' }
 	]}

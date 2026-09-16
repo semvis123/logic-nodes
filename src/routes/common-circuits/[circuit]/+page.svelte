@@ -110,6 +110,7 @@
 <ContentPage
 	related={[
 		{ href: '/common-circuits', label: 'All the common circuits' },
+		{ href: '/seven-segment-decoder', label: 'Seven-segment decoder' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },
 		{ href: '/learn', label: 'Learn digital logic' }

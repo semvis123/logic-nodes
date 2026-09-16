@@ -37,6 +37,22 @@
 			blurb: 'Every identity, shown with the truth table that proves it.'
 		},
 		{
+			href: '/boolean-algebra-examples',
+			name: 'Simplification examples',
+			blurb: 'Twelve expressions worked step by step, with the law named on every line.'
+		},
+		{
+			href: '/finite-state-machines',
+			name: 'Finite state machines',
+			blurb: 'Moore vs Mealy, and a sequence detector designed from diagram to circuit.'
+		},
+		{
+			href: '/seven-segment-decoder',
+			name: 'Seven-segment decoder',
+			blurb: 'The truth table, seven K-map expressions and a live display.'
+		},
+		{ href: '/glossary', name: 'Glossary', blurb: 'Every term on the site, defined in a paragraph.' },
+		{
 			href: '/practice',
 			name: 'Practice and worksheets',
 			blurb: 'Questions that never run out, and printable sheets with a key.'

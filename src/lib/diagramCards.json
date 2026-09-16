@@ -72,6 +72,38 @@
 		"height": 874
 	},
 	{
+		"file": "half-subtractor-circuit-diagram.png",
+		"title": "Half subtractor circuit diagram",
+		"alt": "Half subtractor logic circuit diagram with inputs a = A, b = B: diff from a ⊻ b, borrow from ¬a ∧ b",
+		"url": "logicgates.org/common-circuits#half-subtractor",
+		"width": 1412,
+		"height": 1106
+	},
+	{
+		"file": "full-subtractor-circuit-diagram.png",
+		"title": "Full subtractor circuit diagram",
+		"alt": "Full subtractor logic circuit diagram with inputs a = A, b = B, c = Bin: diff from a ⊻ b ⊻ c, bout from ¬a ∧ b ∨ ¬(a ⊻ b) ∧ c",
+		"url": "logicgates.org/common-circuits#full-subtractor",
+		"width": 1656,
+		"height": 1514
+	},
+	{
+		"file": "decoder-3-to-8-circuit-diagram.png",
+		"title": "3-to-8 decoder circuit diagram",
+		"alt": "3-to-8 decoder logic circuit diagram with inputs a = A, b = B, c = C: y0 from ¬a ∧ ¬b ∧ ¬c, y1 from ¬a ∧ ¬b ∧ c, y2 from ¬a ∧ b ∧ ¬c, y3 from ¬a ∧ b ∧ c, y4 from a ∧ ¬b ∧ ¬c, y5 from a ∧ ¬b ∧ c, y6 from a ∧ b ∧ ¬c, y7 from a ∧ b ∧ c",
+		"url": "logicgates.org/common-circuits#decoder-3-to-8",
+		"width": 1388,
+		"height": 4426
+	},
+	{
+		"file": "comparator-2-bit-circuit-diagram.png",
+		"title": "2-bit comparator circuit diagram",
+		"alt": "2-bit comparator logic circuit diagram with inputs a = A1, b = A0, c = B1, d = B0: equal from ¬(a ⊻ c) ∧ ¬(b ⊻ d), greater from a ∧ ¬c ∨ ¬(a ⊻ c) ∧ b ∧ ¬d, less from ¬a ∧ c ∨ ¬(a ⊻ c) ∧ ¬b ∧ d",
+		"url": "logicgates.org/common-circuits#comparator-2-bit",
+		"width": 1758,
+		"height": 2566
+	},
+	{
 		"file": "logic-gate-symbols-chart.png",
 		"title": "Logic gate symbols chart",
 		"alt": "Logic gate symbols chart: ANSI distinctive shapes and IEC rectangles side by side for AND, OR, NOT, XOR, NAND, NOR, XNOR",

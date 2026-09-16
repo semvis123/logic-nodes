@@ -116,6 +116,7 @@
 <ContentPage
 	related={[
 		{ href: '/de-morgans-laws', label: "De Morgan's laws, in depth" },
+		{ href: '/boolean-algebra-examples', label: 'Worked simplification examples' },
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/sum-of-products-calculator', label: 'Sum of products calculator' },
