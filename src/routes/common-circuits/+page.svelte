@@ -212,6 +212,10 @@
 			</li>
 			<li>A decoder plus a set of ORs builds any function at all, straight from its truth table.</li>
 			<li>
+				Four input bits and seven output functions make a <a href="/seven-segment-decoder">seven-segment decoder</a>,
+				the classic exercise in using don't cares.
+			</li>
+			<li>
 				Add a <a href="/flip-flops">flip-flop</a> and an adder becomes a counter, which is where combinational logic stops
 				and sequential logic starts.
 			</li>

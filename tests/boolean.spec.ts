@@ -33,6 +33,11 @@ import { flipFlops } from '../src/lib/flipflops.js';
 import { commonCircuits } from '../src/lib/commonCircuits.js';
 import { demorganLaws, demorganExamples } from '../src/lib/demorgan.js';
 import { latches } from '../src/lib/latches.js';
+import { glossary } from '../src/lib/glossary.js';
+import { simplificationExamples } from '../src/lib/simplificationExamples.js';
+import { simplifySteps } from '../src/lib/steps.js';
+import { fsms, fsmEquations, walkTable, walkEquations } from '../src/lib/fsm.js';
+import { segmentFunctions, litSegments, digitSegments, segmentNames } from '../src/lib/sevenSegment.js';
 import {
 	makeQuestion,
 	nextQuestion,
@@ -286,6 +291,99 @@ test.describe('published circuit pages', () => {
 			for (const faq of circuit.faqs) expect(faq.q, circuit.name).toMatch(/\?$/);
 		}
 		expect(new Set(commonCircuits.map((c) => c.slug)).size).toBe(commonCircuits.length);
+	});
+});
+
+test.describe('published glossary', () => {
+	test('entries are unique, alphabetical, self-contained and linked', () => {
+		const terms = glossary.map((e) => e.term);
+		expect(new Set(glossary.map((e) => e.slug)).size).toBe(glossary.length);
+		expect([...terms].sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }))).toEqual(terms);
+		for (const entry of glossary) {
+			expect(entry.definition.length, entry.term).toBeGreaterThan(40);
+			expect(entry.definition, entry.term).toMatch(/\.$/);
+			expect(entry.slug, entry.term).toMatch(/^[a-z0-9-]+$/);
+			if (entry.href) expect(entry.href, entry.term).toMatch(/^\/[a-z0-9/-]*(#[a-z0-9-]+)?$/);
+		}
+	});
+});
+
+test.describe('published simplification examples', () => {
+	test('every example reaches the minimal form by named laws', () => {
+		for (const example of simplificationExamples) {
+			const working = simplifySteps(parseExpression(example.expression));
+			expect(working.tooBig, example.title).toBe(false);
+			expect(working.steps.length, example.title).toBeGreaterThan(0);
+			expect(working.isMinimal, `${example.title}: stops at ${working.text}, minimal is ${working.minimalText}`).toBe(
+				true
+			);
+			// Every line of the working must keep the function unchanged.
+			const start = parseExpression(example.expression);
+			for (const step of working.steps) {
+				expect(equivalent(start, parseExpression(step.text)), `${example.title}: ${step.text}`).toBe(true);
+			}
+		}
+		expect(new Set(simplificationExamples.map((e) => e.id)).size).toBe(simplificationExamples.length);
+	});
+});
+
+test.describe('published state machines', () => {
+	test('the derived equations walk the same states and outputs as the transition table', () => {
+		for (const fsm of fsms) {
+			const equations = fsmEquations(fsm);
+			// Every state has a transition for every input, and codes are unique.
+			for (const state of fsm.states) {
+				for (const input of ['0', '1'] as const) {
+					expect(
+						fsm.transitions.filter((t) => t.from === state.id && t.input === input).length,
+						`${fsm.slug} ${state.id}/${input}`
+					).toBe(1);
+				}
+			}
+			expect(new Set(fsm.states.map((s) => s.code)).size).toBe(fsm.states.length);
+			// A long pseudo-random input, plus the demo sequence the page draws.
+			let x = 12345;
+			const random = Array.from({ length: 400 }, () => ((x = (x * 1103515245 + 12345) & 0x7fffffff) >> 16) & 1).join(
+				''
+			);
+			for (const inputs of [fsm.demo, random]) {
+				const table = walkTable(fsm, inputs);
+				const simulated = walkEquations(fsm, equations, inputs);
+				const codes = new Map(fsm.states.map((s) => [s.id, s.code]));
+				table.forEach((step, i) => {
+					expect(simulated[i].code, `${fsm.slug} step ${i}`).toBe(codes.get(step.state));
+					expect(simulated[i].output, `${fsm.slug} step ${i}`).toBe(step.output);
+				});
+			}
+		}
+	});
+
+	test('both detectors flag exactly the occurrences of 101', () => {
+		const inputs = '0101101001011010111010101';
+		for (const fsm of fsms) {
+			// One extra cycle, so a Moore flag for a match on the last bit is observable.
+			const outputs = walkTable(fsm, inputs + '0').map((s) => s.output);
+			for (let i = 0; i < inputs.length; i++) {
+				const ends101 = i >= 2 && inputs.slice(i - 2, i + 1) === '101';
+				// A Mealy output appears in the cycle the last 1 arrives; a Moore
+				// output appears in the cycle after, when the machine is in S3.
+				const flagged = fsm.kind === 'mealy' ? outputs[i] === '1' : outputs[i + 1] === '1';
+				expect(flagged, `${fsm.slug} at ${i}`).toBe(ends101);
+			}
+		}
+	});
+});
+
+test.describe('published seven-segment decoder', () => {
+	test('each derived segment expression lights exactly the listed bars for every digit', () => {
+		const functions = segmentFunctions();
+		expect(functions.length).toBe(segmentNames.length);
+		for (let digit = 0; digit < 10; digit++) {
+			const lit = [...litSegments(functions, digit)].sort().join('');
+			expect(lit, `digit ${digit}`).toBe(digitSegments[digit]);
+		}
+		// The digits are distinguishable: no two light the same bars.
+		expect(new Set(digitSegments).size).toBe(10);
 	});
 });
 
@@ -1485,6 +1583,40 @@ test.describe('common circuits reference', () => {
 			const count = [bits.a, bits.b, bits.c].filter(Boolean).length;
 			expect(run('parity', bits).odd).toBe(count % 2 === 1);
 			expect(run('majority', bits).out).toBe(count >= 2);
+		});
+	});
+
+	test('the half and full subtractors really subtract', () => {
+		each(['a', 'b'], (bits) => {
+			const { diff, borrow } = run('half-subtractor', bits);
+			// A - B = diff - 2 * borrow, in the arithmetic of one column.
+			expect(Number(diff) - 2 * Number(borrow)).toBe(Number(bits.a) - Number(bits.b));
+		});
+		each(['a', 'b', 'c'], (bits) => {
+			const { diff, bout } = run('full-subtractor', bits);
+			expect(Number(diff) - 2 * Number(bout)).toBe(Number(bits.a) - Number(bits.b) - Number(bits.c));
+		});
+	});
+
+	test('the 3-to-8 decoder raises exactly the line matching the input number', () => {
+		each(['a', 'b', 'c'], (bits) => {
+			const out = run('decoder-3-to-8', bits);
+			const high = Object.entries(out).filter(([, v]) => v);
+			expect(high.length).toBe(1);
+			const index = (bits.a ? 4 : 0) + (bits.b ? 2 : 0) + (bits.c ? 1 : 0);
+			expect(high[0][0]).toBe(`y${index}`);
+		});
+	});
+
+	test('the 2-bit comparator compares the numbers, with exactly one verdict', () => {
+		each(['a', 'b', 'c', 'd'], (bits) => {
+			const { equal, greater, less } = run('comparator-2-bit', bits);
+			const A = (bits.a ? 2 : 0) + (bits.b ? 1 : 0);
+			const B = (bits.c ? 2 : 0) + (bits.d ? 1 : 0);
+			expect([equal, greater, less].filter(Boolean).length, `${A} vs ${B}`).toBe(1);
+			expect(equal).toBe(A === B);
+			expect(greater).toBe(A > B);
+			expect(less).toBe(A < B);
 		});
 	});
 

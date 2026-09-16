@@ -162,7 +162,8 @@
 							<a href="/common-circuits#multiplexer">multiplexers</a>, decoders, comparators
 						</td>
 						<td>
-							<a href="/flip-flops">latches and flip-flops</a>, registers, counters, state machines
+							<a href="/flip-flops">latches and flip-flops</a>, registers, counters,
+							<a href="/finite-state-machines">state machines</a>
 						</td>
 					</tr>
 				</tbody>

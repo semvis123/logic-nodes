@@ -272,6 +272,8 @@
 
 <ContentPage
 	related={[
+		{ href: '/boolean-algebra-examples', label: 'Worked examples' },
+		{ href: '/seven-segment-decoder', label: "Don't cares in action: the seven-segment decoder" },
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },

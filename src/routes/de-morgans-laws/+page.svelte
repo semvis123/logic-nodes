@@ -132,6 +132,7 @@
 <ContentPage
 	related={[
 		{ href: '/boolean-algebra-laws', label: 'All the laws of boolean algebra' },
+		{ href: '/boolean-algebra-examples', label: 'Worked simplification examples' },
 		{ href: '/nand-nor-converter', label: 'NAND and NOR converter' },
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/logic-gates', label: 'The seven logic gates' }

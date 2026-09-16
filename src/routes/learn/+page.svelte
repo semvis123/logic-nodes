@@ -141,7 +141,8 @@
 <ContentPage
 	related={[
 		{ href: '/logic-gates', label: 'The seven logic gates' },
-		{ href: '/truth-table-generator', label: 'Truth table generator' },
+		{ href: '/finite-state-machines', label: 'Finite state machines' },
+		{ href: '/glossary', label: 'Glossary' },
 		{ href: '/practice', label: 'Practice questions' },
 		{ href: '/worksheet', label: 'Printable worksheets' }
 	]}
@@ -361,7 +362,8 @@
 		<p>
 			There is no clever trick here, which is exactly why it is a good exercise: each of the seven segments is its own
 			boolean function of the four input bits, worked out from a truth table that says which digits light which bars.
-			Build the table, simplify each column, and you have seven small circuits sharing four inputs.
+			Build the table, simplify each column, and you have seven small circuits sharing four inputs. The
+			<a href="/seven-segment-decoder">seven-segment decoder page</a> does all seven, with the don't cares used.
 		</p>
 		<p class="try">
 			<strong>Try it:</strong> open <a href="/simulator#example:7%20Segment-display">the seven segment decoder</a>

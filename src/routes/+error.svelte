@@ -13,7 +13,8 @@
 			blurb: 'AND, OR, NOT, XOR, NAND, NOR and XNOR, with truth tables.'
 		},
 		{ href: '/flip-flops', label: 'Flip-flops', blurb: 'D, JK, SR and T, with their excitation tables.' },
-		{ href: '/practice', label: 'Practice', blurb: 'Generated questions, marked as you go.' }
+		{ href: '/practice', label: 'Practice', blurb: 'Generated questions, marked as you go.' },
+		{ href: '/glossary', label: 'Glossary', blurb: 'Every term, defined in a paragraph.' }
 	];
 </script>
 

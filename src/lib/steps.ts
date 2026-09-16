@@ -366,7 +366,10 @@ function ruleFor(n: N, notation: Notation, sop: boolean): Rewrite | null {
 				return {
 					n: expanded,
 					law: 'Distributivity',
-					detail: `multiplying ${others.map(show).join(' ∧ ')} into ${show(group)}`
+					// Shown as one AND so brackets around any OR factors survive.
+					detail: `multiplying ${others.length === 1 ? show(others[0]) : show({ t: 'and', xs: others })} into ${show(
+						group
+					)}`
 				};
 			}
 		}

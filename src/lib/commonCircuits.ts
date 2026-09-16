@@ -354,6 +354,173 @@ export const commonCircuits: CommonCircuit[] = [
 				a: '(A ∧ B) ∨ (B ∧ C) ∨ (A ∧ C): one AND per pair of inputs, then an OR. Any pair being 1 is enough. This is the smallest sum of products form there is, which a Karnaugh map confirms, and it is exactly the carry out equation of a full adder.'
 			}
 		]
+	},
+	{
+		slug: 'half-subtractor',
+		name: 'Half subtractor',
+		tagline: 'Subtracts one bit from another. Two gates and an inverter.',
+		definition:
+			'A half subtractor is a combinational circuit that subtracts one bit from another and produces a difference bit and a borrow bit, using an XOR gate for the difference and an AND gate with one inverted input for the borrow.',
+		inputs: [
+			{ v: 'a', label: 'A' },
+			{ v: 'b', label: 'B' }
+		],
+		outputs: [
+			{ name: 'diff', expression: 'a ^ b', note: 'one XOR gate, the same as the half adder sum' },
+			{ name: 'borrow', expression: '!a & b', note: 'borrow when taking 1 from 0' }
+		],
+		explanation:
+			"Subtracting B from A one bit at a time has the same four cases as adding, and the difference column is the same XOR. What changes is the carry: subtraction borrows, and only one case needs it, 0 minus 1. So the borrow is 1 exactly when A is 0 and B is 1, which is ¬A ∧ B rather than the adder's A ∧ B.",
+		uses: [
+			'The least significant column of a subtractor, where nothing has been borrowed yet.',
+			'The rightmost column of a decrementer, which is a chain of these with a constant 1 fed into that column.',
+			'Showing why adders and subtractors are the same circuit apart from one inverted input.'
+		],
+		buildTip:
+			'Two toggles, an XOR for the difference, and a NOT into an AND for the borrow. Compare it to the half adder: only the NOT is new.',
+		faqs: [
+			{
+				q: 'What is the truth table of a half subtractor?',
+				a: 'Four rows. 0 minus 0 is difference 0, borrow 0; 0 minus 1 is difference 1 with a borrow of 1, because taking 1 from 0 needs a 1 borrowed from the next column; 1 minus 0 is difference 1, borrow 0; and 1 minus 1 is difference 0, borrow 0. The difference column is A ⊕ B and the borrow column is ¬A ∧ B.'
+			},
+			{
+				q: 'What is the difference between a half adder and a half subtractor?',
+				a: 'The sum and difference outputs are identical: both are XOR. The carry and borrow differ in one row. An adder carries when both inputs are 1, so the carry is A ∧ B; a subtractor borrows when A is 0 and B is 1, so the borrow is ¬A ∧ B. One inverter turns one into the other.'
+			}
+		]
+	},
+	{
+		slug: 'full-subtractor',
+		name: 'Full subtractor',
+		tagline: 'Subtracts two bits and a borrow in.',
+		definition:
+			'A full subtractor is a combinational circuit that subtracts a bit and an incoming borrow from another bit, producing a difference bit and a borrow out, so that copies of it can be chained one per column to subtract whole numbers.',
+		inputs: [
+			{ v: 'a', label: 'A' },
+			{ v: 'b', label: 'B' },
+			{ v: 'c', label: 'Bin' }
+		],
+		outputs: [
+			{ name: 'diff', expression: 'a ^ b ^ c', note: 'two XOR gates, the same as the full adder sum' },
+			{
+				name: 'bout',
+				expression: '(!a & b) | (!(a ^ b) & c)',
+				note: 'borrow when B exceeds A, or when the borrow in meets equal bits'
+			}
+		],
+		explanation:
+			'A third input takes the borrow from the column to the right, which is what makes the subtractor chainable. The difference is the XOR of all three inputs, exactly as in the full adder. The borrow out is 1 when B alone exceeds A, or when A and B are equal and the incoming borrow has to be passed on: ¬A ∧ B ∨ ¬(A ⊕ B) ∧ Bin.',
+		uses: [
+			'Every column but the first of a ripple borrow subtractor.',
+			'Comparing two numbers, since a subtraction that ends with a borrow out means the second number was bigger.',
+			"The subtract half of an arithmetic unit, though most real designs add the two's complement instead and reuse the adder."
+		],
+		buildTip:
+			'Two half subtractors and an OR, mirroring the full adder: the first takes B from A, the second subtracts the borrow in from that difference, and the OR combines the two borrows.',
+		faqs: [
+			{
+				q: 'What is the truth table of a full subtractor?',
+				a: 'Eight rows, one per combination of A, B and the borrow in. The difference is 1 whenever an odd number of the three inputs are 1, which is their XOR. The borrow out is 1 when B is 1 and A is 0, and also when A equals B and the borrow in is 1: in both cases the column has to borrow from the next one.'
+			},
+			{
+				q: 'What is the difference between a full adder and a full subtractor?',
+				a: "The sum and difference are the same XOR of three inputs. The carry out of an adder is 1 when at least two inputs are 1; the borrow out of a subtractor is 1 when B and the borrow in together outweigh A. Invert A in the adder's carry equation and you get the borrow equation. A practical adder-subtractor takes a different route, inverting B and setting the carry in to 1, which the next question explains."
+			},
+			{
+				q: 'Why do processors not use subtractors?',
+				a: "Because A minus B equals A plus the two's complement of B, and the two's complement is just every bit of B inverted with 1 added, which an adder can do by setting its first carry in to 1. One adder with an XOR on each B input therefore adds and subtracts, so a separate subtractor circuit is rarely built."
+			}
+		]
+	},
+	{
+		slug: 'decoder-3-to-8',
+		name: '3-to-8 decoder',
+		tagline: 'Turns a 3-bit number into one hot line out of eight.',
+		definition:
+			'A 3-to-8 decoder is a combinational circuit that takes a three-bit binary number and raises exactly one of its eight outputs, the one whose index matches the input.',
+		inputs: [
+			{ v: 'a', label: 'A' },
+			{ v: 'b', label: 'B' },
+			{ v: 'c', label: 'C' }
+		],
+		outputs: [
+			{ name: 'y0', expression: '!a & !b & !c', note: 'high for 000' },
+			{ name: 'y1', expression: '!a & !b & c', note: 'high for 001' },
+			{ name: 'y2', expression: '!a & b & !c', note: 'high for 010' },
+			{ name: 'y3', expression: '!a & b & c', note: 'high for 011' },
+			{ name: 'y4', expression: 'a & !b & !c', note: 'high for 100' },
+			{ name: 'y5', expression: 'a & !b & c', note: 'high for 101' },
+			{ name: 'y6', expression: 'a & b & !c', note: 'high for 110' },
+			{ name: 'y7', expression: 'a & b & c', note: 'high for 111' }
+		],
+		explanation:
+			'The same idea as the 2-to-4 decoder with one more input bit: each output is a single three-input AND of the inputs in the right polarity, so the eight outputs are the eight minterms of A, B and C. Three inverters and eight AND gates make the whole circuit, and this is the size that turns up most often as a real part, the 74138, which adds enable inputs so that two of them can be wired into a 4-to-16.',
+		uses: [
+			'Selecting one of eight registers, memory chips or peripherals from three address bits.',
+			'Generating all the minterms of three variables at once, so any three-input function is an OR of some outputs.',
+			'Converting a three bit state number into one hot signals for a state machine.'
+		],
+		buildTip:
+			'Three NOTs and eight ANDs with three inputs each; the simulator lets an AND take three inputs directly. Wire the inputs to three toggles and watch one output at a time light as you count.',
+		faqs: [
+			{
+				q: 'How does a 3-to-8 decoder work?',
+				a: 'Each output is an AND gate that is only satisfied by one input pattern. Y5, for instance, is A ∧ ¬B ∧ C, which is 1 only for 101. Three inverters supply the complemented inputs, so the whole circuit is three NOT gates and eight three-input AND gates, and exactly one output is high at any time.'
+			},
+			{
+				q: 'How do you make a 4-to-16 decoder from 3-to-8 decoders?',
+				a: 'Use two of them and the fourth, most significant, input bit as an enable: when it is 1 it enables the upper decoder, for outputs 8 to 15, and inverted it enables the lower one. Real 3-to-8 parts such as the 74138 have an active-high enable and two active-low ones, so with them no inverter is needed, and the same trick stacks any number of stages.'
+			},
+			{
+				q: 'What is the difference between a decoder and a demultiplexer?',
+				a: 'A demultiplexer is a decoder with a data input ANDed into every output, so the selected line carries the data rather than a constant 1. A decoder with an enable input is already a demultiplexer if you feed the data into the enable, which is why parts like the 74138 are sold under both names.'
+			}
+		]
+	},
+	{
+		slug: 'comparator-2-bit',
+		name: '2-bit comparator',
+		tagline: 'Compares two 2-bit numbers: equal, greater or less.',
+		definition:
+			'A 2-bit magnitude comparator is a combinational circuit that takes two two-bit numbers and reports whether the first is equal to, greater than or less than the second, by comparing the high bits first and the low bits only when the high bits match.',
+		inputs: [
+			{ v: 'a', label: 'A1' },
+			{ v: 'b', label: 'A0' },
+			{ v: 'c', label: 'B1' },
+			{ v: 'd', label: 'B0' }
+		],
+		outputs: [
+			{ name: 'equal', expression: '!(a ^ c) & !(b ^ d)', note: 'both bit pairs match' },
+			{
+				name: 'greater',
+				expression: '(a & !c) | (!(a ^ c) & b & !d)',
+				note: 'A wins on the high bit, or ties it and wins on the low'
+			},
+			{
+				name: 'less',
+				expression: '(!a & c) | (!(a ^ c) & !b & d)',
+				note: 'B wins on the high bit, or ties it and wins on the low'
+			}
+		],
+		explanation:
+			'Comparing two bits at a time is the 1-bit comparator twice, with a rule for combining them: the high bits decide unless they are equal, in which case the low bits decide. Equality is the AND of the two per-bit XNORs. Greater is "A1 beats B1" or "the high bits tie and A0 beats B0", and less is the mirror image. Widening to more bits adds one more term per bit, each guarded by every tie above it.',
+		uses: [
+			'Branch decisions on small fields such as priority levels or opcodes.',
+			'Detecting that a 2-bit counter has passed a threshold.',
+			'The building block of wider comparators, which chain these so that a lower stage only decides when every stage above it reports equal.'
+		],
+		buildTip:
+			'Two XNORs for the per-bit equality, then an AND for equal and two AND-OR networks for greater and less. Check that exactly one of the three outputs is high for every one of the sixteen input combinations.',
+		faqs: [
+			{
+				q: 'How does a 2-bit comparator work?',
+				a: 'It compares the high bits first. If A1 and B1 differ, that settles it: A is greater when A1 is 1, less when B1 is 1. If they are equal, the low bits decide the same way. Equal means both pairs match, which is the AND of two XNOR gates. Exactly one of the three outputs is high for any input.'
+			},
+			{
+				q: 'How do you build a 4-bit comparator?',
+				a: 'Extend the same rule: A is greater if it wins on bit 3, or ties on bit 3 and wins on bit 2, or ties on bits 3 and 2 and wins on bit 1, and so on down to bit 0. Equal is the AND of all four per-bit XNORs. The 7485 is exactly this circuit for four bits, with cascade inputs so several can be chained for wider numbers.'
+			}
+		]
 	}
 ];
 

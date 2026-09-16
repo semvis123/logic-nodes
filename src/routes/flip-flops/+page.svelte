@@ -78,6 +78,7 @@
 	related={[
 		{ href: '/counters', label: 'Counters' },
 		{ href: '/shift-registers', label: 'Shift registers' },
+		{ href: '/finite-state-machines', label: 'Finite state machines' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/tools', label: 'All tools' }
 	]}

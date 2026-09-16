@@ -78,6 +78,8 @@
 	related={[
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
+		{ href: '/boolean-algebra-examples', label: 'Worked simplification examples' },
+		{ href: '/glossary', label: 'Glossary' },
 		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' }
 	]}
 >

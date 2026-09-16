@@ -23,9 +23,9 @@
 	// Pages that belong to a section without living under its path.
 	const alsoIn: Record<string, string[]> = {
 		'/logic-gates': ['/logic-gate-symbols'],
-		'/tools': [...toolPaths, '/boolean-algebra-laws', '/de-morgans-laws'],
-		'/learn': ['/common-circuits', '/combinational-vs-sequential'],
-		'/flip-flops': ['/counters', '/shift-registers', '/sr-latch']
+		'/tools': [...toolPaths, '/boolean-algebra-laws', '/de-morgans-laws', '/boolean-algebra-examples'],
+		'/learn': ['/common-circuits', '/combinational-vs-sequential', '/seven-segment-decoder', '/glossary'],
+		'/flip-flops': ['/counters', '/shift-registers', '/sr-latch', '/finite-state-machines']
 	};
 	/** Printing should not hide answers behind a collapsed summary. */
 	function openAll() {
@@ -86,7 +86,8 @@
 		{/if}
 		<p>
 			LogicGates.org is free and open source under Apache 2.0.
-			<a href="https://github.com/semvis123/logic-nodes">Source on GitHub</a>.
+			<a href="https://github.com/semvis123/logic-nodes">Source on GitHub</a>. Lost in the jargon? There is a
+			<a href="/glossary">glossary</a>.
 		</p>
 		<p>
 			Built by <a href="https://kriyak.com/">Sem, a freelance software developer</a>. Curious about the internals?
