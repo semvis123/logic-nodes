@@ -272,6 +272,7 @@
 
 <ContentPage
 	related={[
+		{ href: '/quine-mccluskey', label: 'The Quine-McCluskey method' },
 		{ href: '/boolean-algebra-examples', label: 'Worked examples' },
 		{ href: '/seven-segment-decoder', label: "Don't cares in action: the seven-segment decoder" },
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
@@ -546,7 +547,7 @@
 					<td>It is easy to miss a simplification you did not think of</td>
 				</tr>
 				<tr>
-					<th scope="row">Quine-McCluskey</th>
+					<th scope="row"><a href="/quine-mccluskey">Quine-McCluskey</a></th>
 					<td>Any size, and it is mechanical, so a computer can do it</td>
 					<td>Tedious by hand</td>
 				</tr>

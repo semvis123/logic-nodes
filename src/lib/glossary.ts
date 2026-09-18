@@ -81,6 +81,13 @@ export const glossary: GlossaryEntry[] = [
 		href: '/common-circuits/full-adder'
 	},
 	{
+		term: 'Carry lookahead',
+		slug: 'carry-lookahead',
+		definition:
+			'An adder design that computes every carry directly from generate (A AND B) and propagate (A XOR B) signals instead of waiting for the carry from the column below, so the delay stays fixed as the word gets wider, at the cost of more and wider gates.',
+		href: '/ripple-carry-adder#lookahead'
+	},
+	{
 		term: 'Clock',
 		slug: 'clock',
 		definition:
@@ -303,11 +310,25 @@ export const glossary: GlossaryEntry[] = [
 		href: '/logic-gates/or'
 	},
 	{
+		term: 'Overflow',
+		slug: 'overflow',
+		definition:
+			"A result that does not fit the width of the register. For unsigned numbers the carry out of the top bit flags it. For two's complement numbers the test is a result with the wrong sign, equivalently a carry into the top bit that differs from the carry out of it.",
+		href: '/twos-complement#overflow'
+	},
+	{
 		term: 'Parity',
 		slug: 'parity',
 		definition:
 			'Whether the number of 1s in a word is even or odd. A parity bit sent with data lets the receiver detect any single flipped bit, and the generator is a chain of XOR gates.',
 		href: '/common-circuits/parity'
+	},
+	{
+		term: 'Prime implicant',
+		slug: 'prime-implicant',
+		definition:
+			"A product term that is 1 only where the function is 1 or a don't care, and that cannot be made any shorter without breaking that. The groups on a Karnaugh map and the unticked rows of a Quine-McCluskey tabulation are prime implicants; an essential one is the only cover of some minterm.",
+		href: '/quine-mccluskey#chart'
 	},
 	{
 		term: 'Product of sums',
@@ -324,6 +345,13 @@ export const glossary: GlossaryEntry[] = [
 		href: '/counters'
 	},
 	{
+		term: 'Quine-McCluskey method',
+		slug: 'quine-mccluskey',
+		definition:
+			'The tabular way to minimise a boolean function: merge minterms that differ in one bit until nothing merges, which gives the prime implicants, then choose the fewest of them that cover every minterm. It reaches the same answer as a Karnaugh map and works for any number of variables.',
+		href: '/quine-mccluskey'
+	},
+	{
 		term: 'Register',
 		slug: 'register',
 		definition:
@@ -335,7 +363,7 @@ export const glossary: GlossaryEntry[] = [
 		slug: 'ripple-carry',
 		definition:
 			'An adder in which each column waits for the carry from the one before, so the carry ripples from the least significant bit to the most. Simple, but the delay grows with the width.',
-		href: '/common-circuits/full-adder'
+		href: '/ripple-carry-adder'
 	},
 	{
 		term: 'Sequential logic',
@@ -357,6 +385,13 @@ export const glossary: GlossaryEntry[] = [
 		definition:
 			'A chain of flip-flops in which each one passes its value to the next on every clock, so a word moves along one place per pulse. Used to convert between serial and parallel data.',
 		href: '/shift-registers'
+	},
+	{
+		term: 'Sign extension',
+		slug: 'sign-extension',
+		definition:
+			"Widening a two's complement number by copying its sign bit into the new top bits, which keeps the value the same. Padding with zeros instead would turn a negative number into a large positive one.",
+		href: '/twos-complement#extend'
 	},
 	{
 		term: 'SR latch',
@@ -398,7 +433,7 @@ export const glossary: GlossaryEntry[] = [
 		slug: 'twos-complement',
 		definition:
 			'The usual representation of signed binary numbers, in which the top bit counts negative, so that a number is negated by inverting every bit and adding 1. It lets one adder handle addition and subtraction of signed numbers without a separate subtractor.',
-		href: '/binary-converter#twos-complement'
+		href: '/twos-complement'
 	},
 	{
 		term: 'Universal gate',

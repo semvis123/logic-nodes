@@ -23,8 +23,21 @@
 	// Pages that belong to a section without living under its path.
 	const alsoIn: Record<string, string[]> = {
 		'/logic-gates': ['/logic-gate-symbols'],
-		'/tools': [...toolPaths, '/boolean-algebra-laws', '/de-morgans-laws', '/boolean-algebra-examples'],
-		'/learn': ['/common-circuits', '/combinational-vs-sequential', '/seven-segment-decoder', '/glossary'],
+		'/tools': [
+			...toolPaths,
+			'/boolean-algebra-laws',
+			'/de-morgans-laws',
+			'/boolean-algebra-examples',
+			'/quine-mccluskey'
+		],
+		'/learn': [
+			'/common-circuits',
+			'/combinational-vs-sequential',
+			'/seven-segment-decoder',
+			'/glossary',
+			'/ripple-carry-adder',
+			'/twos-complement'
+		],
 		'/flip-flops': ['/counters', '/shift-registers', '/sr-latch', '/finite-state-machines']
 	};
 	/** Printing should not hide answers behind a collapsed summary. */

@@ -179,8 +179,9 @@
 			means exactly the same thing in the next. (The binary and Gray code converters work on bit patterns rather than
 			expressions, so they are their own thing.) It accepts whichever notation you use —
 			<span class="mono">a·b</span>, <span class="mono">a&amp;b</span>,
-			<span class="mono">a∧b</span>, <span class="mono">ab</span> — and the simplification is Quine-McCluskey, the same algorithm
-			whether you see it as algebra or as groups on a map.
+			<span class="mono">a∧b</span>, <span class="mono">ab</span> — and the simplification is
+			<a href="/quine-mccluskey">Quine-McCluskey</a>, the same algorithm whether you see it as algebra or as groups on a
+			map.
 		</p>
 		<p>
 			<a class="cta" href="/simulator">Open the simulator</a>

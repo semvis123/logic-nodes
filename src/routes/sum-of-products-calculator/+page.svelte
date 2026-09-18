@@ -141,6 +141,7 @@
 	related={[
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
+		{ href: '/quine-mccluskey', label: 'The Quine-McCluskey method' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/tools', label: 'All tools' }
 	]}

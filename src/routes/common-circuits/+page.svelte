@@ -116,6 +116,7 @@
 
 <ContentPage
 	related={[
+		{ href: '/ripple-carry-adder', label: 'The ripple carry adder' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/flip-flops', label: 'Flip-flops' },
 		{ href: '/combinational-vs-sequential', label: 'Combinational vs sequential' },
@@ -205,7 +206,10 @@
 		</p>
 		<ul class="compose">
 			<li>Two half adders and an OR make a full adder.</li>
-			<li>Four full adders in a row make a four bit adder, each carry feeding the next.</li>
+			<li>
+				Four full adders in a row make a <a href="/ripple-carry-adder">four bit ripple carry adder</a>, each carry
+				feeding the next.
+			</li>
 			<li>
 				An adder with one input inverted and the first carry set to 1 becomes a subtractor, because that is two's
 				complement.

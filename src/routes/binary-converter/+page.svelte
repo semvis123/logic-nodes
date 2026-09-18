@@ -197,6 +197,7 @@
 <ContentPage
 	related={[
 		{ href: '/gray-code-converter', label: 'Gray code converter' },
+		{ href: '/twos-complement', label: "Two's complement explained" },
 		{ href: '/common-circuits', label: 'Adders and other circuits' },
 		{ href: '/counters', label: 'Counters' },
 		{ href: '/tools', label: 'All tools' }
@@ -382,8 +383,9 @@
 			To write a negative number, invert every bit and add one. That looks arbitrary until you notice what it buys: a
 			number plus its complement wraps the register to zero. Which means <span class="mono">a − b</span> is just
 			<span class="mono">a + (−b)</span>, and the
-			<a href="/common-circuits">adder you already built</a> does subtraction with no extra circuit, only a row of inverters
-			and a carry in tied high.
+			<a href="/common-circuits">adder you already built</a> does subtraction with no extra circuit, only a row of
+			inverters and a carry in tied high. The <a href="/twos-complement">two's complement page</a> works through the conversion,
+			the arithmetic and the overflow rule with every table generated.
 		</p>
 		<p class="note">
 			The one asymmetry is worth knowing: an <em>n</em> bit register reaches −2<sup>n−1</sup> but only +2<sup>n−1</sup
