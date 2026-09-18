@@ -12,6 +12,7 @@ import {
 	lookaheadExpressions,
 	evaluateAdder,
 	carryDepth,
+	delayTable,
 	toOutputs,
 	type Bit
 } from '../src/lib/adders.js';
@@ -124,5 +125,10 @@ test.describe('adders', () => {
 		}
 		// The drawing shares the XOR between sum and carry, five gates per full adder.
 		expect(buildCircuit(toOutputs(rippleCarryExpressions(4))).gateCount).toBe(20);
+		// The comparison table uses the same count as the drawing.
+		expect(delayTable([4, 8])).toEqual([
+			{ width: 4, ripple: 9, lookahead: 3 },
+			{ width: 8, ripple: 17, lookahead: 3 }
+		]);
 	});
 });

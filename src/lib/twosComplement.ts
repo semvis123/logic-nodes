@@ -130,7 +130,7 @@ export function signExtend(value: number, from: number, to: number): { before: B
 	return { before, after: toBits(signed, to), value: signed };
 }
 
-/** The overflow cases a page shows: same signs in, a different sign out. */
+/** The additions a page shows for the overflow test: two that overflow, then two with a carry out that do not. */
 export const overflowExamples = (width: number) => {
 	const { signedMax, signedMin } = rangeOf(width);
 	return [

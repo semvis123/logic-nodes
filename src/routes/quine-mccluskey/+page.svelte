@@ -92,7 +92,7 @@
 		},
 		{
 			q: 'Why is the method rarely used for large functions?',
-			a: 'The number of prime implicants can grow exponentially with the number of variables, and choosing a minimal cover from them is an NP-hard problem, so the exact method becomes slow past a few dozen variables. Synthesis tools use heuristic minimisers descended from Espresso instead, which give a near-minimal answer quickly. For anything you would do by hand, Quine-McCluskey is exact and fast enough.'
+			a: 'The number of prime implicants can grow exponentially with the number of variables, and choosing a minimal cover from them is an NP-hard problem, so the exact method becomes slow past a dozen or so variables. Synthesis tools use heuristic minimisers descended from Espresso instead, which give a near-minimal answer quickly. For anything you would do by hand, Quine-McCluskey is exact and fast enough.'
 		}
 	];
 
@@ -210,7 +210,7 @@
 		<p class="lede">
 			The tabular way to minimise a boolean function: the same answer a Karnaugh map gives, reached by merging binary
 			codes in a table instead of spotting rectangles in a picture. It works for any number of variables, which is why
-			it is the algorithm inside every minimiser, including the ones on this site.
+			it is the algorithm behind the minimisers on this site.
 		</p>
 	</section>
 
@@ -236,8 +236,9 @@
 			</li>
 		</ol>
 		<p>
-			A <a href="/karnaugh-map-solver">Karnaugh map</a> does both halves at once by eye, and for four variables that is faster.
-			Past five, and for anything a program has to do, the table wins: it never gets harder to read, only longer.
+			A <a href="/karnaugh-map-solver">Karnaugh map</a> does both halves at once by eye, and for four variables or fewer
+			that is faster. Past five, and for anything a program has to do, the table wins: it never gets harder to read, only
+			longer.
 		</p>
 	</section>
 
@@ -520,7 +521,8 @@
 				</span>
 			</p>
 			<p class="reducer">
-				<a href={mapLink}>See the same function as a Karnaugh map</a>: the groups it circles are these primes.
+				<a href={mapLink}>See the same function as a Karnaugh map</a>: the groups it circles are the primes in the
+				answer.
 			</p>
 		</section>
 	{/if}
@@ -544,7 +546,7 @@
 					</tr>
 					<tr>
 						<th scope="row">Comfortable size</th>
-						<td>Up to 4 variables by hand, 6 at a stretch</td>
+						<td>Up to 4 variables comfortably, 5 at a stretch</td>
 						<td>Any number; the table just gets longer</td>
 					</tr>
 					<tr>
@@ -554,7 +556,7 @@
 					</tr>
 					<tr>
 						<th scope="row">Result</th>
-						<td colspan="2">The same minimal sum of products; the circled groups are the prime implicants</td>
+						<td colspan="2">The same minimal sum of products; the circled groups are the chosen prime implicants</td>
 					</tr>
 					<tr>
 						<th scope="row">Cost for large functions</th>
@@ -565,11 +567,11 @@
 			</table>
 		</div>
 		<p>
-			The <a href="/boolean-algebra-calculator">boolean algebra calculator</a> on this site runs exactly this method on
-			whatever expression you type, up to eight variables, and the
-			<a href="/karnaugh-map-solver">Karnaugh map solver</a>
-			draws the primes it finds as rectangles. The <a href="/boolean-algebra-examples">simplification examples</a> reach
-			the same answers by algebra, one law at a time.
+			The <a href="/boolean-algebra-calculator">boolean algebra calculator</a> on this site finds the primes this way
+			for whatever expression you type, up to eight variables, then picks the cover greedily rather than with Petrick's
+			method, and the <a href="/karnaugh-map-solver">Karnaugh map solver</a> draws the primes it chooses as rectangles.
+			The <a href="/boolean-algebra-examples">simplification examples</a> reach the same answers by algebra, one law at a
+			time.
 		</p>
 	</section>
 

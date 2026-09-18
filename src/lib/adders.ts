@@ -240,7 +240,8 @@ export function carryDepth(list: { name: string; expression: string }[]): { ripp
 /** Worst case gate delay to the carry out, by the textbook count, for comparison across widths. */
 export function delayTable(widths: number[]): { width: number; ripple: number; lookahead: number }[] {
 	// A ripple adder's carry path is two gate levels per column (an AND-OR
-	// stage per full adder). Lookahead is a fixed three: P and G, then the AND
-	// row, then the OR, however wide the word.
-	return widths.map((width) => ({ width, ripple: 2 * width, lookahead: 3 }));
+	// stage per full adder) after the XOR that makes the first propagate, which
+	// is the depth the drawn circuit measures. Lookahead is a fixed three: P and
+	// G, then the AND row, then the OR, however wide the word.
+	return widths.map((width) => ({ width, ripple: 2 * width + 1, lookahead: 3 }));
 }

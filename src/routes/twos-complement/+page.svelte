@@ -62,11 +62,11 @@
 		},
 		{
 			q: "How do you detect overflow in two's complement addition?",
-			a: 'Overflow can only happen when both operands have the same sign, and it shows up as a result with the opposite sign: two positives adding to a negative, or two negatives adding to a positive. In hardware the test is that the carry into the top bit differs from the carry out of it. The carry out on its own means nothing for signed numbers; it is only the unsigned overflow flag.'
+			a: 'When adding, overflow can only happen when both operands have the same sign, and it shows up as a result with the opposite sign: two positives adding to a negative, or two negatives adding to a positive. In hardware the test is that the carry into the top bit differs from the carry out of it. The carry out on its own means nothing for signed numbers; it is only the unsigned overflow flag.'
 		},
 		{
 			q: 'What is sign extension?',
-			a: "Widening a two's complement number without changing its value: copy the sign bit into all the new bits on the left. −5 in four bits is 1011; in eight bits it is 1111 1011. A positive number gets zeros, as usual. Every processor does this when it loads a byte into a wider register as a signed value."
+			a: "Widening a two's complement number without changing its value: copy the sign bit into all the new bits on the left. −5 in four bits is 1011; in eight bits it is 1111 1011. A positive number gets zeros, as usual. Most processors do this when they load a byte into a wider register as a signed value."
 		},
 		{
 			q: 'Why is −128 special in eight bits?',
@@ -224,8 +224,8 @@
 			<strong>Sign-magnitude</strong> uses the top bit as a plain sign and the rest as the size, the way we write
 			numbers on paper. <strong>One's complement</strong> makes a negative by inverting every bit of the positive. Both
 			have a second zero, marked above, and both need separate logic to add numbers of different sign.
-			<strong>Two's complement</strong> is one's complement shifted by one, which removes the duplicate zero, reaches one
-			further negative, and, the real reason it won, adds with an ordinary adder.
+			<strong>Two's complement</strong> is one's complement with 1 added to every negative, which removes the duplicate zero,
+			reaches one further negative, and, the real reason it won, adds with an ordinary adder.
 		</p>
 	</section>
 
@@ -291,7 +291,7 @@
 			The <a href={toolLink('/binary-converter', { value: String(step.value), bits: width, base: 'decimal' })}
 				>binary converter</a
 			>
-			shows the same number in every base at any width up to 32 bits.
+			shows the same number in every base at widths from 4 to 32 bits.
 		</p>
 	</section>
 
@@ -391,9 +391,9 @@
 		<p>
 			Four bits hold −8 to 7. Add two numbers whose true sum lies outside that and the adder still produces a pattern,
 			it is just the wrong one: the sum wraps round. The tell is the sign. Two positives can never legitimately add to a
-			negative, nor two negatives to a positive, so a result with the wrong sign means overflow. Mixed signs can never
-			overflow, because the sum is smaller than one of them. In hardware the equivalent test is that the carry into the
-			top bit differs from the carry out of it.
+			negative, nor two negatives to a positive, so a result with the wrong sign means overflow. Adding numbers of mixed
+			sign can never overflow, because the sum lies between them. In hardware the equivalent test is that the carry into
+			the top bit differs from the carry out of it.
 		</p>
 		<div class="table-wrap">
 			<table class="data-table overflow">
@@ -422,9 +422,10 @@
 			</table>
 		</div>
 		<p>
-			The carry out by itself says nothing about signed overflow: the second row has a carry out and is fine, the first
-			has none and is wrong. It is the unsigned overflow flag, and processors keep both: a carry flag for unsigned
-			arithmetic and an overflow flag for signed, set from the same adder on every addition.
+			The carry out by itself says nothing about signed overflow: the last two rows have a carry out and are fine, the
+			first has none and is wrong, and the second has one and is wrong too. It is the unsigned overflow flag, and
+			processors keep both: a carry flag for unsigned arithmetic and an overflow flag for signed, set from the same
+			adder on every addition.
 		</p>
 	</section>
 
@@ -487,7 +488,7 @@
 			</div>
 		</div>
 		<p>
-			Padding with zeros instead, as for an unsigned number, would turn −5 into 11. Every processor has separate load
+			Padding with zeros instead, as for an unsigned number, would turn −5 into 11. Most processors have separate load
 			instructions for the two cases for exactly this reason.
 		</p>
 	</section>
@@ -496,7 +497,8 @@
 		<h2>See it in a circuit</h2>
 		<p>
 			The <a href="/simulator#example:Calculator">calculator example</a> in the simulator is a 4-bit adder; feed it a
-			number and the two's complement of another, and it subtracts. The
+			number and the two's complement of another, and it subtracts, although its display reads the answer as unsigned,
+			so 3 − 5 shows as 14. The
 			<a href="/ripple-carry-adder">ripple carry adder page</a> traces the carries column by column, and the
 			<a href="/binary-converter">binary converter</a> shows any value in two's complement at 4 to 32 bits.
 		</p>

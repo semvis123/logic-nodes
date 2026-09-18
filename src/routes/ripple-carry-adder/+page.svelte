@@ -387,11 +387,13 @@
 		<p>
 			Every one of those is an AND row feeding a single OR, two gate levels deep, after the one level that makes G and
 			P. The carry into the top column no longer waits on the columns below it; it is computed at the same moment as all
-			the others. That is the lookahead: three gate levels for any width, instead of two per bit.
+			the others. That is the lookahead: three gate levels whatever the width, provided the gates can be made wide
+			enough, instead of two more per bit.
 		</p>
 		<p>
 			The cost is gates, and wider ones. For {WIDTH} bits the lookahead unit needs {lookaheadAnds} AND gates and
-			{carries.length} OR gates on top of the {WIDTH} generate ANDs, {WIDTH} propagate XORs and {WIDTH} sum XORs,
+			{carries.length} OR gates, counting each product as one gate however many inputs it has, on top of the {WIDTH} generate
+			ANDs, {WIDTH} propagate XORs and {WIDTH} sum XORs,
 			{lookaheadGates} in all against {rippleGates} for the ripple version, and the last OR has {widestOr} inputs. Past four
 			bits the fan-in gets out of hand, so real designs build 4-bit lookahead blocks and then look ahead across the blocks,
 			which is what the classic 74182 lookahead generator chip does.
@@ -417,8 +419,8 @@
 			</table>
 		</div>
 		<p class="legend">
-			Two levels per column for ripple carry, counting the AND-OR of each carry stage; three for a flat lookahead unit
-			with gates as wide as needed. A blocked lookahead adder sits between the two.
+			Two levels per column for ripple carry, the AND-OR of each carry stage, plus the XOR that feeds the first one;
+			three for a flat lookahead unit with gates as wide as needed. A blocked lookahead adder sits between the two.
 		</p>
 		<p class="reducer">
 			The lookahead carries are checked against the ripple carries on every one of the
@@ -453,8 +455,8 @@
 			<a class="cta" href="/simulator">Open the simulator</a>
 		</p>
 		<p class="reducer">
-			It is step 4 of <a href="/learn#full-adder">the learning path</a>, which builds exactly this adder and then puts a
-			<a href="/seven-segment-decoder">seven-segment display</a> on the end.
+			Step 4 of <a href="/learn#full-adder">the learning path</a> builds the full adder and points at the calculator
+			example, which chains four of them and puts a <a href="/seven-segment-decoder">seven-segment display</a> on the end.
 		</p>
 	</section>
 
