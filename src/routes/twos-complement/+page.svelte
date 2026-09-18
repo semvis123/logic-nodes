@@ -42,6 +42,8 @@
 	const extendedPositive = signExtend(5, 4, 8);
 
 	const signedText = (n: number) => (n < 0 ? `−${-n}` : String(n));
+	/** A number as it appears inside a sum: negatives in brackets, positives bare. */
+	const signedTerm = (n: number) => (n < 0 ? `(${signedText(n)})` : signedText(n));
 
 	const faqs = [
 		{
@@ -410,7 +412,7 @@
 				<tbody>
 					{#each overflow as sum}
 						<tr class:flagged={sum.overflow}>
-							<th scope="row">{signedText(sum.aSigned)} + ({signedText(sum.bSigned)}) = {signedText(sum.expected)}</th>
+							<th scope="row">{signedTerm(sum.aSigned)} + {signedTerm(sum.bSigned)} = {signedText(sum.expected)}</th>
 							<td class="mono">{sum.sumBits.join('')}</td>
 							<td>{signedText(sum.resultSigned)}</td>
 							<td class={sum.carries[WIDTH - 1] ? 'bit-1' : 'bit-0'}>{sum.carries[WIDTH - 1]}</td>
@@ -461,8 +463,9 @@
 	<section id="extend">
 		<h2>Sign extension</h2>
 		<p>
-			To widen a two's complement number, copy its top bit into every new position. The value does not change, because
-			the new top bit takes over the negative weight and the old one, now positive, cancels it against the other copies.
+			To widen a two's complement number, copy its top bit into every new position. The value does not change: for a
+			positive number the new bits are zeros, and for a negative one the new top bit and the run of 1s below it add up
+			to exactly the weight the old top bit had, since −128 + 64 + 32 + 16 + 8 = −8.
 		</p>
 		<div class="extend mono">
 			<div>

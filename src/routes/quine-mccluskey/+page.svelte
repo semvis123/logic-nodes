@@ -329,6 +329,11 @@
 					</tbody>
 				</table>
 			</div>
+			{#if result.dontCares.length}
+				<p class="legend">
+					A small <span class="dc">d</span> marks a don't care. A tick means the code merged with another in the next step.
+				</p>
+			{/if}
 		</section>
 
 		<section id="merge">

@@ -85,7 +85,7 @@
 		},
 		{
 			q: 'What is a carry lookahead adder?',
-			a: 'An adder that computes every carry directly from the inputs instead of waiting for the one below. Each column produces a generate signal, G = A AND B, meaning it makes a carry on its own, and a propagate signal, P = A XOR B, meaning it passes an incoming carry along. Every carry is then a sum of products of those signals, which is two gate levels deep however wide the word is, at the cost of many more gates and wider ones.'
+			a: 'An adder that computes every carry directly from the inputs instead of waiting for the one below. Each column produces a generate signal, G = A AND B, meaning it makes a carry on its own, and a propagate signal, P = A XOR B, meaning it passes an incoming carry along. Every carry is then a sum of products of those signals, two gate levels deep after the level that makes G and P, however wide the word is, at the cost of many more gates and wider ones.'
 		},
 		{
 			q: 'How do you subtract with an adder?',
