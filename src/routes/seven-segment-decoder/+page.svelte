@@ -149,7 +149,7 @@
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/common-circuits', label: 'Common circuits' },
 		{ href: '/binary-converter#bcd', label: 'BCD, on the binary converter' },
-		{ href: '/learn#display', label: 'Build one on the learning path' }
+		{ href: '/learn/the-seven-segment-display', label: 'Build one on the learning path' }
 	]}
 >
 	<section class="intro">

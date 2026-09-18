@@ -84,7 +84,6 @@
 <ContentPage
 	related={[
 		{ href: '/learn', label: 'Learn digital logic' },
-		{ href: '/roadmap', label: 'The learning roadmap' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' },
 		{ href: '/tools', label: 'All tools' }

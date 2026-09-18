@@ -160,7 +160,6 @@
 		{ href: '/worksheet', label: 'Printable worksheets' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' },
-		{ href: '/roadmap', label: 'What to learn, in order' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
