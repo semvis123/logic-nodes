@@ -133,7 +133,7 @@ test('a lesson marked as known gets a hollow tick, and the roadmap folds on a ph
 	await expect(page.locator('.side')).toBeHidden();
 	const drawer = page.locator('.drawer');
 	await expect(drawer).toBeVisible();
-	await drawer.locator('summary').click();
+	await drawer.locator('.drawer-toggle').click();
 	await expect(drawer.locator('.roadmap li.current')).toBeVisible();
 
 	await page.locator('.know-it .link-btn').click();

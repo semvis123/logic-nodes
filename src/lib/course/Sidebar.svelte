@@ -22,8 +22,16 @@
 	</p>
 	<progress class="bar" max={total} value={done} aria-label="Lessons done" />
 	{#each stages as stage, i}
-		<section class="stage">
-			<h3><span class="num">{i + 1}</span> {stage.title}</h3>
+		{@const finished = stage.lessons.filter((l) => $progress[l.slug]?.done).length}
+		<!-- Only the stage being read is unfolded, so the whole course fits
+		     beside a lesson without a second scrollbar; the others open on a
+		     click, and all of them open for print. -->
+		<details class="stage" open={stage.lessons.some((l) => l.slug === current)}>
+			<summary>
+				<span class="num">{i + 1}</span>
+				<span class="stage-title">{stage.title}</span>
+				<span class="stage-count" class:all={finished === stage.lessons.length}>{finished}/{stage.lessons.length}</span>
+			</summary>
 			<ol>
 				{#each stage.lessons as lesson}
 					{@const state = $progress[lesson.slug]?.done}
@@ -40,7 +48,7 @@
 					</li>
 				{/each}
 			</ol>
-		</section>
+		</details>
 	{/each}
 	{#if done > 0}
 		<p class="reset"><button type="button" class="link-btn" on:click={reset}>Reset progress</button></p>
@@ -81,28 +89,58 @@
 	}
 
 	.stage {
-		margin: 0 0 0.9rem;
+		margin: 0 0 0.15rem;
 		padding: 0;
 		max-width: none;
 	}
 
-	.roadmap h3 {
-		font-size: 0.8rem;
-		text-transform: uppercase;
-		letter-spacing: 0.05em;
+	summary {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		list-style: none;
+		cursor: pointer;
+		padding: 0.35rem 0.4rem;
+		border-radius: 3px;
+		font-size: 0.85rem;
+		font-weight: 600;
 		color: #bbb;
-		margin: 0 0 0.3rem;
+	}
+
+	summary::-webkit-details-marker {
+		display: none;
+	}
+
+	summary:hover {
+		background-color: rgba(255, 255, 255, 0.06);
+		color: #fff;
+	}
+
+	.stage[open] summary {
+		color: #fff;
 	}
 
 	.num {
 		color: #5db65d;
 		font: 600 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
-		margin-right: 0.3rem;
+	}
+
+	.stage-title {
+		flex: 1;
+	}
+
+	.stage-count {
+		font: 500 0.7rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		color: #999;
+	}
+
+	.stage-count.all {
+		color: #5db65d;
 	}
 
 	ol {
 		list-style: none;
-		padding: 0;
+		padding: 0 0 0.4rem 0.9rem;
 		margin: 0;
 	}
 
@@ -128,12 +166,12 @@
 
 	.tick {
 		flex: none;
-		width: 1rem;
-		height: 1rem;
-		border: 1px solid #666;
+		width: 0.9rem;
+		height: 0.9rem;
+		border: 1px solid rgba(255, 255, 255, 0.25);
 		border-radius: 50%;
-		font-size: 0.65rem;
-		line-height: 1rem;
+		font-size: 0.6rem;
+		line-height: 0.85rem;
 		text-align: center;
 		color: #fff;
 	}

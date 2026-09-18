@@ -14,7 +14,7 @@
 
 <div class="course">
 	<details class="drawer">
-		<summary>Roadmap</summary>
+		<summary class="drawer-toggle">Roadmap</summary>
 		<div class="drawer-body"><Sidebar {current} /></div>
 	</details>
 	<aside class="side">
@@ -26,13 +26,16 @@
 </div>
 
 <style>
+	/* One solid panel for the whole course, so the lesson's prose, boxes and
+	   widgets sit on a plain background rather than on the site's grid. */
 	.course {
 		display: grid;
-		grid-template-columns: 260px minmax(0, 1fr);
-		gap: 2.5rem;
-		max-width: 1240px;
-		margin: 0 auto;
-		padding: 0 20px;
+		grid-template-columns: 250px minmax(0, 1fr);
+		width: min(1240px, calc(100% - 40px));
+		margin: 2rem auto 3rem;
+		background-color: #18191b;
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 4px;
 	}
 
 	/* Sections inside the frame span the column, not the site's usual 940px. */
@@ -41,15 +44,26 @@
 		padding: 0;
 	}
 
+	.main {
+		padding: 0 2.5rem 1rem;
+		border-left: 1px solid rgba(255, 255, 255, 0.12);
+	}
+
+	/* The roadmap only unfolds the stage being read, so it fits beside the
+	   lesson on a laptop screen. It still scrolls on a short screen, on its
+	   own, without a visible second scrollbar to fight the page's. */
 	.side {
 		position: sticky;
 		top: 38px;
 		align-self: start;
 		max-height: calc(100vh - 38px);
 		overflow-y: auto;
-		padding: 48px 0 2rem;
-		border-right: 1px solid rgba(255, 255, 255, 0.12);
-		padding-right: 1rem;
+		scrollbar-width: none;
+		padding: 1.5rem 0.8rem 1.5rem 1rem;
+	}
+
+	.side::-webkit-scrollbar {
+		display: none;
 	}
 
 	.drawer {
@@ -59,7 +73,13 @@
 	@media (max-width: 900px) {
 		.course {
 			grid-template-columns: minmax(0, 1fr);
-			gap: 0;
+			width: calc(100% - 24px);
+			margin: 1rem auto 2rem;
+		}
+
+		.main {
+			padding: 0 1rem 1rem;
+			border-left: none;
 		}
 
 		.side {
@@ -68,20 +88,18 @@
 
 		.drawer {
 			display: block;
-			margin: 1rem 0 0;
-			background-color: #161618;
-			border: 1px solid rgba(255, 255, 255, 0.25);
-			border-radius: 3px;
+			margin: 0;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 		}
 
-		.drawer summary {
+		.drawer-toggle {
 			cursor: pointer;
-			padding: 0.5rem 0.8rem;
+			padding: 0.6rem 1rem;
 			font-weight: 600;
 		}
 
 		.drawer-body {
-			padding: 0.4rem 0.8rem 0.8rem;
+			padding: 0.2rem 1rem 0.8rem;
 		}
 	}
 

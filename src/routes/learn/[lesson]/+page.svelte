@@ -160,7 +160,7 @@
 
 <style>
 	.intro {
-		padding-top: 48px;
+		padding-top: 2rem;
 	}
 
 	.crumbs {
