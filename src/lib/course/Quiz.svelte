@@ -7,6 +7,7 @@
 	import { onMount, tick } from 'svelte';
 	import { page } from '$app/stores';
 	import { rng } from './random';
+	import { neighbours } from './lessons';
 	import { progress, recordAnswer, markDone } from './progress';
 	import { PASS_STREAK, type CourseQuestion, type LessonMeta } from './types';
 
@@ -30,6 +31,11 @@
 	/** The last few prompts, so the same question does not come straight back. */
 	let recent: string[] = [];
 	let feedback: HTMLElement | null = null;
+	let finished: HTMLElement | null = null;
+	/** True from the moment the run completes until the reader asks for more. */
+	let celebrating = false;
+	/** The reader chose to keep practising after passing. */
+	let practising = false;
 
 	$: state = $progress[lesson.slug];
 	$: passed = state?.done === 'passed';
@@ -37,6 +43,9 @@
 	$: isRight = chosen !== null && chosen === question.answer;
 	/** Shown once the answer is settled, right or given away. */
 	$: settled = isRight || wrong >= 3;
+	$: next = neighbours(lesson.slug).next;
+	/** The full card, with the run counter, is for a lesson not yet passed. */
+	$: showCard = !celebrating && (!passed || practising);
 
 	onMount(() => {
 		const fromUrl = Number($page.url.searchParams.get('q'));
@@ -70,7 +79,13 @@
 			correct += 1;
 			streak += 1;
 			recordAnswer(lesson.slug, true, streak);
-			if (streak >= PASS_STREAK && !passed) markDone(lesson.slug, 'passed');
+			if (streak >= PASS_STREAK && !passed) {
+				markDone(lesson.slug, 'passed');
+				celebrating = true;
+				await tick();
+				finished?.focus();
+				return;
+			}
 		} else {
 			wrongPicks = [...wrongPicks, index];
 			wrong += 1;
@@ -84,14 +99,48 @@
 	function knowIt() {
 		markDone(lesson.slug, 'marked');
 	}
+
+	function practise() {
+		celebrating = false;
+		practising = true;
+		advance();
+	}
 </script>
 
 <section class="quiz" id="quiz" aria-labelledby="quiz-heading">
 	<h2 id="quiz-heading">Check yourself</h2>
-	{#if passed}
-		<p class="passed-line" role="status">
-			<span class="tick" aria-hidden="true">✓</span> You passed this lesson. Keep going for practice, or move on.
-		</p>
+	{#if celebrating}
+		<!-- The moment the run completes: the lesson is done, said plainly,
+		     with the way onward first and more practice a click away. -->
+		<div class="finished" role="status" tabindex="-1" bind:this={finished}>
+			<p class="passed-line big"><span class="tick" aria-hidden="true">✓</span> Lesson complete</p>
+			<p>
+				You passed <strong>{lesson.title}</strong>: {PASS_STREAK} right in a row. It now has a tick on the roadmap, and you
+				can come back to practise any time.
+			</p>
+			<p class="actions">
+				{#if next}
+					<a class="cta" href="/learn/{next.slug}">Next lesson: {next.title}</a>
+				{:else}
+					<a class="cta" href="/learn">Back to the course</a>
+				{/if}
+				<button type="button" class="link-btn" on:click={practise}>Keep practising</button>
+			</p>
+		</div>
+	{:else if passed}
+		<div class="done-bar">
+			<p class="passed-line" role="status">
+				<span class="tick" aria-hidden="true">✓</span> You passed this lesson. More questions are here whenever you want the practice.
+			</p>
+			{#if !practising}
+				<p class="actions">
+					{#if next}
+						<a class="cta" href="/learn/{next.slug}">Next lesson: {next.title}</a>
+					{/if}
+					<button type="button" class="link-btn" on:click={practise}>Practise more</button>
+				</p>
+			{/if}
+		</div>
 	{:else if marked}
 		<p class="passed-line" role="status">
 			<span class="tick hollow" aria-hidden="true">✓</span> Marked as known. Pass the quiz to earn the full tick.
@@ -102,14 +151,18 @@
 		</p>
 	{/if}
 
-	<div class="card quiz-card" data-seed={seed}>
+	<div class="card quiz-card" class:hidden={!showCard} data-seed={seed}>
 		<div class="score" aria-label="Progress">
-			<span class="dots" aria-hidden="true">
-				{#each Array(PASS_STREAK) as _, i}<span class="dot" class:lit={i < streak} />{/each}
-			</span>
-			<span class="visually-hidden">{streak} right in a row.</span>
+			{#if passed}
+				<span class="practice-tag">Practice</span>
+			{:else}
+				<span class="dots" aria-hidden="true">
+					{#each Array(PASS_STREAK) as _, i}<span class="dot" class:lit={i < streak} />{/each}
+				</span>
+				<span class="visually-hidden">{streak} right in a row.</span>
+			{/if}
 			<span><strong>{correct}</strong> / {answered} this visit</span>
-			{#if state?.best}<span class="dim">best run {state.best}</span>{/if}
+			{#if state?.best && !passed}<span class="dim">best run {state.best}</span>{/if}
 		</div>
 
 		<p class="prompt">{question.prompt}</p>
@@ -209,6 +262,64 @@
 
 	.passed-line {
 		color: #ddd;
+	}
+
+	.finished {
+		background-color: rgba(93, 182, 93, 0.1);
+		border: 1px solid #5db65d;
+		border-radius: 3px;
+		padding: 1rem 1.2rem 1.1rem;
+		margin: 0 0 1rem;
+		color: #ddd;
+	}
+
+	.finished:focus {
+		outline: none;
+	}
+
+	.finished p {
+		margin: 0 0 0.6rem;
+	}
+
+	.passed-line.big {
+		font-size: 1.25rem;
+		font-weight: 600;
+		color: #fff;
+	}
+
+	.passed-line.big .tick {
+		width: 1.5rem;
+		height: 1.5rem;
+		line-height: 1.5rem;
+		font-size: 1rem;
+	}
+
+	.finished .actions,
+	.done-bar .actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 1rem;
+		margin: 0.8rem 0 0;
+	}
+
+	.done-bar {
+		margin: 0 0 1rem;
+	}
+
+	.done-bar .actions {
+		margin-top: 0.4rem;
+	}
+
+	.quiz-card.hidden {
+		display: none;
+	}
+
+	.practice-tag {
+		color: #5db65d;
+		font: 600 0.75rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
 	}
 
 	.tick {

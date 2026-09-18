@@ -109,8 +109,15 @@ test('the quiz hints on a wrong answer, passes after a run, and remembers', asyn
 		await page.locator('.quiz .option').nth(q.answer).click();
 		await expect(page.locator('.feedback')).toContainText('Correct');
 	}
-	await expect(page.locator('.quiz .passed-line')).toContainText('You passed');
+	// The run completing is said plainly, with the next lesson offered and a
+	// way to keep practising.
+	const finished = page.locator('.quiz .finished');
+	await expect(finished).toContainText('Lesson complete');
+	await expect(finished.locator('a.cta')).toHaveAttribute('href', `/learn/${neighbours(slug).next!.slug}`);
 	await expect(page.locator('.side .roadmap li.current.passed')).toHaveCount(1);
+	await finished.locator('.link-btn').click();
+	await expect(page.locator('.quiz-card')).toBeVisible();
+	await expect(page.locator('.quiz .practice-tag')).toBeVisible();
 
 	// The tick survives a reload, and the course home offers the next lesson.
 	await page.reload();
