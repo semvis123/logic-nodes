@@ -32,6 +32,16 @@
 			blurb: 'Adders, multiplexers, decoders, comparators and parity.'
 		},
 		{
+			href: '/ripple-carry-adder',
+			name: 'Ripple carry adder',
+			blurb: 'A 4-bit adder traced carry by carry, and the lookahead that speeds it up.'
+		},
+		{
+			href: '/twos-complement',
+			name: "Two's complement",
+			blurb: 'Negative numbers in bits: convert, add, subtract and spot overflow.'
+		},
+		{
 			href: '/boolean-algebra-laws',
 			name: 'Boolean algebra laws',
 			blurb: 'Every identity, shown with the truth table that proves it.'
@@ -40,6 +50,11 @@
 			href: '/boolean-algebra-examples',
 			name: 'Simplification examples',
 			blurb: 'Twelve expressions worked step by step, with the law named on every line.'
+		},
+		{
+			href: '/quine-mccluskey',
+			name: 'Quine-McCluskey method',
+			blurb: 'Tabular minimisation step by step, on any function you type.'
 		},
 		{
 			href: '/finite-state-machines',
