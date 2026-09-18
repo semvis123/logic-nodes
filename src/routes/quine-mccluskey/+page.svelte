@@ -99,7 +99,7 @@
 	const page = {
 		title: 'Quine-McCluskey Method: Tabular Minimisation Step by Step',
 		description:
-			"How the Quine-McCluskey method minimises a boolean function: grouping minterms by 1s, merging into prime implicants, the prime implicant chart, essential primes and Petrick's method, worked on any function you type.",
+			"How the Quine-McCluskey method minimises a boolean function: grouping minterms by 1s, merging into prime implicants, the prime implicant chart, essential primes and Petrick's method, worked on any function of up to five variables you type.",
 		url: `${SITE}/quine-mccluskey`,
 		image: `${SITE}/og/quine-mccluskey.png`,
 		imageAlt: 'LogicGates.org: the Quine-McCluskey method'
@@ -526,8 +526,8 @@
 				</span>
 			</p>
 			<p class="reducer">
-				<a href={mapLink}>See the same function as a Karnaugh map</a>: the groups it circles are the primes in the
-				answer.
+				<a href={mapLink}>See the same function as a Karnaugh map</a>: the groups it circles are a minimal cover of the
+				same primes, chosen greedily, so it can pick a different one when two covers tie.
 			</p>
 		</section>
 	{/if}
@@ -551,7 +551,7 @@
 					</tr>
 					<tr>
 						<th scope="row">Comfortable size</th>
-						<td>Up to 4 variables comfortably, 5 at a stretch</td>
+						<td>Up to 4 variables by hand, 5 or 6 with the solver here</td>
 						<td>Any number; the table just gets longer</td>
 					</tr>
 					<tr>

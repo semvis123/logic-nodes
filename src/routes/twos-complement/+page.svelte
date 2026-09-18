@@ -286,8 +286,9 @@
 		</div>
 		<p>
 			<strong>The shortcut.</strong> Starting from the right, copy the bits up to and including the first 1, then invert
-			everything to its left. The highlighted bits above are the copied ones; they come out the same because adding 1 to
-			the inverted trailing <span class="mono">0…01</span> pattern just undoes the inversion there.
+			everything to its left. The highlighted bits above are the copied ones; they come out the same because inverting
+			turns the trailing <span class="mono">10…0</span> into <span class="mono">01…1</span>, and adding 1 turns it
+			straight back.
 		</p>
 		<p class="reducer">
 			The <a href={toolLink('/binary-converter', { value: String(step.value), bits: width, base: 'decimal' })}
@@ -464,8 +465,8 @@
 		<h2>Sign extension</h2>
 		<p>
 			To widen a two's complement number, copy its top bit into every new position. The value does not change: for a
-			positive number the new bits are zeros, and for a negative one the new top bit and the run of 1s below it add up
-			to exactly the weight the old top bit had, since −128 + 64 + 32 + 16 + 8 = −8.
+			positive number the new bits are zeros, and for a negative one the new top bit, the copies, and the old top bit,
+			now positive, add up to exactly the weight the old top bit had: −128 + 64 + 32 + 16 + 8 = −8.
 		</p>
 		<div class="extend mono">
 			<div>
@@ -501,7 +502,7 @@
 		<p>
 			The <a href="/simulator#example:Calculator">calculator example</a> in the simulator is a 4-bit adder; feed it a
 			number and the two's complement of another, and it subtracts, although its display reads the answer as unsigned,
-			so 3 − 5 shows as 14. The
+			so 3 − 5, entered as 0011 + 1011, lights up the digit for 14 rather than −2. The
 			<a href="/ripple-carry-adder">ripple carry adder page</a> traces the carries column by column, and the
 			<a href="/binary-converter">binary converter</a> shows any value in two's complement at 4 to 32 bits.
 		</p>

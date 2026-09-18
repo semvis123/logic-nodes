@@ -54,7 +54,7 @@
 		{
 			href: '/quine-mccluskey',
 			name: 'Quine-McCluskey method',
-			blurb: 'Tabular minimisation step by step, on any function you type.'
+			blurb: 'Tabular minimisation step by step, on any function you type, up to five variables.'
 		},
 		{
 			href: '/finite-state-machines',
