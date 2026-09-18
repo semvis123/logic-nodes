@@ -80,7 +80,8 @@
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/boolean-algebra-examples', label: 'Worked simplification examples' },
 		{ href: '/glossary', label: 'Glossary' },
-		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' }
+		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' },
+		{ href: '/de-morgans-laws', label: "De Morgan's laws" }
 	]}
 >
 	<section class="intro">

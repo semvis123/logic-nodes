@@ -140,7 +140,9 @@
 
 <ContentPage
 	related={[
+		{ href: '/roadmap', label: 'The full learning roadmap' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
+		{ href: '/flip-flops', label: 'Flip-flops' },
 		{ href: '/finite-state-machines', label: 'Finite state machines' },
 		{ href: '/glossary', label: 'Glossary' },
 		{ href: '/practice', label: 'Practice questions' },
@@ -151,7 +153,9 @@
 		<h1>Learn digital logic</h1>
 		<p class="lede">
 			Eight steps from a single wire to a circuit that adds two numbers and shows the answer. Every step is something
-			you build and run yourself, not something you read about.
+			you build and run yourself, not something you read about. For the full map of the site in learning order, see the <a
+				href="/roadmap">roadmap</a
+			>.
 		</p>
 		<ol class="toc">
 			{#each steps as step, i}
@@ -302,7 +306,9 @@
 		</p>
 		<p>
 			Chain four full adders, each one's carry out feeding the next one's carry in, and you can add two four bit
-			numbers. That is a ripple carry adder, and it is the arithmetic unit at the heart of the calculator example.
+			numbers. That is a <a href="/ripple-carry-adder">ripple carry adder</a>, and it is the arithmetic unit at the
+			heart of the calculator example. Feed it one number's <a href="/twos-complement">two's complement</a> and the same
+			circuit subtracts.
 		</p>
 		<p class="try">
 			<strong>Try it:</strong> build the full adder from two half adder chips and an OR, then look at
@@ -351,6 +357,11 @@
 			<a href="/simulator#example:Falling%20edge%20detector">its falling counterpart</a> are both built in. Feed one from
 			an Interval node and into a Counter.
 		</p>
+		<p>
+			A clock is also what turns a latch into a <a href="/flip-flops">flip-flop</a>, a latch that only looks at its
+			inputs on the tick. Once every part of a circuit moves on the same tick you can chain flip-flops into
+			<a href="/counters">counters</a> and <a href="/shift-registers">shift registers</a>.
+		</p>
 	</section>
 
 	<section id="display">
@@ -384,8 +395,9 @@
 				a circuit misbehaves: compare the table you wanted with the table you built.
 			</li>
 			<li>
-				<a href="/boolean-algebra-calculator">Boolean algebra</a> rewrites the expression using laws like De Morgan's and
-				absorption. Good for proving two circuits are the same.
+				<a href="/boolean-algebra-calculator">Boolean algebra</a> rewrites the expression using
+				<a href="/boolean-algebra-laws">laws</a> like <a href="/de-morgans-laws">De Morgan's</a> and absorption. Good for
+				proving two circuits are the same.
 			</li>
 			<li>
 				<a href="/karnaugh-map-solver">Karnaugh maps</a> fold the truth table into a grid where the simplification is visible
@@ -409,6 +421,13 @@
 		</p>
 		<p>
 			<a class="cta" href="/simulator">Open the simulator</a>
+		</p>
+		<h3>Where to go next</h3>
+		<p>
+			The natural continuation is memory and time: <a href="/flip-flops">flip-flops</a>, then
+			<a href="/counters">counters</a>, <a href="/shift-registers">shift registers</a> and
+			<a href="/finite-state-machines">finite state machines</a>. The <a href="/roadmap">roadmap</a> puts every page on the
+			site in learning order, with a checkpoint at each stage, if you want the whole map at once.
 		</p>
 	</section>
 

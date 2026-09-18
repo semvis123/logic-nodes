@@ -31,6 +31,7 @@
 			'/quine-mccluskey'
 		],
 		'/learn': [
+			'/roadmap',
 			'/common-circuits',
 			'/combinational-vs-sequential',
 			'/seven-segment-decoder',

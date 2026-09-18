@@ -15,6 +15,11 @@
 			blurb: 'Eight steps from a single wire to a working four bit adder.'
 		},
 		{
+			href: '/roadmap',
+			name: 'Digital logic roadmap',
+			blurb: 'Every page on the site in the order to learn it, from bits to state machines.'
+		},
+		{
 			href: '/logic-gates',
 			name: 'The seven logic gates',
 			blurb: 'AND, OR, NOT, XOR, NAND, NOR and XNOR, each with its own page.'
