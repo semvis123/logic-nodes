@@ -57,8 +57,9 @@ test.describe("two's complement", () => {
 			const half = 1 << (width - 1);
 			for (let value = -half; value < half; value++) {
 				const step = negate(value, width);
+				expect(step.original).toEqual(toBits(value, width));
 				expect(step.inverted).toEqual(step.original.map((bit) => (bit ? 0 : 1)));
-				expect(step.result).toEqual(toBits(-Math.abs(value), width));
+				expect(step.result).toEqual(toBits(-value, width));
 				// Adding one to the inverted pattern is the result.
 				const invertedValue = step.inverted.reduce((total, bit) => total * 2 + bit, 0);
 				expect(step.result).toEqual(toBits(invertedValue + 1, width));
@@ -73,7 +74,7 @@ test.describe("two's complement", () => {
 					expect(step.reading).toBe(-half);
 				} else {
 					expect(step.fits).toBe(true);
-					expect(step.reading).toBe(-Math.abs(value) || 0);
+					expect(step.reading).toBe(-value || 0);
 				}
 			}
 		}

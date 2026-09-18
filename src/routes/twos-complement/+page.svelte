@@ -233,8 +233,9 @@
 		<h2>How to negate: invert and add 1</h2>
 		<p>
 			To find the pattern for a negative number, write its magnitude in binary at the full width, flip every bit, and
-			add 1. The same two steps go the other way too: inverting and adding 1 negates any number, so it also turns a
-			negative pattern back into its magnitude. Type any number in range and the steps follow it.
+			add 1. The same two steps go the other way too: inverting and adding 1 negates any number, so a negative pattern
+			put through them comes out as its positive magnitude. Type any number in range, positive or negative, and the
+			steps follow it.
 		</p>
 		<form class="controls" on:submit|preventDefault>
 			<label>
@@ -252,7 +253,7 @@
 		</form>
 		<div class="steps mono">
 			<div class="step">
-				<span class="label">{Math.abs(step.value)} in binary</span>
+				<span class="label">{signedText(step.value)} in binary</span>
 				<span class="bits"
 					>{#each step.original as bit, i}<span class={bit ? 'bit-1' : 'bit-0'} class:copied={i >= step.shortcutIndex}
 							>{bit}</span

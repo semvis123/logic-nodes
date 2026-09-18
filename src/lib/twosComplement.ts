@@ -4,7 +4,7 @@
 // it comes from the same fixed-width helpers the binary converter uses, and
 // the test suite checks each table against plain integer arithmetic.
 
-import { toBits, fromBits, signedValue, rangeOf, negationSteps } from './numbers.js';
+import { toBits, fromBits, signedValue, rangeOf } from './numbers.js';
 import { rippleAdd, type Addition, type Bit } from './adders.js';
 
 export type Representation = {
@@ -43,20 +43,26 @@ export function ranges(widths: number[]) {
 export type Negation = {
 	value: number;
 	width: number;
-	/** The magnitude's pattern, the inverted pattern, and the result after adding 1. */
+	/** The value's own pattern, the inverted pattern, and the result after adding 1. */
 	original: Bit[];
 	inverted: Bit[];
 	result: Bit[];
-	/** The value the result reads as in two's complement, which is -value when it fits. */
+	/** The value the result reads as in two's complement, which is −value when that fits. */
 	reading: number;
 	/** The shortcut: copy up to and including the first 1 from the right, invert the rest. */
 	shortcutIndex: number;
 	fits: boolean;
 };
 
-/** Negates a value the way it is taught: invert every bit, then add 1. */
+/**
+ * Negates a value the way it is taught: invert every bit, then add 1. A
+ * negative value starts from its own pattern and comes out positive, since
+ * the same two steps work in both directions.
+ */
 export function negate(value: number, width: number): Negation {
-	const { original, inverted, result } = negationSteps(value, width);
+	const original = toBits(value, width);
+	const inverted = original.map((bit) => (bit ? 0 : 1) as Bit);
+	const result = toBits(-value, width);
 	const firstOne = [...original].reverse().indexOf(1);
 	const { signedMin, signedMax } = rangeOf(width);
 	return {

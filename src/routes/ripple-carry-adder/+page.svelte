@@ -177,7 +177,8 @@
 		<h1>The ripple carry adder</h1>
 		<p class="lede">
 			Chain one full adder per bit, carry out into carry in, and you can add numbers of any width. It is the simplest
-			adder there is, the one inside every calculator example, and the reason a carry lookahead adder was invented.
+			adder there is, the one inside this site's calculator example, and the reason the carry lookahead adder was
+			invented.
 		</p>
 	</section>
 
@@ -258,6 +259,7 @@
 				<thead>
 					<tr>
 						<th scope="col" />
+						<th scope="col" class="mono top">bit 4</th>
 						{#each [...sum.columns].reverse() as column}
 							<th scope="col" class="mono">bit {column.position}</th>
 						{/each}
@@ -265,44 +267,54 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr>
-						<th scope="row">Carry in</th>
-						{#each [...sum.columns].reverse() as column}
-							<td class={column.cin ? 'bit-1' : 'bit-0'}>{column.cin}</td>
+					<tr class="carries">
+						<th scope="row">carry</th>
+						{#each [...sum.carries].reverse() as carry, i}
+							<td
+								class={carry ? 'bit-1' : 'bit-0'}
+								class:top={i === 0}
+								title={i === 0 ? 'carry out' : i === WIDTH ? 'carry in' : `carry into bit ${WIDTH - i}`}>{carry}</td
+							>
 						{/each}
-						<td class="value">
-							{#if sum.columns.length}
-								Cin = {cin}
-							{/if}
-						</td>
+						<td class="value">Cin = {cin}</td>
 					</tr>
 					<tr>
 						<th scope="row" class="mono">A</th>
-						{#each sum.aBits as bit}
-							<td class={bit ? 'bit-1' : 'bit-0'}>{bit}</td>
+						<td />
+						{#each sum.aBits as bit, i}
+							<td class={bit ? 'bit-1' : 'bit-0'}>
+								<button
+									type="button"
+									class="flip"
+									on:click={() => (a = clamp(a) ^ (1 << (WIDTH - 1 - i)))}
+									title="Flip this bit">{bit}</button
+								>
+							</td>
 						{/each}
 						<td class="value">{sum.a}</td>
 					</tr>
 					<tr>
 						<th scope="row" class="mono">B</th>
-						{#each sum.bBits as bit}
-							<td class={bit ? 'bit-1' : 'bit-0'}>{bit}</td>
+						<td class="op">+</td>
+						{#each sum.bBits as bit, i}
+							<td class={bit ? 'bit-1' : 'bit-0'}>
+								<button
+									type="button"
+									class="flip"
+									on:click={() => (b = clamp(b) ^ (1 << (WIDTH - 1 - i)))}
+									title="Flip this bit">{bit}</button
+								>
+							</td>
 						{/each}
-						<td class="value">+ {sum.b}</td>
+						<td class="value">+ {sum.b}{cin ? ' + 1' : ''}</td>
 					</tr>
 					<tr class="sum-row">
 						<th scope="row" class="mono">Sum</th>
+						<td class="top {sum.carryOut ? 'bit-1' : 'bit-0'}">{sum.carryOut}</td>
 						{#each sum.sumBits as bit}
 							<td class={bit ? 'bit-1' : 'bit-0'}>{bit}</td>
 						{/each}
-						<td class="value">= {sum.unsigned}{sum.carryOut ? ` + 16` : ''}</td>
-					</tr>
-					<tr>
-						<th scope="row">Carry out</th>
-						{#each [...sum.columns].reverse() as column}
-							<td class={column.cout ? 'bit-1' : 'bit-0'}>{column.cout}</td>
-						{/each}
-						<td class="value">Cout = {sum.carryOut}</td>
+						<td class="value">= {sum.a + sum.b + cin}</td>
 					</tr>
 				</tbody>
 			</table>
@@ -310,12 +322,13 @@
 		<p class="reading">
 			{sum.a} + {sum.b}{cin ? ' + 1' : ''} = {sum.a + sum.b + cin}.
 			{#if sum.carryOut}
-				That needs five bits, so the adder shows {sum.unsigned} with the carry out set: the true answer is
-				{sum.unsigned} + 16.
+				That needs five bits: the four sum bits read {sum.unsigned}, and the carry out of bit 3 is the fifth bit, worth
+				16.
 			{:else}
-				It fits in four bits, and the carry out is 0.
+				It fits in four bits, so the carry out is 0.
 			{/if}
-			The carry out of each column is the carry in of the one to its left, which is the whole design.
+			Each carry in the top row is produced by the column to its right and consumed by the column beneath it; the rightmost
+			one is the carry in, the leftmost the carry out. Click a bit of A or B to flip it.
 		</p>
 	</section>
 
@@ -542,6 +555,41 @@
 		border-top: 1px solid rgba(255, 255, 255, 0.35);
 	}
 
+	.trace .carries td,
+	.trace .carries th {
+		font-size: 0.8rem;
+		opacity: 0.85;
+	}
+
+	.trace .top {
+		border-right: 1px dashed rgba(255, 255, 255, 0.25);
+	}
+
+	.trace .op {
+		color: #888;
+		text-align: center;
+	}
+
+	/* A bit you can flip: the button fills its cell and keeps the cell's colour. */
+	.trace .flip {
+		all: unset;
+		cursor: pointer;
+		display: block;
+		width: 100%;
+		text-align: center;
+		color: inherit;
+		font: inherit;
+		border-radius: 2px;
+	}
+
+	.trace .flip:hover {
+		background: rgba(255, 255, 255, 0.08);
+	}
+
+	.trace .flip:focus-visible {
+		outline: 2px solid #5db65d;
+	}
+
 	.reading {
 		color: #ddd;
 	}
@@ -557,11 +605,13 @@
 		padding: 0.5rem;
 	}
 
+	/* Twenty gates need room: on a phone the drawing scrolls sideways rather
+	   than shrinking to a smear. */
 	.canvas :global(svg) {
 		display: block;
 		width: 100%;
+		min-width: 720px;
 		height: auto;
-		max-width: 100%;
 	}
 
 	.equations {

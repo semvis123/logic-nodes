@@ -10,7 +10,8 @@
 		MAX_TABULATION_VARS,
 		type Tabulation
 	} from '$lib/quineMcCluskey';
-	import { toolLink } from '$lib/urlState';
+	import { onMount } from 'svelte';
+	import { readUrl, syncUrl, safeText, safeInt, toolLink } from '$lib/urlState';
 
 	// The worked example is the one most textbooks use, because its chart needs
 	// every step of the method: two essential primes, then a choice for what is
@@ -19,6 +20,18 @@
 	let varCount = 4;
 	let mintermText = '4, 8, 10, 11, 12, 15';
 	let dontCareText = '9, 14';
+
+	// A worked example travels in the link, like every tool on the site, so a
+	// particular function can be handed to someone.
+	const DEFAULTS = { v: '4', m: '4, 8, 10, 11, 12, 15', d: '9, 14' };
+	onMount(() => {
+		const p = readUrl();
+		varCount = safeInt(p.v, 1, MAX_TABULATION_VARS) ?? varCount;
+		// A parameter that is present but empty means an empty box, not the default.
+		if (p.m !== undefined) mintermText = safeText(p.m, 200) ?? '';
+		if (p.d !== undefined) dontCareText = safeText(p.d, 200) ?? '';
+	});
+	$: syncUrl({ v: varCount, m: mintermText, d: dontCareText }, DEFAULTS);
 
 	let error = '';
 	let result: Tabulation;
@@ -31,6 +44,8 @@
 		}
 	}
 	$: variables = variableNames(varCount);
+	// Indices past the last cell of the map are ignored, and it is worth saying so.
+	$: dropped = [...parseIndices(mintermText), ...parseIndices(dontCareText)].filter((m) => m >= 1 << varCount);
 	$: sigma = `Σm(${result.minterms.join(', ')})${
 		result.dontCares.length ? ` + d(${result.dontCares.join(', ')})` : ''
 	}`;
@@ -229,9 +244,9 @@
 	<section id="example">
 		<h2>A worked example</h2>
 		<p class="section-intro">
-			Every table below is computed from the function in these boxes. The default is the example most textbooks use,
-			<span class="mono">f(A, B, C, D) = Σm(4, 8, 10, 11, 12, 15) + d(9, 14)</span>, because it needs every step of the
-			method. Change it and the whole worked example changes with it.
+			Every table below is computed from the function in these boxes. The default is a classic textbook example,
+			<span class="mono">f(A, B, C, D) = Σm(4, 8, 10, 11, 12, 15) + d(9, 14)</span>, chosen because it needs every step
+			of the method. Change it and the whole worked example changes with it.
 		</p>
 		<form class="controls" on:submit|preventDefault>
 			<label>
@@ -254,6 +269,14 @@
 		{#if error}
 			<p class="error" role="alert">{error}</p>
 		{:else}
+			{#if dropped.length}
+				<p class="note" role="status">
+					{dropped.length === 1 ? 'Index' : 'Indices'}
+					{dropped.join(', ')}
+					{dropped.length === 1 ? 'is' : 'are'} beyond the {1 << varCount} cells of a {varCount} variable map, so
+					{dropped.length === 1 ? 'it is' : 'they are'} ignored.
+				</p>
+			{/if}
 			<p class="reading">
 				<span class="mono">f({variables.join(', ')}) = {sigma}</span>
 				<span class="arrow">gives</span>
@@ -612,6 +635,11 @@
 
 	.error {
 		color: #f66;
+	}
+
+	.note {
+		color: #e9c46a;
+		font-size: 0.9rem;
 	}
 
 	.reading {
