@@ -131,6 +131,8 @@
 	related={[
 		{ href: '/flip-flops', label: 'All four flip-flops' },
 		{ href: '/sr-latch', label: 'The SR latch' },
+		{ href: '/counters', label: 'Counters' },
+		{ href: '/shift-registers', label: 'Shift registers' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' }
 	]}

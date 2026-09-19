@@ -281,7 +281,7 @@
 		<p class="reducer">
 			Try it directly: two <a href="/logic-gates/nor">NOR gates</a> cross-coupled make an
 			<a href="/sr-latch">SR latch</a> you can set and reset, and it is the smallest circuit with a memory.
-			<a href="/learn#memory">The learning path</a> builds it step by step.
+			<a href="/learn/the-sr-latch">The learning path</a> builds it step by step.
 		</p>
 		<p class="reducer">
 			The two sequential circuits worth knowing next are both just flip-flops in a row:

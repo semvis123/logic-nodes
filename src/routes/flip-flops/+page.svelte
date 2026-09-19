@@ -183,7 +183,7 @@
 		</p>
 		<p class="reducer">
 			Start with two <a href="/logic-gates/nor">NOR gates</a> wired into each other, which is the
-			<a href="/sr-latch">SR latch</a> every other one is built on. <a href="/learn#memory">The learning path</a> walks through
+			<a href="/sr-latch">SR latch</a> every other one is built on. <a href="/learn/the-sr-latch">The learning path</a> walks through
 			it.
 		</p>
 	</section>

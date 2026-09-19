@@ -166,7 +166,7 @@
 		{ href: '/common-circuits/half-adder', label: 'The half adder' },
 		{ href: '/twos-complement', label: "Two's complement" },
 		{ href: '/common-circuits', label: 'All the common circuits' },
-		{ href: '/learn#full-adder', label: 'Build one in the simulator' }
+		{ href: '/learn/the-full-adder', label: 'Build one in the simulator' }
 	]}
 >
 	<section class="intro">
@@ -455,7 +455,7 @@
 			<a class="cta" href="/simulator">Open the simulator</a>
 		</p>
 		<p class="reducer">
-			Step 4 of <a href="/learn#full-adder">the learning path</a> builds the full adder and points at the calculator
+			Step 4 of <a href="/learn/the-full-adder">the learning path</a> builds the full adder and points at the calculator
 			example, which chains four of them and puts a <a href="/seven-segment-decoder">seven-segment display</a> on the end.
 		</p>
 	</section>

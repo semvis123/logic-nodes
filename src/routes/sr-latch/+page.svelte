@@ -129,7 +129,7 @@
 		{ href: '/flip-flops/sr', label: 'The SR flip-flop' },
 		{ href: '/combinational-vs-sequential', label: 'Combinational vs sequential' },
 		{ href: '/finite-state-machines', label: 'Finite state machines' },
-		{ href: '/learn#memory', label: 'Build one in the simulator' }
+		{ href: '/learn/the-sr-latch', label: 'Build one in the simulator' }
 	]}
 >
 	<section class="intro">
@@ -306,7 +306,7 @@
 			<a class="cta" href="/simulator">Open the simulator</a>
 		</p>
 		<p class="reducer">
-			It is step 5 of <a href="/learn#memory">the learning path</a>. The clocked version, with its characteristic and
+			It is step 5 of <a href="/learn/the-sr-latch">the learning path</a>. The clocked version, with its characteristic and
 			excitation tables and a demo you can clock, is on the <a href="/flip-flops/sr">SR flip-flop page</a>.
 		</p>
 	</section>

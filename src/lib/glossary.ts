@@ -50,7 +50,7 @@ export const glossary: GlossaryEntry[] = [
 		term: 'Bit',
 		slug: 'bit',
 		definition: 'One binary digit, 0 or 1. The value on a single wire in a digital circuit.',
-		href: '/learn#signals'
+		href: '/learn/what-is-a-bit'
 	},
 	{
 		term: 'Boolean algebra',
