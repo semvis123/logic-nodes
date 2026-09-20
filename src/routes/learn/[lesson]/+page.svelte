@@ -15,7 +15,7 @@
 	$: around = neighbours(data.slug);
 
 	$: page = {
-		title: `${lesson.title}: Digital Logic Course, Lesson ${where.stage}.${where.lesson}`,
+		title: `${lesson.title}: Lesson ${where.stage}.${where.lesson}`,
 		description: lesson.description,
 		url: `${SITE}/learn/${lesson.slug}`,
 		image: `${SITE}/og/learn-${lesson.slug}.png`,

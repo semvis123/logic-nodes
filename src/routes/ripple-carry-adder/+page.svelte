@@ -98,9 +98,9 @@
 	];
 
 	const page = {
-		title: 'Ripple Carry Adder: 4-Bit Adder Circuit, Truth Table and Carry Lookahead',
+		title: 'Ripple Carry Adder: Circuit, Truth Table and Lookahead',
 		description:
-			'How a ripple carry adder adds binary numbers: the full adder cell, a 4-bit adder built from four of them with a live circuit diagram and a column by column trace, why the carry makes it slow, and how a carry lookahead adder fixes that.',
+			'How a ripple carry adder works: the full adder cell, a 4-bit adder built from four with a live diagram, why the carry makes it slow, and the lookahead fix.',
 		url: `${SITE}/ripple-carry-adder`,
 		image: `${SITE}/og/ripple-carry-adder.png`,
 		imageAlt: 'LogicGates.org: the ripple carry adder'

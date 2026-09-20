@@ -77,9 +77,9 @@
 	];
 
 	const page = {
-		title: "Two's Complement: How to Convert, Add and Subtract, with Examples",
+		title: "Two's Complement: How to Convert, Add and Subtract",
 		description:
-			"What two's complement is and why computers use it: the 4-bit table of every pattern, negation by invert and add 1, worked addition and subtraction, the overflow rule, sign extension and the ranges of 8, 16 and 32 bits.",
+			"What two's complement is: the 4-bit table of every pattern, negation by invert and add 1, worked addition and subtraction, the overflow rule and sign extension.",
 		url: `${SITE}/twos-complement`,
 		image: `${SITE}/og/twos-complement.png`,
 		imageAlt: "LogicGates.org: two's complement"

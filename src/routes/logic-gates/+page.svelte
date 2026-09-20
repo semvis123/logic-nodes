@@ -74,7 +74,9 @@
 				hasPart: { '@id': `${page.url}#list` }
 			},
 			{
-				'@type': 'ItemList',
+				// hasPart, above, expects a CreativeWork; ItemList alone is not
+				// one, so it is tagged as both.
+				'@type': ['ItemList', 'CreativeWork'],
 				'@id': `${page.url}#list`,
 				name: 'The seven logic gates',
 				itemListElement: gates.map((gate, i) => ({

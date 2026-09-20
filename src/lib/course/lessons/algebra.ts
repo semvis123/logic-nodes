@@ -677,7 +677,7 @@ export const algebra: StageMeta = {
 			blurb:
 				'Three notations for the same circuit, the order operators are applied in, and going between words and symbols.',
 			description:
-				'How to write a logic circuit as a boolean expression: the maths, engineering and programming notations, precedence and brackets, and reading a circuit off an expression.',
+				'How to write a logic circuit as a boolean expression: the maths, engineering and programming notations, precedence and brackets, and reading a circuit off it.',
 			minutes: 12,
 			generators: [precedence, describeCircuit, fromPractice('expressions'), evaluateExpression],
 			deeper: [
@@ -731,7 +731,7 @@ export const algebra: StageMeta = {
 			title: 'Simplifying step by step',
 			blurb: 'A method for making an expression smaller, with two worked derivations and a way to check the answer.',
 			description:
-				'How to simplify a boolean expression by hand: look for a law, apply it, repeat, with worked examples naming the law on every line and a truth table check at the end.',
+				'How to simplify a boolean expression by hand: look for a law, apply it, repeat, with worked examples naming the law on every line and a final truth table check.',
 			minutes: 16,
 			generators: [nextStep, minimalForm, fromPractice('simplifying')],
 			deeper: [

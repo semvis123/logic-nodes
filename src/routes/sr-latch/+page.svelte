@@ -63,7 +63,7 @@
 	const page = {
 		title: 'SR Latch: NOR and NAND Circuits, Truth Table and Timing',
 		description:
-			'How the SR latch works: the NOR and NAND versions, the gated SR latch and the D latch, each with its truth table and a step diagram, plus why S = R = 1 is forbidden and how a latch differs from a flip-flop.',
+			'How the SR latch works: the NOR and NAND versions, the gated SR latch and the D latch, each with a truth table and step diagram, and why S = R = 1 is forbidden.',
 		url: `${SITE}/sr-latch`,
 		image: `${SITE}/og/sr-latch.png`,
 		imageAlt: 'LogicGates.org: the SR latch'
@@ -306,8 +306,8 @@
 			<a class="cta" href="/simulator">Open the simulator</a>
 		</p>
 		<p class="reducer">
-			It is step 5 of <a href="/learn/the-sr-latch">the learning path</a>. The clocked version, with its characteristic and
-			excitation tables and a demo you can clock, is on the <a href="/flip-flops/sr">SR flip-flop page</a>.
+			It is step 5 of <a href="/learn/the-sr-latch">the learning path</a>. The clocked version, with its characteristic
+			and excitation tables and a demo you can clock, is on the <a href="/flip-flops/sr">SR flip-flop page</a>.
 		</p>
 	</section>
 

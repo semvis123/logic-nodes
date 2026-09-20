@@ -4,6 +4,15 @@
 import { expect, test } from '@playwright/test';
 import { sitemapPaths } from './sitemap.js';
 
+// Attribute and text content come back from the server with entities like
+// &quot; or &#39; escaped, which would otherwise inflate a length check that
+// is meant to measure what a reader, or Google, actually sees.
+const decodeEntities = (s: string) =>
+	s.replace(
+		/&quot;|&#34;|&amp;|&#39;|&apos;|&lt;|&gt;/g,
+		(e) => ({ '&quot;': '"', '&#34;': '"', '&amp;': '&', '&#39;': "'", '&apos;': "'", '&lt;': '<', '&gt;': '>' }[e]!)
+	);
+
 test('the homepage leads with the tools and the reference', async ({ page }) => {
 	await page.goto('/');
 	await expect(page.locator('h1')).toHaveText('Free digital logic tools and reference');
@@ -316,4 +325,49 @@ test('every page in the sitemap is reachable', async ({ page, request }) => {
 		const response = await request.get(path);
 		expect(response.status(), `${path} returned ${response.status()}`).toBe(200);
 	}
+});
+
+test('every meta description is a snippet-length sentence, not a fragment Google will truncate', async ({
+	request
+}) => {
+	// Google can render a longer snippet, but 110-160 characters is the range
+	// that survives being shown as-is on both desktop and mobile results, and
+	// on link previews (Facebook falls back to this tag when og:description
+	// is missing) without being cut off mid-sentence.
+	const paths = await sitemapPaths(request);
+	const problems: string[] = [];
+
+	for (const path of paths) {
+		const html = await (await request.get(path)).text();
+		const match = html.match(/<meta\s+name="description"\s+content="([^"]*)"/);
+		if (!match) {
+			problems.push(`${path}: no meta description`);
+			continue;
+		}
+		const length = decodeEntities(match[1]).length;
+		if (length < 110 || length > 160) problems.push(`${path}: description is ${length} chars`);
+	}
+	expect(problems, problems.join('\n')).toEqual([]);
+});
+
+test('every title fits a search result without being truncated', async ({ request }) => {
+	// Google renders roughly 50-60 characters of a title before cutting it off
+	// (600px, which varies with the letters involved). Many of this site's
+	// titles are well under that, and a short title is not a problem Google
+	// warns about; a title so long it gets truncated mid-word is, so this only
+	// guards the ceiling, plus a low floor to catch an empty or placeholder title.
+	const paths = await sitemapPaths(request);
+	const problems: string[] = [];
+
+	for (const path of paths) {
+		const html = await (await request.get(path)).text();
+		const match = html.match(/<title>([^<]*)<\/title>/);
+		if (!match) {
+			problems.push(`${path}: no title`);
+			continue;
+		}
+		const length = decodeEntities(match[1]).length;
+		if (length < 15 || length > 60) problems.push(`${path}: title is ${length} chars: "${match[1]}"`);
+	}
+	expect(problems, problems.join('\n')).toEqual([]);
 });

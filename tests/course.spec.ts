@@ -53,7 +53,14 @@ test('every lesson has prose, and every prose file is a lesson', () => {
 	).toEqual([]);
 	expect(new Set(slugs).size, 'slugs must be unique').toBe(slugs.length);
 	for (const lesson of allLessons) {
-		expect(lesson.description.length, `${lesson.slug} description too long for a snippet`).toBeLessThanOrEqual(170);
+		expect(
+			lesson.description.length,
+			`${lesson.slug} description outside the 110-160 char range recommended for a meta description`
+		).toBeGreaterThanOrEqual(110);
+		expect(
+			lesson.description.length,
+			`${lesson.slug} description outside the 110-160 char range recommended for a meta description`
+		).toBeLessThanOrEqual(160);
 		expect(lesson.minutes, `${lesson.slug} needs a duration`).toBeGreaterThan(0);
 	}
 	for (const stage of stages) expect(stage.lessons.length, `stage ${stage.id} has no lessons`).toBeGreaterThan(0);

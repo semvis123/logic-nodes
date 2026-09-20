@@ -48,9 +48,7 @@
 	$: reading = circuit.outputs.map((o, i) => `${o.name} = ${format(asts[i].ast, 'math')}`).join('; ');
 
 	// Title case for the tab and the search result: "Half Adder", "2-to-1 Multiplexer".
-	$: title = `${circuit.name.replace(/(^|\s)[a-z]/g, (m) =>
-		m.toUpperCase()
-	)}: Truth Table, Circuit Diagram and Boolean Expression`;
+	$: title = `${circuit.name.replace(/(^|\s)[a-z]/g, (m) => m.toUpperCase())}: Truth Table and Circuit Diagram`;
 	$: description = circuit.definition;
 
 	$: jsonLd = `<script type="application/ld+json">${JSON.stringify({

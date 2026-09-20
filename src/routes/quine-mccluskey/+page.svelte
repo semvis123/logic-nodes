@@ -99,7 +99,7 @@
 	const page = {
 		title: 'Quine-McCluskey Method: Tabular Minimisation Step by Step',
 		description:
-			"How the Quine-McCluskey method minimises a boolean function: grouping minterms by 1s, merging into prime implicants, the prime implicant chart, essential primes and Petrick's method, worked on any function of up to five variables you type.",
+			"How Quine-McCluskey minimises a boolean function: grouping minterms by 1s, merging into prime implicants, the chart, essential primes and Petrick's method.",
 		url: `${SITE}/quine-mccluskey`,
 		image: `${SITE}/og/quine-mccluskey.png`,
 		imageAlt: 'LogicGates.org: the Quine-McCluskey method'

@@ -69,7 +69,7 @@
 	const page = {
 		title: "De Morgan's Laws: Explained With Proofs and Worked Examples",
 		description:
-			"De Morgan's two laws stated, proved with truth tables and applied step by step: negating brackets, more than two variables, NAND and NOR gates, and the common mistake.",
+			"De Morgan's two laws stated, proved with truth tables and applied step by step: negating brackets, more than two variables, and NAND and NOR gates.",
 		url: `${SITE}/de-morgans-laws`,
 		image: `${SITE}/og/de-morgans-laws.png`,
 		imageAlt: "LogicGates.org: De Morgan's laws"

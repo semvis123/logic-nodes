@@ -234,7 +234,7 @@
 				]
 			},
 			{
-				'@type': 'SoftwareApplication',
+				'@type': 'WebApplication',
 				'@id': `${SITE}/#app`,
 				name: 'LogicGates.org simulator',
 				alternateName: 'Logic Nodes',
