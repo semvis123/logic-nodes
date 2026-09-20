@@ -845,7 +845,7 @@ export const memory: StageMeta = {
 			title: 'Clocks and edges',
 			blurb: 'A steady tick, the instants it changes, and why everything moves on the same one.',
 			description:
-				'What a clock is, period and frequency, rising and falling edges, why memory should change only on an edge, the gated latch and a rising edge detector built from gates.',
+				'What a clock is, period and frequency, rising and falling edges, why memory should change only on an edge, the gated latch and a rising edge detector.',
 			minutes: 12,
 			generators: [countEdges, edgeWords, periodAndFrequency, edgeDetector],
 			deeper: [
@@ -859,7 +859,7 @@ export const memory: StageMeta = {
 			title: 'Flip-flops',
 			blurb: 'A latch that only listens on the clock edge: D, T and JK, with their tables and timing.',
 			description:
-				'The D, T and JK flip-flops explained: a latch that looks at its inputs only on a clock edge, with characteristic tables, a timing diagram to grow and setup time.',
+				'The D, T and JK flip-flops explained: a latch that looks at its inputs only on a clock edge, with characteristic tables, a timing diagram and setup time.',
 			minutes: 14,
 			generators: [nextQ, whichFlipFlop, whatDDoes, latchVsFlipFlop],
 			deeper: [

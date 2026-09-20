@@ -488,7 +488,7 @@ export const bits: StageMeta = {
 			title: 'Counting in binary',
 			blurb: 'Counting with only two digits, and reading a binary number without thinking.',
 			description:
-				'How to count in binary and convert between binary and decimal: place value with weights 1, 2, 4, 8, carrying when a column is full, and a bit strip to click through.',
+				'How to count in binary and convert between binary and decimal: place value with weights 1, 2, 4, 8, carrying when full, and a bit strip to click through.',
 			minutes: 12,
 			generators: [countUp, toDecimal, toBinary, bitWeight],
 			deeper: [{ href: '/binary-converter', label: 'Binary converter' }]

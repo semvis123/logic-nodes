@@ -127,7 +127,7 @@
 	const page = {
 		title: 'Truth Table Generator: Boolean Expression to Truth Table',
 		description:
-			'Type a boolean expression and get its truth table instantly. Supports AND, OR, NOT, XOR, NAND, NOR and XNOR in any notation. Free, no signup, runs in your browser.',
+			'Type a boolean expression and get its truth table instantly. Supports AND, OR, NOT, XOR, NAND, NOR and XNOR in any notation. Free, runs in your browser.',
 		url: `${SITE}/truth-table-generator`,
 		image: `${SITE}/og/truth-table-generator.png`,
 		imageAlt: 'LogicGates.org: truth table generator'
@@ -162,7 +162,7 @@
 				]
 			},
 			{
-				'@type': 'SoftwareApplication',
+				'@type': 'WebApplication',
 				'@id': `${SITE}/#app`,
 				name: 'LogicGates.org simulator',
 				alternateName: 'Logic Nodes',

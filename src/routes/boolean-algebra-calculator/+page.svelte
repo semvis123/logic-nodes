@@ -142,7 +142,7 @@
 	const page = {
 		title: 'Boolean Algebra Calculator: Simplify Step by Step',
 		description:
-			'A boolean expression simplifier that shows its working: simplify step by step with the law named at every line, or check whether two expressions are equivalent. Free.',
+			'A boolean expression simplifier that shows its working: step by step, with the law named on every line, or checks if two expressions are equivalent.',
 		url: `${SITE}/boolean-algebra-calculator`,
 		image: `${SITE}/og/boolean-algebra-calculator.png`,
 		imageAlt: 'LogicGates.org: boolean algebra calculator'
@@ -177,7 +177,7 @@
 				]
 			},
 			{
-				'@type': 'SoftwareApplication',
+				'@type': 'WebApplication',
 				'@id': `${SITE}/#app`,
 				name: 'LogicGates.org simulator',
 				alternateName: 'Logic Nodes',

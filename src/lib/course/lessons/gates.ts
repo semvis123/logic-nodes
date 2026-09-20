@@ -681,7 +681,7 @@ export const gates: StageMeta = {
 			title: 'What a logic gate is',
 			blurb: 'Inputs in, one output out, and a table that says everything there is to say about it.',
 			description:
-				'What a logic gate is: a small circuit whose output depends only on its inputs right now, and the truth table that describes it completely, one row per input combination.',
+				'What a logic gate is: a small circuit whose output depends only on its current inputs, and the truth table that describes it, one row per input combination.',
 			minutes: 10,
 			generators: [rowsForInputs, readTable, whichRow],
 			deeper: [
@@ -695,7 +695,7 @@ export const gates: StageMeta = {
 			title: 'AND and OR',
 			blurb: 'The two gates you use most: "both" and "at least one".',
 			description:
-				'The AND and OR gates in words, symbols and truth tables: AND is 1 only when every input is 1, OR when at least one is, with everyday examples and three-input versions.',
+				'The AND and OR gates in words, symbols and truth tables: AND is 1 only when every input is 1, OR when at least one is, with examples and three-input versions.',
 			minutes: 10,
 			generators: [andOrOutput, whichGateFits, countOnesAndOr, withHints(fromPractice('gates', onlyAndOr), andOrHints)],
 			deeper: [

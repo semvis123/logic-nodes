@@ -46,7 +46,7 @@
 	const page = {
 		title: 'Learn Digital Logic From Zero: A Free Interactive Course',
 		description:
-			'A free, interactive digital logic course in eight stages: bits, logic gates, boolean algebra, Karnaugh maps, adders, latches and flip-flops, counters and state machines. Every lesson explains the idea in plain words, has something to click, and ends with a quiz.',
+			'A free, interactive digital logic course in eight stages: bits, logic gates, boolean algebra, Karnaugh maps, adders, flip-flops, counters and state machines.',
 		url: `${SITE}/learn`,
 		image: `${SITE}/og/learn.png`,
 		imageAlt: 'LogicGates.org: learn digital logic'

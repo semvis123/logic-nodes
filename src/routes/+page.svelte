@@ -284,10 +284,12 @@
 			},
 			{
 				// The tools, as one list, so the homepage describes itself as the
-				// hub it is. The editor's SoftwareApplication entity is emitted by
+				// hub it is. The editor's WebApplication entity is emitted by
 				// /simulator, the page that actually is the application: declaring
 				// it here too told crawlers the site as a whole was one app.
-				'@type': 'ItemList',
+				// hasPart, below, expects a CreativeWork; ItemList alone is not
+				// one, so it is tagged as both.
+				'@type': ['ItemList', 'CreativeWork'],
 				'@id': `${SITE}/#tools`,
 				name: 'Digital logic tools',
 				itemListElement: tools.map((tool, i) => ({

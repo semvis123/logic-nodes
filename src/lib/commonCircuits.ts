@@ -28,7 +28,7 @@ export const commonCircuits: CommonCircuit[] = [
 		name: 'Half adder',
 		tagline: 'Adds two bits. Two gates.',
 		definition:
-			'A half adder is a combinational circuit that adds two single bits and produces a sum bit and a carry bit, using one XOR gate for the sum and one AND gate for the carry.',
+			'A half adder is a combinational circuit that adds two bits, producing a sum bit with one XOR gate and a carry bit with one AND gate.',
 		inputs: [
 			{ v: 'a', label: 'A' },
 			{ v: 'b', label: 'B' }
@@ -66,7 +66,7 @@ export const commonCircuits: CommonCircuit[] = [
 		name: 'Full adder',
 		tagline: 'Adds two bits and a carry in.',
 		definition:
-			'A full adder is a combinational circuit that adds three bits, two operand bits and a carry in, and produces a sum bit and a carry out, so that copies of it can be chained one per column to add whole numbers.',
+			'A full adder is a combinational circuit that adds two bits plus a carry in, producing a sum and a carry out, so copies can be chained to add whole numbers.',
 		inputs: [
 			{ v: 'a', label: 'A' },
 			{ v: 'b', label: 'B' },
@@ -109,7 +109,7 @@ export const commonCircuits: CommonCircuit[] = [
 		name: '2-to-1 multiplexer',
 		tagline: 'Picks one of two inputs.',
 		definition:
-			'A multiplexer, or mux, is a combinational circuit that selects one of several data inputs and passes it to a single output, chosen by the binary value on its select lines.',
+			'A multiplexer, or mux, is a combinational circuit that selects one of several data inputs and passes it to a single output, chosen by its select lines.',
 		inputs: [
 			{ v: 'a', label: 'A' },
 			{ v: 'b', label: 'B' },
@@ -145,7 +145,7 @@ export const commonCircuits: CommonCircuit[] = [
 		name: '1-to-2 demultiplexer',
 		tagline: 'Sends one input to one of two outputs.',
 		definition:
-			'A demultiplexer, or demux, is a combinational circuit that routes a single data input to one of several outputs, chosen by the binary value on its select lines, while the other outputs stay low.',
+			'A demultiplexer, or demux, is a combinational circuit that routes a single data input to one of several outputs, chosen by its select lines.',
 		inputs: [
 			{ v: 'd', label: 'D' },
 			{ v: 's', label: 'S' }
@@ -292,7 +292,7 @@ export const commonCircuits: CommonCircuit[] = [
 		name: '3-bit parity generator',
 		tagline: 'Says whether the number of 1s is odd.',
 		definition:
-			'A parity generator is a combinational circuit that reports whether the number of 1s among its inputs is odd, using a chain of XOR gates, so that one extra bit can be sent alongside data to catch a single flipped bit.',
+			'A parity generator is a combinational circuit that reports whether the number of 1s among its inputs is odd, using a chain of XOR gates, to catch flipped bits.',
 		inputs: [
 			{ v: 'a', label: 'A' },
 			{ v: 'b', label: 'B' },
@@ -328,7 +328,7 @@ export const commonCircuits: CommonCircuit[] = [
 		name: 'Majority voter',
 		tagline: 'High when at least two of three inputs are.',
 		definition:
-			'A majority voter is a combinational circuit whose output is 1 when more than half of its inputs are 1, so with three inputs it is 1 when at least two of them are.',
+			'A majority voter is a combinational circuit whose output is 1 when more than half of its inputs are 1: with three inputs, when at least two are.',
 		inputs: [
 			{ v: 'a', label: 'A' },
 			{ v: 'b', label: 'B' },
@@ -360,7 +360,7 @@ export const commonCircuits: CommonCircuit[] = [
 		name: 'Half subtractor',
 		tagline: 'Subtracts one bit from another. Two gates and an inverter.',
 		definition:
-			'A half subtractor is a combinational circuit that subtracts one bit from another and produces a difference bit and a borrow bit, using an XOR gate for the difference and an AND gate with one inverted input for the borrow.',
+			'A half subtractor is a combinational circuit that subtracts one bit from another, producing a difference bit with XOR and a borrow bit with one inverted AND.',
 		inputs: [
 			{ v: 'a', label: 'A' },
 			{ v: 'b', label: 'B' }
@@ -394,7 +394,7 @@ export const commonCircuits: CommonCircuit[] = [
 		name: 'Full subtractor',
 		tagline: 'Subtracts two bits and a borrow in.',
 		definition:
-			'A full subtractor is a combinational circuit that subtracts a bit and an incoming borrow from another bit, producing a difference bit and a borrow out, so that copies of it can be chained one per column to subtract whole numbers.',
+			'A full subtractor is a combinational circuit that subtracts a bit and a borrow in from another, producing a difference and a borrow out, so copies chain.',
 		inputs: [
 			{ v: 'a', label: 'A' },
 			{ v: 'b', label: 'B' },
@@ -437,7 +437,7 @@ export const commonCircuits: CommonCircuit[] = [
 		name: '3-to-8 decoder',
 		tagline: 'Turns a 3-bit number into one hot line out of eight.',
 		definition:
-			'A 3-to-8 decoder is a combinational circuit that takes a three-bit binary number and raises exactly one of its eight outputs, the one whose index matches the input.',
+			'A 3-to-8 decoder is a combinational circuit that takes a three-bit number and raises the one output whose index matches the input.',
 		inputs: [
 			{ v: 'a', label: 'A' },
 			{ v: 'b', label: 'B' },
@@ -482,7 +482,7 @@ export const commonCircuits: CommonCircuit[] = [
 		name: '2-bit comparator',
 		tagline: 'Compares two 2-bit numbers: equal, greater or less.',
 		definition:
-			'A 2-bit magnitude comparator is a combinational circuit that takes two two-bit numbers and reports whether the first is equal to, greater than or less than the second, by comparing the high bits first and the low bits only when the high bits match.',
+			'A 2-bit magnitude comparator is a combinational circuit that says whether the first of two two-bit numbers is equal to, greater than or less than the second.',
 		inputs: [
 			{ v: 'a', label: 'A1' },
 			{ v: 'b', label: 'A0' },
