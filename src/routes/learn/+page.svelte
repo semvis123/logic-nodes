@@ -11,7 +11,10 @@
 	$: done = allLessons.filter((l) => $progress[l.slug]?.done).length;
 	// The first lesson not yet finished is where "continue" goes.
 	$: next = allLessons.find((l) => !$progress[l.slug]?.done) ?? allLessons[0];
-	$: hours = Math.round(totalMinutes / 30) / 2;
+	// A plain const, not a reactive statement: the FAQ text below is built once
+	// at init, before any `$:` block has run, so a reactive `hours` was still
+	// undefined when it was read and the page said "about undefined hours".
+	const hours = Math.round(totalMinutes / 30) / 2;
 
 	function reset() {
 		if (confirm('Clear your progress on every lesson?')) resetProgress();
