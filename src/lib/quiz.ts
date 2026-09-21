@@ -73,16 +73,16 @@ function assemble(random: () => number, correct: string, distractors: string[]):
 	return shuffle(random, [correct, ...distractors]);
 }
 
-function randomAst(random: () => number, pool: string[], depth: number): Ast {
-	if (depth <= 0 || random() < 0.3) {
+function randomAst(random: () => number, pool: string[], depth: number, stopChance = 0.3): Ast {
+	if (depth <= 0 || random() < stopChance) {
 		const name = pick(random, pool);
 		return random() < 0.3 ? { t: 'not', a: { t: 'var', name } } : { t: 'var', name };
 	}
 	const kind = random() < 0.45 ? 'and' : random() < 0.75 ? 'or' : 'xor';
 	return {
 		t: kind,
-		a: randomAst(random, pool, depth - 1),
-		b: randomAst(random, pool, depth - 1)
+		a: randomAst(random, pool, depth - 1, stopChance),
+		b: randomAst(random, pool, depth - 1, stopChance)
 	} as Ast;
 }
 
@@ -187,9 +187,36 @@ function identifyGate(random: () => number): Question | null {
 	};
 }
 
-function evaluateQuestion(random: () => number): Question | null {
+/**
+ * How much deeper an expression gets for each step of adaptive difficulty.
+ * Used only by the three generators with no external size limit (evaluate,
+ * equivalent, count-ones): the diagram generators tried this too, but a
+ * bigger tree there almost always means more than MAX_QUIZ_GATES gates, so
+ * most attempts were refused and the question fell back to an easier kind
+ * instead of a harder one. Capped at one extra level, since raising it
+ * further mainly fed more of `isClean`'s own rejections rather than reaching
+ * the reader.
+ */
+function depthFor(base: number, difficulty: number): number {
+	return base + (difficulty > 0 ? 1 : 0);
+}
+
+/**
+ * `randomAst` stops early at almost every node by default, so raising the
+ * depth cap alone barely changes the typical tree: bigger trees are also
+ * rejected more often by `isClean`, and only the "lucky" small survivors get
+ * asked. Cutting the early-stop chance is what actually shifts the odds
+ * toward bigger expressions surviving that filter, so this does most of the
+ * work; kept gentle so it still succeeds most attempts. Same scope as
+ * `depthFor` above: the diagram generators don't use it.
+ */
+function stopChanceFor(difficulty: number): number {
+	return Math.max(0.3 - Math.max(0, difficulty) * 0.08, 0.15);
+}
+
+function evaluateQuestion(random: () => number, difficulty = 0): Question | null {
 	const pool = ['a', 'b', 'c'].slice(0, 2 + Math.floor(random() * 2));
-	const ast = randomAst(random, pool, 2);
+	const ast = randomAst(random, pool, depthFor(2, difficulty), stopChanceFor(difficulty));
 	const variables = variablesOf(ast);
 	if (variables.length < 2) return null;
 	if (!isClean(ast)) return null;
@@ -207,9 +234,11 @@ function evaluateQuestion(random: () => number): Question | null {
 	};
 }
 
-function equivalentQuestion(random: () => number): Question | null {
+function equivalentQuestion(random: () => number, difficulty = 0): Question | null {
 	const pool = ['a', 'b', 'c'];
-	const ast = randomAst(random, pool, 2);
+	const depth = depthFor(2, difficulty);
+	const stopChance = stopChanceFor(difficulty);
+	const ast = randomAst(random, pool, depth, stopChance);
 	const table = truthTable(ast);
 	if (table.variables.length < 2 || !isClean(ast)) return null;
 	const minimal = simplify(table, 'math');
@@ -220,7 +249,7 @@ function equivalentQuestion(random: () => number): Question | null {
 	// Distractors have to be genuinely wrong, so each is checked.
 	const candidates: string[] = [];
 	for (let attempt = 0; attempt < 40 && candidates.length < 3; attempt++) {
-		const other = randomAst(random, table.variables, 2);
+		const other = randomAst(random, table.variables, depth, stopChance);
 		if (variablesOf(other).length < 1) continue;
 		const text = simplify(truthTable(other, table.variables), 'math').text;
 		if (text === '0' || text === '1' || text === correct) continue;
@@ -241,9 +270,9 @@ function equivalentQuestion(random: () => number): Question | null {
 	};
 }
 
-function countOnes(random: () => number): Question | null {
+function countOnes(random: () => number, difficulty = 0): Question | null {
 	const pool = ['a', 'b', 'c'];
-	const ast = randomAst(random, pool, 2);
+	const ast = randomAst(random, pool, depthFor(2, difficulty), stopChanceFor(difficulty));
 	const table = truthTable(ast);
 	if (table.variables.length < 2 || !isClean(ast)) return null;
 	const count = table.rows.filter(Boolean).length;
@@ -312,9 +341,17 @@ function diagramOf(
 	}
 }
 
+/**
+ * circuitExpression and circuitOutput deliberately ignore `difficulty`: a
+ * bigger tree here almost always means more than MAX_QUIZ_GATES gates, or (for
+ * circuitExpression) no way to find three distractors with a matching gate
+ * count, so raising it just made the generator fail more often and fall back
+ * to an easier kind — the opposite of what adaptive difficulty is for.
+ */
 function circuitExpression(random: () => number): Question | null {
 	const pool = ['a', 'b', 'c'];
-	const ast = randomAst(random, pool, 2);
+	const depth = 2;
+	const ast = randomAst(random, pool, depth);
 	const table = truthTable(ast);
 	if (table.variables.length < 2 || !isClean(ast)) return null;
 	const correct = format(ast, 'math');
@@ -328,7 +365,7 @@ function circuitExpression(random: () => number): Question | null {
 	}
 	const candidates: string[] = [];
 	for (let attempt = 0; attempt < 120 && candidates.length < 3; attempt++) {
-		const other = randomAst(random, table.variables, 2);
+		const other = randomAst(random, table.variables, depth);
 		if (!isClean(other)) continue;
 		// A wrong answer with a different number of gates can be dismissed by
 		// counting the shapes in the picture, without reading any of them.
@@ -387,7 +424,9 @@ function circuitOutput(random: () => number): Question | null {
 	};
 }
 
-const GENERATORS = [
+type Generator = (random: () => number, difficulty?: number) => Question | null;
+
+const GENERATORS: Generator[] = [
 	gateOutput,
 	identifyGate,
 	evaluateQuestion,
@@ -426,9 +465,11 @@ export const questionSignature = (q: Question) =>
 
 /**
  * Builds one question. The same seed always produces the same question, which
- * keeps server rendering and the browser in step.
+ * keeps server rendering and the browser in step. `difficulty` nudges the
+ * expression-based generators toward deeper, harder expressions; 0 is the
+ * baseline every existing seed was tuned against.
  */
-export function makeQuestion(seed: number, topic: Topic = 'mixed'): Question {
+export function makeQuestion(seed: number, topic: Topic = 'mixed', difficulty = 0): Question {
 	const generators = BY_TOPIC[topic] ?? GENERATORS;
 	// The generator is chosen from the seed alone and then retried with fresh
 	// randomness. Advancing to the next generator on every refusal would pour
@@ -436,14 +477,14 @@ export function makeQuestion(seed: number, topic: Topic = 'mixed'): Question {
 	// of that one kind.
 	const chosen = generators[seed % generators.length];
 	for (let attempt = 0; attempt < 200; attempt++) {
-		const question = chosen(rng(seed + attempt * 7919));
+		const question = chosen(rng(seed + attempt * 7919), difficulty);
 		if (question) return question;
 	}
 	// It will not produce anything for this seed at all. Only now try the rest,
 	// and only ones this topic actually offers.
 	for (let i = 1; i < generators.length; i++) {
 		for (let attempt = 0; attempt < 50; attempt++) {
-			const question = generators[(seed + i) % generators.length](rng(seed + i * 104729 + attempt * 7919));
+			const question = generators[(seed + i) % generators.length](rng(seed + i * 104729 + attempt * 7919), difficulty);
 			if (question) return question;
 		}
 	}
@@ -459,12 +500,13 @@ export function makeQuestion(seed: number, topic: Topic = 'mixed'): Question {
 export function nextQuestion(
 	topic: Topic,
 	recent: string[],
-	random: () => number = Math.random
+	random: () => number = Math.random,
+	difficulty = 0
 ): { seed: number; question: Question } {
 	let fallback: { seed: number; question: Question } | null = null;
 	for (let attempt = 0; attempt < 80; attempt++) {
 		const seed = Math.floor(random() * 1_000_000) + 1;
-		const question = makeQuestion(seed, topic);
+		const question = makeQuestion(seed, topic, difficulty);
 		fallback ??= { seed, question };
 		if (!recent.includes(questionSignature(question))) return { seed, question };
 	}

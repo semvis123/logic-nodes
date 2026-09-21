@@ -2,7 +2,7 @@
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import {
 		makeQuestion,
 		nextQuestion,
@@ -30,6 +30,26 @@
 	let best = 0;
 	/** Signatures of the last few questions, so they do not come round again. */
 	let recent: string[] = [];
+	let nextBtn: HTMLButtonElement | undefined;
+
+	const KIND_LABELS: Record<Question['kind'], string> = {
+		'gate-output': 'Gate output',
+		'identify-gate': 'Identify the gate',
+		evaluate: 'Evaluate an expression',
+		equivalent: 'Find the equivalent',
+		'count-ones': 'Count the ones',
+		'circuit-expression': 'Read a circuit',
+		'circuit-output': 'Trace a circuit'
+	};
+	const KIND_ORDER = Object.keys(KIND_LABELS) as Question['kind'][];
+	/** Correct/total per kind of question, for the mixed-mode breakdown. */
+	let byKind: Partial<Record<Question['kind'], { correct: number; total: number }>> = {};
+
+	// A run of three correct answers in a row raises the difficulty by one
+	// step, up to two; a miss (which zeroes the streak) drops it straight back.
+	// A plain function rather than a `$:` value: `reset` changes `streak` and
+	// calls `advance` in the same tick, before a reactive statement would catch up.
+	const difficultyFor = (s: number) => Math.min(Math.floor(s / 3), 2);
 
 	onMount(() => {
 		topic =
@@ -43,23 +63,31 @@
 	$: isRight = chosen !== null && chosen === question.answer;
 
 	function advance() {
-		const picked = nextQuestion(topic, recent);
+		const picked = nextQuestion(topic, recent, Math.random, difficultyFor(streak));
 		question = picked.question;
 		recent = [...recent, questionSignature(picked.question)].slice(-RECENT_LIMIT);
 		chosen = null;
 	}
 
-	function choose(index: number) {
+	async function choose(index: number) {
 		if (chosen !== null) return;
 		chosen = index;
 		answered += 1;
+		const entry = byKind[question.kind] ?? { correct: 0, total: 0 };
+		entry.total += 1;
 		if (index === question.answer) {
 			correct += 1;
 			streak += 1;
 			best = Math.max(best, streak);
+			entry.correct += 1;
 		} else {
 			streak = 0;
 		}
+		byKind = { ...byKind, [question.kind]: entry };
+		// The chosen option (and every other, now disabled) can no longer hold
+		// focus, so hand it to "Next question" rather than dropping it to <body>.
+		await tick();
+		nextBtn?.focus();
 	}
 
 	function setTopic(next: Topic) {
@@ -75,7 +103,32 @@
 		streak = 0;
 		best = 0;
 		recent = [];
+		byKind = {};
 		advance();
+	}
+
+	/**
+	 * Number keys pick an answer, Enter/Space moves on once one is marked.
+	 * Ignored while a form control would otherwise handle the key itself, so a
+	 * keyboard user tabbed onto a button does not trigger it twice.
+	 */
+	function onKeydown(e: KeyboardEvent) {
+		if (e.altKey || e.ctrlKey || e.metaKey) return;
+		const tag = (e.target as HTMLElement | null)?.tagName;
+		if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+		if (chosen === null) {
+			const n = Number(e.key);
+			if (Number.isInteger(n) && n >= 1 && n <= question.options.length) {
+				e.preventDefault();
+				choose(n - 1);
+			}
+			return;
+		}
+		if ((e.key === 'Enter' || e.key === ' ') && tag !== 'BUTTON' && tag !== 'A') {
+			e.preventDefault();
+			advance();
+		}
 	}
 
 	const faqs = [
@@ -90,6 +143,14 @@
 		{
 			q: 'Is there a time limit or a score to beat?',
 			a: 'No timer. The counter tracks how many you have answered, how many were right and your current streak, and nothing is sent anywhere or stored between visits.'
+		},
+		{
+			q: 'Does it get harder?',
+			a: 'For the expression-based questions, yes: three correct answers in a row and it starts drawing longer, more deeply nested expressions; miss one and it drops straight back to the baseline. The level shown next to your streak is where that stands. Diagrams stay the same size at every level, so a circuit is never too big to draw.'
+		},
+		{
+			q: 'Can I answer without a mouse?',
+			a: 'Number keys pick an option and Enter moves on once a question is marked, so a whole run can be done from the keyboard.'
 		}
 	];
 
@@ -155,6 +216,8 @@
 	{@html jsonLd}
 </svelte:head>
 
+<svelte:window on:keydown={onKeydown} />
+
 <ContentPage
 	related={[
 		{ href: '/worksheet', label: 'Printable worksheets' },
@@ -194,10 +257,25 @@
 				<span><strong>{correct}</strong> / {answered} correct</span>
 				<span>streak <strong>{streak}</strong></span>
 				{#if best > 1}<span>best <strong>{best}</strong></span>{/if}
+				<span title="Three in a row raises the difficulty; a miss drops it back">
+					level <strong>{difficultyFor(streak) + 1}</strong>
+				</span>
 				{#if answered > 0}
 					<button type="button" class="link-btn" on:click={reset}>reset</button>
 				{/if}
 			</div>
+
+			{#if topic === 'mixed' && answered > 0}
+				<div class="breakdown">
+					{#each KIND_ORDER as kind}
+						{#if byKind[kind]}
+							<span class="chip"
+								>{KIND_LABELS[kind]} <strong>{byKind[kind]?.correct}/{byKind[kind]?.total}</strong></span
+							>
+						{/if}
+					{/each}
+				</div>
+			{/if}
 
 			<p class="prompt">{question.prompt}</p>
 
@@ -255,6 +333,7 @@
 					</button>
 				{/each}
 			</div>
+			<p class="hint">Press 1–{question.options.length} to answer, Enter for the next question.</p>
 
 			{#if chosen !== null}
 				<div class="feedback" class:right={isRight} role="status">
@@ -266,7 +345,7 @@
 						The diagram above now shows every wire: green is 1, red is 0.
 					{/if}
 				</div>
-				<button type="button" class="cta next" on:click={advance}>Next question</button>
+				<button type="button" class="cta next" bind:this={nextBtn} on:click={advance}>Next question</button>
 			{/if}
 		</div>
 	</section>
@@ -419,6 +498,26 @@
 		text-decoration: underline;
 		cursor: pointer;
 		margin-left: auto;
+	}
+
+	.breakdown {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem 1rem;
+		color: #888;
+		font-size: 0.78rem;
+		margin: -0.4rem 0 1rem;
+	}
+
+	.chip strong {
+		color: #ccc;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	}
+
+	.hint {
+		color: #777;
+		font-size: 0.78rem;
+		margin: 0.6rem 0 0;
 	}
 
 	.prompt {
