@@ -2,7 +2,7 @@
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import {
 		makeQuestion,
 		nextQuestion,
@@ -12,14 +12,37 @@
 		type Topic,
 		type Question
 	} from '$lib/quiz';
+	import type { Notation } from '$lib/boolean';
+	import type { Standard } from '$lib/exportSvg';
 
 	import { readUrl, syncUrl, safeOption } from '$lib/urlState';
 
+	const STANDARD_OPTIONS: { id: Standard; label: string }[] = [
+		{ id: 'ansi', label: 'ANSI' },
+		{ id: 'iec', label: 'IEC' }
+	];
+	const NOTATION_OPTIONS: { id: Notation; label: string }[] = [
+		{ id: 'math', label: 'Mathematical' },
+		{ id: 'engineering', label: 'Engineering' },
+		{ id: 'programming', label: 'Programming' }
+	];
+
+	/** Comma-joined, since the query string only holds plain values. */
+	function parseSet<T extends string>(value: string | undefined, allowed: readonly T[]): T[] {
+		if (!value) return [];
+		const found = value.split(',').filter((token): token is T => (allowed as readonly string[]).includes(token));
+		return [...new Set(found)];
+	}
+
 	// Every setting lives in the query string, so a link reopens this exactly.
-	const DEFAULTS = { topic: 'mixed' };
-	$: syncUrl({ topic }, DEFAULTS);
+	const DEFAULTS = { topic: 'mixed', symbols: 'ansi', notation: 'math' };
+	$: syncUrl({ topic, symbols: standards.join(','), notation: notations.join(',') }, DEFAULTS);
 
 	let topic: Topic = 'mixed';
+	// Which gate-symbol standards and expression notations to draw questions
+	// from; checking more than one mixes them at random, question to question.
+	let standards: Standard[] = ['ansi'];
+	let notations: Notation[] = ['math'];
 	// A fixed seed for the server render, so the markup matches on hydration;
 	// onMount immediately swaps in a random one so a reload is never the same.
 	let question: Question = makeQuestion(1, 'mixed');
@@ -30,36 +53,86 @@
 	let best = 0;
 	/** Signatures of the last few questions, so they do not come round again. */
 	let recent: string[] = [];
+	let nextBtn: HTMLButtonElement | undefined;
+
+	/** Correct/wrong for recent answers, oldest first, for the run sparkline. */
+	let history: boolean[] = [];
+	const HISTORY_LIMIT = 20;
+
+	type Missed = { id: number; question: Question; chosenIndex: number };
+	/** Every question missed this session, so it can be reviewed afterwards. */
+	let missed: Missed[] = [];
+	let missedIdCounter = 0;
+	const MISSED_LIMIT = 30;
+
+	const KIND_LABELS: Record<Question['kind'], string> = {
+		'gate-output': 'Gate output',
+		'identify-gate': 'Identify the gate',
+		evaluate: 'Evaluate an expression',
+		equivalent: 'Find the equivalent',
+		'count-ones': 'Count the ones',
+		'circuit-expression': 'Read a circuit',
+		'circuit-output': 'Trace a circuit'
+	};
+	const KIND_ORDER = Object.keys(KIND_LABELS) as Question['kind'][];
+	/** Correct/total per kind of question, for the mixed-mode breakdown. */
+	let byKind: Partial<Record<Question['kind'], { correct: number; total: number }>> = {};
+
+	// A run of three correct answers in a row raises the difficulty by one
+	// step, up to two; a miss (which zeroes the streak) drops it straight back.
+	// A plain function rather than a `$:` value: `reset` changes `streak` and
+	// calls `advance` in the same tick, before a reactive statement would catch up.
+	const difficultyFor = (s: number) => Math.min(Math.floor(s / 3), 2);
 
 	onMount(() => {
+		const p = readUrl();
 		topic =
 			safeOption(
-				readUrl().topic,
+				p.topic,
 				topics.map((t) => t.id)
 			) ?? topic;
+		const parsedStandards = parseSet(p.symbols, ['ansi', 'iec'] as const);
+		if (parsedStandards.length) standards = parsedStandards;
+		const parsedNotations = parseSet(p.notation, ['math', 'engineering', 'programming'] as const);
+		if (parsedNotations.length) notations = parsedNotations;
 		advance();
 	});
 
 	$: isRight = chosen !== null && chosen === question.answer;
 
 	function advance() {
-		const picked = nextQuestion(topic, recent);
+		const picked = nextQuestion(topic, recent, Math.random, {
+			difficulty: difficultyFor(streak),
+			standards,
+			notations
+		});
 		question = picked.question;
 		recent = [...recent, questionSignature(picked.question)].slice(-RECENT_LIMIT);
 		chosen = null;
 	}
 
-	function choose(index: number) {
+	async function choose(index: number) {
 		if (chosen !== null) return;
 		chosen = index;
 		answered += 1;
-		if (index === question.answer) {
+		const entry = byKind[question.kind] ?? { correct: 0, total: 0 };
+		entry.total += 1;
+		const right = index === question.answer;
+		if (right) {
 			correct += 1;
 			streak += 1;
 			best = Math.max(best, streak);
+			entry.correct += 1;
 		} else {
 			streak = 0;
+			missed = [...missed, { id: missedIdCounter++, question, chosenIndex: index }].slice(-MISSED_LIMIT);
 		}
+		byKind = { ...byKind, [question.kind]: entry };
+		history = [...history, right].slice(-HISTORY_LIMIT);
+		// The chosen option (and every other, now disabled) can no longer hold
+		// focus, so hand it to "Next question" rather than dropping it to <body>.
+		await tick();
+		nextBtn?.focus();
 	}
 
 	function setTopic(next: Topic) {
@@ -69,13 +142,62 @@
 		advance();
 	}
 
+	/** Toggling a representation setting reshuffles the current question, so
+	 *  the change is visible right away rather than waiting for "Next". */
+	function toggleStandard(id: Standard) {
+		if (standards.includes(id)) {
+			if (standards.length === 1) return; // always at least one
+			standards = standards.filter((s) => s !== id);
+		} else {
+			standards = [...standards, id];
+		}
+		advance();
+	}
+
+	function toggleNotation(id: Notation) {
+		if (notations.includes(id)) {
+			if (notations.length === 1) return;
+			notations = notations.filter((n) => n !== id);
+		} else {
+			notations = [...notations, id];
+		}
+		advance();
+	}
+
 	function reset() {
 		answered = 0;
 		correct = 0;
 		streak = 0;
 		best = 0;
 		recent = [];
+		byKind = {};
+		history = [];
+		missed = [];
 		advance();
+	}
+
+	/**
+	 * Number keys pick an answer, Enter/Space moves on once one is marked.
+	 * Ignored while a form control would otherwise handle the key itself, so a
+	 * keyboard user tabbed onto a button does not trigger it twice.
+	 */
+	function onKeydown(e: KeyboardEvent) {
+		if (e.altKey || e.ctrlKey || e.metaKey) return;
+		const tag = (e.target as HTMLElement | null)?.tagName;
+		if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+		if (chosen === null) {
+			const n = Number(e.key);
+			if (Number.isInteger(n) && n >= 1 && n <= question.options.length) {
+				e.preventDefault();
+				choose(n - 1);
+			}
+			return;
+		}
+		if ((e.key === 'Enter' || e.key === ' ') && tag !== 'BUTTON' && tag !== 'A') {
+			e.preventDefault();
+			advance();
+		}
 	}
 
 	const faqs = [
@@ -90,6 +212,22 @@
 		{
 			q: 'Is there a time limit or a score to beat?',
 			a: 'No timer. The counter tracks how many you have answered, how many were right and your current streak, and nothing is sent anywhere or stored between visits.'
+		},
+		{
+			q: 'Does it get harder?',
+			a: 'For the expression-based questions, yes: three correct answers in a row and it starts drawing longer, more deeply nested expressions; miss one and it drops straight back to the baseline. The level shown next to your streak is where that stands. Diagrams stay the same size at every level, so a circuit is never too big to draw.'
+		},
+		{
+			q: 'Can I answer without a mouse?',
+			a: 'Number keys pick an option and Enter moves on once a question is marked, so a whole run can be done from the keyboard.'
+		},
+		{
+			q: 'Can I use IEC symbols or a different notation?',
+			a: 'Open "Representation" above the topics to check any mix of ANSI/IEC gate symbols and mathematical/engineering/programming notation. Check more than one and questions draw from all of them at random; it defaults to whichever single one the rest of the site starts on.'
+		},
+		{
+			q: 'Can I go back over what I got wrong?',
+			a: '"Review your misses" appears under the question once you have missed at least one, with the correct answer and a link to go explore it further. It is cleared by reset, like everything else here.'
 		}
 	];
 
@@ -155,6 +293,8 @@
 	{@html jsonLd}
 </svelte:head>
 
+<svelte:window on:keydown={onKeydown} />
+
 <ContentPage
 	related={[
 		{ href: '/worksheet', label: 'Printable worksheets' },
@@ -189,15 +329,62 @@
 			{/each}
 		</div>
 
+		<details class="settings">
+			<summary>Representation</summary>
+			<div class="settings-groups">
+				<fieldset>
+					<legend>Gate symbols</legend>
+					{#each STANDARD_OPTIONS as opt}
+						<label class="check">
+							<input type="checkbox" checked={standards.includes(opt.id)} on:change={() => toggleStandard(opt.id)} />
+							{opt.label}
+						</label>
+					{/each}
+				</fieldset>
+				<fieldset>
+					<legend>Expression notation</legend>
+					{#each NOTATION_OPTIONS as opt}
+						<label class="check">
+							<input type="checkbox" checked={notations.includes(opt.id)} on:change={() => toggleNotation(opt.id)} />
+							{opt.label}
+						</label>
+					{/each}
+				</fieldset>
+			</div>
+		</details>
+
 		<div class="card quiz">
 			<div class="score">
 				<span><strong>{correct}</strong> / {answered} correct</span>
 				<span>streak <strong>{streak}</strong></span>
 				{#if best > 1}<span>best <strong>{best}</strong></span>{/if}
+				<span title="Three in a row raises the difficulty; a miss drops it back">
+					level <strong>{difficultyFor(streak) + 1}</strong>
+				</span>
 				{#if answered > 0}
 					<button type="button" class="link-btn" on:click={reset}>reset</button>
 				{/if}
 			</div>
+
+			{#if history.length > 0}
+				<div class="history" aria-hidden="true">
+					{#each history as ok}
+						<span class="dot" class:ok />
+					{/each}
+				</div>
+			{/if}
+
+			{#if topic === 'mixed' && answered > 0}
+				<div class="breakdown">
+					{#each KIND_ORDER as kind}
+						{#if byKind[kind]}
+							<span class="chip"
+								>{KIND_LABELS[kind]} <strong>{byKind[kind]?.correct}/{byKind[kind]?.total}</strong></span
+							>
+						{/if}
+					{/each}
+				</div>
+			{/if}
 
 			<p class="prompt">{question.prompt}</p>
 
@@ -255,6 +442,7 @@
 					</button>
 				{/each}
 			</div>
+			<p class="hint">Press 1–{question.options.length} to answer, Enter for the next question.</p>
 
 			{#if chosen !== null}
 				<div class="feedback" class:right={isRight} role="status">
@@ -265,10 +453,39 @@
 						     the others just add a caption. -->
 						The diagram above now shows every wire: green is 1, red is 0.
 					{/if}
+					{#if question.link}
+						<a class="explore" href={question.link.href}>{question.link.label} →</a>
+					{/if}
 				</div>
-				<button type="button" class="cta next" on:click={advance}>Next question</button>
+				<button type="button" class="cta next" bind:this={nextBtn} on:click={advance}>Next question</button>
 			{/if}
 		</div>
+
+		{#if missed.length > 0}
+			<details class="card missed">
+				<summary>Review your misses ({missed.length})</summary>
+				<ol class="missed-list">
+					{#each [...missed].reverse() as m (m.id)}
+						<li>
+							<p class="missed-prompt">
+								{m.question.prompt}
+								{#if m.question.detail}<span class="mono">{m.question.detail}</span>{/if}
+							</p>
+							<p class="missed-answer">
+								Correct: <strong class="mono">{m.question.options[m.question.answer]}</strong> — you chose
+								<strong class="mono">{m.question.options[m.chosenIndex]}</strong>
+							</p>
+							<p class="missed-explain">
+								{m.question.explanation}
+								{#if m.question.link}
+									<a href={m.question.link.href}>{m.question.link.label} →</a>
+								{/if}
+							</p>
+						</li>
+					{/each}
+				</ol>
+			</details>
+		{/if}
 	</section>
 
 	<section>
@@ -389,6 +606,50 @@
 		color: #fff;
 	}
 
+	.settings {
+		margin-bottom: 14px;
+		color: #ccc;
+		font-size: 0.85rem;
+	}
+
+	.settings summary {
+		cursor: pointer;
+		color: #ddd;
+		width: fit-content;
+	}
+
+	.settings summary:hover {
+		color: #fff;
+	}
+
+	.settings-groups {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1.4rem;
+		margin-top: 0.6rem;
+	}
+
+	.settings fieldset {
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 3px;
+		padding: 0.5rem 0.8rem 0.6rem;
+		margin: 0;
+	}
+
+	.settings legend {
+		padding: 0 0.3rem;
+		color: #888;
+		font-size: 0.75rem;
+	}
+
+	.check {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.15rem 0;
+		cursor: pointer;
+	}
+
 	.quiz {
 		padding: 1.1rem 1.2rem 1.3rem;
 	}
@@ -419,6 +680,44 @@
 		text-decoration: underline;
 		cursor: pointer;
 		margin-left: auto;
+	}
+
+	.history {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 3px;
+		margin: -0.5rem 0 1rem;
+	}
+
+	.dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 2px;
+		background-color: #a22;
+	}
+
+	.dot.ok {
+		background-color: #5db65d;
+	}
+
+	.breakdown {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem 1rem;
+		color: #888;
+		font-size: 0.78rem;
+		margin: -0.4rem 0 1rem;
+	}
+
+	.chip strong {
+		color: #ccc;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	}
+
+	.hint {
+		color: #777;
+		font-size: 0.78rem;
+		margin: 0.6rem 0 0;
 	}
 
 	.prompt {
@@ -538,7 +837,75 @@
 		color: #fff;
 	}
 
+	.explore {
+		display: block;
+		margin-top: 0.5rem;
+		color: #8ede8e;
+	}
+
 	.next {
 		margin-top: 1rem;
+	}
+
+	.missed {
+		margin-top: 1rem;
+		padding: 0.9rem 1.1rem;
+		color: #ccc;
+		font-size: 0.9rem;
+	}
+
+	.missed summary {
+		cursor: pointer;
+		color: #ddd;
+	}
+
+	.missed summary:hover {
+		color: #fff;
+	}
+
+	.missed-list {
+		list-style: none;
+		margin: 0.8rem 0 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.8rem;
+	}
+
+	.missed-list li {
+		padding-top: 0.8rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.12);
+	}
+
+	.missed-list li:first-child {
+		padding-top: 0;
+		border-top: none;
+	}
+
+	.missed-prompt {
+		color: #fff;
+		margin: 0 0 0.3rem;
+	}
+
+	.missed-answer {
+		color: #aaa;
+		font-size: 0.85rem;
+		margin: 0 0 0.3rem;
+	}
+
+	.missed-answer strong {
+		color: #ddd;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	}
+
+	.missed-explain {
+		color: #999;
+		font-size: 0.85rem;
+		margin: 0;
+	}
+
+	.missed-explain a {
+		color: #8ede8e;
+		margin-left: 0.4rem;
 	}
 </style>
