@@ -15,7 +15,7 @@
 	import type { Notation } from '$lib/boolean';
 	import type { Standard } from '$lib/exportSvg';
 
-	import { readUrl, syncUrl, safeOption } from '$lib/urlState';
+	import { readUrl, syncUrl, safeOption, toolLink } from '$lib/urlState';
 
 	const STANDARD_OPTIONS: { id: Standard; label: string }[] = [
 		{ id: 'ansi', label: 'ANSI' },
@@ -35,18 +35,27 @@
 	}
 
 	// Every setting lives in the query string, so a link reopens this exactly.
-	const DEFAULTS = { topic: 'mixed', symbols: 'ansi', notation: 'math' };
-	$: syncUrl({ topic, symbols: standards.join(','), notation: notations.join(',') }, DEFAULTS);
+	const DEFAULTS = { topic: 'mixed', symbols: 'ansi', notation: 'math', type: '' };
+	$: syncUrl(
+		{ topic, symbols: standards.join(','), notation: notations.join(','), type: typeMode ? '1' : '' },
+		DEFAULTS
+	);
 
 	let topic: Topic = 'mixed';
 	// Which gate-symbol standards and expression notations to draw questions
 	// from; checking more than one mixes them at random, question to question.
 	let standards: Standard[] = ['ansi'];
 	let notations: Notation[] = ['math'];
+	// Type the answer instead of picking one of the four options.
+	let typeMode = false;
 	// A fixed seed for the server render, so the markup matches on hydration;
 	// onMount immediately swaps in a random one so a reload is never the same.
 	let question: Question = makeQuestion(1, 'mixed');
 	let chosen: number | null = null;
+	/** The typed-mode equivalent of `chosen`: null until submitted. */
+	let typed: { value: string; right: boolean } | null = null;
+	let typedValue = '';
+	let typedInput: HTMLInputElement | undefined;
 	let answered = 0;
 	let correct = 0;
 	let streak = 0;
@@ -59,7 +68,7 @@
 	let history: boolean[] = [];
 	const HISTORY_LIMIT = 20;
 
-	type Missed = { id: number; question: Question; chosenIndex: number };
+	type Missed = { id: number; question: Question; yourAnswer: string };
 	/** Every question missed this session, so it can be reviewed afterwards. */
 	let missed: Missed[] = [];
 	let missedIdCounter = 0;
@@ -95,12 +104,13 @@
 		if (parsedStandards.length) standards = parsedStandards;
 		const parsedNotations = parseSet(p.notation, ['math', 'engineering', 'programming'] as const);
 		if (parsedNotations.length) notations = parsedNotations;
+		typeMode = p.type === '1';
 		advance();
 	});
 
-	$: isRight = chosen !== null && chosen === question.answer;
+	$: isRight = chosen !== null ? chosen === question.answer : typed !== null ? typed.right : false;
 
-	function advance() {
+	async function advance() {
 		const picked = nextQuestion(topic, recent, Math.random, {
 			difficulty: difficultyFor(streak),
 			standards,
@@ -109,15 +119,20 @@
 		question = picked.question;
 		recent = [...recent, questionSignature(picked.question)].slice(-RECENT_LIMIT);
 		chosen = null;
+		typed = null;
+		typedValue = '';
+		if (typeMode) {
+			// So a keyboard-first run never needs a click to keep going.
+			await tick();
+			typedInput?.focus();
+		}
 	}
 
-	async function choose(index: number) {
-		if (chosen !== null) return;
-		chosen = index;
+	/** Bookkeeping shared by both answering modes: score, streak, history, misses. */
+	async function recordAnswer(right: boolean, yourAnswer: string) {
 		answered += 1;
 		const entry = byKind[question.kind] ?? { correct: 0, total: 0 };
 		entry.total += 1;
-		const right = index === question.answer;
 		if (right) {
 			correct += 1;
 			streak += 1;
@@ -125,14 +140,37 @@
 			entry.correct += 1;
 		} else {
 			streak = 0;
-			missed = [...missed, { id: missedIdCounter++, question, chosenIndex: index }].slice(-MISSED_LIMIT);
+			missed = [...missed, { id: missedIdCounter++, question, yourAnswer }].slice(-MISSED_LIMIT);
 		}
 		byKind = { ...byKind, [question.kind]: entry };
 		history = [...history, right].slice(-HISTORY_LIMIT);
-		// The chosen option (and every other, now disabled) can no longer hold
-		// focus, so hand it to "Next question" rather than dropping it to <body>.
+		// The answered control (option button or input) can no longer hold
+		// focus once disabled, so hand it to "Next question" rather than
+		// dropping it to <body>.
 		await tick();
 		nextBtn?.focus();
+	}
+
+	function choose(index: number) {
+		if (chosen !== null || typed !== null) return;
+		chosen = index;
+		recordAnswer(index === question.answer, question.options[index]);
+	}
+
+	/** Falls back to a plain text match; equivalent/circuit-expression accept
+	 *  any expression with the same truth table, not just the printed option. */
+	function gradeTyped(input: string): boolean {
+		if (question.acceptsTyped) return question.acceptsTyped(input);
+		return input.toLowerCase() === question.options[question.answer].toLowerCase();
+	}
+
+	function submitTyped() {
+		if (chosen !== null || typed !== null) return;
+		const input = typedValue.trim();
+		if (!input) return;
+		const right = gradeTyped(input);
+		typed = { value: input, right };
+		recordAnswer(right, input);
 	}
 
 	function setTopic(next: Topic) {
@@ -164,6 +202,11 @@
 		advance();
 	}
 
+	function toggleTypeMode() {
+		typeMode = !typeMode;
+		advance();
+	}
+
 	function reset() {
 		answered = 0;
 		correct = 0;
@@ -179,14 +222,17 @@
 	/**
 	 * Number keys pick an answer, Enter/Space moves on once one is marked.
 	 * Ignored while a form control would otherwise handle the key itself, so a
-	 * keyboard user tabbed onto a button does not trigger it twice.
+	 * keyboard user tabbed onto a button (or the typed-answer field) does not
+	 * trigger it twice.
 	 */
 	function onKeydown(e: KeyboardEvent) {
 		if (e.altKey || e.ctrlKey || e.metaKey) return;
 		const tag = (e.target as HTMLElement | null)?.tagName;
 		if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
 
-		if (chosen === null) {
+		const answeredNow = chosen !== null || typed !== null;
+		if (!answeredNow) {
+			if (typeMode) return; // typing happens in the field, not via a digit key
 			const n = Number(e.key);
 			if (Number.isInteger(n) && n >= 1 && n <= question.options.length) {
 				e.preventDefault();
@@ -223,11 +269,15 @@
 		},
 		{
 			q: 'Can I use IEC symbols or a different notation?',
-			a: 'Open "Representation" above the topics to check any mix of ANSI/IEC gate symbols and mathematical/engineering/programming notation. Check more than one and questions draw from all of them at random; it defaults to whichever single one the rest of the site starts on.'
+			a: 'Open "Settings" above the topics to check any mix of ANSI/IEC gate symbols and mathematical/engineering/programming notation. Check more than one and questions draw from all of them at random; it defaults to whichever single one the rest of the site starts on.'
 		},
 		{
 			q: 'Can I go back over what I got wrong?',
 			a: '"Review your misses" appears under the question once you have missed at least one, with the correct answer and a link to go explore it further. It is cleared by reset, like everything else here.'
+		},
+		{
+			q: 'Can I type the answer instead of picking one?',
+			a: 'Yes: turn on "Type it instead of choosing" under Settings. For a question that asks for a specific expression, anything with the same truth table is accepted, in any notation, not only the one form shown as an option in multiple choice — typed mode is checked by the same engine that grades the tools, not by matching text.'
 		}
 	];
 
@@ -310,8 +360,8 @@
 			nothing is stored.
 		</p>
 		<p class="aside">
-			Teaching a class? The <a href="/worksheet">worksheet generator</a> puts the same questions on paper, with an answer
-			key, from a link everyone can open.
+			Teaching a class? The <a href={toolLink('/worksheet', { topic })}>worksheet generator</a> puts the same questions on
+			paper, with an answer key, from a link everyone can open — carrying over whichever topic is picked below.
 		</p>
 
 		<div class="topics" role="group" aria-label="Topic">
@@ -330,7 +380,7 @@
 		</div>
 
 		<details class="settings">
-			<summary>Representation</summary>
+			<summary>Settings</summary>
 			<div class="settings-groups">
 				<fieldset>
 					<legend>Gate symbols</legend>
@@ -349,6 +399,13 @@
 							{opt.label}
 						</label>
 					{/each}
+				</fieldset>
+				<fieldset>
+					<legend>Answering</legend>
+					<label class="check">
+						<input type="checkbox" checked={typeMode} on:change={toggleTypeMode} />
+						Type it instead of choosing
+					</label>
 				</fieldset>
 			</div>
 		</details>
@@ -427,27 +484,57 @@
 				</div>
 			{/if}
 
-			<div class="options" role="group" aria-label="Answers">
-				{#each question.options as option, i}
-					<button
-						type="button"
-						class="option"
-						class:correct={chosen !== null && i === question.answer}
-						class:wrong={chosen === i && i !== question.answer}
-						class:muted={chosen !== null && i !== question.answer && chosen !== i}
-						disabled={chosen !== null}
-						on:click={() => choose(i)}
-					>
-						<span class="mono">{option}</span>
-					</button>
-				{/each}
-			</div>
-			<p class="hint">Press 1–{question.options.length} to answer, Enter for the next question.</p>
+			{#if typeMode}
+				<form class="typed" on:submit|preventDefault={submitTyped}>
+					<input
+						type="text"
+						class="mono typed-input"
+						class:correct={typed?.right}
+						class:wrong={typed !== null && !typed.right}
+						bind:value={typedValue}
+						bind:this={typedInput}
+						disabled={typed !== null}
+						placeholder="Your answer"
+						aria-label="Your answer"
+						autocomplete="off"
+						spellcheck="false"
+					/>
+					{#if !typed}
+						<button type="submit" class="cta" disabled={!typedValue.trim()}>Check</button>
+					{/if}
+				</form>
+				<p class="hint">Type your answer and press Enter to check it.</p>
+			{:else}
+				<div class="options" role="group" aria-label="Answers">
+					{#each question.options as option, i}
+						<button
+							type="button"
+							class="option"
+							class:correct={chosen !== null && i === question.answer}
+							class:wrong={chosen === i && i !== question.answer}
+							class:muted={chosen !== null && i !== question.answer && chosen !== i}
+							disabled={chosen !== null}
+							on:click={() => choose(i)}
+						>
+							<span class="mono">{option}</span>
+						</button>
+					{/each}
+				</div>
+				<p class="hint">Press 1–{question.options.length} to answer, Enter for the next question.</p>
+			{/if}
 
-			{#if chosen !== null}
+			{#if chosen !== null || typed !== null}
 				<div class="feedback" class:right={isRight} role="status">
-					<strong>{isRight ? 'Correct.' : 'Not quite.'}</strong>
-					{question.explanation}
+					<p>
+						<strong>{isRight ? 'Correct.' : 'Not quite.'}</strong>
+						{#if typed && !isRight}
+							Correct answer: <span class="mono">{question.options[question.answer]}</span>.
+						{/if}
+						<!-- Svelte trims the whitespace-only text node straddling an
+						     {#if} block down to nothing, so the explanation would run
+						     straight into the period above without this. -->
+						{' '}{question.explanation}
+					</p>
 					{#if question.kind === 'circuit-output'}
 						<!-- Only this kind re-renders the diagram with the signals applied;
 						     the others just add a caption. -->
@@ -473,7 +560,7 @@
 							</p>
 							<p class="missed-answer">
 								Correct: <strong class="mono">{m.question.options[m.question.answer]}</strong> — you chose
-								<strong class="mono">{m.question.options[m.chosenIndex]}</strong>
+								<strong class="mono">{m.yourAnswer}</strong>
 							</p>
 							<p class="missed-explain">
 								{m.question.explanation}
@@ -816,6 +903,48 @@
 		.option {
 			transition: none;
 		}
+	}
+
+	.typed {
+		display: flex;
+		gap: 0.6rem;
+		flex-wrap: wrap;
+	}
+
+	.typed-input {
+		flex: 1;
+		min-width: 200px;
+		background: #0d0d0f;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		border-radius: 3px;
+		color: #fff;
+		font-size: 1rem;
+		padding: 0.7rem 0.9rem;
+		transition: border-color 0.12s ease, background-color 0.12s ease;
+	}
+
+	.typed-input:focus {
+		outline: none;
+		border-color: #5db65d;
+	}
+
+	.typed-input:disabled {
+		cursor: default;
+	}
+
+	.typed-input.correct {
+		background-color: rgba(51, 119, 34, 0.35);
+		border-color: #5db65d;
+	}
+
+	.typed-input.wrong {
+		background-color: rgba(255, 34, 51, 0.18);
+		border-color: #f66;
+	}
+
+	.typed :global(.cta:disabled) {
+		opacity: 0.5;
+		cursor: not-allowed;
 	}
 
 	.feedback {
