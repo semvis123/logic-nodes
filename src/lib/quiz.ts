@@ -11,11 +11,12 @@ import {
 	evaluate,
 	variablesOf,
 	type Ast,
-	type TruthTable
+	type TruthTable,
+	type Notation
 } from './boolean.js';
 import { gates } from './gates.js';
 import { buildCircuit, circuitStates, CircuitTooLarge } from './circuit.js';
-import { circuitToSvg } from './exportSvg.js';
+import { circuitToSvg, type Standard } from './exportSvg.js';
 
 export type Question = {
 	kind:
@@ -44,7 +45,35 @@ export type Question = {
 	options: string[];
 	answer: number;
 	explanation: string;
+	/** Where to go explore this exact question further, once it is marked. */
+	link?: { href: string; label: string };
 };
+
+/**
+ * What a generator can be asked for beyond its kind: how hard to make it, and
+ * which of the several equivalent ways to notate a diagram or an expression
+ * are in play this run. Each generator picks its own choice from the allowed
+ * set, so a "mixed" set of e.g. notations varies question to question rather
+ * than being fixed for the whole run.
+ */
+export type QuestionOptions = {
+	difficulty?: number;
+	standards?: Standard[];
+	notations?: Notation[];
+};
+
+function pickNotation(random: () => number, opts: QuestionOptions): Notation {
+	return pick(random, opts.notations?.length ? opts.notations : (['math'] as Notation[]));
+}
+
+function pickStandard(random: () => number, opts: QuestionOptions): Standard {
+	return pick(random, opts.standards?.length ? opts.standards : (['ansi'] as Standard[]));
+}
+
+/** A link to another tool carrying the state it needs to show this exact question. */
+function toolLink(path: string, params: Record<string, string>): string {
+	return `${path}?${new URLSearchParams(params).toString()}`;
+}
 
 /** Small deterministic PRNG, so a given seed always gives the same question. */
 function rng(seed: number) {
@@ -162,7 +191,8 @@ function gateOutput(random: () => number): Question | null {
 				: `What does ${article} ${gate.name} gate output when its inputs are ${bits[0]} and ${bits[1]}?`,
 		options: ['0', '1'],
 		answer: value ? 1 : 0,
-		explanation: `${gate.name} is high when ${gate.outputHigh}, so this gives ${value ? 1 : 0}.`
+		explanation: `${gate.name} is high when ${gate.outputHigh}, so this gives ${value ? 1 : 0}.`,
+		link: { href: `/logic-gates/${gate.slug}`, label: `${gate.name} gate reference` }
 	};
 }
 
@@ -183,7 +213,8 @@ function identifyGate(random: () => number): Question | null {
 		tableOutputLabel: 'Q',
 		options,
 		answer: options.indexOf(gate.name),
-		explanation: `This is ${gate.name}: the output is high when ${gate.outputHigh}.`
+		explanation: `This is ${gate.name}: the output is high when ${gate.outputHigh}.`,
+		link: { href: toolLink('/truth-table-generator', { expr: gate.source }), label: 'See this truth table' }
 	};
 }
 
@@ -214,7 +245,9 @@ function stopChanceFor(difficulty: number): number {
 	return Math.max(0.3 - Math.max(0, difficulty) * 0.08, 0.15);
 }
 
-function evaluateQuestion(random: () => number, difficulty = 0): Question | null {
+function evaluateQuestion(random: () => number, opts: QuestionOptions = {}): Question | null {
+	const difficulty = opts.difficulty ?? 0;
+	const notation = pickNotation(random, opts);
 	const pool = ['a', 'b', 'c'].slice(0, 2 + Math.floor(random() * 2));
 	const ast = randomAst(random, pool, depthFor(2, difficulty), stopChanceFor(difficulty));
 	const variables = variablesOf(ast);
@@ -224,34 +257,39 @@ function evaluateQuestion(random: () => number, difficulty = 0): Question | null
 	for (const name of variables) values[name] = random() < 0.5;
 	const result = evaluate(ast, values);
 	const assignment = variables.map((n) => `${n} = ${values[n] ? 1 : 0}`).join(', ');
+	const detail = format(ast, notation);
 	return {
 		kind: 'evaluate',
 		prompt: `What is the output when ${assignment}?`,
-		detail: format(ast, 'math'),
+		detail,
 		options: ['0', '1'],
 		answer: result ? 1 : 0,
-		explanation: `Substituting the values gives ${result ? 1 : 0}.`
+		explanation: `Substituting the values gives ${result ? 1 : 0}.`,
+		link: { href: toolLink('/boolean-algebra-calculator', { expr: detail, notation }), label: 'Evaluate it yourself' }
 	};
 }
 
-function equivalentQuestion(random: () => number, difficulty = 0): Question | null {
+function equivalentQuestion(random: () => number, opts: QuestionOptions = {}): Question | null {
+	const difficulty = opts.difficulty ?? 0;
+	const notation = pickNotation(random, opts);
 	const pool = ['a', 'b', 'c'];
 	const depth = depthFor(2, difficulty);
 	const stopChance = stopChanceFor(difficulty);
 	const ast = randomAst(random, pool, depth, stopChance);
 	const table = truthTable(ast);
 	if (table.variables.length < 2 || !isClean(ast)) return null;
-	const minimal = simplify(table, 'math');
+	const minimal = simplify(table, notation);
 	if (!minimal.termCount) return null; // skip constants, they read oddly
 	const correct = minimal.text;
-	if (correct === format(ast, 'math')) return null; // no simplification to find
+	const detail = format(ast, notation);
+	if (correct === detail) return null; // no simplification to find
 
 	// Distractors have to be genuinely wrong, so each is checked.
 	const candidates: string[] = [];
 	for (let attempt = 0; attempt < 40 && candidates.length < 3; attempt++) {
 		const other = randomAst(random, table.variables, depth, stopChance);
 		if (variablesOf(other).length < 1) continue;
-		const text = simplify(truthTable(other, table.variables), 'math').text;
+		const text = simplify(truthTable(other, table.variables), notation).text;
 		if (text === '0' || text === '1' || text === correct) continue;
 		if (candidates.includes(text)) continue;
 		if (equivalent(parseExpression(text), ast)) continue;
@@ -263,14 +301,20 @@ function equivalentQuestion(random: () => number, difficulty = 0): Question | nu
 	return {
 		kind: 'equivalent',
 		prompt: 'Which expression is equivalent to this one?',
-		detail: format(ast, 'math'),
+		detail,
 		options,
 		answer: options.indexOf(correct),
-		explanation: `${correct} has exactly the same truth table, and it is the minimal sum of products.`
+		explanation: `${correct} has exactly the same truth table, and it is the minimal sum of products.`,
+		link: {
+			href: toolLink('/boolean-algebra-calculator', { expr: detail, notation }),
+			label: 'See the simplification steps'
+		}
 	};
 }
 
-function countOnes(random: () => number, difficulty = 0): Question | null {
+function countOnes(random: () => number, opts: QuestionOptions = {}): Question | null {
+	const difficulty = opts.difficulty ?? 0;
+	const notation = pickNotation(random, opts);
 	const pool = ['a', 'b', 'c'];
 	const ast = randomAst(random, pool, depthFor(2, difficulty), stopChanceFor(difficulty));
 	const table = truthTable(ast);
@@ -290,15 +334,20 @@ function countOnes(random: () => number, difficulty = 0): Question | null {
 	if (distractors.length < 3) return null;
 
 	const options = assemble(random, String(count), distractors);
+	const detail = format(ast, notation);
 	return {
 		kind: 'count-ones',
 		prompt: `In how many of the ${table.rows.length} rows is this expression true?`,
-		detail: format(ast, 'math'),
+		detail,
 		options,
 		answer: options.indexOf(String(count)),
 		explanation: `Its truth table has ${count} row${count === 1 ? '' : 's'} where the output is 1, out of ${
 			table.rows.length
-		}.`
+		}.`,
+		link: {
+			href: toolLink('/karnaugh-map-solver', { expr: detail, notation }),
+			label: 'See it on a Karnaugh map'
+		}
 	};
 }
 
@@ -315,12 +364,13 @@ export const MAX_QUIZ_GATES = 10;
 
 function diagramOf(
 	ast: Ast,
-	reveal: { values?: Record<string, boolean>; caption?: string } = {}
+	reveal: { values?: Record<string, boolean>; caption?: string } = {},
+	standard: Standard = 'ansi'
 ): { svg: string; alt: string; solved: string; print: string } | null {
 	try {
 		const circuit = buildCircuit(ast);
 		if (circuit.gateCount > MAX_QUIZ_GATES) return null;
-		const base = { standard: 'ansi' as const, palette: 'colour' as const };
+		const base = { standard, palette: 'colour' as const };
 		return {
 			svg: circuitToSvg(circuit, { ...base, outputLabel: 'Q' }),
 			// Worksheets end up on paper, where the dark palette is a waste of ink.
@@ -346,16 +396,19 @@ function diagramOf(
  * bigger tree here almost always means more than MAX_QUIZ_GATES gates, or (for
  * circuitExpression) no way to find three distractors with a matching gate
  * count, so raising it just made the generator fail more often and fall back
- * to an easier kind — the opposite of what adaptive difficulty is for.
+ * to an easier kind — the opposite of what adaptive difficulty is for. They
+ * still honour `standards`/`notations`, picking one per question.
  */
-function circuitExpression(random: () => number): Question | null {
+function circuitExpression(random: () => number, opts: QuestionOptions = {}): Question | null {
+	const notation = pickNotation(random, opts);
+	const standard = pickStandard(random, opts);
 	const pool = ['a', 'b', 'c'];
 	const depth = 2;
 	const ast = randomAst(random, pool, depth);
 	const table = truthTable(ast);
 	if (table.variables.length < 2 || !isClean(ast)) return null;
-	const correct = format(ast, 'math');
-	const drawing = diagramOf(ast, { caption: correct });
+	const correct = format(ast, notation);
+	const drawing = diagramOf(ast, { caption: correct }, standard);
 	if (!drawing) return null;
 	let gateCount: number;
 	try {
@@ -374,7 +427,7 @@ function circuitExpression(random: () => number): Question | null {
 		} catch {
 			continue;
 		}
-		const text = format(other, 'math');
+		const text = format(other, notation);
 		if (text === correct || candidates.includes(text)) continue;
 		if (equivalent(other, ast)) continue; // must actually be a wrong answer
 		candidates.push(text);
@@ -391,11 +444,17 @@ function circuitExpression(random: () => number): Question | null {
 		svgPrint: drawing.print,
 		options,
 		answer: options.indexOf(correct),
-		explanation: `Reading the diagram from the inputs gives ${correct}.`
+		explanation: `Reading the diagram from the inputs gives ${correct}.`,
+		link: {
+			href: toolLink('/logic-circuit-generator', { expr: correct, symbols: standard }),
+			label: 'Open this circuit'
+		}
 	};
 }
 
-function circuitOutput(random: () => number): Question | null {
+function circuitOutput(random: () => number, opts: QuestionOptions = {}): Question | null {
+	const notation = pickNotation(random, opts);
+	const standard = pickStandard(random, opts);
 	const pool = ['a', 'b', 'c'];
 	// Tracing a signal stays readable at depth 3, and the answer is still 0 or 1,
 	// so these can be bigger than the ones you have to read an expression off.
@@ -405,7 +464,7 @@ function circuitOutput(random: () => number): Question | null {
 	const values: Record<string, boolean> = {};
 	for (const name of variables) values[name] = random() < 0.5;
 	const result = evaluate(ast, values);
-	const drawing = diagramOf(ast, { values });
+	const drawing = diagramOf(ast, { values }, standard);
 	if (!drawing) return null;
 	const assignment = variables.map((n) => `${n} = ${values[n] ? 1 : 0}`).join(', ');
 	return {
@@ -420,11 +479,15 @@ function circuitOutput(random: () => number): Question | null {
 		// No claim about colour here: the same explanation is printed in black and
 		// white on a worksheet. The practice page adds that note itself, where it
 		// really does reveal a coloured diagram.
-		explanation: `Following the signals through the gates gives ${result ? 1 : 0}.`
+		explanation: `Following the signals through the gates gives ${result ? 1 : 0}.`,
+		link: {
+			href: toolLink('/logic-circuit-generator', { expr: format(ast, notation), symbols: standard }),
+			label: 'Open this circuit'
+		}
 	};
 }
 
-type Generator = (random: () => number, difficulty?: number) => Question | null;
+type Generator = (random: () => number, opts?: QuestionOptions) => Question | null;
 
 const GENERATORS: Generator[] = [
 	gateOutput,
@@ -465,11 +528,12 @@ export const questionSignature = (q: Question) =>
 
 /**
  * Builds one question. The same seed always produces the same question, which
- * keeps server rendering and the browser in step. `difficulty` nudges the
- * expression-based generators toward deeper, harder expressions; 0 is the
+ * keeps server rendering and the browser in step. `opts` nudges the
+ * expression-based generators toward deeper, harder expressions, and picks
+ * which notations and diagram symbols are in play; the defaults are the
  * baseline every existing seed was tuned against.
  */
-export function makeQuestion(seed: number, topic: Topic = 'mixed', difficulty = 0): Question {
+export function makeQuestion(seed: number, topic: Topic = 'mixed', opts: QuestionOptions = {}): Question {
 	const generators = BY_TOPIC[topic] ?? GENERATORS;
 	// The generator is chosen from the seed alone and then retried with fresh
 	// randomness. Advancing to the next generator on every refusal would pour
@@ -477,14 +541,14 @@ export function makeQuestion(seed: number, topic: Topic = 'mixed', difficulty = 
 	// of that one kind.
 	const chosen = generators[seed % generators.length];
 	for (let attempt = 0; attempt < 200; attempt++) {
-		const question = chosen(rng(seed + attempt * 7919), difficulty);
+		const question = chosen(rng(seed + attempt * 7919), opts);
 		if (question) return question;
 	}
 	// It will not produce anything for this seed at all. Only now try the rest,
 	// and only ones this topic actually offers.
 	for (let i = 1; i < generators.length; i++) {
 		for (let attempt = 0; attempt < 50; attempt++) {
-			const question = generators[(seed + i) % generators.length](rng(seed + i * 104729 + attempt * 7919), difficulty);
+			const question = generators[(seed + i) % generators.length](rng(seed + i * 104729 + attempt * 7919), opts);
 			if (question) return question;
 		}
 	}
@@ -501,12 +565,12 @@ export function nextQuestion(
 	topic: Topic,
 	recent: string[],
 	random: () => number = Math.random,
-	difficulty = 0
+	opts: QuestionOptions = {}
 ): { seed: number; question: Question } {
 	let fallback: { seed: number; question: Question } | null = null;
 	for (let attempt = 0; attempt < 80; attempt++) {
 		const seed = Math.floor(random() * 1_000_000) + 1;
-		const question = makeQuestion(seed, topic, difficulty);
+		const question = makeQuestion(seed, topic, opts);
 		fallback ??= { seed, question };
 		if (!recent.includes(questionSignature(question))) return { seed, question };
 	}
