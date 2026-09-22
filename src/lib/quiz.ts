@@ -47,6 +47,17 @@ export type Question = {
 	explanation: string;
 	/** Where to go explore this exact question further, once it is marked. */
 	link?: { href: string; label: string };
+	/**
+	 * Grades a free-typed answer for "type it yourself" mode. Only set for the
+	 * two kinds whose displayed option is one specific expression among many
+	 * correct ones (equivalent, circuit-expression): typing back that exact
+	 * string would test transcription rather than understanding, so instead
+	 * this checks the typed expression against the real engine and accepts
+	 * anything with the same truth table, in any notation. Every other kind is
+	 * graded by comparing the trimmed, case-insensitive input to
+	 * `options[answer]`, which is already the one and only right answer.
+	 */
+	acceptsTyped?: (input: string) => boolean;
 };
 
 /**
@@ -308,6 +319,13 @@ function equivalentQuestion(random: () => number, opts: QuestionOptions = {}): Q
 		link: {
 			href: toolLink('/boolean-algebra-calculator', { expr: detail, notation }),
 			label: 'See the simplification steps'
+		},
+		acceptsTyped: (input) => {
+			try {
+				return equivalent(parseExpression(input), ast);
+			} catch {
+				return false;
+			}
 		}
 	};
 }
@@ -448,6 +466,13 @@ function circuitExpression(random: () => number, opts: QuestionOptions = {}): Qu
 		link: {
 			href: toolLink('/logic-circuit-generator', { expr: correct, symbols: standard }),
 			label: 'Open this circuit'
+		},
+		acceptsTyped: (input) => {
+			try {
+				return equivalent(parseExpression(input), ast);
+			} catch {
+				return false;
+			}
 		}
 	};
 }
