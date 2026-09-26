@@ -2,7 +2,8 @@
 // set pages: the ASCII table, the binary alphabet, the hex to decimal grid,
 // the logic symbols, the rules of inference, the logical equivalences, the
 // conditional forms, the set operations as Venn diagrams, the set notation
-// symbols, the IEEE 754 layouts and the Base64 alphabet.
+// symbols, the IEEE 754 layouts and the Base64 alphabet; and for the gate
+// pages, the 7400-series chip pinouts and the CMOS transistor circuits.
 //
 // Nothing on a chart is typed in here. Every code, value, verdict and shading
 // comes from the same engine the page uses, and a rule or law the engine does
@@ -42,6 +43,8 @@ import {
 import { parseSet, formatSet, shade, booleanText, vennLayout, setLabels, roster } from '../src/lib/venn.js';
 import { symbolRows, universe, sets } from '../src/lib/setNotation.js';
 import { formats, encode, limits, type Format } from '../src/lib/ieee754.js';
+import { chips, pinTable, pinoutDrawing, PINOUT_WIDTH, PINOUT_HEIGHT, type Prim } from '../src/lib/chips.js';
+import { cmosFor, cmosDrawing, simulate, transistorCount } from '../src/lib/cmos.js';
 
 const OUT_DIR = 'static/img';
 const MANIFEST = 'src/lib/referenceCharts.json';
@@ -672,6 +675,119 @@ const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ?
 			`.b64 td, .b64 th { padding: 3px 10px; font-size: 15px; } .b64 .ch { font-family: ${MONO}; font-weight: 700; font-size: 17px; }`
 		),
 		width: 1300
+	});
+}
+
+// --- 12. chip pinouts -------------------------------------------------------------------------
+//
+// The same drawing as the gate page's pinout section, in black on white. A part
+// whose pinout is not published (the XNOR '266) gets no chart.
+
+/** Draws layout primitives as an SVG string; each role is styled by the chart's CSS. */
+const svgOf = (prims: Prim[], width: number, height: number, scale: number) =>
+	`<svg width="${width * scale}" height="${height * scale}" viewBox="0 0 ${width} ${height}">${prims
+		.map((p) =>
+			p.k === 'line'
+				? `<line x1="${p.x1}" y1="${p.y1}" x2="${p.x2}" y2="${p.y2}" class="${p.role}"/>`
+				: p.k === 'path'
+				? `<path d="${p.d}"${p.transform ? ` transform="${p.transform}"` : ''} class="${p.role}"/>`
+				: p.k === 'circle'
+				? `<circle cx="${p.cx}" cy="${p.cy}" r="${p.r}" class="${p.role}"/>`
+				: p.k === 'rect'
+				? `<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" rx="${p.rx ?? 0}" class="${p.role}"/>`
+				: `<text x="${p.x}" y="${p.y}" text-anchor="${p.anchor}" class="${p.role}">${esc(p.text)}</text>`
+		)
+		.join('')}</svg>`;
+
+for (const chip of chips) {
+	if (!chip.gates) continue;
+	const pins = pinTable(chip);
+	const name = chip.gate === 'not' ? 'NOT' : chip.gate.toUpperCase();
+	const table = `<table class="pins"><thead><tr><th>Pin</th><th>Name</th><th class="l">Function</th></tr></thead><tbody>${pins
+		.map((p) => `<tr><td>${p.pin}</td><td class="mono"><b>${p.name}</b></td><td class="l">${esc(p.function)}</td></tr>`)
+		.join('')}</tbody></table>`;
+	const notes = [...chip.families, ...chip.notes].map((n) => `<div>${esc(n)}</div>`).join('');
+	const path = `/logic-gates/${chip.gate}`;
+	charts.push({
+		file: `${chip.part}-${chip.gate}-chip-pinout.png`,
+		title: `${chip.part} ${name} chip pinout: ${chip.description}, 14-pin DIP`,
+		alt: `${chip.part} ${name} chip pinout: top view of the 14-pin DIP ${chip.description} (${chip.parts.join(
+			', '
+		)}) with each gate drawn on its pins; ${pins.map((p) => `${p.pin} ${p.name}`).join(', ')}`,
+		path,
+		body: shell(
+			`${chip.part} pinout: ${chip.description}`,
+			`${chip.parts.join(', ')}. 14-pin DIP, top view with the notch at the top and pin 1 marked by the dot.`,
+			`<div class="row"><div>${svgOf(
+				pinoutDrawing(chip),
+				PINOUT_WIDTH,
+				PINOUT_HEIGHT,
+				1.5
+			)}</div><div>${table}<div class="note fam">${notes}</div></div></div>`,
+			path,
+			`.body { fill: #fff; stroke: #111; stroke-width: 2; } .dot { fill: #111; }
+       .pin { fill: #e6e6e6; stroke: #111; stroke-width: 1; }
+       .pin-number { fill: #111; font: 700 11px ${MONO}; }
+       .pin-name, .power { fill: #111; font: 13px ${MONO}; } .power { font-weight: 700; }
+       .wire { stroke: #111; stroke-width: 1.4; fill: none; }
+       .gate { fill: #fff; stroke: #111; stroke-width: 2; stroke-linejoin: round; } .gate-line { fill: none; stroke: #111; stroke-width: 2; }
+       .part { fill: #555; font: 13px ${MONO}; letter-spacing: 0.08em; }
+       .pins td, .pins th { padding: 3px 10px; font-size: 14.5px; }
+       .fam { margin-top: 12px; font-size: 13.5px; max-width: 380px; }`
+		),
+		width: 1200
+	});
+}
+
+// --- 13. CMOS transistor circuits ------------------------------------------------------------------
+//
+// The one-stage gates, NOT, NAND and NOR, with the conduction of each network
+// for every input worked out by the same code that drives the page's schematic.
+
+for (const slug of ['not', 'nand', 'nor']) {
+	const cmos = cmosFor(slug)!;
+	const drawing = cmosDrawing(cmos);
+	const name = slug.toUpperCase();
+	const inputs = slug === 'not' ? ['a'] : ['a', 'b'];
+	const rows = Array.from({ length: 1 << inputs.length }, (_, i) =>
+		Object.fromEntries(inputs.map((v, k) => [v, !!(i & (1 << (inputs.length - 1 - k)))]))
+	);
+	const net = (on: boolean) => (on ? '<b>conducts</b>' : '<span class="muted">open</span>');
+	const table = `<table class="cond"><thead><tr>${inputs
+		.map((v) => `<th class="mono">${v}</th>`)
+		.join('')}<th>Pull-up (PMOS)</th><th>Pull-down (NMOS)</th><th class="mono">Y</th></tr></thead><tbody>${rows
+		.map((row) => {
+			const { stages, output } = simulate(cmos, row);
+			return `<tr>${inputs.map((v) => `<td class="mono">${row[v] ? 1 : 0}</td>`).join('')}<td>${net(
+				stages[0].up
+			)}</td><td>${net(stages[0].down)}</td><td class="mono"><b>${output ? 1 : 0}</b></td></tr>`;
+		})
+		.join('')}</tbody></table>`;
+	const count = transistorCount(cmos);
+	const path = `/logic-gates/${slug}`;
+	charts.push({
+		file: `${slug}-gate-cmos-transistor-circuit.png`,
+		title: `${name} gate CMOS transistor circuit`,
+		alt: `${name} gate CMOS transistor circuit: ${count} transistors. ${cmos.summary} A table shows which network conducts for each input.`,
+		path,
+		body: shell(
+			`${name} gate in CMOS: ${count} transistors`,
+			'Static CMOS. PMOS (bubble on the gate) conducts when its gate is 0, NMOS when it is 1.',
+			`<div class="row"><div>${svgOf(
+				drawing.prims,
+				drawing.width,
+				drawing.height,
+				1.5
+			)}</div><div>${table}<p class="note" style="margin-top:14px;max-width:360px">${esc(
+				cmos.summary
+			)}</p></div></div>`,
+			path,
+			`.wire, .rail, .fet { stroke: #111; stroke-width: 1.6; } .rail, .fet { stroke-width: 2; }
+       .fet-bubble { fill: #fff; stroke: #111; stroke-width: 2; } .node { fill: #111; }
+       text { fill: #111; font: 14px ${MONO}; } .rail-label { font-size: 12px; fill: #333; } .output { font-weight: 700; }
+       .cond td, .cond th { padding: 5px 11px; font-size: 15px; }`
+		),
+		width: 1000
 	});
 }
 
