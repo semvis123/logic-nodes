@@ -83,7 +83,9 @@
 		{ href: '/boolean-algebra-examples', label: 'Worked simplification examples' },
 		{ href: '/glossary', label: 'Glossary' },
 		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' },
-		{ href: '/de-morgans-laws', label: "De Morgan's laws" }
+		{ href: '/de-morgans-laws', label: "De Morgan's laws" },
+		{ href: '/logic', label: 'Propositional logic' },
+		{ href: '/set-notation', label: 'Set notation' }
 	]}
 >
 	<section class="intro">

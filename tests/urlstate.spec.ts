@@ -60,12 +60,15 @@ test('a hand drawn karnaugh map travels in the link', async ({ page }) => {
 });
 
 test('a link from one tool to another carries the expression', async ({ page }) => {
-	// Calculator -> truth table generator.
+	// Calculator -> truth table generator. Typing before the page has hydrated
+	// can land in the server rendered field and get merged with the default.
 	await page.goto('/boolean-algebra-calculator');
+	await page.waitForLoadState('networkidle');
 	await page.fill('#expression', 'a & !b | c');
 	await page.getByRole('link', { name: 'See the full truth table' }).click();
 	await expect(page).toHaveURL(/truth-table-generator/);
 	await expect(page.locator('#expression')).toHaveValue('a & !b | c');
+	await page.waitForLoadState('networkidle');
 
 	// And back the other way.
 	await page.fill('#expression', 'a ^ b & c');

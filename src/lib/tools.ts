@@ -108,6 +108,13 @@ export const tools: Tool[] = [
 		blurb: "Draw the parse tree of a logic expression and see every part's value for any row of its truth table."
 	},
 	{
+		href: '/venn-diagram-generator',
+		name: 'Venn diagram generator',
+		short: 'Venn diagrams',
+		group: 'logic',
+		blurb: 'Shade any set expression of up to three sets, or click regions to get the expression, with the truth table.'
+	},
+	{
 		href: '/hex-to-decimal',
 		name: 'Hex to decimal converter',
 		short: 'Hex to decimal',
