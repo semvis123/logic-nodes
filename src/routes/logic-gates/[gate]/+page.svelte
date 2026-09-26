@@ -3,6 +3,11 @@
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import GateSymbol from '$lib/GateSymbol.svelte';
+	import ChipPinout from '$lib/ChipPinout.svelte';
+	import CmosGate from '$lib/CmosGate.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
+	import { chipFor } from '$lib/chips';
+	import { imagesFor } from '$lib/generatedImages';
 	import { gates } from '$lib/gates';
 	import { glossary } from '$lib/glossary';
 	import { equivalent, parseExpression, truthTable, toBinaryString } from '$lib/boolean';
@@ -12,6 +17,9 @@
 
 	$: gate = data.gate;
 	$: table = truthTable(parseExpression(gate.source));
+	$: chip = chipFor(gate.slug);
+	// The printable pinout and transistor charts made for this gate, if any.
+	$: charts = imagesFor(`/logic-gates/${gate.slug}`);
 	$: others = gates.filter((g) => g.slug !== gate.slug);
 
 	const bitsOf = (row: number, width: number) => [...toBinaryString(row, width)].map((d) => d === '1');
@@ -361,6 +369,36 @@
 	</section>
 
 	<section>
+		<h2>{gate.name} gate transistor circuit</h2>
+		<p class="section-intro">
+			Inside a CMOS chip the {gate.name} gate is a handful of transistors. Toggle the inputs to see which ones switch on
+			and which network connects the output to the supply or to ground.
+		</p>
+		<CmosGate gate={gate.slug} />
+		<div class="chart-small">
+			{#each charts.filter((image) => image.file.includes('cmos')) as image}
+				<ReferenceChart file={image.file} />
+			{/each}
+		</div>
+	</section>
+
+	{#if chip}
+		<section>
+			<h2>{gate.name} gate chip: the {chip.part} pinout</h2>
+			<p class="section-intro">
+				To build with real parts, the {gate.name} gate comes four or six to a package in the 7400 series. The
+				{chip.part} is a {chip.description}.
+			</p>
+			<ChipPinout gate={gate.slug} />
+			<div class="chart-small">
+				{#each charts.filter((image) => image.file.includes('pinout')) as image}
+					<ReferenceChart file={image.file} />
+				{/each}
+			</div>
+		</section>
+	{/if}
+
+	<section>
 		<h2>{gate.name} gate examples</h2>
 		<p class="section-intro">Everyday and engineering things that follow the {gate.name} rule.</p>
 		<ul class="uses">
@@ -429,6 +467,12 @@
 </ContentPage>
 
 <style>
+	/* The printable chart repeats the live diagram above it, so it stays small. */
+	.chart-small :global(.card-image) {
+		max-width: 420px;
+		margin-top: 1rem;
+	}
+
 	.intro {
 		padding-top: 48px;
 	}
