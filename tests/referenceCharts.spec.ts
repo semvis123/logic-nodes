@@ -17,10 +17,16 @@ const decode = (s: string) =>
 		(e) => ({ '&quot;': '"', '&#34;': '"', '&amp;': '&', '&#39;': "'", '&apos;': "'", '&lt;': '<', '&gt;': '>' }[e]!)
 	);
 
-test('the manifest lists all eleven charts, one per page', () => {
-	expect(charts).toHaveLength(11);
+test('the manifest lists all twenty charts: one per reference page, and the chips and CMOS circuits of the gates', () => {
+	expect(charts).toHaveLength(20);
 	expect(new Set(charts.map((c) => c.file)).size).toBe(charts.length);
-	expect(new Set(charts.map(pathOf)).size).toBe(charts.length);
+	const gatePages = charts.filter((c) => pathOf(c).startsWith('/logic-gates/'));
+	const others = charts.filter((c) => !gatePages.includes(c));
+	expect(new Set(others.map(pathOf)).size).toBe(11);
+	// A pinout for every gate but XNOR, whose pinout is not published, and a
+	// transistor circuit for the three single-stage gates.
+	expect(gatePages.filter((c) => c.file.endsWith('-chip-pinout.png'))).toHaveLength(6);
+	expect(gatePages.filter((c) => c.file.endsWith('-cmos-transistor-circuit.png'))).toHaveLength(3);
 });
 
 test('every chart file exists as a PNG of the recorded size', () => {
