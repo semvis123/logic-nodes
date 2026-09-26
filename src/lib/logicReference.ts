@@ -70,12 +70,12 @@ export type LogicSymbol = {
 
 export const connectiveSymbols: LogicSymbol[] = [
 	{ symbol: '¬', name: 'Negation', reads: 'not p', also: '~p, !p, p̄, −p, NOT p', example: '¬p' },
-	{ symbol: '∧', name: 'Conjunction', reads: 'p and q', also: 'p & q, p · q, pq, p AND q', example: 'p ∧ q' },
+	{ symbol: '∧', name: 'Conjunction', reads: 'p and q', also: 'p & q, p · q, p AND q', example: 'p ∧ q' },
 	{
 		symbol: '∨',
 		name: 'Disjunction',
 		reads: 'p or q (or both)',
-		also: 'p v q, p + q, p | q, p OR q',
+		also: 'p v q, p + q, p OR q',
 		example: 'p ∨ q'
 	},
 	{

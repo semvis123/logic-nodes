@@ -206,7 +206,8 @@
 		<h2>Logic symbols and how to read them</h2>
 		<p class="section-intro">
 			Five connectives appear in every textbook, and exclusive or joins them in computing. Books and keyboards write
-			them in several ways; the calculator accepts all of the alternatives listed. The last column is each connective's
+			them in several ways, and the calculator accepts every alternative listed. Some books also write p ∧ q as pq; the
+			calculator needs the symbol, since it reads each letter as its own statement. The last column is each connective's
 			truth table, rows from all true down, computed rather than typed.
 		</p>
 		<div class="table-wrap">

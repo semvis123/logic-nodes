@@ -24,6 +24,7 @@ import {
 } from '../src/lib/logicReference.js';
 import {
 	parseProp,
+	formatProp,
 	parsePropInput,
 	propTable,
 	propVariables,
@@ -74,6 +75,16 @@ test.describe('logic reference', () => {
 
 	test('every symbol example parses', () => {
 		for (const s of connectiveSymbols) expect(() => parseProp(s.example)).not.toThrow();
+	});
+
+	test('every alternative notation the symbol table lists reads as its connective', () => {
+		// The page says the calculator accepts all of them, so each must parse to
+		// exactly the connective's own example.
+		for (const s of connectiveSymbols) {
+			for (const alt of s.also.split(', ')) {
+				expect(formatProp(parseProp(alt)), `${alt} for ${s.name}`).toBe(formatProp(parseProp(s.example)));
+			}
+		}
 	});
 
 	test('the matcher recognises a rule only in its own shape', () => {

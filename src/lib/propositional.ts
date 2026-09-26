@@ -67,7 +67,10 @@ const SYMBOLS: [string, Token][] = [
 	['+', { k: 'op', op: 'or' }],
 	['⊕', { k: 'op', op: 'xor' }],
 	['⊻', { k: 'op', op: 'xor' }],
+	['↮', { k: 'op', op: 'xor' }],
 	['¬', { k: 'not' }],
+	// The minus sign (U+2212), not the hyphen, which would clash with ->.
+	['−', { k: 'not' }],
 	['~', { k: 'not' }],
 	['!', { k: 'not' }],
 	['⊤', { k: 'const', v: true }],
@@ -109,8 +112,14 @@ function tokenize(input: string): Token[] {
 			const lower = word.toLowerCase();
 			const keyword = Object.prototype.hasOwnProperty.call(KEYWORDS, lower) ? KEYWORDS[lower] : undefined;
 			if (keyword) tokens.push(keyword);
-			else if (word.length === 1) tokens.push({ k: 'var', name: word });
-			else throw new PropError(`Write each statement as one letter, like p or q, not "${word}"`);
+			else if (word.length === 1) {
+				// A bar over a letter (p̄, typed as p plus a combining macron) is its negation.
+				if (input[j] === '\u0304') {
+					tokens.push({ k: 'not' });
+					j++;
+				}
+				tokens.push({ k: 'var', name: word });
+			} else throw new PropError(`Write each statement as one letter, like p or q, not "${word}"`);
 			i = j;
 			continue;
 		}
