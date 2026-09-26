@@ -2,11 +2,46 @@
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
+	import GateSymbol from '$lib/GateSymbol.svelte';
 	import { gates } from '$lib/gates';
 	import { parseExpression, truthTable } from '$lib/boolean';
 
+	// The three families the seven gates fall into, and how each one relates to
+	// the others. Universality is checked per gate on the gate pages.
+	const groups: Record<string, { group: 'Basic' | 'Universal' | 'Exclusive'; is: string }> = {
+		and: { group: 'Basic', is: 'The base case: all inputs high' },
+		or: { group: 'Basic', is: 'The base case: any input high' },
+		not: { group: 'Basic', is: 'Inversion, the thing that completes the set' },
+		nand: { group: 'Universal', is: 'AND, inverted' },
+		nor: { group: 'Universal', is: 'OR, inverted' },
+		xor: { group: 'Exclusive', is: 'OR, minus the case where both are high' },
+		xnor: { group: 'Exclusive', is: 'XOR, inverted' }
+	};
+
 	// Tables come from the expression engine, so the reference cannot drift.
-	const rows = gates.map((gate) => ({ ...gate, table: truthTable(parseExpression(gate.source)) }));
+	const rows = gates.map((gate) => ({
+		...gate,
+		...groups[gate.slug],
+		table: truthTable(parseExpression(gate.source))
+	}));
+
+	// The chart is drawn by scripts/reference-cards.ts at twice its layout size:
+	// the file is 2360 x 2382 pixels, and the page lays it out at half that.
+	const chart = {
+		src: '/img/logic-gates-chart.png',
+		alt: 'Logic gates chart: AND, OR, NOT, XOR, NAND, NOR and XNOR with their ANSI symbols, boolean expressions and truth tables',
+		width: 1180,
+		height: 1191
+	};
+
+	// Every gate over the same two inputs, for the combined table. NOT has only
+	// the one input, so its column is NOT a and simply ignores b.
+	const both = ['a', 'b'];
+	const combined = gates.map((gate) => ({
+		...gate,
+		header: gate.slug === 'not' ? 'NOT a' : gate.name,
+		rows: truthTable(parseExpression(gate.source), both).rows
+	}));
 
 	const faqs = [
 		{
@@ -14,12 +49,16 @@
 			a: 'A logic gate is a small circuit that takes one or more binary inputs, each either 1 or 0, and produces a single binary output according to a fixed rule. An AND gate outputs 1 only when every input is 1; an OR gate outputs 1 when any input is 1. Its complete behaviour fits in a truth table, and in hardware each gate is a handful of transistors.'
 		},
 		{
-			q: 'How many logic gates are there?',
+			q: 'How many types of logic gates are there?',
 			a: 'Seven: AND, OR, NOT, XOR, NAND, NOR and XNOR. Some courses stop at six and leave XNOR out, since it is XOR with the output inverted. Strictly only three are fundamental, AND, OR and NOT, because the other four are combinations of those; and NAND alone, or NOR alone, can build everything.'
 		},
 		{
 			q: 'What are the types of logic gates?',
 			a: 'Three basic gates, AND, OR and NOT; two universal gates, NAND and NOR, which are AND and OR with the output inverted; and two exclusive gates, XOR and XNOR, which are high when the inputs differ and when they match respectively. Every one of them is defined by its truth table, shown on this page.'
+		},
+		{
+			q: 'What are the basic logic gates?',
+			a: 'AND, OR and NOT. Every boolean function can be written with these three alone, and the other four gates are combinations of them: NAND is AND followed by NOT, NOR is OR followed by NOT, XOR is (a ∧ ¬b) ∨ (¬a ∧ b), and XNOR is XOR followed by NOT.'
 		},
 		{
 			q: 'What are logic gates made of?',
@@ -30,8 +69,8 @@
 			a: 'Everything digital. Gates add numbers, compare them, pick one signal out of several, decode addresses and drive displays. Wired back on themselves they store bits, which is how memory and counters work. A processor is billions of gates doing exactly these jobs at once.'
 		},
 		{
-			q: 'Why are NAND and NOR called universal gates?',
-			a: "Because every other gate can be built from NAND gates alone, or from NOR gates alone. Tie both inputs of a NAND together and you get NOT; add that inverter to a NAND and you get AND; invert both inputs first and, by De Morgan's law, you get OR. Chips are largely made of NAND and NOR for this reason: one well made gate covers every function."
+			q: 'Which logic gates are universal?',
+			a: "NAND and NOR, and no other two input gate. A gate is universal when every other gate can be built from copies of it alone. Tie both inputs of a NAND together and you get NOT; add that inverter to a NAND and you get AND; invert both inputs first and, by De Morgan's law, you get OR. Chips are largely made of NAND and NOR for this reason: one well made gate covers every function."
 		},
 		{
 			q: 'Who invented logic gates?',
@@ -71,7 +110,17 @@
 					name: f.q,
 					acceptedAnswer: { '@type': 'Answer', text: f.a }
 				})),
-				hasPart: { '@id': `${page.url}#list` }
+				hasPart: { '@id': `${page.url}#list` },
+				primaryImageOfPage: { '@id': `${page.url}#chart` }
+			},
+			{
+				'@type': 'ImageObject',
+				'@id': `${page.url}#chart`,
+				name: 'Logic gates chart',
+				caption: chart.alt,
+				contentUrl: `${SITE}${chart.src}`,
+				width: chart.width * 2,
+				height: chart.height * 2
 			},
 			{
 				// hasPart, above, expects a CreativeWork; ItemList alone is not
@@ -129,7 +178,7 @@
 	]}
 >
 	<section class="intro">
-		<h1>The seven logic gates</h1>
+		<h1>The 7 types of logic gates</h1>
 		<p class="lede">
 			Every digital logic function, from a doorbell to a processor, is built out of these seven operations. Each one
 			combines binary inputs — one for NOT, two for XOR and XNOR, two or more for the rest — into a single binary
@@ -180,10 +229,10 @@
 	</section>
 
 	<section id="types">
-		<h2>The seven types of logic gate</h2>
+		<h2>Types of logic gates</h2>
 		<p class="section-intro">
 			Three basic gates (AND, OR, NOT), two universal gates (NAND, NOR) and two exclusive gates (XOR, XNOR). All seven
-			at a glance, each with a page of its own.
+			at a glance, with the symbol, the boolean expression and the truth table, and a page of its own for each.
 		</p>
 		<div class="gate-grid">
 			{#each rows as gate}
@@ -192,27 +241,33 @@
 						<span class="gate-name">{gate.name}</span>
 						<span class="gate-symbol mono">{gate.symbol}</span>
 					</h3>
-					<table class="data-table small">
-						<thead>
-							<tr>
-								{#each gate.table.variables as variable}
-									<th scope="col" class="mono">{variable}</th>
-								{/each}
-								<th scope="col" class="mono">Q</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each gate.table.rows as value, row}
+					<p class="group">{gate.group} gate</p>
+					<div class="gate-body">
+						<div class="gate-drawing">
+							<GateSymbol gate={gate.slug} label="{gate.name} gate symbol" />
+						</div>
+						<table class="data-table small">
+							<thead>
 								<tr>
-									{#each gate.table.variables as _, bit}
-										{@const on = !!(row & (1 << (gate.table.variables.length - 1 - bit)))}
-										<td class={on ? 'bit-1' : 'bit-0'}>{on ? 1 : 0}</td>
+									{#each gate.table.variables as variable}
+										<th scope="col" class="mono">{variable}</th>
 									{/each}
-									<td class={value ? 'bit-1' : 'bit-0'}>{value ? 1 : 0}</td>
+									<th scope="col" class="mono">Q</th>
 								</tr>
-							{/each}
-						</tbody>
-					</table>
+							</thead>
+							<tbody>
+								{#each gate.table.rows as value, row}
+									<tr>
+										{#each gate.table.variables as _, bit}
+											{@const on = !!(row & (1 << (gate.table.variables.length - 1 - bit)))}
+											<td class={on ? 'bit-1' : 'bit-0'}>{on ? 1 : 0}</td>
+										{/each}
+										<td class={value ? 'bit-1' : 'bit-0'}>{value ? 1 : 0}</td>
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
 					<p class="tagline">{gate.tagline}</p>
 					<span class="more">Read more →</span>
 				</a>
@@ -220,84 +275,88 @@
 		</div>
 	</section>
 
-	<section>
-		<h2>The chart</h2>
+	<section id="truth-table">
+		<h2>Truth table of all 7 logic gates</h2>
 		<p class="section-intro">
-			All seven with their symbols and truth tables on one image, if you want it on a wall or in a set of notes.
+			Every gate for the same two inputs, side by side. NOT has a single input, so its column is NOT a and ignores b.
 		</p>
-		<a class="chart-image" href="/img/logic-gates-chart.png" download>
-			<img
-				src="/img/logic-gates-chart.png"
-				alt="Logic gates chart: AND, OR, NOT, XOR, NAND, NOR and XNOR with their ANSI symbols, boolean expressions and truth tables"
-				width="1180"
-				height="1191"
-				loading="lazy"
-				decoding="async"
-			/>
+		<div class="table-wrap">
+			<table class="data-table combined" id="all-gates-truth-table">
+				<thead>
+					<tr>
+						<th scope="col" class="mono">a</th>
+						<th scope="col" class="mono">b</th>
+						{#each combined as gate}
+							<th scope="col"><a href="/logic-gates/{gate.slug}">{gate.header}</a></th>
+						{/each}
+					</tr>
+				</thead>
+				<tbody>
+					{#each [0, 1, 2, 3] as row}
+						<tr>
+							{#each both as _, bit}
+								{@const on = !!(row & (1 << (both.length - 1 - bit)))}
+								<td class={on ? 'bit-1' : 'bit-0'}>{on ? 1 : 0}</td>
+							{/each}
+							{#each combined as gate}
+								<td class={gate.rows[row] ? 'bit-1' : 'bit-0'}>{gate.rows[row] ? 1 : 0}</td>
+							{/each}
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+		<p class="reducer">
+			Read down a column to see a gate's whole rule. The inverted pairs are easy to spot: NAND is AND with every output
+			flipped, NOR is OR flipped, and XNOR is XOR flipped.
+		</p>
+	</section>
+
+	<section id="chart">
+		<h2>Logic gates chart</h2>
+		<p class="section-intro">
+			All seven with their symbols and truth tables on one image, if you want it on a wall or in a set of notes. The
+			<a href="/logic-gate-symbols">logic gate symbols</a> page has a chart of both the ANSI and IEC symbols.
+		</p>
+		<a class="chart-image" href={chart.src} download>
+			<img src={chart.src} alt={chart.alt} width={chart.width} height={chart.height} loading="lazy" decoding="async" />
 			<span class="chart-caption">Click to download the logic gates chart</span>
 		</a>
 	</section>
 
-	<section>
-		<h2>How they relate</h2>
-		<p class="section-intro">
-			The seven are not independent. Three of them are three others with the output inverted, and two of them can build
-			all the rest on their own.
+	<section id="basic-vs-universal">
+		<h2>Basic gates vs universal gates</h2>
+		<p>
+			The seven are not independent. The <strong>basic gates</strong> are AND, OR and NOT: together they can express any
+			boolean function, since every truth table can be written as an OR of AND terms, with NOT on some of the inputs.
+			The <strong>universal gates</strong>, NAND and NOR, can do the same on their own, with no other gate needed. The
+			<strong>exclusive gates</strong>, XOR and XNOR, are neither: they are built from the basic gates, and cannot build
+			an AND by themselves.
 		</p>
-		<table class="data-table">
-			<thead>
-				<tr>
-					<th scope="col">Gate</th>
-					<th scope="col">Is</th>
-					<th scope="col">Inputs</th>
-					<th scope="col">Universal</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr>
-					<th scope="row">AND</th>
-					<td>The base case: all inputs high</td>
-					<td>2 or more</td>
-					<td>No</td>
-				</tr>
-				<tr>
-					<th scope="row">OR</th>
-					<td>The base case: any input high</td>
-					<td>2 or more</td>
-					<td>No</td>
-				</tr>
-				<tr>
-					<th scope="row">NOT</th>
-					<td>Inversion, the thing that completes the set</td>
-					<td>1</td>
-					<td>No</td>
-				</tr>
-				<tr>
-					<th scope="row">NAND</th>
-					<td>AND, inverted</td>
-					<td>2 or more</td>
-					<td>Yes</td>
-				</tr>
-				<tr>
-					<th scope="row">NOR</th>
-					<td>OR, inverted</td>
-					<td>2 or more</td>
-					<td>Yes</td>
-				</tr>
-				<tr>
-					<th scope="row">XOR</th>
-					<td>OR, minus the case where both are high</td>
-					<td>2</td>
-					<td>No</td>
-				</tr>
-				<tr>
-					<th scope="row">XNOR</th>
-					<td>XOR, inverted</td>
-					<td>2</td>
-					<td>No</td>
-				</tr>
-			</tbody>
-		</table>
+		<div class="table-wrap">
+			<table class="data-table">
+				<thead>
+					<tr>
+						<th scope="col">Gate</th>
+						<th scope="col">Type</th>
+						<th scope="col">Is</th>
+						<th scope="col">Inputs</th>
+						<th scope="col">Universal</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each rows as gate}
+						<tr>
+							<th scope="row"><a href="/logic-gates/{gate.slug}">{gate.name}</a></th>
+							<td>{gate.group}</td>
+							<td>{gate.is}</td>
+							<td>{gate.inputs === 'many' ? '2 or more' : gate.inputs}</td>
+							<td>{gate.group === 'Universal' ? 'Yes' : 'No'}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
 		<p class="reducer">
 			"Universal" means every other gate can be built from that one alone. Each gate page shows the construction, and
 			every identity on this site is machine checked against its truth table.
@@ -458,9 +517,36 @@
 		color: #999;
 	}
 
+	.group {
+		color: #999;
+		font-size: 0.78rem;
+		margin: -0.3rem 0 0.6rem;
+	}
+
+	.gate-body {
+		display: flex;
+		align-items: center;
+		gap: 0.8rem;
+	}
+
+	.gate-drawing {
+		flex: 0 0 96px;
+	}
+
 	.gate .small {
-		width: 100%;
+		flex: 1 1 auto;
 		font-size: 0.85rem;
+	}
+
+	.combined th,
+	.combined td {
+		text-align: center;
+	}
+
+	.combined thead a {
+		color: #fff;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		white-space: nowrap;
 	}
 
 	.tagline {

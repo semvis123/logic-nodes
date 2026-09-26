@@ -1,9 +1,23 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import BubbledGateSymbol from '$lib/BubbledGateSymbol.svelte';
 	import { modifiedFields } from '$lib/lastmod';
-	import { demorganLaws, demorganExamples } from '$lib/demorgan';
+	import { toolLink } from '$lib/urlState';
+	import {
+		demorganLaws,
+		demorganExamples,
+		demorganNotations,
+		overbarRuns,
+		demorganGates,
+		bubbledExpression,
+		demorganProof,
+		demorganWalkthrough,
+		demorganMistakes
+	} from '$lib/demorgan';
 	import { parseExpression, truthTable, variablesOf, evaluate } from '$lib/boolean';
+	import { roster } from '$lib/venn';
+	import { universe, sets, value } from '$lib/setNotation';
 
 	// Every proof on this page is generated from the expression engine, and the
 	// same identities are checked in the test suite, so nothing here is typed in.
@@ -20,33 +34,58 @@
 			holds: l.rows.every((value, i) => value === r.rows[i])
 		};
 	});
+	const lawById = Object.fromEntries(proven.map((law) => [law.id, law]));
 
 	// The mistake everyone makes once: dropping the NOT into the bracket without
 	// swapping the operator. Its table is generated too, so the row where the
 	// two differ is found rather than asserted.
+	const first = demorganMistakes[0];
 	const wrong = {
-		left: '¬(a ∧ b)',
-		right: '¬a ∧ ¬b',
+		left: first.original,
+		right: first.wrong,
 		rows: [0, 1, 2, 3].map((i) => {
 			const values = { a: !!(i & 2), b: !!(i & 1) };
 			return {
 				a: values.a,
 				b: values.b,
-				left: evaluate(parseExpression('¬(a ∧ b)'), values),
-				right: evaluate(parseExpression('¬a ∧ ¬b'), values)
+				left: evaluate(parseExpression(first.original), values),
+				right: evaluate(parseExpression(first.wrong), values)
 			};
 		})
 	};
 	const differing = wrong.rows.filter((row) => row.left !== row.right);
 
+	// The other mistakes, each with the number of rows on which it goes wrong.
+	const mistakes = demorganMistakes.slice(1).map((mistake) => {
+		const original = parseExpression(mistake.original);
+		const variables = variablesOf(original);
+		const a = truthTable(original, variables).rows;
+		const b = truthTable(parseExpression(mistake.wrong), variables).rows;
+		return { ...mistake, differ: a.filter((v, i) => v !== b[i]).length, total: a.length };
+	});
+
+	// The set form, worked out on the same small sets the set notation page uses.
+	const setRows = [
+		['A ∩ B', 'In both'],
+		['(A ∩ B)ᶜ', 'Not in both'],
+		['Aᶜ', 'Not in A'],
+		['Bᶜ', 'Not in B'],
+		['Aᶜ ∪ Bᶜ', 'Not in A, or not in B']
+	].map(([expression, words]) => ({ expression, words, value: value(expression) }));
+	const setsAgree = value('(A ∩ B)ᶜ') === value('Aᶜ ∪ Bᶜ') && value('(A ∪ B)ᶜ') === value('Aᶜ ∩ Bᶜ');
+
 	const faqs = [
 		{
 			q: "What are De Morgan's laws?",
-			a: 'Two identities in boolean algebra that say how a NOT moves through a bracket. Negating an AND gives the OR of the negated terms: ¬(a ∧ b) = ¬a ∨ ¬b. Negating an OR gives the AND of the negated terms: ¬(a ∨ b) = ¬a ∧ ¬b. In short, negate every term and swap AND for OR.'
+			a: 'Two identities in boolean algebra that say how a NOT moves through a bracket. Negating an AND gives the OR of the negated terms: ¬(A ∧ B) = ¬A ∨ ¬B. Negating an OR gives the AND of the negated terms: ¬(A ∨ B) = ¬A ∧ ¬B. In short, negate every term and swap AND for OR.'
 		},
 		{
-			q: "What is De Morgan's theorem in digital electronics?",
+			q: "What is De Morgan's law in logic gates?",
 			a: 'The same two laws read as gates: a NAND gate is an OR gate with both inputs inverted, and a NOR gate is an AND gate with both inputs inverted. That is what lets any circuit be rebuilt from NAND gates alone or from NOR gates alone, and what engineers are doing when they push inversion bubbles around a schematic.'
+		},
+		{
+			q: "How do you prove De Morgan's law?",
+			a: 'With a truth table: two variables have only four combinations, and ¬(A ∧ B) and ¬A ∨ ¬B give the same output on all four. Or with algebra: show that ¬A ∨ ¬B ORed with A ∧ B is always 1 and ANDed with it is always 0. Only the complement of A ∧ B does both, so ¬A ∨ ¬B is that complement.'
 		},
 		{
 			q: "How do you apply De Morgan's law step by step?",
@@ -54,11 +93,15 @@
 		},
 		{
 			q: "Do De Morgan's laws work for more than two variables?",
-			a: 'Yes. ¬(a ∧ b ∧ c) = ¬a ∨ ¬b ∨ ¬c, and the same for OR, for any number of terms. It follows from applying the two-variable law repeatedly, since a ∧ b ∧ c is (a ∧ b) ∧ c. The tables on this page prove the three-variable forms directly.'
+			a: 'Yes. ¬(A ∧ B ∧ C) = ¬A ∨ ¬B ∨ ¬C, and the same for OR, for any number of terms. It follows from applying the two-variable law repeatedly, since A ∧ B ∧ C is (A ∧ B) ∧ C. The tables on this page prove the three and four variable forms directly.'
 		},
 		{
-			q: 'Why is ¬(a ∧ b) not the same as ¬a ∧ ¬b?',
-			a: 'Take a = 1 and b = 0. Then a ∧ b is 0, so ¬(a ∧ b) is 1; but ¬a ∧ ¬b is 0 ∧ 1, which is 0. The NOT cannot simply be distributed inside the bracket; the operator has to flip as well. "Not both" means "at least one is missing", which is an OR.'
+			q: "What is De Morgan's law for sets?",
+			a: 'The complement of an intersection is the union of the complements, (A ∩ B)ᶜ = Aᶜ ∪ Bᶜ, and the complement of a union is the intersection of the complements, (A ∪ B)ᶜ = Aᶜ ∩ Bᶜ. They are the same laws as in logic, because being in A ∩ B means being in A AND in B.'
+		},
+		{
+			q: 'Why is ¬(A ∧ B) not the same as ¬A ∧ ¬B?',
+			a: 'Take A = 1 and B = 0. Then A ∧ B is 0, so ¬(A ∧ B) is 1; but ¬A ∧ ¬B is 0 ∧ 1, which is 0. The NOT cannot simply be distributed inside the bracket; the operator has to flip as well. "Not both" means "at least one is missing", which is an OR.'
 		},
 		{
 			q: 'Who was De Morgan?',
@@ -67,9 +110,9 @@
 	];
 
 	const page = {
-		title: "De Morgan's Laws: Explained With Proofs and Worked Examples",
+		title: "De Morgan's Law: Proof, Logic Gates, Sets and Examples",
 		description:
-			"De Morgan's laws (theorem): ¬(a ∧ b) = ¬a ∨ ¬b and ¬(a ∨ b) = ¬a ∧ ¬b. Each proved with a truth table, then worked examples and NAND and NOR gates.",
+			"De Morgan's laws, ¬(A ∧ B) = ¬A ∨ ¬B and ¬(A ∨ B) = ¬A ∧ ¬B, in every notation, with proofs, logic gate drawings, the set form and worked examples.",
 		url: `${SITE}/de-morgans-laws`,
 		image: `${SITE}/og/de-morgans-laws.png`,
 		imageAlt: "LogicGates.org: De Morgan's laws"
@@ -139,6 +182,8 @@
 		{ href: '/logical-equivalence-calculator', label: 'Logical equivalence calculator' },
 		{ href: '/logic/logical-equivalences', label: 'The laws of logic' },
 		{ href: '/venn-diagram-generator', label: "De Morgan's laws as Venn diagrams" },
+		{ href: '/set-notation', label: 'Set notation' },
+		{ href: '/logic-gate-symbols', label: 'Logic gate symbols' },
 		{ href: '/logic-gates', label: 'The seven logic gates' }
 	]}
 >
@@ -153,13 +198,29 @@
 			get an AND of negations. Negate every term, swap the operator. That is the whole of it, and it is the most used
 			identity in digital logic.
 		</p>
+		<dl class="summary card">
+			<div>
+				<dt>First law</dt>
+				<dd class="mono">¬(A ∧ B) = ¬A ∨ ¬B</dd>
+				<dd class="gloss">NOT (A AND B) is (NOT A) OR (NOT B).</dd>
+			</div>
+			<div>
+				<dt>Second law</dt>
+				<dd class="mono">¬(A ∨ B) = ¬A ∧ ¬B</dd>
+				<dd class="gloss">NOT (A OR B) is (NOT A) AND (NOT B).</dd>
+			</div>
+		</dl>
 	</section>
 
 	<section id="the-laws">
-		<h2>The two laws</h2>
+		<h2>De Morgan's first and second law</h2>
+		<p class="section-intro">
+			Each law with its truth table proof. Two variables have four combinations, so checking all four proves the law.
+		</p>
 		<div class="laws">
 			{#each proven.slice(0, 2) as law}
 				<div class="card law" id="law-{law.id}">
+					<h3 class="law-name">{law.name}</h3>
 					<div class="statement">
 						<span class="mono expr">{law.left}</span>
 						<span class="equals" aria-label="is equivalent to">=</span>
@@ -203,15 +264,91 @@
 				</div>
 			{/each}
 		</div>
+
+		<h3 id="notations">The same laws in every notation</h3>
+		<p>
+			Textbooks, datasheets and programming languages write the same two laws in different symbols. Every row below is
+			checked by this site's expression engines.
+		</p>
+		<div class="table-wrap">
+			<table class="data-table notations">
+				<thead>
+					<tr>
+						<th scope="col">Notation</th>
+						<th scope="col">First law</th>
+						<th scope="col">Second law</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each demorganNotations as notation}
+						<tr>
+							<th scope="row">{notation.name}</th>
+							{#each [notation.first, notation.second] as [left, right]}
+								<td class="mono">
+									{#if notation.kind === 'overbar'}
+										{#each overbarRuns(left) as run}<span class:bar={run.bar}
+												>{#if run.bar}<span class="sr">not </span>{/if}{run.text}</span
+											>{/each}
+										=
+										{#each overbarRuns(right) as run}<span class:bar={run.bar}
+												>{#if run.bar}<span class="sr">not </span>{/if}{run.text}</span
+											>{/each}
+									{:else}
+										{left} {notation.id === 'code' || notation.id === 'python' ? '≡' : '='} {right}
+									{/if}
+								</td>
+							{/each}
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
 		<p class="reducer">
-			In engineering notation the same two lines read <span class="mono">(A·B)' = A' + B'</span> and
-			<span class="mono">(A+B)' = A'·B'</span>. In code, <span class="mono">!(a &amp;&amp; b)</span> is
-			<span class="mono">!a || !b</span>, which is the form most programmers meet first.
+			The bar form is read "break the line, change the sign": cut the bar over <span class="mono">A · B</span> into a
+			bar over each letter, and the <span class="mono">·</span> under the cut becomes <span class="mono">+</span>. In
+			the code rows, <span class="mono">≡</span> means the two sides always give the same result; it is not an operator
+			you can type. Writing <span class="mono">==</span> between them would need brackets round each side, because
+			<span class="mono">==</span> binds tighter than <span class="mono">||</span> and <span class="mono">or</span>.
+		</p>
+	</section>
+
+	<section id="proof">
+		<h2>Proof of De Morgan's theorem</h2>
+		<p>
+			The truth tables above are one proof: with two variables there are only four cases, and checking every case is a
+			proof. The algebraic proof uses the fact that a value has exactly one complement. If
+			<span class="mono">¬a ∨ ¬b</span> ORed with <span class="mono">a ∧ b</span> always gives 1, and ANDed with it
+			always gives 0, then <span class="mono">¬a ∨ ¬b</span> is the complement of <span class="mono">a ∧ b</span>, which
+			is
+			<span class="mono">¬(a ∧ b)</span>.
+		</p>
+		<div class="laws">
+			{#each demorganProof as chain}
+				<div class="card example" id={chain.id}>
+					<h3>{chain.title}</h3>
+					<p class="why">{chain.why}</p>
+					<ol class="steps">
+						{#each chain.steps as step, i}
+							<li>
+								<span class="mono expr">{step.expression}</span>
+								{#if i > 0}
+									<span class="rule">{step.rule}</span>
+								{/if}
+							</li>
+						{/each}
+					</ol>
+				</div>
+			{/each}
+		</div>
+		<p class="reducer">
+			So <span class="mono">¬(a ∧ b) = ¬a ∨ ¬b</span>. The second law has the same proof with every AND and OR swapped
+			and every 1 and 0 swapped, which is the duality principle of boolean algebra: any law stays true when you swap
+			them.
 		</p>
 	</section>
 
 	<section id="how-to-apply">
-		<h2>How to apply them</h2>
+		<h2>How to apply De Morgan's law step by step</h2>
 		<p>The rule is mechanical, and it is easiest to remember as three moves on the bracket:</p>
 		<ol class="moves">
 			<li><strong>Take the NOT off the bracket.</strong> The bracket no longer has a bar over it.</li>
@@ -225,6 +362,28 @@
 			NOT of its own and waits. Then apply the law to that inner bracket in turn. The older mnemonic is "break the line,
 			change the sign": the overbar breaks into pieces, and the operator under the break flips.
 		</p>
+		<div class="card example walkthrough" id={demorganWalkthrough.id}>
+			<h3>Worked example: {demorganWalkthrough.title}</h3>
+			<p class="why">{demorganWalkthrough.why}</p>
+			<ol class="steps">
+				{#each demorganWalkthrough.steps as step, i}
+					<li>
+						<span class="mono expr">{step.expression}</span>
+						{#if i > 0}
+							<span class="rule">{step.rule}</span>
+						{/if}
+					</li>
+				{/each}
+			</ol>
+			<p class="verdict">
+				Every line has the same truth table as the first, and the last one, <span class="mono"
+					>{demorganWalkthrough.steps[demorganWalkthrough.steps.length - 1].expression}</span
+				>, is also what the
+				<a href={toolLink('/boolean-algebra-calculator', { expr: demorganWalkthrough.steps[0].expression })}
+					>boolean algebra calculator</a
+				> reaches on its own.
+			</p>
+		</div>
 	</section>
 
 	<section id="worked-examples">
@@ -256,10 +415,18 @@
 	</section>
 
 	<section id="more-variables">
-		<h2>More than two variables</h2>
+		<h2>De Morgan's law for n variables</h2>
 		<p>
 			The laws hold for any number of terms, because a ∧ b ∧ c is just (a ∧ b) ∧ c and the two-variable law can be
 			applied twice. In practice you treat the whole chain at once: negate every term, swap every operator.
+		</p>
+		<div class="general card">
+			<p class="mono expr">¬(x₁ ∧ x₂ ∧ … ∧ xₙ) = ¬x₁ ∨ ¬x₂ ∨ … ∨ ¬xₙ</p>
+			<p class="mono expr">¬(x₁ ∨ x₂ ∨ … ∨ xₙ) = ¬x₁ ∧ ¬x₂ ∧ … ∧ ¬xₙ</p>
+		</div>
+		<p class="section-intro">
+			The three and four variable forms, each proved by its full truth table of 8 or 16 rows. The test suite checks
+			every width up to eight.
 		</p>
 		<div class="laws">
 			{#each proven.slice(2) as law}
@@ -309,11 +476,35 @@
 	</section>
 
 	<section id="in-circuits">
-		<h2>In circuits: bubble pushing</h2>
+		<h2>De Morgan's law in logic gates</h2>
 		<p>
-			On a schematic the laws are drawn rather than written. The small circle on a gate's pin means invert, and De
-			Morgan says you may move a bubble from the output of a gate to all of its inputs as long as you swap the gate's
-			shape at the same time.
+			On a schematic the laws are drawn rather than written. The small circle on a gate's pin, the bubble, means invert.
+			Each law says that two drawings are the same part:
+		</p>
+		<div class="gate-laws">
+			{#each demorganGates as pair}
+				{@const law = lawById[pair.law]}
+				<figure class="card gate-law">
+					<div class="gate-pair">
+						<div class="gate-side">
+							<BubbledGateSymbol gate={pair.left} label="{pair.left.name} gate symbol" />
+							<span class="gate-caption">{pair.left.name}</span>
+							<span class="mono gate-expr">{bubbledExpression(pair.left)}</span>
+						</div>
+						<span class="equals" aria-label="is the same as">=</span>
+						<div class="gate-side">
+							<BubbledGateSymbol gate={pair.right} label="{pair.right.name} symbol" />
+							<span class="gate-caption">{pair.right.name}</span>
+							<span class="mono gate-expr">{bubbledExpression(pair.right)}</span>
+						</div>
+					</div>
+					<figcaption>{law.gate}</figcaption>
+				</figure>
+			{/each}
+		</div>
+		<p>
+			Put another way, De Morgan says you may move a bubble from the output of a gate to all of its inputs as long as
+			you swap the gate's shape at the same time. This is called bubble pushing.
 		</p>
 		<ul class="bubbles">
 			<li>
@@ -335,12 +526,62 @@
 				>NAND and NOR are universal</a
 			>: the OR that NAND seems to lack is a NAND with its inputs inverted, which is the "OR gate from NAND gates"
 			example above. The
-			<a href="/nand-nor-converter">NAND and NOR converter</a> applies the laws to a whole expression and counts the gates.
+			<a href="/nand-nor-converter">NAND and NOR converter</a> applies the laws to a whole expression and counts the
+			gates, and the <a href="/logic-gate-symbols">logic gate symbols</a> page has every gate in both drawing standards.
+		</p>
+	</section>
+
+	<section id="sets">
+		<h2>De Morgan's law for sets</h2>
+		<p>
+			The same two laws hold for sets, with intersection for AND, union for OR and the complement for NOT. An element is
+			in <span class="mono">A ∩ B</span> when it is in A and in B, so the two subjects are one algebra in different symbols.
+		</p>
+		<div class="summary card set-laws">
+			<p class="mono expr">(A ∩ B)ᶜ = Aᶜ ∪ Bᶜ</p>
+			<p class="mono expr">(A ∪ B)ᶜ = Aᶜ ∩ Bᶜ</p>
+		</div>
+		<p>
+			In words: whatever is not in both sets is missing from at least one of them, and whatever is in neither set is
+			outside A and outside B. Worked out with U = <span class="mono">{roster(universe)}</span>, A =
+			<span class="mono">{roster(sets.A)}</span> and B = <span class="mono">{roster(sets.B)}</span>:
+		</p>
+		<div class="table-wrap">
+			<table class="data-table set-table">
+				<thead>
+					<tr>
+						<th scope="col">Set</th>
+						<th scope="col">Meaning</th>
+						<th scope="col">Elements</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each setRows as row}
+						<tr>
+							<th scope="row" class="mono">{row.expression}</th>
+							<td>{row.words}</td>
+							<td class="mono">{row.value}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+		<p class="verdict">
+			{setsAgree
+				? `(A ∩ B)ᶜ and Aᶜ ∪ Bᶜ are both ${value(
+						'(A ∩ B)ᶜ'
+				  )}, and the second law checks out the same way: (A ∪ B)ᶜ and Aᶜ ∩ Bᶜ are both ${value('(A ∪ B)ᶜ')}.`
+				: 'These sets do not match.'}
+		</p>
+		<p class="reducer">
+			See it shaded: the <a href={toolLink('/venn-diagram-generator', { s: '(A ∩ B)ᶜ' })}>Venn diagram generator</a>
+			draws <span class="mono">(A ∩ B)ᶜ</span> and gives its shortest equivalent, and the
+			<a href="/set-notation">set notation</a> page explains every symbol used here.
 		</p>
 	</section>
 
 	<section id="common-mistake">
-		<h2>The common mistake</h2>
+		<h2>Common mistakes</h2>
 		<p>
 			The error nearly everyone makes once is to push the NOT inside the bracket and leave the operator alone, writing
 			<span class="mono">{wrong.left}</span> as <span class="mono">{wrong.right}</span>. The table shows where it goes
@@ -372,6 +613,22 @@
 			The two differ on {differing.length} of 4 rows. "Not both a and b" is true whenever either one is missing; "not a and
 			not b" needs both to be missing. The first is an OR of the negations, and only the OR is right.
 		</p>
+		<div class="mistakes">
+			{#each mistakes as mistake}
+				<div class="card example" id="mistake-{mistake.id}">
+					<h3>{mistake.title}</h3>
+					<p class="pair">
+						<span class="mono expr">{mistake.original}</span> is not
+						<span class="mono wrong-expr">{mistake.wrong}</span>
+						<span class="rule">(wrong on {mistake.differ} of {mistake.total} rows)</span>
+					</p>
+					<p class="pair">
+						It is <span class="mono expr">{mistake.right}</span>
+					</p>
+					<p class="why">{mistake.why}</p>
+				</div>
+			{/each}
+		</div>
 	</section>
 
 	<section id="history">
@@ -411,14 +668,72 @@
 		color: #888;
 	}
 
+	.summary {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.8rem 2.5rem;
+		padding: 0.9rem 1rem;
+		margin: 1rem 0 0;
+		max-width: 700px;
+	}
+
+	.summary dt {
+		color: #999;
+		font-size: 0.8rem;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.summary dd {
+		margin: 0.2rem 0 0;
+	}
+
+	.summary dd.mono {
+		color: #8ede8e;
+		font-size: 1.15rem;
+	}
+
+	.summary .gloss {
+		color: #bbb;
+		font-size: 0.85rem;
+	}
+
+	.set-laws {
+		display: block;
+		margin: 0.4rem 0 1rem;
+	}
+
+	.set-laws p,
+	.general p {
+		margin: 0.2rem 0;
+	}
+
+	.general {
+		padding: 0.8rem 1rem;
+		margin-bottom: 1rem;
+		max-width: 700px;
+	}
+
 	.laws {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
 		gap: 12px;
 	}
 
 	.law {
 		padding: 0.9rem 1rem 1rem;
+		/* A grid item grows to fit its widest content unless told otherwise, and
+		   the four variable proofs are wider than a phone; this lets their
+		   .table-wrap do the scrolling instead of the page. */
+		min-width: 0;
+	}
+
+	.law-name {
+		margin: 0 0 0.4rem;
+		font-size: 0.8rem;
+		color: #999;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
 	}
 
 	.statement {
@@ -468,6 +783,31 @@
 		color: #bbb;
 		font-size: 0.85rem;
 		margin: 0.5rem 0 0;
+	}
+
+	#notations {
+		margin-top: 1.8rem;
+	}
+
+	.notations td {
+		white-space: nowrap;
+		/* Holds the absolutely placed .sr text inside the scrolling table, so it
+		   cannot widen the page from outside it. */
+		position: relative;
+	}
+
+	.bar {
+		text-decoration: overline;
+	}
+
+	/* Read aloud, the bar becomes "not"; on screen, the bar alone says it. */
+	.sr {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 
 	.moves {
@@ -522,6 +862,61 @@
 		font-size: 0.82rem;
 	}
 
+	.walkthrough {
+		margin-top: 1rem;
+	}
+
+	.gate-laws {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+		gap: 12px;
+		margin-bottom: 1rem;
+	}
+
+	.gate-law {
+		margin: 0;
+		padding: 0.9rem 1rem 1rem;
+	}
+
+	.gate-pair {
+		display: flex;
+		align-items: flex-start;
+		justify-content: center;
+		gap: 0.8rem;
+	}
+
+	/* Level with the middle of the drawings, whatever the captions do. */
+	.gate-pair > .equals {
+		margin-top: 1.9rem;
+	}
+
+	.gate-side {
+		flex: 1 1 0;
+		max-width: 140px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.25rem;
+		text-align: center;
+	}
+
+	.gate-caption {
+		color: #fff;
+		font-size: 0.82rem;
+	}
+
+	.gate-expr {
+		color: #8ede8e;
+		font-size: 0.85rem;
+	}
+
+	.gate-law figcaption {
+		color: #bbb;
+		font-size: 0.85rem;
+		margin-top: 0.7rem;
+		text-align: center;
+	}
+
 	.bubbles {
 		color: #ddd;
 		max-width: 700px;
@@ -534,5 +929,27 @@
 
 	.mistake .differs td {
 		background: rgba(255, 34, 51, 0.12);
+	}
+
+	.mistakes {
+		margin-top: 1.2rem;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+		gap: 12px;
+	}
+
+	.mistakes .example {
+		margin: 0;
+		min-width: 0;
+	}
+
+	.pair {
+		margin: 0.2rem 0;
+		color: #ddd;
+	}
+
+	.wrong-expr {
+		color: #f77;
+		font-size: 1.05rem;
 	}
 </style>
