@@ -17,6 +17,8 @@
 	} from '$lib/propositional';
 	import { readUrl, syncUrl, safeText, safeOption, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
+	import ExpressionTree from '$lib/ExpressionTree.svelte';
+	import { treeFromProp } from '$lib/exprTree';
 	import { onMount } from 'svelte';
 
 	// Every setting lives in the query string, so a link reopens this exactly.
@@ -193,6 +195,30 @@
 		const field = document.getElementById('statement');
 		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
+	}
+
+	// The expression tree under the table shows every part's value for one row,
+	// picked by clicking the table. Only drawn for a single statement.
+	let selectedRow = 0;
+	$: rowCount = table ? table.rows.length : 0;
+	$: if (selectedRow >= rowCount) selectedRow = 0;
+	$: treeProp = table && table.statements.length === 1 && !table.conclusion ? table.statements[0].prop : null;
+	$: tree = treeProp ? treeFromProp(treeProp) : null;
+	$: rowValues = table
+		? Object.fromEntries(table.variables.map((v, j) => [v, table!.rows[selectedRow]?.[j] ?? false]))
+		: {};
+
+	function rowKey(event: KeyboardEvent, row: number) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			selectedRow = row;
+		} else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			const next = Math.max(0, Math.min(rowCount - 1, row + (event.key === 'ArrowDown' ? 1 : -1)));
+			selectedRow = next;
+			const rows = (event.currentTarget as HTMLElement).parentElement?.children;
+			(rows?.[next] as HTMLElement | undefined)?.focus();
+		}
 	}
 
 	const mark = (v: boolean) => (order === '01' ? (v ? '1' : '0') : v ? 'T' : 'F');
@@ -399,7 +425,15 @@
 						</thead>
 						<tbody>
 							{#each table.rows as row, r}
-								<tr class:critical={critical.has(r) && !counter.has(r)} class:counter={counter.has(r)}>
+								<tr
+									class:critical={critical.has(r) && !counter.has(r)}
+									class:counter={counter.has(r)}
+									class:selected={tree && r === selectedRow}
+									aria-selected={tree ? r === selectedRow : undefined}
+									tabindex={tree ? 0 : undefined}
+									on:click={() => (selectedRow = r)}
+									on:keydown={(e) => rowKey(e, r)}
+								>
 									{#each row as value}
 										<td class={value ? 'bit-1' : 'bit-0'}>{mark(value)}</td>
 									{/each}
@@ -474,6 +508,25 @@
 						<p class="forms-note">
 							<a href="#normal-forms">What these are</a>. The same thing for circuits:
 							<a href="/sum-of-products-calculator">sum of products and product of sums</a>.
+						</p>
+					</div>
+				{/if}
+				{#if tree}
+					<div class="tree-block">
+						<h3 class="tree-head">Expression tree</h3>
+						<p class="tree-intro">
+							{#if table.variables.length}
+								How the statement is built, with the value of each part when
+								<span class="mono">{table.variables.map((v) => `${v} = ${mark(rowValues[v])}`).join(', ')}</span>. Click
+								a row of the table to pick another.
+							{:else}
+								How the statement is built, with the value of each part.
+							{/if}
+						</p>
+						<ExpressionTree {tree} values={rowValues} marks={order === '01' ? '01' : 'tf'} />
+						<p class="tree-link">
+							<a href="/expression-tree">What an expression tree is</a>: each circle is one of the working columns
+							above.
 						</p>
 					</div>
 				{/if}
@@ -1011,6 +1064,52 @@
 		color: #ddd;
 		font-size: 0.85rem;
 		margin-bottom: 0.6rem;
+	}
+
+	.result tbody tr[tabindex] {
+		cursor: pointer;
+	}
+
+	/* The row the expression tree shows: framed, so a green or red row keeps its tint. */
+	.result tr.selected td {
+		box-shadow: inset 0 2px 0 #ddd, inset 0 -2px 0 #ddd;
+	}
+
+	.result tr.selected td:first-child {
+		box-shadow: inset 0 2px 0 #ddd, inset 0 -2px 0 #ddd, inset 3px 0 0 #ddd;
+	}
+
+	.result tr.selected td:last-child {
+		box-shadow: inset 0 2px 0 #ddd, inset 0 -2px 0 #ddd, inset -3px 0 0 #ddd;
+	}
+
+	.result tr:focus-visible {
+		outline: 2px solid #5db65d;
+		outline-offset: -2px;
+	}
+
+	.tree-block {
+		margin-top: 1rem;
+		padding-top: 0.9rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.15);
+	}
+
+	.tree-head {
+		font-size: 1rem;
+		color: #fff;
+		margin: 0 0 0.3rem;
+	}
+
+	.tree-intro {
+		color: #bbb;
+		font-size: 0.85rem;
+		margin: 0 0 0.6rem;
+	}
+
+	.tree-link {
+		color: #bbb;
+		font-size: 0.85rem;
+		margin: 0.5rem 0 0;
 	}
 
 	.forms-note {
