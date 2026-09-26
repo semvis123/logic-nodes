@@ -119,6 +119,10 @@
 			a: 'Rows count up in binary from all zeros to all ones, with the first variable as the most significant bit. That is the conventional ordering, so the table matches the one in your textbook.'
 		},
 		{
+			q: 'Can it do if-then statements like p → q?',
+			a: 'This generator is for circuit expressions, so it has no implication arrow. The truth table calculator for logic statements does: it takes →, ↔ and the rest of the propositional logic notation, shows a column for every step, and checks tautologies, equivalence and whether an argument is valid.'
+		},
+		{
 			q: 'Can I get a circuit out of a truth table?',
 			a: 'Yes, in the simulator. Open it on an empty canvas and press ctrl+T (or cmd+T), fill in the output column, and it builds a working circuit of real gates that matches your table.'
 		}
@@ -202,6 +206,7 @@
 	related={[
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
+		{ href: '/propositional-logic-truth-table', label: 'Truth tables for p → q' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' },

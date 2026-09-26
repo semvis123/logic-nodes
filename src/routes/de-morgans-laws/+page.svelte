@@ -135,6 +135,7 @@
 		{ href: '/boolean-algebra-examples', label: 'Worked simplification examples' },
 		{ href: '/nand-nor-converter', label: 'NAND and NOR converter' },
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
+		{ href: '/propositional-logic-truth-table', label: 'Truth tables for logic statements' },
 		{ href: '/logic-gates', label: 'The seven logic gates' }
 	]}
 >

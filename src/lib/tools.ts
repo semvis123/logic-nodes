@@ -16,6 +16,13 @@ export const tools: Tool[] = [
 			'Type an expression, or several for a multi-output circuit, and get the full truth table, plus the tables of all seven basic gates.'
 	},
 	{
+		href: '/propositional-logic-truth-table',
+		name: 'Logic statement truth tables',
+		short: 'Logic statements',
+		blurb:
+			'Truth tables for p → q, ↔ and ¬ with every step shown, plus tautology, equivalence and argument validity checks.'
+	},
+	{
 		href: '/boolean-algebra-calculator',
 		name: 'Boolean algebra calculator',
 		short: 'Boolean algebra',
