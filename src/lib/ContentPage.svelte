@@ -12,13 +12,17 @@
 		{ href: '/learn', label: 'Learn' },
 		{ href: '/logic-gates', label: 'Gates' },
 		{ href: '/flip-flops', label: 'Flip-flops' },
+		{ href: '/logic', label: 'Logic' },
 		{ href: '/tools', label: 'Tools' },
 		{ href: '/practice', label: 'Practice' }
 	];
 
 	// A section counts as current when the path starts with it, so the gate
-	// detail pages keep "Gates" highlighted; each tool keeps "Tools" lit.
-	const toolPaths = tools.map((tool) => tool.href);
+	// detail pages keep "Gates" highlighted; each tool keeps "Tools" lit,
+	// except the logic statement tools, which light "Logic" instead: one
+	// section per page, and those two belong with the logic concept pages.
+	const logicPaths = ['/propositional-logic-truth-table', '/logical-equivalence-calculator'];
+	const toolPaths = tools.map((tool) => tool.href).filter((href) => !logicPaths.includes(href));
 
 	// Pages that belong to a section without living under its path.
 	const alsoIn: Record<string, string[]> = {
@@ -38,7 +42,8 @@
 			'/ripple-carry-adder',
 			'/twos-complement'
 		],
-		'/flip-flops': ['/counters', '/shift-registers', '/sr-latch', '/finite-state-machines']
+		'/flip-flops': ['/counters', '/shift-registers', '/sr-latch', '/finite-state-machines'],
+		'/logic': logicPaths
 	};
 	/** Printing should not hide answers behind a collapsed summary. */
 	function openAll() {

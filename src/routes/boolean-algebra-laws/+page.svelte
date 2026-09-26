@@ -120,6 +120,7 @@
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/sum-of-products-calculator', label: 'Sum of products calculator' },
+		{ href: '/logic/logical-equivalences', label: 'The same laws in propositional logic' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >

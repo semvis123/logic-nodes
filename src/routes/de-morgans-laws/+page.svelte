@@ -136,6 +136,7 @@
 		{ href: '/nand-nor-converter', label: 'NAND and NOR converter' },
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/propositional-logic-truth-table', label: 'Truth tables for logic statements' },
+		{ href: '/logic/logical-equivalences', label: 'The laws of logic' },
 		{ href: '/logic-gates', label: 'The seven logic gates' }
 	]}
 >
