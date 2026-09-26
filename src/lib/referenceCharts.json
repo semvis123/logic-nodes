@@ -86,5 +86,77 @@
 		"url": "logicgates.org/base64",
 		"width": 2466,
 		"height": 1268
+	},
+	{
+		"file": "7408-and-chip-pinout.png",
+		"title": "7408 AND chip pinout: quad 2-input AND gate, 14-pin DIP",
+		"alt": "7408 AND chip pinout: top view of the 14-pin DIP quad 2-input AND gate (7408, 74HC08, 74LS08) with each gate drawn on its pins; 1 1A, 2 1B, 3 1Y, 4 2A, 5 2B, 6 2Y, 7 GND, 8 3Y, 9 3A, 10 3B, 11 4Y, 12 4A, 13 4B, 14 VCC",
+		"url": "logicgates.org/logic-gates/and",
+		"width": 2008,
+		"height": 1374
+	},
+	{
+		"file": "7432-or-chip-pinout.png",
+		"title": "7432 OR chip pinout: quad 2-input OR gate, 14-pin DIP",
+		"alt": "7432 OR chip pinout: top view of the 14-pin DIP quad 2-input OR gate (7432, 74HC32, 74LS32) with each gate drawn on its pins; 1 1A, 2 1B, 3 1Y, 4 2A, 5 2B, 6 2Y, 7 GND, 8 3Y, 9 3A, 10 3B, 11 4Y, 12 4A, 13 4B, 14 VCC",
+		"url": "logicgates.org/logic-gates/or",
+		"width": 2008,
+		"height": 1374
+	},
+	{
+		"file": "7404-not-chip-pinout.png",
+		"title": "7404 NOT chip pinout: hex inverter, 14-pin DIP",
+		"alt": "7404 NOT chip pinout: top view of the 14-pin DIP hex inverter (7404, 74HC04, 74LS04) with each gate drawn on its pins; 1 1A, 2 1Y, 3 2A, 4 2Y, 5 3A, 6 3Y, 7 GND, 8 4Y, 9 4A, 10 5Y, 11 5A, 12 6Y, 13 6A, 14 VCC",
+		"url": "logicgates.org/logic-gates/not",
+		"width": 2008,
+		"height": 1374
+	},
+	{
+		"file": "7400-nand-chip-pinout.png",
+		"title": "7400 NAND chip pinout: quad 2-input NAND gate, 14-pin DIP",
+		"alt": "7400 NAND chip pinout: top view of the 14-pin DIP quad 2-input NAND gate (7400, 74HC00, 74LS00) with each gate drawn on its pins; 1 1A, 2 1B, 3 1Y, 4 2A, 5 2B, 6 2Y, 7 GND, 8 3Y, 9 3A, 10 3B, 11 4Y, 12 4A, 13 4B, 14 VCC",
+		"url": "logicgates.org/logic-gates/nand",
+		"width": 2008,
+		"height": 1374
+	},
+	{
+		"file": "7402-nor-chip-pinout.png",
+		"title": "7402 NOR chip pinout: quad 2-input NOR gate, 14-pin DIP",
+		"alt": "7402 NOR chip pinout: top view of the 14-pin DIP quad 2-input NOR gate (7402, 74HC02, 74LS02) with each gate drawn on its pins; 1 1Y, 2 1A, 3 1B, 4 2Y, 5 2A, 6 2B, 7 GND, 8 3A, 9 3B, 10 3Y, 11 4A, 12 4B, 13 4Y, 14 VCC",
+		"url": "logicgates.org/logic-gates/nor",
+		"width": 2148,
+		"height": 1374
+	},
+	{
+		"file": "7486-xor-chip-pinout.png",
+		"title": "7486 XOR chip pinout: quad 2-input XOR gate, 14-pin DIP",
+		"alt": "7486 XOR chip pinout: top view of the 14-pin DIP quad 2-input XOR gate (7486, 74HC86, 74LS86) with each gate drawn on its pins; 1 1A, 2 1B, 3 1Y, 4 2A, 5 2B, 6 2Y, 7 GND, 8 3Y, 9 3A, 10 3B, 11 4Y, 12 4A, 13 4B, 14 VCC",
+		"url": "logicgates.org/logic-gates/xor",
+		"width": 2008,
+		"height": 1374
+	},
+	{
+		"file": "not-gate-cmos-transistor-circuit.png",
+		"title": "NOT gate CMOS transistor circuit",
+		"alt": "NOT gate CMOS transistor circuit: 2 transistors. One PMOS from VDD to the output and one NMOS from the output to GND, both driven by the input. A table shows which network conducts for each input.",
+		"url": "logicgates.org/logic-gates/not",
+		"width": 1502,
+		"height": 1068
+	},
+	{
+		"file": "nand-gate-cmos-transistor-circuit.png",
+		"title": "NAND gate CMOS transistor circuit",
+		"alt": "NAND gate CMOS transistor circuit: 4 transistors. Two PMOS in parallel pull the output up if either input is 0; two NMOS in series pull it down only when both are 1. A table shows which network conducts for each input.",
+		"url": "logicgates.org/logic-gates/nand",
+		"width": 1598,
+		"height": 1278
+	},
+	{
+		"file": "nor-gate-cmos-transistor-circuit.png",
+		"title": "NOR gate CMOS transistor circuit",
+		"alt": "NOR gate CMOS transistor circuit: 4 transistors. Two PMOS in series pull the output up only when both inputs are 0; two NMOS in parallel pull it down if either is 1. A table shows which network conducts for each input.",
+		"url": "logicgates.org/logic-gates/nor",
+		"width": 1598,
+		"height": 1278
 	}
 ]
