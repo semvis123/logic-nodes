@@ -24,6 +24,9 @@ test('printing a worksheet hides the chrome and shows the questions', async ({ p
 
 test('a content page prints without the interactive chrome', async ({ page }) => {
 	await page.goto('/learn');
+	// The beforeprint handler is attached on hydration; dispatching the event
+	// before then, which happens under load, would find nobody listening.
+	await page.waitForLoadState('networkidle');
 	await page.emulateMedia({ media: 'print' });
 	await expect(page.locator('nav').first()).toBeHidden();
 	await expect(page.locator('h1')).toBeVisible();
