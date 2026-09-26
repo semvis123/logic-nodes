@@ -200,6 +200,7 @@
 		{ href: '/twos-complement', label: "Two's complement explained" },
 		{ href: '/common-circuits', label: 'Adders and other circuits' },
 		{ href: '/counters', label: 'Counters' },
+		{ href: '/binary-translator', label: 'Binary translator (text)' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
