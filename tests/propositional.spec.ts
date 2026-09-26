@@ -152,6 +152,18 @@ test.describe('propositional logic', () => {
 		expect(message('p # q')).toMatch(/understand/);
 		expect(message('a ∧ b ∧ c ∧ d ∧ e ∧ f ∧ g')).toMatch(new RegExp(`${MAX_PROP_VARS}`));
 		expect(() => parseProp('p, q')).toThrow(PropError);
+		// Half typed input says what is actually missing.
+		expect(message('')).toMatch(/Type a statement/);
+		expect(message('   ')).toMatch(/Type a statement/);
+		expect(message('p → q, p ∴')).toMatch(/after ∴/);
+		expect(message('p → q,')).toMatch(/after the last comma/);
+		expect(message(', p')).toMatch(/before the first comma/);
+		expect(message('p → q, ∴ q')).toMatch(/between the last comma and ∴/);
+		// Numbered letters are named as the problem, not read as p AND 1.
+		expect(message('p1 → p2')).toMatch(/numbered letters such as p1/);
+		// Words that happen to be Object.prototype members are not keywords.
+		expect(message('p ∧ constructor')).toMatch(/one letter/);
+		expect(message('toString')).toMatch(/one letter/);
 	});
 
 	test('constants', () => {

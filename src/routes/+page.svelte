@@ -486,7 +486,7 @@
 		<h2>Free digital logic tools</h2>
 		<p class="section-intro">
 			Type an expression and get the table, the map, the minimal form or the diagram. Every one of them works on its
-			own, in the browser, with no account. <a href="/tools">See all nine on the tools page</a>.
+			own, in the browser, with no account. <a href="/tools">See all eleven on the tools page</a>.
 		</p>
 		<div class="link-grid">
 			{#each tools as tool}

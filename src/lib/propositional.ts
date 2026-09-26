@@ -97,7 +97,14 @@ function tokenize(input: string): Token[] {
 			let j = i;
 			while (j < input.length && /[a-zA-Z]/.test(input[j])) j++;
 			const word = input.slice(i, j);
-			const keyword = KEYWORDS[word.toLowerCase()];
+			if (/[0-9]/.test(input[j] ?? '')) {
+				throw new PropError(
+					`Write each statement as one letter, like p or q; numbered letters such as ${word}${input[j]} are not supported`
+				);
+			}
+			// Own properties only, so "constructor" is not found on Object.prototype.
+			const lower = word.toLowerCase();
+			const keyword = Object.prototype.hasOwnProperty.call(KEYWORDS, lower) ? KEYWORDS[lower] : undefined;
 			if (keyword) tokens.push(keyword);
 			else if (word.length === 1) tokens.push({ k: 'var', name: word });
 			else throw new PropError(`Write each statement as one letter, like p or q, not "${word}"`);
@@ -203,22 +210,36 @@ export type PropInput = { statements: Prop[]; conclusion: Prop | null };
 
 export function parsePropInput(input: string): PropInput {
 	const tokens = tokenize(input);
+	if (tokens.length === 0) throw new PropError('Type a statement, such as p → q');
 	const turn = tokens.findIndex((t) => t.k === 'therefore');
 	if (turn !== -1 && tokens.slice(turn + 1).some((t) => t.k === 'therefore')) {
 		throw new PropError('An argument has only one conclusion, so only one ∴');
 	}
-	const split = (part: Token[]): Prop[] => {
+	const split = (part: Token[], where: 'premises' | 'conclusion'): Prop[] => {
+		if (part.length === 0) throw new PropError('Put a statement after ∴');
 		const groups: Token[][] = [[]];
 		for (const token of part) {
 			if (token.k === ',') groups.push([]);
 			else groups[groups.length - 1].push(token);
 		}
-		if (groups.some((g) => g.length === 0)) throw new PropError('There is an empty statement between two commas');
+		const empty = groups.findIndex((g) => g.length === 0);
+		if (empty !== -1) {
+			const last = groups.length - 1;
+			throw new PropError(
+				empty === 0
+					? 'A statement is missing before the first comma'
+					: empty === last
+					? where === 'premises' && turn !== -1
+						? 'A premise is missing between the last comma and ∴'
+						: 'A statement is missing after the last comma'
+					: 'There is an empty statement between two commas'
+			);
+		}
 		return groups.map(parseTokens);
 	};
-	if (turn === -1) return { statements: split(tokens), conclusion: null };
-	const premises = turn === 0 ? [] : split(tokens.slice(0, turn));
-	const after = split(tokens.slice(turn + 1));
+	if (turn === -1) return { statements: split(tokens, 'premises'), conclusion: null };
+	const premises = turn === 0 ? [] : split(tokens.slice(0, turn), 'premises');
+	const after = split(tokens.slice(turn + 1), 'conclusion');
 	if (after.length !== 1) throw new PropError('Put a single statement after ∴');
 	return { statements: premises, conclusion: after[0] };
 }

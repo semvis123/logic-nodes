@@ -33,19 +33,28 @@
 
 	type Shown = Column & { main: boolean; conclusion: boolean };
 
-	/** The columns to draw: the working plus the statements, each label once. */
+	/**
+	 * The columns to draw: the working, then the statements, then the
+	 * conclusion. The conclusion always gets its own final column, even when a
+	 * premise reads the same, so every premise the verdict rests on is shown.
+	 */
 	function columnsOf(table: PropTable, withWorking: boolean): Shown[] {
-		const mains = [...table.statements, ...(table.conclusion ? [table.conclusion] : [])];
-		const mainLabels = new Set(mains.map((c) => c.label));
+		const statementLabels = new Set(table.statements.map((c) => c.label));
 		const conclusionLabel = table.conclusion?.label;
 		const shown: Shown[] = [];
-		const add = (c: Column) => {
-			if (shown.some((s) => s.label === c.label)) return;
-			shown.push({ ...c, main: mainLabels.has(c.label), conclusion: c.label === conclusionLabel });
+		const add = (c: Column, conclusion = false) => {
+			if (shown.some((s) => s.label === c.label && s.conclusion === conclusion)) return;
+			shown.push({ ...c, main: conclusion || statementLabels.has(c.label), conclusion });
 		};
-		if (withWorking) table.steps.forEach(add);
+		if (withWorking) {
+			// The conclusion's own step is left for its final column.
+			for (const step of table.steps) {
+				if (step.label !== conclusionLabel || statementLabels.has(step.label)) add(step);
+			}
+		}
 		// A statement that is a single letter or constant has no working column.
-		mains.forEach(add);
+		table.statements.forEach((c) => add(c));
+		if (table.conclusion) add(table.conclusion, true);
 		return withWorking ? shown : shown.filter((c) => c.main);
 	}
 
@@ -142,7 +151,7 @@
 					detail:
 						kind === 'contingency'
 							? `Here it is true in ${high} of ${values.length} rows and false in ${values.length - high}.`
-							: `Here all ${values.length} rows come out ${kind === 'tautology' ? 'T' : 'F'} in the last column.`
+							: `Here all ${values.length} rows come out ${mark(kind === 'tautology')} in the last column.`
 				};
 			} else {
 				const groups = equivalenceGroups(table.statements).filter((g) => g.length > 1);
@@ -166,6 +175,18 @@
 			table = null;
 			error = e instanceof PropError ? e.message : 'That statement did not parse';
 		}
+	}
+
+	/**
+	 * Loads a statement into the calculator and scrolls up to it. A plain link
+	 * to ?s= would only change the address bar, since the query string is read
+	 * once, on mount.
+	 */
+	function tryStatement(statement: string) {
+		input = statement;
+		const field = document.getElementById('statement');
+		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		field?.focus({ preventScroll: true });
 	}
 
 	const mark = (v: boolean) => (order === '01' ? (v ? '1' : '0') : v ? 'T' : 'F');
@@ -602,7 +623,10 @@
 			true and p is not. That single counterexample makes the argument invalid. It is a named fallacy, affirming the consequent.
 			Swap the second premise for <span class="mono">p</span> and conclude
 			<span class="mono">q</span> instead and you have modus ponens, which is valid:
-			<a href={toolLink('/propositional-logic-truth-table', { s: 'p → q, p ∴ q' })}>check it</a>.
+			<a
+				href={toolLink('/propositional-logic-truth-table', { s: 'p → q, p ∴ q' })}
+				on:click|preventDefault={() => tryStatement('p → q, p ∴ q')}>check it</a
+			>.
 		</p>
 	</section>
 
