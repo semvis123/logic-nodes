@@ -36,6 +36,8 @@
 	let sep: 'space' | 'none' = 'space';
 	let zeros: 'on' | 'off' = 'on';
 	$: syncUrl({ d: direction, t: input, f: format, sep, zeros }, DEFAULTS);
+	// Decimal bytes run together could not be read back (72105 is H then i, or not), so they are always separated.
+	$: spaced = sep === 'space' || format === 'decimal';
 
 	const ascii = asciiTable();
 	const FORMAT_NAMES: Record<ByteFormat, string> = { binary: 'binary', hex: 'hex', decimal: 'decimal' };
@@ -59,7 +61,7 @@
 				const bytes = chars.flatMap((c) => c.bytes.map((b) => b.value));
 				byteCount = bytes.length;
 				const padded = zeros === 'on' || sep === 'none' || format !== 'binary';
-				output = formatBytes(bytes, format, sep === 'space' ? ' ' : '', padded);
+				output = formatBytes(bytes, format, spaced ? ' ' : '', padded);
 			} else {
 				const parsed = parseBytes(input, format);
 				sevenBit = parsed.sevenBit;
@@ -81,10 +83,26 @@
 		.slice(0, 3);
 	$: outputRows = Math.min(8, Math.max(2, Math.ceil(output.length / 56) + output.split('\n').length - 1));
 
-	/** Switches direction, carrying the result across so the toggle reads as a swap. */
+	/**
+	 * Switches direction, carrying the result across so the toggle reads as a
+	 * swap. Going to decode, the bytes are written out again in the form the
+	 * decoder reads best, whole bytes with spaces, whatever the display options
+	 * were: 7-bit groups mixed with 6-bit ones, or decimal run together, would
+	 * not read back.
+	 */
 	function setDirection(next: 'encode' | 'decode') {
 		if (next === direction) return;
-		if (!error && output) input = output;
+		if (!error && output) {
+			input =
+				next === 'decode'
+					? formatBytes(
+							chars.flatMap((c) => c.bytes.map((b) => b.value)),
+							format,
+							' ',
+							true
+					  )
+					: output;
+		}
 		direction = next;
 	}
 
@@ -131,6 +149,18 @@
 	const sizes = encodeText('Aé€😀');
 	const eAcute = encodeText('é')[0];
 	const rangeLabel = (cp: number) => codePointLabel(cp);
+
+	// The binary alphabet: each letter and digit through the same encoder as the translator.
+	const alphabetGroups = [
+		{ name: 'Capital letters', chars: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
+		{ name: 'Small letters', chars: 'abcdefghijklmnopqrstuvwxyz' },
+		{ name: 'Digits', chars: '0123456789' }
+	].map((g) => ({
+		name: g.name,
+		rows: encodeText(g.chars).map((c) => ({ char: c.char, binary: c.bytes[0].binary, value: c.bytes[0].value }))
+	}));
+	const [capitals, smalls, digitRows] = alphabetGroups.map((g) => g.rows);
+	const space = encodeText(' ')[0].bytes[0];
 
 	const faqs = [
 		{
@@ -404,7 +434,7 @@
 						>
 					{/each}
 				</div>
-				{#if direction === 'encode'}
+				{#if direction === 'encode' && format !== 'decimal'}
 					<div class="opt" role="group" aria-label="Separator">
 						<span class="opt-label">Between bytes</span>
 						<button
@@ -480,6 +510,34 @@
 			The table of which number stands for which character is the code. For English letters, digits and punctuation it
 			is <a href="/ascii-table">ASCII</a>, which UTF-8 contains unchanged. The lesson
 			<a href="/learn/bits-with-meaning">how bits become letters, colours and codes</a> goes through the idea slowly.
+		</p>
+	</section>
+
+	<section id="alphabet">
+		<h2>Binary code for letters (binary alphabet)</h2>
+		<p class="section-intro">
+			Every letter and digit as the byte a computer stores, in ASCII and UTF-8 alike, with its decimal code. Capitals
+			run from {capitals[0].value} to {capitals[25].value}, small letters from {smalls[0].value} to {smalls[25].value},
+			and the digits from {digitRows[0].value} to {digitRows[9].value}. A space is
+			<span class="mono">{space.binary}</span> ({space.value}).
+		</p>
+		{#each alphabetGroups as group}
+			<h3 class="alpha-title">{group.name}</h3>
+			<ul class="alphabet">
+				{#each group.rows as row}
+					<li>
+						<span class="alpha-char">{row.char}</span>
+						<span class="mono alpha-bits">{row.binary}</span>
+						<span class="mono alpha-dec">{row.value}</span>
+					</li>
+				{/each}
+			</ul>
+		{/each}
+		<p class="reducer">
+			A capital and its small letter differ in one bit, the one worth 32: {capitals[0].char} is
+			<span class="mono">{capitals[0].binary}</span> and {smalls[0].char} is
+			<span class="mono">{smalls[0].binary}</span>. The last five bits count through the alphabet, and a digit's last
+			four bits are its value. Punctuation and control codes are in the <a href="/ascii-table">ASCII table</a>.
 		</p>
 	</section>
 
@@ -650,6 +708,48 @@
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
+	}
+
+	.alpha-title {
+		font-size: 1rem !important;
+		margin: 1.2rem 0 0.5rem !important;
+		color: #fff;
+	}
+
+	.alphabet {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+		gap: 4px 10px;
+	}
+
+	.alphabet li {
+		display: flex;
+		align-items: baseline;
+		gap: 0.6rem;
+		padding: 0.2rem 0.5rem;
+		background: #0d0d0f;
+		border: 1px solid rgba(255, 255, 255, 0.12);
+		border-radius: 3px;
+	}
+
+	.alpha-char {
+		color: #fff;
+		font: 700 1.05rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		min-width: 1ch;
+	}
+
+	.alpha-bits {
+		color: #8ede8e;
+		letter-spacing: 0.03em;
+	}
+
+	.alpha-dec {
+		color: #bbb;
+		font-size: 0.85rem;
+		margin-left: auto;
 	}
 
 	.direction {

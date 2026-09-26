@@ -137,7 +137,7 @@
 	];
 
 	const page = {
-		title: 'Hex to Binary Converter: Nibble by Nibble',
+		title: 'Hex to Binary Converter (and Binary to Hex), With Steps',
 		description:
 			'Convert hex to binary and binary to hex one nibble at a time, with the four bit group for every digit shown. Octal to binary by groups of three too.',
 		url: `${SITE}/hex-to-binary`,
@@ -206,6 +206,7 @@
 		{ href: '/ieee-754-converter', label: 'IEEE 754 converter' },
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/twos-complement', label: "Two's complement" },
+		{ href: '/ascii-table', label: 'ASCII table' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
@@ -270,7 +271,7 @@
 					<span class="answer-also">{groupDecimal(value.toString())} in decimal</span>
 				</div>
 
-				<h3 class="working-title">
+				<h2 class="working-title">
 					{#if from === 'bin'}
 						Working: groups of {size} bits from the right{padded
 							? `, with ${padded} zero${padded === 1 ? '' : 's'} added on the left`
@@ -278,7 +279,7 @@
 					{:else}
 						Working: each {names[from]} digit becomes {size} bits
 					{/if}
-				</h3>
+				</h2>
 				<div class="groups" class:reverse={from === 'bin'}>
 					{#each groups as group, i}
 						<div class="group">
@@ -565,6 +566,8 @@
 	}
 
 	.working-title {
+		color: #fff;
+		font-size: 1.1rem;
 		margin-top: 1.1rem !important;
 	}
 

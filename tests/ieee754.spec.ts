@@ -147,6 +147,18 @@ test.describe('IEEE 754', () => {
 			expect(nan.quiet).toBe(true);
 			expect(Number.isNaN(nan.value)).toBe(true);
 		}
+		// Exponents far beyond any format's range round to infinity or zero, like the language does.
+		for (const text of ['1e5000', '-1e5000', '1e-5000', '-2.5e-99999', '0e5000', '1e400', '1e-400', '9e99999999']) {
+			const x = Number(text);
+			for (const format of ['single', 'double'] as const) {
+				const e = encode(text, format);
+				expect(e.bits, `${text} ${format}`).toBe(typedBits(format === 'single' ? Math.fround(x) : x, format));
+			}
+		}
+		expect(encode('1e5000', 'double').overflowed).toBe(true);
+		expect(encode('1e-5000', 'double').underflowed).toBe(true);
+		expect(encode('1e-5000', 'double').error).toBe('-1e-5000');
+		expect(encode('-1e-5000', 'double').rounded).toBe('up');
 		expect(() => encode('1.2.3', 'double')).toThrow(FloatError);
 		expect(() => encode('abc', 'double')).toThrow(FloatError);
 		expect(() => encode('', 'double')).toThrow(FloatError);
@@ -202,4 +214,13 @@ test.describe('IEEE 754', () => {
 		expect(shortestDecimal(Math.fround(0.1), 'single')).toBe('0.1');
 		expect(shortestDecimal(0.1 + 0.2, 'double')).toBe('0.30000000000000004');
 	});
+});
+
+test('the IEEE 754 page turns a huge exponent into infinity and a tiny one into zero', async ({ page }) => {
+	await page.goto('/ieee-754-converter?v=1e5000');
+	await expect(page.locator('.answer.wide .answer-value')).toHaveText('Infinity');
+	await expect(page.locator('.error')).toHaveCount(0);
+	await page.goto('/ieee-754-converter?v=1e-5000');
+	await expect(page.locator('.answer.wide .answer-value')).toHaveText('0');
+	await expect(page.locator('.error')).toHaveCount(0);
 });

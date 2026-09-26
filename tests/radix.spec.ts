@@ -2,6 +2,7 @@
 // parseInt and toString rather than against hand-written answers.
 
 import { expect, test } from '@playwright/test';
+import { toSigned } from '../src/lib/arithmetic.js';
 import {
 	parseRadix,
 	placeValueSteps,
@@ -45,6 +46,12 @@ test.describe('base conversion', () => {
 		expect(parseRadix('0b1010 0101', 2).value).toBe(0xa5n);
 		expect(parseRadix('0o755', 8).value).toBe(0o755n);
 		expect(parseRadix('00FF', 16).digits).toBe('00FF');
+		// Thousands separators, as the pages themselves print decimal numbers.
+		expect(parseRadix('65,535', 10).value).toBe(65535n);
+		expect(parseRadix('1,234,567', 10).value).toBe(1234567n);
+		expect(parseRadix('18,446,744,073,709,551,615', 10).value).toBe(2n ** 64n - 1n);
+		expect(() => parseRadix('1,5', 10)).toThrow(/Whole numbers/);
+		expect(() => parseRadix('12,34', 10)).toThrow(/Whole numbers/);
 	});
 
 	test('bad input says which character is wrong', () => {
@@ -118,5 +125,54 @@ test.describe('base conversion', () => {
 		});
 		expect(groupDigits('11111111', 4)).toBe('1111 1111');
 		expect(groupDigits('1011111111', 4)).toBe('10 1111 1111');
+	});
+});
+
+test.describe('the hex to decimal page', () => {
+	test('the 00 to FF chart is complete and every cell is its byte', async ({ page }) => {
+		const html = await (await page.request.get('/hex-to-decimal')).text();
+		expect(html).toContain('Hex to decimal chart: 00 to FF');
+		await page.goto('/hex-to-decimal');
+		const rows = page.locator('.byte-chart tbody tr');
+		await expect(rows).toHaveCount(16);
+		const cells = await page
+			.locator('.byte-chart tbody td')
+			.evaluateAll((tds) => tds.map((td) => ({ title: td.getAttribute('title'), text: td.textContent })));
+		expect(cells).toHaveLength(256);
+		const bad = cells.filter((c, i) => {
+			const hex = i.toString(16).toUpperCase().padStart(2, '0');
+			return c.text !== String(i) || c.title !== `${hex} = ${i}`;
+		});
+		expect(bad).toEqual([]);
+	});
+
+	test('decimal input takes thousands separators', async ({ page }) => {
+		await page.goto('/hex-to-decimal?v=65%2C535&from=dec');
+		await expect(page.locator('.answer-value')).toHaveText('FFFF');
+		await expect(page.locator('.error')).toHaveCount(0);
+	});
+
+	test("the signed reading is the two's complement value for the width", async ({ page }) => {
+		for (const [hex, bits] of [
+			['FF', 8],
+			['7F', 8],
+			['80', 8],
+			['FFFE', 16],
+			['BEEF', 16],
+			['FFFFFFFF', 32],
+			['8000000000000000', 64]
+		] as const) {
+			await page.goto(`/hex-to-decimal?v=${hex}&signed=${bits}`);
+			const expected = toSigned(BigInt('0x' + hex), bits);
+			expect(expected).toBe(BigInt.asIntN(bits, BigInt('0x' + hex)));
+			await expect(page.locator('.answer-signed strong')).toHaveText(expected.toString().replace('-', '−'));
+		}
+		await page.goto('/hex-to-decimal?v=FFF&signed=8');
+		await expect(page.locator('.answer-signed')).toContainText('needs 12 bits, more than 8');
+		await page.goto('/hex-to-decimal');
+		await expect(page.locator('.answer-signed')).toHaveCount(0);
+		await page.selectOption('#signed', '16');
+		await expect(page.locator('.answer-signed strong')).toHaveText('−16657');
+		await expect(page).toHaveURL(/signed=16/);
 	});
 });

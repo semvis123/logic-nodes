@@ -178,6 +178,57 @@ test.describe('column arithmetic', () => {
 		}
 	});
 
+	test('a fixed-width difference only claims to be true when it fits the signed range', () => {
+		for (const width of [8, 16]) {
+			const low = -(1n << BigInt(width - 1));
+			for (let i = 0; i < 300; i++) {
+				const a = randomBig(width);
+				const b = randomBig(width);
+				const calc = subtract(a, b, 2, width);
+				const bits = calc.result;
+				const signed = bits >= 1n << BigInt(width - 1) ? bits - (1n << BigInt(width)) : bits;
+				expect(calc.signedResult).toBe(signed);
+				const claims = calc.notes.some((n) => n.includes('which is the true difference'));
+				expect(claims, `${a} − ${b} in ${width}`).toBe(a < b && a - b >= low);
+				expect(calc.notes.join(' ')).not.toContain('-');
+			}
+		}
+		// The case the reviewer found: 0 − 255 in 8 bits leaves 00000001, which is +1 signed.
+		const wrapped = subtract(0n, 255n, 2, 8);
+		expect(wrapped.resultText).toBe('00000001');
+		expect(wrapped.signedResult).toBe(1n);
+		expect(wrapped.notes[0]).toContain('−255, which does not fit in 8 signed bits');
+		expect(wrapped.notes[0]).not.toContain('which is the true difference');
+		expect(subtract(3n, 5n, 2, 8).notes[0]).toContain('it is −2, which is the true difference');
+		expect(subtract(0n, 128n, 2, 8).notes[0]).toContain('it is −128, which is the true difference');
+		expect(subtract(0n, 129n, 2, 8).notes[0]).toContain('signed overflow');
+	});
+
+	test('bits shifted out of a fixed width are drawn struck through', () => {
+		const calc = shift('shl', 0b11111111n, 2, 2, 8);
+		expect(calc.overflow).toBe(true);
+		expect(calc.resultText).toBe('11111100');
+		const row = calc.layout.rows.find((r) => r.kind === 'result')!;
+		expect(row.cells).toHaveLength(calc.layout.columns);
+		expect(calc.layout.columns).toBe(10);
+		const lost = row.cells.filter((c) => c?.tone === 'overflow').map((c) => c!.text);
+		expect(lost.join('')).toBe('11');
+		// Only up to the highest lost 1: 00010000 << 5 loses one bit, not five columns.
+		const one = shift('shl', 0b10000n, 5, 2, 8);
+		expect(one.layout.rows[1].cells.filter((c) => c?.tone === 'overflow')).toHaveLength(2);
+		expect(one.result).toBe(0n);
+		for (let i = 0; i < 200; i++) {
+			const a = randomBig(16);
+			const places = Math.floor(Math.random() * 20);
+			const s = shift('shl', a, places, 2, 16);
+			const cells = s.layout.rows[1].cells;
+			const all = BigInt('0b' + cells.map((c) => c?.text ?? '0').join(''));
+			expect(all).toBe(a << BigInt(places));
+			expect(cells.filter((c) => c?.tone === 'overflow').length > 0).toBe(s.overflow);
+		}
+		expect(shift('shl', 0b1n, 3, 2, 8).layout.rows[1].cells.some((c) => c?.tone === 'overflow')).toBe(false);
+	});
+
 	test('bitwise operations and shifts agree with the operators', () => {
 		for (let i = 0; i < 400; i++) {
 			const a = randomBig(64);
@@ -241,6 +292,40 @@ test.describe('number tool pages', () => {
 		await expect(page.locator('.working-scroll td.carry').first()).toBeVisible();
 		await page.fill('#calc-a', '1021');
 		await expect(page.locator('#calc-error')).toContainText('"2" is not a binary digit');
+	});
+
+	test('the calculator strikes through shifted-out bits and resets the count on switching to a shift', async ({
+		page
+	}) => {
+		await page.goto('/binary-calculator?a=11111111&b=2&op=shl&bits=8');
+		await expect(page.locator('.answer-value').first()).toHaveText('1111 1100');
+		await expect(page.locator('.warning')).toContainText('struck through');
+		await expect(page.locator('.tool .working-scroll td.overflow')).toHaveCount(2);
+		await expect(page.locator('.answer-check')).toHaveText('In decimal: 255 << 2 = 1020; 8 bits keep 252');
+		await page.goto('/binary-calculator');
+		await expect(page.locator('#calc-b')).toHaveValue('11011');
+		await page.locator('.op-btn[title="Shift left"]').click();
+		await expect(page.locator('#calc-b')).toHaveValue('1');
+		await expect(page.locator('#calc-error')).toHaveCount(0);
+		await expect(page.locator('.answer-value').first()).toHaveText('101 1010');
+	});
+
+	test('the calculator warns of signed overflow rather than claiming the true difference', async ({ page }) => {
+		await page.goto('/binary-calculator?a=0&b=11111111&op=sub&bits=8');
+		await expect(page.locator('.answer-value').first()).toHaveText('0000 0001');
+		await expect(page.locator('.results')).toContainText('Signed overflow');
+		await expect(page.locator('.results')).not.toContainText('which is the true difference');
+		await expect(page.locator('.answer-check')).toHaveText('In decimal: 0 − 255 = −255; 8 bits keep 1');
+		await page.goto('/binary-calculator?a=11&b=101&op=sub&bits=8');
+		await expect(page.locator('.results')).toContainText('it is −2, which is the true difference');
+	});
+
+	test('the binary calculator FAQ names the carry and overflow flags correctly', async ({ page }) => {
+		await page.goto('/binary-calculator');
+		const faq = page.locator('#faq, section:has(h2:text("Questions"))').first();
+		await expect(faq).toContainText('carry flag');
+		await expect(faq).toContainText('overflow flag (V or OF)');
+		await expect(page.locator('h1 ~ h3, .intro h3')).toHaveCount(0);
 	});
 
 	test('the hex calculator divides with a remainder', async ({ page }) => {
