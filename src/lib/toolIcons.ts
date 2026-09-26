@@ -52,7 +52,7 @@ export const toolIcons: Record<string, string> = {
 	// A keyboard: every key has a code.
 	'/ascii-table':
 		'<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M6 9h1M9.5 9h1M13 9h1M16.5 9h1M6 12.5h1M9.5 12.5h1M13 12.5h1M16.5 12.5h1M8 16h8"/>',
-	// Three bytes in, four characters out.
+	// b64, how Base64 is often abbreviated.
 	'/base64':
-		'<path d="M3 5.25h3.5v3.5H3zM3 10.25h3.5v3.5H3zM3 15.25h3.5v3.5H3zM17.5 2.75H21v3.5h-3.5zM17.5 7.75H21v3.5h-3.5zM17.5 12.75H21v3.5h-3.5zM17.5 17.75H21v3.5h-3.5zM9 12h6M12.5 9.5 15 12l-2.5 2.5"/>'
+		'<path d="M1.5 7v10"/><circle cx="4" cy="14.5" r="2.5"/><circle cx="11" cy="14.5" r="2.5"/><path d="M13.3 7.4a4 4 0 0 0-4.8 3.9v3.2M21 17V7l-5 7h7"/>'
 };
