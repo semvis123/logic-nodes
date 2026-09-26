@@ -802,7 +802,7 @@
 	}
 
 	.hint {
-		color: #777;
+		color: #888;
 		font-size: 0.78rem;
 		margin: 0.6rem 0 0;
 	}
