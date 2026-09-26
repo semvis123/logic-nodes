@@ -137,6 +137,7 @@
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/propositional-logic-truth-table', label: 'Truth tables for logic statements' },
 		{ href: '/logical-equivalence-calculator', label: 'Logical equivalence calculator' },
+		{ href: '/logic/logical-equivalences', label: 'The laws of logic' },
 		{ href: '/logic-gates', label: 'The seven logic gates' }
 	]}
 >
