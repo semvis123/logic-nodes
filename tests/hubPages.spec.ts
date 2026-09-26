@@ -70,10 +70,13 @@ test.describe("De Morgan's laws data", () => {
 		}
 		// The overbar runs put the bar where the prime form puts the NOT.
 		expect(overbarRuns('{A} + {B}')).toEqual([
-			{ text: 'A', bar: true },
-			{ text: ' + ', bar: false },
-			{ text: 'B', bar: true }
+			{ text: 'A', bar: true, group: false },
+			{ text: ' + ', bar: false, group: false },
+			{ text: 'B', bar: true, group: false }
 		]);
+		// A bar over several symbols is read as one negation, "not (A · B)",
+		// never "not A · B", which is the mistake the laws warn about.
+		expect(overbarRuns('{A · B}')).toEqual([{ text: 'A · B', bar: true, group: true }]);
 	});
 
 	test('the gate drawings compute the laws they illustrate', () => {

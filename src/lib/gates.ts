@@ -210,7 +210,7 @@ export const gates: Gate[] = [
 		intuition:
 			'It is the only gate that does not combine anything. Everything else on this page merges two or more signals; the inverter just flips one. That makes it the piece that turns AND into NAND, OR into NOR, and a positive condition into a negative one.',
 		uses: [
-			'Turning an active-low signal into an active-high one, which is most of what inverters do in real boards.',
+			'Turning an active-low signal into an active-high one, or the other way round.',
 			'Completing a set: AND and OR alone cannot express everything, but add NOT and you can express any boolean function at all.',
 			'Building a ring oscillator, where an odd number of inverters in a loop never settles and oscillates instead.',
 			'Producing the complement of a variable for a sum of products expression.'
@@ -358,16 +358,15 @@ export const gates: Gate[] = [
 		behaviour:
 			'A NAND gate outputs 0 only when all of its inputs are 1, and 1 in every other case. It is an AND gate with the output inverted, which is where the name comes from: Not AND.',
 		intuition:
-			'NAND is functionally complete: every other gate can be built from NAND gates alone, so an entire processor could in principle be made of nothing else. That is not just a curiosity. In CMOS a NAND and a NOR both take four transistors, but the NAND puts its series devices on the fast side and its slow ones in parallel, so for the same drive strength it ends up smaller and quicker. That is why real chips are dominated by it. Only the inverter, at two transistors, is smaller still.',
+			'NAND is functionally complete: every other gate can be built from NAND gates alone, so an entire processor could in principle be made of nothing else. That is not just a curiosity. In CMOS a NAND and a NOR both take four transistors, but the NAND puts its series devices on the fast side and its slow ones in parallel, so for the same drive strength it ends up smaller and quicker. That makes NAND one of the cheapest gates a chip can use, so logic is often mapped onto it; only the inverter, at two transistors, is smaller still.',
 		uses: [
 			'Building any other gate, which is why NAND is the workhorse of real logic families.',
 			'Cross-coupling two NAND gates gives an SR latch, the simplest circuit that remembers a bit.',
-			'Flash memory cells are arranged in a NAND configuration, which is where the name NAND flash comes from.',
 			'Replacing an AND followed by a NOT with a single, faster gate.'
 		],
 		examples: [
 			'A "door open" warning light that stays lit until every door reports shut: the light is on when not all the doors are closed, which is a NAND of the door sensors.',
-			'The SSD or USB stick you store files on almost certainly uses NAND flash memory.',
+			"NAND flash, the memory in SSDs and USB sticks, is named after its layout: its cells are connected in series, like the transistors in a NAND gate's pull-down network. It is a name for the wiring; the memory array is not built from NAND gates.",
 			'The 7400, the first part number in the classic 7400 logic family, holds four 2-input NAND gates in one package.',
 			'The Nand to Tetris course builds a working computer, step by step, starting from nothing but the NAND gate.'
 		],
@@ -509,10 +508,10 @@ export const gates: Gate[] = [
 		behaviour:
 			'An exclusive NOR gate outputs 1 when its two inputs are the same, both 0 or both 1, and 0 when they differ. It is an XOR gate with the output inverted, which makes it a one bit equality detector. Because of that it is also called the equivalence gate, and written a ≡ b or a ⊙ b.',
 		intuition:
-			'Where XOR asks "are these two different?", XNOR asks "are these two the same?". That is the question a processor puts to every pair of bits when it compares two numbers, so a comparator is a row of XNOR gates feeding an AND. XNOR is not universal though: chain XORs and XNORs however you like and the result still only ever counts whether an odd or even number of some of its inputs are high, so AND and OR are out of reach without another gate.',
+			'Where XOR asks "are these two different?", XNOR asks "are these two the same?". That is the question an equality comparator, such as the tag match in a cache, asks of every pair of bits, so it is a row of XNOR gates feeding an AND. XNOR is not universal though: chain XORs and XNORs however you like and the result still only ever counts whether an odd or even number of some of its inputs are high, so AND and OR are out of reach without another gate.',
 		uses: [
 			'One bit of an equality comparator: a XNOR per bit pair, then an AND across them, says whether two words are identical.',
-			'The final stage of an even parity checker: XOR the data bits together, then XNOR the result with the received parity bit: the output is high when they match, so a 0 means a bit was flipped.',
+			'The final stage of an even parity checker: XOR the data bits together, then XNOR the result with the received parity bit: the output is high when they match, so a 0 means an odd number of bits were flipped. Two flipped bits cancel out and go unnoticed, which is the limit of a single parity bit.',
 			'A controlled buffer: XNOR a signal with 1 to pass it unchanged, or with 0 to invert it, the opposite sense to XOR.',
 			'Counting matching bits between two patterns, which is how correlators and binary neural networks score a match: XNOR each pair, then count the 1s.'
 		],
@@ -572,7 +571,7 @@ export const gates: Gate[] = [
 			},
 			{
 				q: 'Is XNOR a universal gate?',
-				a: 'No. NAND and NOR can each build every other gate, but XNOR cannot, and neither can XOR. Any circuit made only of XOR and XNOR gates still only reports whether an even or odd number of its inputs are high, however it is wired, so it can never behave like an AND or an OR. Add an AND gate to XOR and XNOR together and the set becomes complete: XNOR of a signal with itself supplies a constant 1, and XOR with 1 is NOT.'
+				a: 'No. NAND and NOR can each build every other gate, but XNOR cannot, and neither can XOR. Any circuit made only of XOR and XNOR gates still only reports whether an even or odd number of some of its inputs are high, however it is wired, so it can never behave like an AND or an OR. Add an AND gate to XOR and XNOR together and the set becomes complete: XNOR of a signal with itself supplies a constant 1, and XOR with 1 is NOT.'
 			},
 			{
 				q: 'How many NAND gates does XNOR need?',

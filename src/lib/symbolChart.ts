@@ -26,8 +26,9 @@ export type IecLabel = {
 	rule: (ones: number, inputs: number) => boolean;
 };
 
-// An IEC label is a count. It says how many inputs have to be 1 for the
-// output to be 1, which is why the same few characters cover every gate.
+// Most IEC labels are a count of how many inputs have to be 1 for the output
+// to be 1; & means every input and = means all inputs equal. A few short
+// labels cover every gate.
 export const iecLabels: IecLabel[] = [
 	{
 		label: '&',

@@ -97,7 +97,9 @@ export const chips: Chip[] = [
 		description: 'quad 2-input NOR gate',
 		families: [HC, LS],
 		// The NOR part puts each output before its inputs.
-		notes: ['Unlike the 7400, 7408 and 7432, each output comes before its two inputs.'],
+		notes: [
+			'Unlike the 7400, 7408, 7432 and 7486, inputs and outputs trade places: the outputs are on pins 1, 4, 10 and 13 instead of 3, 6, 8 and 11.'
+		],
 		gates: [
 			{ inputs: [2, 3], output: 1 },
 			{ inputs: [5, 6], output: 4 },

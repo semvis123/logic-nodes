@@ -195,8 +195,8 @@
 		<h1>De Morgan's laws</h1>
 		<p class="lede">
 			Two rules for moving a NOT through a bracket. Negate an AND and you get an OR of negations; negate an OR and you
-			get an AND of negations. Negate every term, swap the operator. That is the whole of it, and it is the most used
-			identity in digital logic.
+			get an AND of negations. Negate every term, swap the operator. That is the whole of it, and it is one of the most
+			used identity in digital logic.
 		</p>
 		<dl class="summary card">
 			<div>
@@ -287,11 +287,13 @@
 								<td class="mono">
 									{#if notation.kind === 'overbar'}
 										{#each overbarRuns(left) as run}<span class:bar={run.bar}
-												>{#if run.bar}<span class="sr">not </span>{/if}{run.text}</span
+												>{#if run.bar}<span class="sr">{run.group ? 'not (' : 'not '}</span
+													>{/if}{run.text}{#if run.group}<span class="sr">)</span>{/if}</span
 											>{/each}
 										=
 										{#each overbarRuns(right) as run}<span class:bar={run.bar}
-												>{#if run.bar}<span class="sr">not </span>{/if}{run.text}</span
+												>{#if run.bar}<span class="sr">{run.group ? 'not (' : 'not '}</span
+													>{/if}{run.text}{#if run.group}<span class="sr">)</span>{/if}</span
 											>{/each}
 									{:else}
 										{left} {notation.id === 'code' || notation.id === 'python' ? '≡' : '='} {right}
@@ -636,9 +638,9 @@
 		<p>
 			Augustus De Morgan (1806–1871) was a British mathematician and logician, a contemporary and correspondent of
 			George Boole, and he stated the laws formally in his <em>Formal Logic</em> of 1847; the algebraic notation used here
-			came with the Boolean algebra that followed. The observation itself is much older: medieval logicians knew it, and
-			William of Ockham wrote out the same rule in words in the fourteenth century. What De Morgan added was the algebra,
-			which is what makes the rule mechanical enough to build circuits with.
+			came with Boole's algebra that followed. The observation itself is much older: medieval logicians knew it, and William
+			of Ockham wrote out the same rule in words in the fourteenth century. What De Morgan added was a formal statement within
+			symbolic logic, and Boolean algebra then made it mechanical enough to build circuits with.
 		</p>
 	</section>
 

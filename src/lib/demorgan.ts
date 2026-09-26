@@ -128,7 +128,14 @@ export const overbarRuns = (text: string) =>
 	text
 		.split(/(\{[^}]*\})/)
 		.filter(Boolean)
-		.map((run) => (run.startsWith('{') ? { text: run.slice(1, -1), bar: true } : { text: run, bar: false }));
+		.map((run) => {
+			if (!run.startsWith('{')) return { text: run, bar: false, group: false };
+			const inner = run.slice(1, -1);
+			// A bar over several symbols negates them together, so a screen reader
+			// has to hear "not (A · B)": "not A · B" is the very mistake the laws
+			// are about.
+			return { text: inner, bar: true, group: inner.replace(/\s/g, '').length > 1 };
+		});
 
 /** The same overbar text in prime notation, which the boolean engine reads. */
 export const overbarToPrime = (text: string) => text.replace(/\{([^}]*)\}/g, "($1)'");

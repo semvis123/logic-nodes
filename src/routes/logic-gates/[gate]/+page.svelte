@@ -6,7 +6,7 @@
 	import ChipPinout from '$lib/ChipPinout.svelte';
 	import CmosGate from '$lib/CmosGate.svelte';
 	import ReferenceChart from '$lib/ReferenceChart.svelte';
-	import { chipFor } from '$lib/chips';
+	import { chipFor, gateCount } from '$lib/chips';
 	import { imagesFor } from '$lib/generatedImages';
 	import { gates } from '$lib/gates';
 	import { glossary } from '$lib/glossary';
@@ -18,6 +18,7 @@
 	$: gate = data.gate;
 	$: table = truthTable(parseExpression(gate.source));
 	$: chip = chipFor(gate.slug);
+	const countWord = (n: number) => ({ 4: 'four', 6: 'six' }[n] ?? String(n));
 	// The printable pinout and transistor charts made for this gate, if any.
 	$: charts = imagesFor(`/logic-gates/${gate.slug}`);
 	$: others = gates.filter((g) => g.slug !== gate.slug);
@@ -371,8 +372,8 @@
 	<section>
 		<h2>{gate.name} gate transistor circuit</h2>
 		<p class="section-intro">
-			Inside a CMOS chip the {gate.name} gate is a handful of transistors. Toggle the inputs to see which ones switch on
-			and which network connects the output to the supply or to ground.
+			In static CMOS, the textbook {gate.name} gate is a handful of transistors. Toggle the inputs to see which ones switch
+			on and which network connects the output to the supply or to ground.
 		</p>
 		<CmosGate gate={gate.slug} />
 		<div class="chart-small">
@@ -384,9 +385,10 @@
 
 	{#if chip}
 		<section>
-			<h2>{gate.name} gate chip: the {chip.part} pinout</h2>
+			<h2>{gate.name} gate chip: the {chip.part}{chip.gates ? ' pinout' : ''}</h2>
 			<p class="section-intro">
-				To build with real parts, the {gate.name} gate comes four or six to a package in the 7400 series. The
+				To build with real parts, the {gate.name} gate comes {countWord(gateCount(chip))} to a package in the 7400 series.
+				The
 				{chip.part} is a {chip.description}.
 			</p>
 			<ChipPinout gate={gate.slug} />

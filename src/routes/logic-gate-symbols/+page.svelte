@@ -42,7 +42,7 @@
 		},
 		{
 			q: 'What does ≥1 mean on a logic gate?',
-			a: 'It is the IEC label for OR. The label is a count of how many inputs must be 1 for the output to be 1, and ≥1 means at least one. The AND label & means every input, and =1 means exactly one, which is XOR.'
+			a: 'It is the IEC label for OR. Most IEC labels are a count of how many inputs must be 1 for the output to be 1, and ≥1 means at least one. The AND label & means every input, and =1 means exactly one, which for two inputs is XOR.'
 		},
 		{
 			q: 'What does the little circle on a gate symbol mean?',
@@ -227,7 +227,8 @@
 							<td class="forms">
 								<span class="mono overbar"
 									>Q = {#each gate.overbar as run}<span class:bar={run.bar}
-											>{#if run.bar}<span class="sr">not </span>{/if}{run.text}</span
+											>{#if run.bar}<span class="sr">{run.group ? 'not (' : 'not '}</span
+												>{/if}{run.text}{#if run.group}<span class="sr">)</span>{/if}</span
 										>{/each}</span
 								>
 								<span class="mono">{gate.symbol}</span>
@@ -290,8 +291,9 @@
 	<section id="iec">
 		<h2>IEC symbols: what &amp;, ≥1, =1 and 1 mean</h2>
 		<p>
-			In IEC 60617 every gate is the same rectangle, so the label inside carries the whole function. The label is a
-			count: it says how many inputs must be 1 for the output to be 1. That is why five short labels cover every gate.
+			In IEC 60617 every gate is the same rectangle, so the label inside carries the whole function. Most labels are a
+			count of how many inputs must be 1 for the output to be 1 (≥1, =1, 2k+1); &amp; means every input, and = means all
+			inputs are equal. A handful of short labels covers every gate.
 		</p>
 		<div class="table-wrap">
 			<table class="data-table labels">
@@ -347,8 +349,8 @@
 				<a href="/de-morgans-laws#in-circuits">De Morgan's law</a> drawn rather than written.
 			</li>
 			<li>
-				<strong>On a clock pin</strong> of a <a href="/flip-flops">flip-flop</a>, it means the part triggers on the
-				falling edge rather than the rising one.
+				<strong>On a clock pin</strong> of a <a href="/flip-flops">flip-flop</a>, a bubble in front of the edge triangle
+				means the part triggers on the falling edge rather than the rising one.
 			</li>
 		</ul>
 		<p class="reducer">
@@ -365,11 +367,10 @@
 			symbols after DIN EN 60617. Both describe the same seven gates, and both use the bubble for inversion.
 		</p>
 		<p>
-			If you are drawing for other people, match whatever they already use. American textbooks, datasheets and most
-			schematic capture tools default to the ANSI shapes, and they have a real advantage: the outline tells you the
-			function at a glance, even at small sizes or in a photocopy. IEC rectangles win when a part has many inputs or
-			unusual behaviour, because there is always room for a label, and they are what international standards documents
-			expect.
+			If you are drawing for other people, match whatever they already use. American textbooks and most schematic
+			capture tools default to the ANSI shapes, and they have a real advantage: the outline tells you the function at a
+			glance, even at small sizes or in a photocopy. IEC rectangles win when a part has many inputs or unusual
+			behaviour, because there is always room for a label, and they are what international standards documents expect.
 		</p>
 		<p>
 			The simulator on this site uses neither. The editor draws every node as a labelled box, which is closer to IEC in

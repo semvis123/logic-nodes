@@ -50,7 +50,7 @@
 		},
 		{
 			q: 'How many types of logic gates are there?',
-			a: 'Seven: AND, OR, NOT, XOR, NAND, NOR and XNOR. Some courses stop at six and leave XNOR out, since it is XOR with the output inverted. Strictly only three are fundamental, AND, OR and NOT, because the other four are combinations of those; and NAND alone, or NOR alone, can build everything.'
+			a: 'Seven: AND, OR, NOT, XOR, NAND, NOR and XNOR. Some courses stop at six and leave XNOR out, since it is XOR with the output inverted. Traditionally three are called basic, AND, OR and NOT, because the other four are combinations of those; and NAND alone, or NOR alone, can build everything.'
 		},
 		{
 			q: 'What are the types of logic gates?',
@@ -70,7 +70,7 @@
 		},
 		{
 			q: 'Which logic gates are universal?',
-			a: "NAND and NOR, and no other two input gate. A gate is universal when every other gate can be built from copies of it alone. Tie both inputs of a NAND together and you get NOT; add that inverter to a NAND and you get AND; invert both inputs first and, by De Morgan's law, you get OR. Chips are largely made of NAND and NOR for this reason: one well made gate covers every function."
+			a: "NAND and NOR, and no other two input gate. A gate is universal when every other gate can be built from copies of it alone. Tie both inputs of a NAND together and you get NOT; add that inverter to a NAND and you get AND; invert both inputs first and, by De Morgan's law, you get OR. That is what makes them universal: one well made gate covers every function. Chips favour them for a different reason, that in CMOS they are the cheapest gates after the inverter."
 		},
 		{
 			q: 'Who invented logic gates?',
@@ -181,8 +181,7 @@
 		<h1>The 7 types of logic gates</h1>
 		<p class="lede">
 			Every digital logic function, from a doorbell to a processor, is built out of these seven operations. Each one
-			combines binary inputs — one for NOT, two for XOR and XNOR, two or more for the rest — into a single binary
-			output.
+			combines binary inputs — one for NOT, two or more for the rest — into a single binary output.
 		</p>
 	</section>
 
@@ -211,9 +210,9 @@
 			connects the output to the supply when the input is low, the other connects it to ground when the input is high,
 			so the output is always the opposite of the input. Put two of the ground-side transistors in series and the output
 			can only be pulled low when both inputs are high: that is a NAND gate, four transistors in all. Put them in
-			parallel instead and you get a NOR. An AND is a NAND followed by an inverter, six transistors, which is why real
-			chips are built mostly from NAND and NOR and let the algebra absorb the inversions. A processor is a few billion
-			of these, switching a few billion times a second.
+			parallel instead and you get a NOR. An AND is a NAND followed by an inverter, six transistors, which is why NAND
+			and NOR are the cheapest gates after the inverter and logic is often mapped onto them. A processor is billions of
+			transistors, clocked billions of times a second.
 		</p>
 		<p>
 			Two values are used instead of ten because a circuit only has to tell "high" from "low", which it can do reliably
@@ -382,10 +381,10 @@
 		</ul>
 		<p>
 			NOR does the same with the roles of AND and OR swapped. No other two input gate qualifies: AND and OR cannot make
-			a NOT, and XOR and XNOR cannot make an AND. This is why real chips are largely made of NAND and NOR, and why the
-			Apollo Guidance Computer could be built from a single type of three input NOR gate. Every gate page shows its own
-			NAND and NOR constructions, and the <a href="/nand-nor-converter">NAND and NOR converter</a> rewrites any expression
-			that way with the gate count.
+			a NOT, and XOR and XNOR cannot make an AND. This is why a single type of gate is enough, and why the Apollo
+			Guidance Computer could be built from a single type of three input NOR gate. Every gate page shows its own NAND
+			and NOR constructions, and the <a href="/nand-nor-converter">NAND and NOR converter</a> rewrites any expression that
+			way with the gate count.
 		</p>
 	</section>
 
