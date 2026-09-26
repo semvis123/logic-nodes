@@ -1,11 +1,15 @@
 <script lang="ts">
 	import { toolIcons } from '$lib/toolIcons';
 
-	export let href: string;
+	export let href = '';
+	/** Paths to draw instead of a tool's icon, for things that are not tools. */
+	export let markup = '';
 </script>
 
 <!-- Decoration only: the tool's name next to it is the label. -->
-<svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">{@html toolIcons[href] ?? ''}</svg>
+<svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"
+	>{@html markup || toolIcons[href] || ''}</svg
+>
 
 <style>
 	.tool-icon {

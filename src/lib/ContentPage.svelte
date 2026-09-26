@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { afterNavigate } from '$app/navigation';
 	import { tools } from '$lib/tools';
+	import CommandPalette from '$lib/CommandPalette.svelte';
 
 	// Shared chrome and design system for the content pages (the editor itself
 	// is a separate world). Everything is scoped under .content so the styles
@@ -95,6 +96,7 @@
 				</a>
 			{/each}
 		</nav>
+		<CommandPalette />
 		<!-- Two labels rather than one: on a phone the long one squeezes the nav
 		     until the current section is cut off mid-word. -->
 		<a class="toolbar-btn" href="/simulator"
