@@ -47,6 +47,9 @@ statically prerendered from the same codebase:
   with don't cares, SOP/POS, NAND/NOR conversion, Gray code, and a circuit diagram generator that
   exports SVG, PNG, Verilog or VHDL. The truth table and circuit generators take several outputs at
   once (`sum = a ^ b; carry = a & b`), sharing inputs and any common gates.
+  For logic class rather than circuits, there are also
+  [truth tables for logic statements](https://logicgates.org/propositional-logic-truth-table)
+  (`p → q, q ∴ p`), which check tautologies, equivalence and argument validity.
 - **[Practice](https://logicgates.org/practice)** and a
   [worksheet generator](https://logicgates.org/worksheet) with an answer key, both driven by a
   seeded question generator, so a link reproduces the exact same questions with no account or

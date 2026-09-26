@@ -7,9 +7,10 @@
 //
 //   npm run lastmod
 //
-// Runs automatically before a build. On a shallow clone there is no history to
-// read, so the previous file is left in place rather than overwritten with
-// something untrue.
+// Runs as the first step of `build`, not as a prebuild hook: pnpm skips pre
+// and post scripts unless told otherwise, so the dates here went stale
+// unnoticed. On a shallow clone there is no history to read, so the previous
+// file is left in place rather than overwritten with something untrue.
 
 import { execFileSync } from 'node:child_process';
 import { readdirSync, statSync, writeFileSync, existsSync } from 'node:fs';
