@@ -49,17 +49,19 @@
 		return withWorking ? shown : shown.filter((c) => c.main);
 	}
 
-	const KIND_TEXT = {
-		tautology: 'a tautology: true in every row',
-		contradiction: 'a contradiction: false in every row',
-		contingency: 'a contingency: true in some rows and false in others'
+	type Verdict = { tone: 'yes' | 'no' | 'neutral'; head: string; detail: string };
+
+	const KIND: Record<ReturnType<typeof classify>, Verdict> = {
+		tautology: { tone: 'yes', head: 'Tautology', detail: 'True in every row, whatever the letters are.' },
+		contradiction: { tone: 'no', head: 'Contradiction', detail: 'False in every row, whatever the letters are.' },
+		contingency: { tone: 'neutral', head: 'Contingency', detail: '' }
 	};
 
 	// Runs during prerendering too, so the page ships with a real, crawlable
 	// truth table rather than an empty widget.
 	let table: PropTable | null = null;
 	let columns: Shown[] = [];
-	let verdict = '';
+	let verdict: Verdict | null = null;
 	let critical = new Set<number>();
 	let counter = new Set<number>();
 	let error = '';
@@ -73,22 +75,61 @@
 				const result = checkArgument(table);
 				critical = new Set(result.critical);
 				counter = new Set(result.counterexamples);
-				verdict = result.valid
-					? result.critical.length
-						? `Valid. In every row where all the premises are true (${result.critical.length} of ${table.rows.length}), the conclusion is true as well.`
-						: 'Valid, but only because the premises are never all true at once, so there is no row that could be a counterexample.'
-					: `Invalid. ${
-							counter.size === 1 ? 'One row makes' : `${counter.size} rows make`
-					  } every premise true and the conclusion false, marked in red.`;
+				const rowsWord = (n: number) => (n === 1 ? 'one row' : `${n} rows`);
+				verdict = !result.valid
+					? {
+							tone: 'no',
+							head: 'Invalid argument',
+							detail: `${
+								counter.size === 1 ? 'One row makes' : `${counter.size} rows make`
+							} every premise true and the conclusion false. ${
+								counter.size === 1 ? 'That row is a counterexample' : 'Those rows are counterexamples'
+							}, marked in red.`
+					  }
+					: result.critical.length
+					? {
+							tone: 'yes',
+							head: 'Valid argument',
+							detail: `The premises are all true in ${rowsWord(
+								result.critical.length
+							)}, marked in green, and the conclusion is true ${
+								result.critical.length === 1 ? 'there too' : 'in each of them'
+							}.`
+					  }
+					: {
+							tone: 'yes',
+							head: 'Valid argument',
+							detail: 'But only because the premises are never all true at once, so no row could be a counterexample.'
+					  };
 			} else if (table.statements.length === 1) {
-				verdict = `This statement is ${KIND_TEXT[classify(table.statements[0].values)]}.`;
+				const values = table.statements[0].values;
+				const kind = classify(values);
+				const high = values.filter(Boolean).length;
+				verdict =
+					kind === 'contingency'
+						? {
+								...KIND.contingency,
+								detail: `True in ${high} of ${values.length} rows and false in the rest, so it depends on the letters.`
+						  }
+						: KIND[kind];
 			} else {
 				const groups = equivalenceGroups(table.statements).filter((g) => g.length > 1);
 				verdict = groups.length
-					? 'Logically equivalent, since their columns match in every row: ' +
-					  groups.map((g) => g.map((i) => table!.statements[i].label).join(' ≡ ')).join('; ') +
-					  '.'
-					: 'No two of these are equivalent: each pair differs in at least one row.';
+					? {
+							tone: 'yes',
+							head:
+								groups.length === 1 && groups[0].length === table.statements.length
+									? 'Equivalent'
+									: 'Some are equivalent',
+							detail:
+								groups.map((g) => g.map((i) => table!.statements[i].label).join(' ≡ ')).join(';  ') +
+								', since their columns match in every row.'
+					  }
+					: {
+							tone: 'no',
+							head: 'Not equivalent',
+							detail: 'Each pair differs in at least one row.'
+					  };
 			}
 			error = '';
 		} catch (e) {
@@ -268,6 +309,12 @@
 			{#if error}
 				<p class="error" role="status">{error}</p>
 			{:else if table}
+				{#if verdict}
+					<div class="verdict {verdict.tone}" role="status">
+						<strong class="verdict-head">{verdict.head}</strong>
+						<span class="verdict-detail">{verdict.detail}</span>
+					</div>
+				{/if}
 				<div class="table-scroll">
 					<table class="data-table result">
 						<thead>
@@ -302,7 +349,6 @@
 						</tbody>
 					</table>
 				</div>
-				<p class="summary" role="status">{verdict}</p>
 				<div class="export">
 					<div class="opt" role="group" aria-label="Row order">
 						<span class="opt-label">Rows</span>
@@ -660,8 +706,14 @@
 		font-weight: 700;
 	}
 
+	/* The answer column is tinted and underlined, so it reads as the result. */
+	.result .main {
+		background-color: rgba(255, 255, 255, 0.06);
+	}
+
 	.result th.main {
 		color: #fff;
+		box-shadow: inset 0 -2px 0 #5db65d;
 	}
 
 	.result tr.critical td {
@@ -672,10 +724,44 @@
 		background-color: rgba(190, 50, 50, 0.25);
 	}
 
-	.summary {
+	.verdict {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+		margin: 0 0 0.8rem;
+		padding: 0.75rem 0.95rem;
+		border: 1px solid rgba(255, 255, 255, 0.25);
+		border-left-width: 4px;
+		border-radius: 3px;
+		background-color: rgba(255, 255, 255, 0.04);
+	}
+
+	.verdict.yes {
+		border-color: #5db65d;
+		background-color: rgba(51, 119, 34, 0.18);
+	}
+
+	.verdict.no {
+		border-color: #e05555;
+		background-color: rgba(190, 50, 50, 0.18);
+	}
+
+	.verdict-head {
+		color: #fff;
+		font-size: 1.2rem;
+	}
+
+	.verdict.yes .verdict-head {
+		color: #8ede8e;
+	}
+
+	.verdict.no .verdict-head {
+		color: #ff8a8a;
+	}
+
+	.verdict-detail {
 		color: #ddd;
 		font-size: 0.9rem;
-		margin: 0.8rem 0 0;
 	}
 
 	.export {
