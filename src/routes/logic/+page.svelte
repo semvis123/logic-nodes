@@ -89,9 +89,9 @@
 	];
 
 	const page = {
-		title: 'Propositional Logic: Symbols, Connectives, Truth Tables',
+		title: 'Propositional Logic: Logic Symbols and How to Read Them',
 		description:
-			'Propositional logic explained: what a proposition is, the logic symbols ¬ ∧ ∨ → ↔ and how to read them, with guides to tautologies, conditionals and proofs.',
+			'Propositional logic explained: the logic symbols ¬ ∧ ∨ → ↔ and how to read them, what a proposition is, order of operations, and guides to proofs.',
 		url: `${SITE}/logic`,
 		image: `${SITE}/og/logic.png`,
 		imageAlt: 'LogicGates.org: propositional logic, symbols and connectives'
@@ -157,7 +157,9 @@
 		{ href: '/logic/tautology', label: 'Tautologies' },
 		{ href: '/logic/rules-of-inference', label: 'Rules of inference' },
 		{ href: '/logic/logical-equivalences', label: 'Logical equivalences' },
-		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' }
+		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' },
+		{ href: '/set-notation', label: 'Set notation' },
+		{ href: '/venn-diagram-generator', label: 'Venn diagram generator' }
 	]}
 >
 	<section class="intro">

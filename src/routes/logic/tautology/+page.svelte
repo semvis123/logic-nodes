@@ -82,7 +82,7 @@
 	];
 
 	const page = {
-		title: 'Tautology, Contradiction and Contingency in Logic',
+		title: 'Tautology in Logic: Definition, Examples and How to Check',
 		description:
 			'What a tautology is in logic, how to check one with a truth table, and how it differs from a contradiction and a contingency, with famous tautologies.',
 		url: `${SITE}/logic/tautology`,

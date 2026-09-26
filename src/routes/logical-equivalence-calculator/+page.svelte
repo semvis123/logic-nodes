@@ -20,11 +20,16 @@
 	onMount(() => {
 		const p = readUrl();
 		const a = safeText(p.a);
-		// A link with only ?a= asks to simplify that statement on its own.
-		if (a) {
-			left = a;
-			right = safeText(p.b) ?? '';
+		const b = safeText(p.b);
+		// A link with only ?a= asks to simplify that statement on its own; one
+		// with only ?b= fills the right side against an empty left.
+		if (a || b) {
+			left = a ?? '';
+			right = b ?? '';
 		}
+		// A link that was ignored (empty, or too long) must not stay in the
+		// address bar, or copying it would share something other than this page.
+		syncUrl({ a: left, b: right }, left === DEFAULTS.a && right === DEFAULTS.b ? DEFAULTS : {});
 	});
 	// Only the default pair is left out of the address: once either side
 	// changes both are written, so an empty right side survives a reload.
@@ -32,6 +37,12 @@
 
 	let left = DEFAULTS.a;
 	let right = DEFAULTS.b;
+
+	/**
+	 * How many letters a statement is written with. The minimiser's answer can be
+	 * a different arrangement of the same length, which is not "shorter".
+	 */
+	const letterCount = (text: string) => (text.match(/[a-zA-Z]/g) ?? []).length;
 
 	type Verdict = {
 		tone: 'yes' | 'no' | 'neutral';
@@ -100,7 +111,9 @@
 						head: 'Tautology',
 						means: MEANS.tautology,
 						detail: s.tautology
-							? `The laws reduce it to ⊤ in ${n} ${n === 1 ? 'step' : 'steps'}, so it is true in every case.`
+							? n
+								? `The laws reduce it to ⊤ in ${n} ${n === 1 ? 'step' : 'steps'}, so it is true in every case.`
+								: 'It is ⊤ already: true in every case.'
 							: 'Its truth table is true in every row, though the laws here stop before reaching ⊤.'
 					};
 				} else if (s.classification === 'contradiction') {
@@ -109,7 +122,9 @@
 						head: 'Contradiction',
 						means: MEANS.contradiction,
 						detail: s.contradiction
-							? `The laws reduce it to ⊥ in ${n} ${n === 1 ? 'step' : 'steps'}, so it is false in every case.`
+							? n
+								? `The laws reduce it to ⊥ in ${n} ${n === 1 ? 'step' : 'steps'}, so it is false in every case.`
+								: 'It is ⊥ already: false in every case.'
 							: 'Its truth table is false in every row, though the laws here stop before reaching ⊥.'
 					};
 				} else {
@@ -117,7 +132,11 @@
 						tone: 'neutral',
 						head: 'Simplified',
 						means: MEANS.contingency,
-						detail: n
+						detail: s.tooBig
+							? 'Neither a tautology nor a contradiction. It is too long to simplify law by law here.'
+							: s.stoppedEarly
+							? `Neither a tautology nor a contradiction. Its shortest equivalent form is ${s.minimalText}.`
+							: n
 							? `Neither a tautology nor a contradiction. It simplifies to ${s.finalText}.`
 							: 'Neither a tautology nor a contradiction, and no law makes it any simpler.'
 					};
@@ -249,7 +268,7 @@
 	const page = {
 		title: 'Logical Equivalence Calculator: Step-by-Step Proofs',
 		description:
-			'Prove two logic statements equivalent step by step, with the law named on every line, or test for a tautology. Includes the table of equivalences.',
+			'Prove two logic statements equivalent step by step, with the law named on every line, or get a counterexample row. Also simplifies and tests tautologies.',
 		url: `${SITE}/logical-equivalence-calculator`,
 		image: `${SITE}/og/logical-equivalence-calculator.png`,
 		imageAlt: 'LogicGates.org: logical equivalence calculator with step-by-step proofs'
@@ -322,7 +341,7 @@
 		<p class="lede">
 			Type two statements from propositional logic and get a proof that they are equivalent, one law per line, the way a
 			discrete maths course writes it. If they are not equivalent you get a counterexample. Leave the second field empty
-			to simplify a statement or test whether it is a tautology.
+			to simplify a statement or test whether it is a <a href="/logic/tautology">tautology</a>.
 		</p>
 
 		<div class="card tool">
@@ -419,7 +438,7 @@
 							The working stops after {result.s.lines.length - 1} lines to stay readable. The shortest equivalent form is
 							<span class="mono">{result.s.minimalText}</span>, found by searching the truth table.
 						</p>
-					{:else if !result.s.isMinimal}
+					{:else if !result.s.isMinimal && letterCount(result.s.minimalText) < letterCount(result.s.finalText)}
 						<p class="note">
 							The laws stop there. A search of the truth table finds the shorter form
 							<span class="mono">{result.s.minimalText}</span>, which no single law here reaches.
@@ -579,10 +598,11 @@
 	</section>
 
 	<section id="laws">
-		<h2>Table of logical equivalences</h2>
+		<h2>Laws the calculator uses</h2>
 		<p class="section-intro">
 			The laws used in proofs, each written as a pair of equivalent statements. Every row was checked by truth table
-			when this page was built; a tick means the two sides agree in every row.
+			when this page was built; a tick means the two sides agree in every row. For each law explained with its own truth
+			table proof, see <a href="/logic/logical-equivalences">the table of logical equivalences</a>.
 		</p>
 		{#each lawGroups as group}
 			<h3 class="table-head">{group.title}</h3>

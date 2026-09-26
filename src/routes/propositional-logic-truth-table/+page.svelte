@@ -513,7 +513,7 @@
 				{/if}
 				{#if tree}
 					<div class="tree-block">
-						<h3 class="tree-head">Expression tree</h3>
+						<h2 class="tree-head">Expression tree</h2>
 						<p class="tree-intro">
 							{#if table.variables.length}
 								How the statement is built, with the value of each part when

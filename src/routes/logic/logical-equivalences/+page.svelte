@@ -163,7 +163,8 @@
 		{ href: '/logic/tautology', label: 'Tautologies' },
 		{ href: '/logic/rules-of-inference', label: 'Rules of inference' },
 		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' },
-		{ href: '/de-morgans-laws', label: "De Morgan's laws" }
+		{ href: '/de-morgans-laws', label: "De Morgan's laws" },
+		{ href: '/set-notation', label: 'The same laws for sets' }
 	]}
 >
 	<section class="intro">

@@ -138,6 +138,7 @@
 		{ href: '/propositional-logic-truth-table', label: 'Truth tables for logic statements' },
 		{ href: '/logical-equivalence-calculator', label: 'Logical equivalence calculator' },
 		{ href: '/logic/logical-equivalences', label: 'The laws of logic' },
+		{ href: '/venn-diagram-generator', label: "De Morgan's laws as Venn diagrams" },
 		{ href: '/logic-gates', label: 'The seven logic gates' }
 	]}
 >

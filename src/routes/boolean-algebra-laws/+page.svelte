@@ -121,6 +121,7 @@
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/sum-of-products-calculator', label: 'Sum of products calculator' },
 		{ href: '/logic/logical-equivalences', label: 'The same laws in propositional logic' },
+		{ href: '/set-notation', label: 'The same laws for sets' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
