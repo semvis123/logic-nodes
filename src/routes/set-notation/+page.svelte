@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
 	import VennDiagram from '$lib/VennDiagram.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { parseSet, shade, sameShading, setsNeeded, booleanText, evaluateOn, roster } from '$lib/venn';
+	import { universe, sets, value, evens, symbolRows } from '$lib/setNotation';
 	import { readUrl, syncUrl, safeText, toolLink } from '$lib/urlState';
 	import { onMount } from 'svelte';
 
@@ -20,186 +22,7 @@
 	let highlighted = '';
 	$: syncUrl({ symbol: highlighted }, { symbol: '' });
 
-	// Every example below is computed from these sets at build time.
-	const universe = new Set([1, 2, 3, 4, 5, 6, 7, 8]);
-	const sets = { A: new Set([1, 2, 3, 4]), B: new Set([3, 4, 5, 6]) };
-	const value = (expression: string) => roster(evaluateOn(parseSet(expression), sets, universe));
-	const subset = (x: Set<number>, y: Set<number>) => [...x].every((v) => y.has(v));
-	const small = new Set([1, 2]);
-	const tf = (v: boolean) => (v ? 'true' : 'false');
-
-	/** Every subset, smallest first: each item doubles the list, with and without it. */
-	function powerSet(items: number[]): number[][] {
-		let all: number[][] = [[]];
-		for (const item of items) all = [...all, ...all.map((s) => [...s, item])];
-		return all.sort((x, y) => x.length - y.length);
-	}
-	const powerOfSmall = `{${powerSet([...small])
-		.map((s) => roster(s))
-		.join(', ')}}`;
-	const product = [...small].flatMap((x) => ['x', 'y'].map((y) => `(${x}, ${y})`));
-	const evens = [...universe].filter((x) => x % 2 === 0);
-
-	type SymbolRow = {
-		id: string;
-		symbol: string;
-		name: string;
-		reads: string;
-		example: string;
-		/** A two-set expression to draw, for the symbols that are operations. */
-		diagram?: string;
-		logic?: string;
-	};
-
-	const rows: SymbolRow[] = [
-		{
-			id: 'element',
-			symbol: '∈',
-			name: 'Element of',
-			reads: 'is an element of, is in',
-			example: `3 ∈ A is ${tf(sets.A.has(3))}`,
-			logic: 'x ∈ A is a statement: true or false'
-		},
-		{
-			id: 'not-element',
-			symbol: '∉',
-			name: 'Not an element of',
-			reads: 'is not an element of',
-			example: `7 ∉ A is ${tf(!sets.A.has(7))}`,
-			logic: '¬(x ∈ A)'
-		},
-		{
-			id: 'subset',
-			symbol: '⊆',
-			name: 'Subset',
-			reads: 'is a subset of',
-			example: `{1, 2} ⊆ A is ${tf(subset(small, sets.A))}; A ⊆ A is ${tf(subset(sets.A, sets.A))}`,
-			logic: 'x ∈ X → x ∈ Y, for every x'
-		},
-		{
-			id: 'proper-subset',
-			symbol: '⊂',
-			name: 'Proper subset',
-			reads: 'is a proper subset of',
-			example: `{1, 2} ⊂ A is ${tf(subset(small, sets.A) && small.size < sets.A.size)}; A ⊂ A is ${tf(false)}`,
-			logic: 'X ⊆ Y and X ≠ Y'
-		},
-		{
-			id: 'superset',
-			symbol: '⊇',
-			name: 'Superset',
-			reads: 'is a superset of, contains',
-			example: `A ⊇ {3, 4} is ${tf(subset(new Set([3, 4]), sets.A))}`,
-			logic: 'x ∈ Y → x ∈ X, for every x'
-		},
-		{
-			id: 'union',
-			symbol: '∪',
-			name: 'Union',
-			reads: 'A union B; in A or B',
-			example: `A ∪ B = ${value('A ∪ B')}`,
-			diagram: 'A ∪ B',
-			logic: '∨ (OR)'
-		},
-		{
-			id: 'intersection',
-			symbol: '∩',
-			name: 'Intersection',
-			reads: 'A intersect B; in A and B',
-			example: `A ∩ B = ${value('A ∩ B')}`,
-			diagram: 'A ∩ B',
-			logic: '∧ (AND)'
-		},
-		{
-			id: 'complement',
-			symbol: 'A′\nAᶜ',
-			name: 'Complement',
-			reads: 'A complement; not in A',
-			example: `A′ = ${value('A′')}`,
-			diagram: 'A′',
-			logic: '¬ (NOT)'
-		},
-		{
-			id: 'difference',
-			symbol: 'A − B\nA \\ B',
-			name: 'Difference',
-			reads: 'A minus B; in A but not B',
-			example: `A − B = ${value('A − B')}, B − A = ${value('B − A')}`,
-			diagram: 'A − B',
-			logic: 'A ∧ ¬B (AND NOT)'
-		},
-		{
-			id: 'symmetric-difference',
-			symbol: 'Δ',
-			name: 'Symmetric difference',
-			reads: 'in A or B but not both',
-			example: `A Δ B = ${value('A Δ B')}`,
-			diagram: 'A Δ B',
-			logic: '⊕ (XOR)'
-		},
-		{
-			id: 'empty',
-			symbol: '∅\n{ }',
-			name: 'Empty set',
-			reads: 'the empty set',
-			example: `A ∩ A′ = ${value('A ∩ A′')}`,
-			diagram: 'A ∩ A′ ∩ B',
-			logic: 'always false (0)'
-		},
-		{
-			id: 'universal',
-			symbol: 'U\nξ',
-			name: 'Universal set',
-			reads: 'the universal set: everything under discussion',
-			example: `U = ${roster(universe)}`,
-			diagram: 'U ∪ B',
-			logic: 'always true (1)'
-		},
-		{
-			id: 'cardinality',
-			symbol: '|A|\nn(A)',
-			name: 'Cardinality',
-			reads: 'the number of elements in A',
-			example: `|A| = ${sets.A.size}, |A ∪ B| = ${evaluateOn(parseSet('A ∪ B'), sets, universe).size}`
-		},
-		{
-			id: 'power-set',
-			symbol: 'P(A)\n𝒫(A)',
-			name: 'Power set',
-			reads: 'the set of all subsets of A',
-			example: `P({1, 2}) = ${powerOfSmall}`
-		},
-		{
-			id: 'product',
-			symbol: '×',
-			name: 'Cartesian product',
-			reads: 'A cross B: every ordered pair',
-			example: `{1, 2} × {x, y} = {${product.join(', ')}}`
-		},
-		{
-			id: 'roster',
-			symbol: '{ , }',
-			name: 'Roster notation',
-			reads: 'the set containing',
-			example: `A = ${roster(sets.A)}`
-		},
-		{
-			id: 'set-builder',
-			symbol: '{x : …}\n{x | …}',
-			name: 'Set-builder notation',
-			reads: 'the set of all x such that',
-			example: `{x ∈ U : x is even} = ${roster(evens)}`
-		},
-		{
-			id: 'equal',
-			symbol: '=',
-			name: 'Equal sets',
-			reads: 'has exactly the same elements as',
-			example: `{1, 2} = {2, 1} is true`,
-			logic: 'x ∈ X ↔ x ∈ Y, for every x'
-		}
-	];
-	const symbols = rows.map((s) => ({ ...s, shading: s.diagram ? shade(parseSet(s.diagram), 2) : [] }));
+	const symbols = symbolRows.map((s) => ({ ...s, shading: s.diagram ? shade(parseSet(s.diagram), 2) : [] }));
 
 	// Set-builder examples, each computed by filtering or mapping.
 	const integers = Array.from({ length: 41 }, (_, i) => i - 20);
@@ -415,6 +238,14 @@
 			Tap a diagram to open it in the <a href="/venn-diagram-generator">Venn diagram generator</a>, where you can shade
 			any expression of up to three sets.
 		</p>
+	</section>
+
+	<section id="printable-chart">
+		<h2>Printable set notation chart</h2>
+		<p class="section-intro">
+			Every symbol in the table above with its name, reading and example on one sheet, for printing or revision.
+		</p>
+		<ReferenceChart file="set-notation-chart.png" />
 	</section>
 
 	<section id="set-builder">

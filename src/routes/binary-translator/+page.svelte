@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import {
 		encodeText,
@@ -539,6 +540,15 @@
 			<span class="mono">{smalls[0].binary}</span>. The last five bits count through the alphabet, and a digit's last
 			four bits are its value. Punctuation and control codes are in the <a href="/ascii-table">ASCII table</a>.
 		</p>
+	</section>
+
+	<section id="printable-chart">
+		<h2>Printable binary alphabet chart</h2>
+		<p class="section-intro">
+			Every capital letter, small letter and digit with its 8-bit code and decimal value on one sheet, for printing or a
+			worksheet.
+		</p>
+		<ReferenceChart file="binary-alphabet-chart.png" />
 	</section>
 
 	<section id="utf-8">

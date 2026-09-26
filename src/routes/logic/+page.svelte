@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { parseProp, parsePropInput, propTable, CONNECTIVE_SYMBOL, type Prop } from '$lib/propositional';
 	import { connectiveSymbols, otherSymbols } from '$lib/logicReference';
@@ -271,6 +272,15 @@
 			that can be true or false; <span class="mono">p ≡ q</span> is the claim that
 			<span class="mono">p ↔ q</span> is true in every row.
 		</p>
+	</section>
+
+	<section id="printable-chart">
+		<h2>Printable logic symbols chart</h2>
+		<p class="section-intro">
+			The connectives, how to read them, their other notations and their truth values on one sheet, for printing or
+			revision.
+		</p>
+		<ReferenceChart file="logic-symbols-chart.png" />
 	</section>
 
 	<section id="precedence">

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { parsePropInput, propTable } from '$lib/propositional';
 	import {
@@ -240,6 +241,14 @@
 			</div>
 		</section>
 	{/each}
+
+	<section id="printable-chart">
+		<h2>Printable logical equivalences chart</h2>
+		<p class="section-intro">
+			Every law above on one sheet, each pair checked by truth table before it is drawn, for printing or revision.
+		</p>
+		<ReferenceChart file="logical-equivalences-chart.png" />
+	</section>
 
 	<section id="negation">
 		<h2>How to negate a statement</h2>

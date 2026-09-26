@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import {
 		asciiTable,
@@ -400,6 +401,15 @@
 				</tbody>
 			</table>
 		</div>
+	</section>
+
+	<section id="printable-chart">
+		<h2>Printable ASCII chart</h2>
+		<p class="section-intro">
+			All 128 codes on one sheet in the classic four blocks of 32, with decimal, hex and binary, for printing or keeping
+			beside the keyboard.
+		</p>
+		<ReferenceChart file="ascii-table-chart.png" />
 	</section>
 
 	<section id="control">

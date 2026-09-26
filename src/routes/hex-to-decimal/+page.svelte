@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import {
 		parseRadix,
@@ -431,6 +432,12 @@
 			The same bytes as characters are in the <a href="/ascii-table">ASCII table</a>, and a byte read as a signed number
 			(80 to FF as −128 to −1) is covered by <a href="/twos-complement">two's complement</a>.
 		</p>
+	</section>
+
+	<section id="printable-chart">
+		<h2>Printable hex to decimal chart</h2>
+		<p class="section-intro">The same 00 to FF grid as one black-on-white image, for printing or a slide.</p>
+		<ReferenceChart file="hex-to-decimal-chart.png" />
 	</section>
 
 	<section id="why">

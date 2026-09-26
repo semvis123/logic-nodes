@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { parseProp, parsePropInput, propTable, formatProp, equivalenceGroups, type Prop } from '$lib/propositional';
 	import { equivalentText } from '$lib/logicReference';
@@ -331,6 +332,15 @@
 			converse is a trap: all squares are rectangles, but a rectangle need not be a square. Reasoning from a conditional
 			to its converse is the fallacy of <a href="/logic/rules-of-inference#fallacies">affirming the consequent</a>.
 		</p>
+	</section>
+
+	<section id="printable-chart">
+		<h2>Printable conditional statements chart</h2>
+		<p class="section-intro">
+			The conditional, converse, inverse and contrapositive with their truth table on one sheet, for printing or
+			revision.
+		</p>
+		<ReferenceChart file="conditional-statements-chart.png" />
 	</section>
 
 	<section id="biconditional">

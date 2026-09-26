@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
 	import VennDiagram from '$lib/VennDiagram.svelte';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import { modifiedFields } from '$lib/lastmod';
@@ -586,6 +587,15 @@
 			For an intersection, a region is shaded only if it is shaded in both parts. For a union, if it is shaded in
 			either. A complement swaps shaded and unshaded, including the region outside every circle.
 		</p>
+	</section>
+
+	<section id="printable-chart">
+		<h2>Printable set operations chart</h2>
+		<p class="section-intro">
+			The eight common two-set operations as shaded Venn diagrams, each drawn by the same engine as the generator, for
+			printing or a worksheet.
+		</p>
+		<ReferenceChart file="set-operations-venn-chart.png" />
 	</section>
 
 	<section id="truth-tables">

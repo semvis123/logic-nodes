@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import {
 		encode,
@@ -534,6 +535,15 @@
 			<a href="/ieee-754-converter?v=16777217" on:click|preventDefault={() => tryValue('16777217', 'single')}>See it</a
 			>.
 		</p>
+	</section>
+
+	<section id="printable-chart">
+		<h2>Printable IEEE 754 chart</h2>
+		<p class="section-intro">
+			The float32 and float64 bit layouts, the bias, the value formula and 5.75 worked through, on one sheet for
+			printing or a slide.
+		</p>
+		<ReferenceChart file="ieee-754-format-chart.png" />
 	</section>
 
 	<section id="point-one">

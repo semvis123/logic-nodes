@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import {
 		rules,
@@ -272,6 +273,15 @@
 				</article>
 			{/each}
 		</div>
+	</section>
+
+	<section id="printable-chart">
+		<h2>Printable rules of inference chart</h2>
+		<p class="section-intro">
+			Every rule above as premises and a conclusion, with the three fallacies marked invalid, on one sheet for printing
+			or revision.
+		</p>
+		<ReferenceChart file="rules-of-inference-chart.png" />
 	</section>
 
 	<section id="proof">

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import ReferenceChart from '$lib/ReferenceChart.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import {
 		base64Encode,
@@ -452,6 +453,15 @@
 			The padding carries no information, since the length already says how the last group ends, so many systems leave
 			it off. This decoder accepts Base64 with or without it, but not with the wrong number of = signs.
 		</p>
+	</section>
+
+	<section id="printable-chart">
+		<h2>Printable Base64 alphabet chart</h2>
+		<p class="section-intro">
+			The full 64-character index table with each 6-bit value, plus padding and the URL-safe variant, on one sheet for
+			printing.
+		</p>
+		<ReferenceChart file="base64-alphabet-chart.png" />
 	</section>
 
 	<section id="size">
