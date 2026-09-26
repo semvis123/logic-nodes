@@ -14,8 +14,7 @@
 	} from '$lib/boolean';
 	import { laws, lawSlug } from '$lib/laws';
 	import { simplifySteps, type Working } from '$lib/steps';
-	import { MAX_PROP_VARS } from '$lib/propositional';
-	import { treeFromAst, type TreeNode } from '$lib/exprTree';
+	import { treeFromAst, expressionTreeLink, type TreeNode } from '$lib/exprTree';
 	import ExpressionTree from '$lib/ExpressionTree.svelte';
 
 	import { readUrl, syncUrl, safeText, safeOption, toolLink } from '$lib/urlState';
@@ -58,9 +57,8 @@
 			const ast = parseExpression(expression);
 			const table = truthTable(ast);
 			tree = treeFromAst(ast, notation);
-			// The expression tree generator reads logic notation and up to six letters.
-			treeLink =
-				table.variables.length <= MAX_PROP_VARS ? toolLink('/expression-tree', { s: format(ast, 'math') }) : '';
+			// Empty when the expression tree generator could not read it back.
+			treeLink = expressionTreeLink(ast);
 			const result = simplify(table, notation);
 			working = simplifySteps(ast, notation);
 			original = format(ast, notation);

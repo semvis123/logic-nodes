@@ -316,7 +316,8 @@
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
 					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
-					{ '@type': 'ListItem', position: 2, name: 'Set notation' }
+					{ '@type': 'ListItem', position: 2, name: 'Logic', item: `${SITE}/logic` },
+					{ '@type': 'ListItem', position: 3, name: 'Set notation' }
 				]
 			}
 		]
@@ -357,6 +358,7 @@
 	<section class="intro">
 		<nav class="crumbs" aria-label="Breadcrumb">
 			<a href="/">LogicGates.org</a> <span aria-hidden="true">›</span>
+			<a href="/logic">Logic</a> <span aria-hidden="true">›</span>
 			<span>Set notation</span>
 		</nav>
 		<h1>Set notation</h1>
@@ -364,6 +366,7 @@
 			The symbols of set theory, what each one is called, how to read it aloud and a worked example. Operations come
 			with a Venn diagram and the logic connective they match.
 		</p>
+		<h2 id="symbols">Set notation symbols and their meanings</h2>
 		<p class="section-intro">
 			The examples use the universal set U = {roster(universe)}, with A = {roster(sets.A)} and B = {roster(sets.B)}.
 			Each one is computed, not typed in.

@@ -4,7 +4,16 @@
 	// reached with the keyboard. The geometry lives in venn.ts, where it is
 	// tested point by point against circle membership.
 	import { createEventDispatcher } from 'svelte';
-	import { vennLayout, regionWords, regionNotation, regionLabel, VENN_COLOURS, type RegionLabels } from '$lib/venn';
+	import {
+		vennLayout,
+		regionWords,
+		regionNotation,
+		regionLabel,
+		regionText,
+		setLabels,
+		VENN_COLOURS,
+		type RegionLabels
+	} from '$lib/venn';
 
 	export let n = 2;
 	export let shaded: boolean[] = [];
@@ -16,18 +25,36 @@
 	/** Show the U in the corner of the universe. */
 	export let showUniverse = true;
 	export let small = false;
+	/** Names drawn for A, B and C; an empty name keeps the letter. */
+	export let names: readonly string[] = [];
+	/** Items drawn in each region, by region index. */
+	export let items: readonly (readonly string[])[] = [];
 
 	const dispatch = createEventDispatcher<{ toggle: number }>();
 
 	$: layout = vennLayout(n);
-	$: shadedWords = layout.regions.filter((r) => shaded[r.index]).map((r) => regionWords(r.index, n).toLowerCase());
+	// "In A and C but not B" reads as part of a sentence: only its first letter is lowered,
+	// so the set letters and names keep their capitals.
+	const inSentence = (words: string) => words.charAt(0).toLowerCase() + words.slice(1);
+	$: shadedWords = layout.regions.filter((r) => shaded[r.index]).map((r) => inSentence(regionWords(r.index, n, names)));
+	$: labelSpots = setLabels(n, names, small ? 24 : 18);
+	$: texts = layout.regions.map((region) =>
+		regionText(n, region.index, items[region.index] ?? [], regionLabel(region.index, n, labels))
+	);
+	$: itemCount = items.slice(0, layout.regions.length).reduce((sum, list) => sum + (list?.length ?? 0), 0);
 	$: description =
 		`${label || 'Venn diagram'}: ` +
 		(shadedWords.length === 0
 			? 'nothing is shaded.'
 			: shadedWords.length === layout.regions.length
 			? 'every region is shaded.'
-			: `shaded ${shadedWords.join('; ')}.`);
+			: `shaded ${shadedWords.join('; ')}.`) +
+		(itemCount
+			? ` Items: ${layout.regions
+					.filter((r) => items[r.index]?.length)
+					.map((r) => `${inSentence(regionWords(r.index, n, names))}: ${items[r.index].join(', ')}`)
+					.join('; ')}.`
+			: '');
 
 	function key(event: KeyboardEvent, index: number) {
 		if (event.key === 'Enter' || event.key === ' ') {
@@ -59,10 +86,14 @@
 				role="button"
 				tabindex="0"
 				aria-pressed={shaded[region.index] ? 'true' : 'false'}
-				aria-label="{regionWords(region.index, n)} ({regionNotation(region.index, n)})"
+				aria-label="{regionWords(region.index, n, names)} ({regionNotation(region.index, n)}){items[region.index]
+					?.length
+					? `: ${items[region.index].join(', ')}`
+					: ''}"
 				on:click={() => dispatch('toggle', region.index)}
 				on:keydown={(event) => key(event, region.index)}
-				><title>{regionWords(region.index, n)}: {regionNotation(region.index, n)}, minterm m{region.index}</title></path
+				><title>{regionWords(region.index, n, names)}: {regionNotation(region.index, n)}, minterm m{region.index}</title
+				></path
 			>
 		{:else}
 			<path
@@ -81,14 +112,18 @@
 			<circle cx={circle.cx} cy={circle.cy} r={circle.r} />
 		{/each}
 		{#if showUniverse}<text class="set-label" x={layout.universe.lx} y={layout.universe.ly}>U</text>{/if}
-		{#each layout.circles as circle}
-			<text class="set-label" x={circle.lx} y={circle.ly + 6}>{circle.name}</text>
+		{#each labelSpots as label}
+			<text class="set-label" x={label.x} y={label.y} style="font-size: {label.size}px; text-anchor: {label.anchor}"
+				>{label.text}</text
+			>
 		{/each}
-		{#if labels !== 'none'}
-			{#each layout.regions as region}
-				<text class="region-label" x={region.lx} y={region.ly + 4}>{regionLabel(region.index, n, labels)}</text>
+		{#each texts as lines}
+			{#each lines as line}
+				<text class={line.kind === 'label' ? 'region-label' : 'item'} x={line.x} y={line.y} text-anchor={line.anchor}
+					>{line.text}</text
+				>
 			{/each}
-		{/if}
+		{/each}
 	</g>
 </svg>
 
@@ -153,18 +188,22 @@
 		fill: #fff;
 		font: 700 18px system-ui, -apple-system, 'Segoe UI', sans-serif;
 		text-anchor: middle;
+		/* A dark outline keeps a long name readable where it crosses a circle. */
+		stroke: #0d0d0f;
+		stroke-width: 3px;
+		paint-order: stroke;
 	}
 
-	.small .set-label {
-		font-size: 24px;
-	}
-
-	.region-label {
+	.region-label,
+	.item {
 		fill: #fff;
 		stroke: #0d0d0f;
 		stroke-width: 3px;
 		paint-order: stroke;
 		font: 600 12px ui-monospace, SFMono-Regular, Menlo, monospace;
-		text-anchor: middle;
+	}
+
+	.item {
+		font: 400 11px system-ui, -apple-system, 'Segoe UI', sans-serif;
 	}
 </style>

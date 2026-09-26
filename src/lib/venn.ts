@@ -406,13 +406,16 @@ export function regionNotation(index: number, n: number): string {
 const list = (names: string[], joiner: string) =>
 	names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} ${joiner} ${names[names.length - 1]}`;
 
-/** A region in words, e.g. "In A and C but not B", for labels and screen readers. */
-export function regionWords(index: number, n: number): string {
-	const names = SET_NAMES.slice(0, n) as unknown as string[];
+/**
+ * A region in words, e.g. "In A and C but not B", for labels and screen
+ * readers. Custom names, when given, replace the letters: "In Cats but not Dogs".
+ */
+export function regionWords(index: number, n: number, custom: readonly string[] = []): string {
+	const names = SET_NAMES.slice(0, n).map((letter, set) => custom[set]?.trim() || letter);
 	const ins = names.filter((_, set) => inSet(index, set, n));
 	const outs = names.filter((_, set) => !inSet(index, set, n));
-	if (!ins.length) return n === 1 ? 'Outside A' : `Outside ${list(outs, 'and')}`;
-	if (!outs.length) return n === 1 ? 'In A' : `In ${list(ins, 'and')}`;
+	if (!ins.length) return n === 1 ? `Outside ${names[0]}` : `Outside ${list(outs, 'and')}`;
+	if (!outs.length) return n === 1 ? `In ${names[0]}` : `In ${list(ins, 'and')}`;
 	return `In ${list(ins, 'and')} but not ${list(outs, 'or')}`;
 }
 
@@ -823,13 +826,304 @@ export function regionLabel(index: number, n: number, labels: RegionLabels): str
 	return '';
 }
 
+// --- set names and items ------------------------------------------------------
+//
+// A Venn diagram maker needs more than shading: the sets get names ("Cats"),
+// and the regions hold the things being sorted ("tiger" in Cats but not Pets).
+// The expression keeps using A, B and C; names and items are only drawn.
+// Items are stored per region in the three-set numbering (A = 4, B = 2, C = 1),
+// so the items of "in A only" stay there when a diagram gains or loses a set.
+
+export const MAX_NAME_LENGTH = 20;
+export const MAX_ITEMS_LENGTH = 100;
+
+/** A set name as typed, bounded, without the separator used in links. */
+export const cleanName = (name: string): string => name.replace(/[|\u0000-\u001f]/g, '').slice(0, MAX_NAME_LENGTH);
+
+/** A region's item list as typed (comma separated), bounded, without the link separator. */
+export const cleanItems = (text: string): string => text.replace(/[;\u0000-\u001f]/g, ',').slice(0, MAX_ITEMS_LENGTH);
+
+/** The items in a region's list, trimmed, empty ones dropped. */
+export const splitItems = (text: string): string[] =>
+	text
+		.split(',')
+		.map((item) => item.trim())
+		.filter(Boolean);
+
+/** Where region `index` of an n-set diagram keeps its items: its three-set number. */
+export const itemSlot = (index: number, n: number): number => index << (MAX_SETS - n);
+
+/** A region's key in a link: the sets it is in (A, AB, ABC…), or "out" for none. */
+const slotKey = (slot: number): string => SET_NAMES.filter((_, set) => inSet(slot, set, MAX_SETS)).join('') || 'out';
+
+/** The names of the first n sets for a link: "Cats|Dogs", '' when none is set. */
+export function encodeNames(names: readonly string[], n: number): string {
+	return names
+		.slice(0, n)
+		.map((name) => cleanName(name ?? '').trim())
+		.join('|')
+		.replace(/\|+$/, '');
+}
+
+export function decodeNames(text: string | undefined): string[] {
+	const parts = (text ?? '').split('|');
+	return SET_NAMES.map((_, set) => cleanName(parts[set] ?? '').trim());
+}
+
+/** The items of the regions an n-set diagram shows, for a link: "A:apple,pear;AB:kiwi". */
+export function encodeItems(items: readonly string[], n: number): string {
+	const parts: string[] = [];
+	for (let index = 0; index < 1 << n; index++) {
+		const slot = itemSlot(index, n);
+		const list = splitItems(cleanItems(items[slot] ?? ''));
+		if (list.length) parts.push(`${slotKey(slot)}:${list.join(',')}`);
+	}
+	return parts.join(';');
+}
+
+/** Reads items back from a link, one entry per three-set region. Unknown keys are ignored. */
+export function decodeItems(text: string | undefined): string[] {
+	const items = new Array<string>(1 << MAX_SETS).fill('');
+	for (const part of (text ?? '').split(';')) {
+		const colon = part.indexOf(':');
+		if (colon < 0) continue;
+		const key = part.slice(0, colon).trim();
+		const slot = Array.from({ length: 1 << MAX_SETS }, (_, i) => i).find((i) => slotKey(i) === key);
+		if (slot === undefined) continue;
+		items[slot] = cleanItems(splitItems(cleanItems(part.slice(colon + 1))).join(', ')).trim();
+	}
+	return items;
+}
+
+/** One line of text drawn in a region. */
+export type TextLine = { x: number; y: number; anchor: 'middle' | 'end'; text: string; kind: 'label' | 'item' };
+
+/** Text in regions is drawn this size, in diagram units, with lines this far apart. */
+export const ITEM_FONT_SIZE = 11;
+const LINE = 13;
+/** A deliberately wide average character, so estimated lines do not overflow. */
+const CHAR = 6.2;
+const MAX_LINES = 7;
+/** Text outside the circles stays in the right half, clear of the set names. */
+const OUTSIDE_WIDTH = 150;
+
+type TextSlot = { x: number; y: number; chars: number };
+type TextBox = { anchor: 'middle' | 'end'; fits: TextSlot[][] };
+
+const regionAt = (circles: VennCircle[], p: Point): number =>
+	circles.reduce((acc, c, set) => (inside(c, p) ? acc | (1 << (circles.length - 1 - set)) : acc), 0);
+
+/** How far the region containing (x, y) runs from there, leftwards (-1) or rightwards (1). */
+function run(circles: VennCircle[], x: number, y: number, step: number): number {
+	const u = UNIVERSE;
+	const index = regionAt(circles, { x, y });
+	let d = 0;
+	while (d < u.w) {
+		const nx = x + step * (d + 1);
+		if (nx < u.x + 4 || nx > u.x + u.w - 4) break;
+		if (regionAt(circles, { x: nx, y }) !== index) break;
+		d++;
+	}
+	return d;
+}
+
+/**
+ * Where each region's text goes, and how many characters fit on each line,
+ * for every number of lines. Inside a circle the lines are stacked around the
+ * region's middle, and each is centred in the width the region has at that
+ * height (checked at the top and bottom of the letters), less a margin.
+ * Outside every circle the lines stack up from the bottom right corner.
+ */
+function textBoxes(layout: VennLayout): TextBox[] {
+	const { circles, regions } = layout;
+	const u = layout.universe;
+	const vertical = (y: number) => y - 4 > u.y + 2 && y + 4 < u.y + u.h - 2;
+	return regions.map((region) => {
+		if (region.index === 0) {
+			const x = u.x + u.w - 6;
+			const bottom = u.y + u.h - 8;
+			const slots: TextSlot[] = [];
+			for (let i = 0; i < MAX_LINES; i++) {
+				const y = bottom - i * LINE;
+				const free = Math.min(run(circles, x, y - 8, -1), run(circles, x, y + 2, -1), OUTSIDE_WIDTH) - 4;
+				const chars = Math.floor(free / CHAR);
+				if (chars < 4 || !vertical(y)) break;
+				slots.unshift({ x, y, chars });
+			}
+			// The bottom 1…k lines of the stack, in reading order.
+			return { anchor: 'end', fits: slots.map((_, i) => slots.slice(slots.length - 1 - i)) };
+		}
+		const fits: TextSlot[][] = [];
+		for (let count = 1; count <= MAX_LINES; count++) {
+			const slots: TextSlot[] = [];
+			for (let i = 0; i < count; i++) {
+				const mid = region.ly + (i - (count - 1) / 2) * LINE;
+				if (!vertical(mid) || regionAt(circles, { x: region.lx, y: mid }) !== region.index) break;
+				const left = Math.min(run(circles, region.lx, mid - 4, -1), run(circles, region.lx, mid + 3, -1));
+				const right = Math.min(run(circles, region.lx, mid - 4, 1), run(circles, region.lx, mid + 3, 1));
+				const chars = Math.floor((left + right - 8) / CHAR);
+				if (chars < 3) break;
+				slots.push({ x: region.lx + (right - left) / 2, y: mid + 4, chars });
+			}
+			if (slots.length < count) break;
+			fits.push(slots);
+		}
+		return { anchor: 'middle', fits };
+	});
+}
+
+const boxCache = new Map<number, TextBox[]>();
+
+/** Shortens text to at most `chars` characters, ending in … when cut. */
+const clip = (text: string, chars: number) =>
+	text.length <= chars ? text : `${text.slice(0, Math.max(1, chars - 1)).trimEnd()}…`;
+
+/**
+ * Packs items onto lines of the given widths, several to a line when they
+ * fit, shortening an item only when it is too long for a line on its own.
+ * Returns the lines and how many items they hold.
+ */
+function pack(items: readonly string[], slots: TextSlot[]): { lines: string[]; used: number; clipped: boolean } {
+	const lines: string[] = [];
+	const left = [...items];
+	let clipped = false;
+	for (const slot of slots) {
+		if (!left.length) break;
+		// First fit: the first item that fits this line, so a narrow line does not
+		// cut a word that the next, wider line could hold. Order within a region
+		// carries no meaning.
+		const first = left.findIndex((item) => item.length <= slot.chars);
+		let line: string;
+		if (first < 0) {
+			line = clip(left.shift()!, slot.chars);
+			clipped = true;
+		} else {
+			line = left.splice(first, 1)[0];
+		}
+		for (let i = 0; i < left.length; ) {
+			if (line.length + 2 + left[i].length <= slot.chars) line += `, ${left.splice(i, 1)[0]}`;
+			else i++;
+		}
+		lines.push(line);
+	}
+	return { lines, used: items.length - left.length, clipped };
+}
+
+/**
+ * The lines of text to draw in one region: its label (m5 or 101), if any,
+ * then its items, on as few lines as hold them all. When they cannot all be
+ * shown, long items are shortened with … and the last line counts the rest:
+ * "+3 more".
+ */
+export function regionText(n: number, index: number, items: readonly string[], label = ''): TextLine[] {
+	const layout = vennLayout(n);
+	let boxes = boxCache.get(n);
+	if (!boxes) {
+		boxes = textBoxes(layout);
+		boxCache.set(n, boxes);
+	}
+	const box = boxes[index];
+	const region = layout.regions[index];
+	const lead = label ? 1 : 0;
+	if (!items.length || box.fits.length <= lead) {
+		return label ? [{ x: region.lx, y: region.ly + 4, anchor: 'middle', text: label, kind: 'label' }] : [];
+	}
+	/** The best this many lines can do, and how many items it shows in full. */
+	const attempt = (slots: TextSlot[]) => {
+		const room = slots.slice(lead);
+		const all = pack(items, room);
+		if (all.used === items.length) return { slots, texts: all.lines, shown: all.clipped ? -1 : items.length };
+		if (room.length === 1) {
+			const text = clip(`${items[0]} +${items.length - 1}`, room[0].chars);
+			return { slots, texts: [text], shown: 0 };
+		}
+		// Keep the last line for a count of what is left out.
+		const some = pack(items, room.slice(0, -1));
+		const left = items.length - some.used;
+		const more = `+${left} more`;
+		const texts = [...some.lines, more.length <= room[room.length - 1].chars ? more : `+${left}`];
+		return { slots, texts, shown: some.clipped ? some.used - 1 : some.used };
+	};
+	// Fewest lines that show every item in full; failing that, the most items in full.
+	let best = attempt(box.fits[box.fits.length - 1]);
+	for (const slots of box.fits.slice(lead)) {
+		const next = attempt(slots);
+		if (next.shown === items.length) {
+			best = next;
+			break;
+		}
+		if (next.shown > best.shown) best = next;
+	}
+	const { slots, texts } = best;
+	const lines = [...(label ? [label] : []), ...texts];
+	return lines.map((text, i) => ({
+		x: slots[i].x,
+		y: slots[i].y,
+		anchor: box.anchor,
+		text,
+		kind: label && i === 0 ? 'label' : 'item'
+	}));
+}
+
+export type SetLabelSpot = {
+	text: string;
+	x: number;
+	y: number;
+	size: number;
+	anchor: 'start' | 'middle' | 'end';
+};
+
+/** Bold text is at most about this much of its size wide per character. */
+const BOLD_CHAR = 0.68;
+
+/**
+ * Where each set's name goes. A letter sits centred just outside its circle.
+ * A longer name runs away from the diagram from that point (leftwards for a
+ * circle on the left), inside the universe rectangle. Long names shrink to
+ * the room they have, down to 12 units, past which they cross the circle's
+ * outline (they are drawn with a dark outline of their own for that). All
+ * names of a diagram share one size.
+ */
+export function setLabels(n: number, names: readonly string[] = [], base = 18): SetLabelSpot[] {
+	const { circles } = vennLayout(n);
+	const u = UNIVERSE;
+	const texts = circles.map((c, set) => names[set]?.trim() || c.name);
+	const long = (text: string) => text.length > 2;
+	const room = (c: VennCircle) => (c.lx < c.cx ? c.lx - (u.x + 3) : u.x + u.w - 3 - c.lx);
+	const size = Math.max(
+		12,
+		Math.min(
+			base,
+			...circles.map((c, set) => (long(texts[set]) ? Math.floor(room(c) / (texts[set].length * BOLD_CHAR)) : base))
+		)
+	);
+	return circles.map((c, set) => {
+		const text = texts[set];
+		const y = c.ly + 6;
+		if (!long(text)) return { text, x: c.lx, y, size: base, anchor: 'middle' };
+		const width = text.length * size * BOLD_CHAR;
+		return c.lx < c.cx
+			? { text, x: Math.max(u.x + 3 + width, c.lx), y, size, anchor: 'end' }
+			: { text, x: Math.min(u.x + u.w - 3 - width, c.lx), y, size, anchor: 'start' };
+	});
+}
+
 const escapeXml = (s: string) =>
 	s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
+export type VennSvgOptions = {
+	labels?: RegionLabels;
+	title?: string;
+	/** Names for A, B and C; an empty name keeps the letter. */
+	names?: readonly string[];
+	/** The items of each region of this diagram, by region index. */
+	items?: readonly (readonly string[])[];
+};
+
 /** A standalone SVG file of a shaded diagram, for download. */
-export function vennSvg(n: number, shaded: boolean[], options: { labels?: RegionLabels; title?: string } = {}) {
+export function vennSvg(n: number, shaded: boolean[], options: VennSvgOptions = {}) {
 	const layout = vennLayout(n);
-	const { labels = 'none', title = '' } = options;
+	const { labels = 'none', title = '', names = [], items = [] } = options;
 	const colours = VENN_COLOURS;
 	const scale = 2;
 	const parts: string[] = [];
@@ -858,23 +1152,28 @@ export function vennSvg(n: number, shaded: boolean[], options: { labels?: Region
 	parts.push(
 		`<text x="${u.lx}" y="${u.ly}" fill="${colours.label}" font-size="17" font-weight="700" text-anchor="middle">U</text>`
 	);
-	for (const c of layout.circles) {
+	for (const spot of setLabels(n, names)) {
 		parts.push(
-			`<text x="${num(c.lx)}" y="${num(c.ly + 6)}" fill="${
+			`<text x="${num(spot.x)}" y="${num(spot.y)}" fill="${
 				colours.label
-			}" font-size="18" font-weight="700" text-anchor="middle">${c.name}</text>`
+			}" stroke="#0d0d0f" stroke-width="3" paint-order="stroke" font-size="${
+				spot.size
+			}" font-weight="700" text-anchor="${spot.anchor}">${escapeXml(spot.text)}</text>`
 		);
 	}
-	if (labels !== 'none') {
-		for (const region of layout.regions) {
+	for (const region of layout.regions) {
+		const lines = regionText(n, region.index, items[region.index] ?? [], regionLabel(region.index, n, labels));
+		for (const line of lines) {
+			const font =
+				line.kind === 'label'
+					? 'font-family="ui-monospace, Menlo, monospace" font-size="12"'
+					: `font-size="${ITEM_FONT_SIZE}"`;
 			parts.push(
-				`<text x="${num(region.lx)}" y="${num(
-					region.ly + 4
-				)}" fill="#fff" stroke="#0d0d0f" stroke-width="3" paint-order="stroke" font-size="12" text-anchor="middle">${regionLabel(
-					region.index,
-					n,
-					labels
-				)}</text>`
+				`<text x="${num(line.x)}" y="${num(
+					line.y
+				)}" fill="#fff" stroke="#0d0d0f" stroke-width="3" paint-order="stroke" ${font} text-anchor="${
+					line.anchor
+				}">${escapeXml(line.text)}</text>`
 			);
 		}
 	}
