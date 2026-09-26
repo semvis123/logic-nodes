@@ -11,12 +11,10 @@
 		simplify,
 		BooleanError,
 		MAX_VARS,
-		format,
 		type Output,
 		type SystemTable
 	} from '$lib/boolean';
-	import { MAX_PROP_VARS } from '$lib/propositional';
-	import { treeFromAst } from '$lib/exprTree';
+	import { treeFromAst, expressionTreeLink } from '$lib/exprTree';
 	import ExpressionTree from '$lib/ExpressionTree.svelte';
 	import { truthTableToSvg, type Palette } from '$lib/exportSvg';
 	import { downloadSvg, downloadPng, slugifyExpression } from '$lib/download';
@@ -75,14 +73,21 @@
 		  )
 		: {};
 	$: trees = outputs.map((o) => ({ name: o.name, tree: treeFromAst(o.ast, 'math') }));
+	// Empty when there are several outputs, or the tree generator could not read it back.
+	$: treeLink = outputs.length === 1 ? expressionTreeLink(outputs[0].ast) : '';
 
+	/**
+	 * The rows are one tab stop: only the selected row is in the tab order, and
+	 * the arrow keys, Home and End move the selection (a roving tabindex).
+	 */
 	function rowKey(event: KeyboardEvent, row: number) {
+		const moves: Record<string, number> = { ArrowDown: row + 1, ArrowUp: row - 1, Home: 0, End: rowCount - 1 };
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			selectedRow = row;
-		} else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+		} else if (event.key in moves) {
 			event.preventDefault();
-			const next = Math.max(0, Math.min(rowCount - 1, row + (event.key === 'ArrowDown' ? 1 : -1)));
+			const next = Math.max(0, Math.min(rowCount - 1, moves[event.key]));
 			selectedRow = next;
 			const rows = (event.currentTarget as HTMLElement).parentElement?.children;
 			(rows?.[next] as HTMLElement | undefined)?.focus();
@@ -308,8 +313,8 @@
 								<tr
 									class:high={table.outputs.every((o) => o.rows[row])}
 									class:selected={row === selectedRow}
-									aria-selected={row === selectedRow}
-									tabindex="0"
+									aria-current={row === selectedRow ? 'true' : undefined}
+									tabindex={row === selectedRow ? 0 : -1}
 									on:click={() => (selectedRow = row)}
 									on:keydown={(e) => rowKey(e, row)}
 								>
@@ -375,7 +380,7 @@
 						{#if table.variables.length}
 							How the expression is built, with the value of each part when
 							<span class="mono">{table.variables.map((v) => `${v} = ${rowValues[v] ? 1 : 0}`).join(', ')}</span>. Click
-							a row of the table to pick another.
+							a row of the table, or use the arrow keys on it, to pick another.
 						{:else}
 							How the expression is built, with the value of each part.
 						{/if}
@@ -390,11 +395,9 @@
 							</figure>
 						{/each}
 					</div>
-					{#if trees.length === 1 && table.variables.length <= MAX_PROP_VARS}
+					{#if treeLink}
 						<p class="tree-link">
-							<a href={toolLink('/expression-tree', { s: format(outputs[0].ast, 'math') })}
-								>Open it in the expression tree generator</a
-							>
+							<a href={treeLink}>Open it in the expression tree generator</a>
 						</p>
 					{/if}
 				</div>

@@ -22,6 +22,14 @@ import {
 	inSet,
 	booleanText,
 	SetError,
+	encodeNames,
+	decodeNames,
+	encodeItems,
+	decodeItems,
+	itemSlot,
+	regionText,
+	MAX_NAME_LENGTH,
+	MAX_ITEMS_LENGTH,
 	type SetExpr
 } from '../src/lib/venn.js';
 import { parseExpression, truthTable } from '../src/lib/boolean.js';
@@ -298,5 +306,171 @@ test.describe('pages', () => {
 		const rows = page.locator('.laws tbody tr');
 		expect(await rows.count()).toBeGreaterThan(10);
 		await expect(page.locator('.laws .checked')).toHaveCount(await rows.count());
+	});
+});
+
+test.describe('names and items', () => {
+	test('names and items survive a round trip through the link', () => {
+		const names = ['Cats', 'Dogs', 'Pets'];
+		expect(encodeNames(names, 3)).toBe('Cats|Dogs|Pets');
+		expect(encodeNames(names, 2)).toBe('Cats|Dogs');
+		expect(encodeNames(['', 'Dogs', ''], 3)).toBe('|Dogs');
+		expect(encodeNames(['', '', ''], 3)).toBe('');
+		expect(decodeNames('Cats|Dogs|Pets')).toEqual(names);
+		expect(decodeNames('|Dogs')).toEqual(['', 'Dogs', '']);
+		expect(decodeNames(undefined)).toEqual(['', '', '']);
+		// Bounded, and the separator cannot be smuggled in.
+		expect(decodeNames('x'.repeat(50))[0]).toHaveLength(MAX_NAME_LENGTH);
+
+		const items = new Array(8).fill('');
+		items[itemSlot(2, 2)] = 'penguin, ostrich';
+		items[itemSlot(3, 2)] = ' eagle ,, owl ';
+		items[itemSlot(0, 2)] = 'cat';
+		const text = encodeItems(items, 2);
+		expect(text).toBe('out:cat;A:penguin,ostrich;AB:eagle,owl');
+		const back = decodeItems(text);
+		expect(back[itemSlot(2, 2)]).toBe('penguin, ostrich');
+		expect(back[itemSlot(3, 2)]).toBe('eagle, owl');
+		expect(encodeItems(back, 2)).toBe(text);
+		// Region "A only" of two sets is "A only, not C" of three: the items stay put.
+		expect(itemSlot(2, 2)).toBe(itemSlot(4, 3));
+		expect(encodeItems(back, 3)).toBe('out:cat;A:penguin,ostrich;AB:eagle,owl');
+		// Only the regions a diagram shows are written into its link.
+		const withC = decodeItems('C:fish;A:bee');
+		expect(encodeItems(withC, 2)).toBe('A:bee');
+		expect(encodeItems(withC, 3)).toBe('C:fish;A:bee');
+		// Unknown keys are ignored, lists are bounded, and ; cannot end up inside a list.
+		expect(decodeItems('D:x;ABCD:y;nonsense')).toEqual(new Array(8).fill(''));
+		expect(decodeItems(`A:${'a,'.repeat(200)}`)[4].length).toBeLessThanOrEqual(MAX_ITEMS_LENGTH);
+		items[4] = 'a;b';
+		expect(encodeItems(items, 3)).toContain('A:a,b');
+	});
+
+	test('region text stays inside its region and says what it leaves out', () => {
+		const many = ['apple', 'pear', 'banana', 'kiwi', 'strawberry', 'plum', 'fig', 'grape', 'melon', 'lime'];
+		for (const n of [1, 2, 3]) {
+			const layout = vennLayout(n);
+			const regionOf = (x: number, y: number) =>
+				layout.circles.reduce(
+					(acc, c, set) => ((x - c.cx) ** 2 + (y - c.cy) ** 2 < c.r ** 2 ? acc | (1 << (n - 1 - set)) : acc),
+					0
+				);
+			for (const region of layout.regions) {
+				for (const items of [['tiger'], ['a', 'b'], many]) {
+					const lines = regionText(n, region.index, items);
+					expect(lines.length).toBeGreaterThan(0);
+					for (const line of lines) {
+						// The middle of the line's height is in the region it describes.
+						expect(regionOf(line.x, line.y - 4), `${n} sets, region ${region.index}`).toBe(region.index);
+						expect(line.y).toBeLessThan(layout.universe.y + layout.universe.h);
+					}
+					const shown = lines.flatMap((l) => l.text.split(', '));
+					const more = shown.find((t) => /^\+\d+/.test(t) || / \+\d+$/.test(t));
+					if (!more) {
+						// Nothing left out: every item appears, whole.
+						expect([...shown].sort()).toEqual([...items].sort());
+					} else {
+						const count = Number(more.match(/\+(\d+)/)![1]);
+						const whole = shown.filter((t) => items.includes(t));
+						expect(whole.length + count).toBeLessThanOrEqual(items.length);
+					}
+				}
+			}
+			// A short list fits in every region of two sets without being shortened.
+			for (const region of layout.regions) {
+				if (n < 3) expect(regionText(n, region.index, ['tiger']).map((l) => l.text)).toEqual(['tiger']);
+			}
+		}
+		// Region labels come first, then the items.
+		expect(regionText(2, 3, ['owl'], 'm3').map((l) => [l.kind, l.text])).toEqual([
+			['label', 'm3'],
+			['item', 'owl']
+		]);
+		expect(regionText(2, 3, [], '').length).toBe(0);
+	});
+
+	test('the SVG download includes the names and items, escaped', async ({ page }) => {
+		const svg = vennSvg(2, [false, false, true, true], {
+			names: ['Cats & kittens', 'Dogs'],
+			items: [['rock'], [], ['<tiger>'], ['lion']],
+			title: 'A'
+		});
+		expect(svg).toContain('Cats &amp; kittens');
+		expect(svg).toContain('&lt;tiger&gt;');
+		await page.setContent(svg);
+		const texts = await page.locator('text').allTextContents();
+		expect(texts).toEqual(expect.arrayContaining(['Cats & kittens', 'Dogs', '<tiger>', 'lion', 'rock']));
+		// Well formed, as a file on its own.
+		const errors = await page.evaluate(
+			(source) => new DOMParser().parseFromString(source, 'image/svg+xml').getElementsByTagName('parsererror').length,
+			svg
+		);
+		expect(errors).toBe(0);
+	});
+});
+
+test.describe('generator names, items and links', () => {
+	test('names and items from the link are drawn, and typing updates the link', async ({ page }) => {
+		await page.goto('/venn-diagram-generator?s=A%20%E2%88%A9%20B&names=Cats|Dogs&items=A:tiger;AB:lion,puma');
+		const diagram = page.locator('.venn-main svg');
+		await expect(diagram.locator('text.set-label')).toHaveText(['U', 'Cats', 'Dogs']);
+		await expect(diagram.locator('text.item')).toContainText(['tiger']);
+		await expect(diagram.locator('text.item', { hasText: 'lion' })).toHaveText('lion, puma');
+		// The expression keeps its letters; the words use the names.
+		await expect(page.locator('#set-expression')).toHaveValue('A ∩ B');
+		await expect(diagram.locator('[data-region="3"]')).toHaveAttribute('aria-label', /In Cats and Dogs.*lion, puma/);
+		await expect(page.locator('details.custom')).toHaveAttribute('open', '');
+
+		await page.locator('#items-1').fill('wolf, fox');
+		await expect(diagram.locator('text.item', { hasText: 'wolf' })).toHaveText('wolf, fox');
+		await expect.poll(() => new URL(page.url()).searchParams.get('items')).toBe('B:wolf,fox;A:tiger;AB:lion,puma');
+		await page.locator('.names input').first().fill('Big cats');
+		await expect(diagram.locator('text.set-label').nth(1)).toHaveText('Big cats');
+		await expect.poll(() => new URL(page.url()).searchParams.get('names')).toBe('Big cats|Dogs');
+
+		// A reload gives back the same diagram.
+		await page.reload();
+		await expect(diagram.locator('text.set-label')).toHaveText(['U', 'Big cats', 'Dogs']);
+		await expect(page.locator('#items-1')).toHaveValue('wolf, fox');
+	});
+
+	test('the example fills in names and items, and clearing removes them', async ({ page }) => {
+		await page.goto('/venn-diagram-generator');
+		await page.locator('details.custom summary').click();
+		await page.getByRole('button', { name: 'Example: birds that fly' }).click();
+		const diagram = page.locator('.venn-main svg');
+		await expect(diagram.locator('text.set-label')).toHaveText(['U', 'Birds', 'Can fly']);
+		await expect(diagram.locator('text.item')).not.toHaveCount(0);
+		await page.getByRole('button', { name: 'Clear names and items' }).click();
+		await expect(diagram.locator('text.set-label')).toHaveText(['U', 'A', 'B']);
+		await expect(diagram.locator('text.item')).toHaveCount(0);
+		await expect.poll(() => new URL(page.url()).searchParams.get('items')).toBeNull();
+	});
+
+	test('descriptions keep set letters in capitals', async ({ page }) => {
+		await page.goto('/venn-diagram-generator');
+		const step = page.locator('.step svg').last();
+		await expect(step).toHaveAttribute(
+			'aria-label',
+			/shaded in A and C but not B; in A and B but not C; in A, B and C\./
+		);
+	});
+
+	test('an unused set is pointed out under the truth table link', async ({ page }) => {
+		await page.goto('/venn-diagram-generator?s=C&sets=3');
+		await expect(page.locator('.link-note')).toContainText('does not use A or B');
+		await page.locator('#set-expression').fill('A ∩ B ∩ C');
+		await expect(page.locator('.link-note')).toHaveCount(0);
+	});
+
+	test('the Karnaugh map text names a region the diagram has', async ({ page }) => {
+		await page.goto('/venn-diagram-generator?s=A%20%E2%88%AA%20B');
+		const text = page.locator('#karnaugh .reducer');
+		await expect(text).toContainText('region m2 of the diagram');
+		await expect(text).toContainText('A ∩ B′');
+		await page.locator('#set-expression').fill('A ∩ C');
+		await expect(text).toContainText('region m5 of the diagram');
+		await page.locator('#set-expression').fill('A′');
+		await expect(text).toContainText('region m1 of the diagram');
 	});
 });

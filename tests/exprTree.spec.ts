@@ -12,6 +12,8 @@ import {
 	withValues,
 	layoutTree,
 	treeVariables,
+	expressionTreeLink,
+	MAX_TREE_INPUT,
 	type TreeNode
 } from '../src/lib/exprTree.js';
 
@@ -191,5 +193,71 @@ test.describe('expression tree pages', () => {
 		const html = await (await page.request.get('/boolean-algebra-calculator')).text();
 		expect(html).toMatch(/<details[^>]*class="[^"]*tree-details[\s\S]*?<svg[^>]*role="img"/);
 		expect(html).toContain('/expression-tree?');
+	});
+
+	test('links to the tree generator carry long expressions, and are hidden when too long', async ({ page }) => {
+		// 8 terms of 6 letters: short in circuit notation, over 200 characters in logic notation.
+		const circuit = "ab'cd'ef + a'bc'de'f' + abcdef + a'b'c'd'e'f' + ab'c'def' + a'bcd'e'f + abc'd'ef' + a'b'cdef";
+		const ast = parseExpression(circuit);
+		const link = expressionTreeLink(ast);
+		const s = new URL(link, 'https://x').searchParams.get('s')!;
+		expect(s.length).toBeGreaterThan(200);
+		expect(s.length).toBeLessThanOrEqual(MAX_TREE_INPUT);
+		// What the link carries parses as logic with the same truth table.
+		const prop = parseProp(s);
+		for (const values of rowsOf(variablesOf(ast))) expect(evaluateProp(prop, values)).toBe(evaluate(ast, values));
+		// Seven letters, or too long to read back: no link rather than a broken one.
+		expect(expressionTreeLink(parseExpression('abcdefg'))).toBe('');
+		expect(expressionTreeLink(parseExpression(Array(40).fill("ab'c + a'bc'").join(' + ')))).toBe('');
+
+		await page.goto(`/truth-table-generator?expr=${encodeURIComponent(circuit)}`);
+		const anchor = page.locator('.tree-link a');
+		await expect(anchor).toHaveAttribute('href', link);
+		await anchor.click();
+		await expect(page).toHaveURL(/\/expression-tree/);
+		await expect(page.locator('#statement')).toHaveValue(s);
+		await expect(page.locator('table.rows tbody tr')).toHaveCount(64);
+	});
+
+	test('switching between T/F and 1/0 keeps the same row selected', async ({ page }) => {
+		await page.goto('/expression-tree');
+		// T and F start from all true, so the last row is p = q = r = F.
+		await page.locator('table.rows tbody tr').last().click();
+		await expect(page.locator('.answer')).toContainText('p = F, q = F, r = F');
+		await page.getByRole('button', { name: '1 and 0' }).click();
+		// 1 and 0 start from all 0, so the same assignment is now the first row.
+		await expect(page.locator('table.rows tbody tr').first()).toHaveClass(/selected/);
+		await expect(page.locator('.answer')).toContainText('p = 0, q = 0, r = 0');
+		await expect(page.locator('.answer strong')).toHaveText('true');
+		await expect(page).not.toHaveURL(/row=/);
+		await page.getByRole('button', { name: 'T and F' }).click();
+		await expect(page.locator('.answer')).toContainText('p = F, q = F, r = F');
+		await expect(page).toHaveURL(/row=7/);
+	});
+
+	test('the row tables are one tab stop, moved with the arrow keys', async ({ page }) => {
+		for (const [path, table] of [
+			['/expression-tree', 'table.rows'],
+			['/truth-table-generator', 'table.result']
+		]) {
+			await page.goto(path);
+			const rows = page.locator(`${table} tbody tr`);
+			const count = await rows.count();
+			await expect(page.locator(`${table} tbody tr[tabindex="0"]`)).toHaveCount(1);
+			await expect(page.locator(`${table} tbody tr[aria-current="true"]`)).toHaveCount(1);
+			await expect(page.locator(`${table} [aria-selected]`)).toHaveCount(0);
+			await rows.first().focus();
+			await page.keyboard.press('ArrowDown');
+			await expect(rows.nth(1)).toBeFocused();
+			await expect(rows.nth(1)).toHaveAttribute('tabindex', '0');
+			await expect(rows.nth(1)).toHaveAttribute('aria-current', 'true');
+			await expect(rows.first()).toHaveAttribute('tabindex', '-1');
+			await page.keyboard.press('End');
+			await expect(rows.nth(count - 1)).toBeFocused();
+			await expect(rows.nth(count - 1)).toHaveClass(/selected/);
+			await page.keyboard.press('Home');
+			await expect(rows.first()).toBeFocused();
+			await expect(page.locator(`${table} tbody tr[tabindex="0"]`)).toHaveCount(1);
+		}
 	});
 });

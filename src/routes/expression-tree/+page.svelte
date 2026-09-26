@@ -12,7 +12,7 @@
 		type Prop,
 		type PropTable
 	} from '$lib/propositional';
-	import { treeFromProp, withValues, treeStats, type TreeNode } from '$lib/exprTree';
+	import { treeFromProp, withValues, treeStats, MAX_TREE_INPUT, type TreeNode } from '$lib/exprTree';
 	import ExpressionTree from '$lib/ExpressionTree.svelte';
 	import { readUrl, syncUrl, safeText, safeOption, safeInt, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
@@ -22,7 +22,9 @@
 	const DEFAULTS = { s: '(p → q) ∧ ¬(q ∨ r)', order: 'tf', chains: 'binary', row: 0 };
 	onMount(() => {
 		const p = readUrl();
-		input = safeText(p.s) ?? input;
+		// Longer than most tools allow: other tools link here with circuit expressions
+		// rewritten in logic notation, which roughly triples their length.
+		input = safeText(p.s, MAX_TREE_INPUT) ?? input;
 		order = safeOption(p.order, ['tf', '01'] as const) ?? order;
 		chains = safeOption(p.chains, ['binary', 'merged'] as const) ?? chains;
 		row = safeInt(p.row, 0, (1 << MAX_PROP_VARS) - 1) ?? row;
@@ -72,18 +74,34 @@
 		row = r;
 	}
 
+	/**
+	 * The rows are one tab stop: only the selected row is in the tab order, and
+	 * the arrow keys, Home and End move the selection (a roving tabindex).
+	 */
 	function rowKey(event: KeyboardEvent, r: number) {
 		if (!table) return;
+		const last = table.rows.length - 1;
+		const moves: Record<string, number> = { ArrowDown: r + 1, ArrowUp: r - 1, Home: 0, End: last };
 		if (event.key === 'Enter' || event.key === ' ') {
 			event.preventDefault();
 			pick(r);
-		} else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+		} else if (event.key in moves) {
 			event.preventDefault();
-			const next = Math.max(0, Math.min(table.rows.length - 1, r + (event.key === 'ArrowDown' ? 1 : -1)));
+			const next = Math.max(0, Math.min(last, moves[event.key]));
 			pick(next);
 			const rows = (event.currentTarget as HTMLElement).parentElement?.children;
 			(rows?.[next] as HTMLElement | undefined)?.focus();
 		}
+	}
+
+	/**
+	 * T and F tables start from all true, 1 and 0 tables from all 0, so the
+	 * rows run in opposite orders. Keep the same assignment selected.
+	 */
+	function setOrder(next: 'tf' | '01') {
+		if (next === order) return;
+		if (table) row = table.rows.length - 1 - Math.min(row, table.rows.length - 1);
+		order = next;
 	}
 
 	/** Loads a statement into the generator and scrolls up to it. */
@@ -336,8 +354,8 @@
 								{@const value = table.statements[0].values[r]}
 								<tr
 									class:selected={r === row}
-									aria-selected={r === row}
-									tabindex="0"
+									aria-current={r === row ? 'true' : undefined}
+									tabindex={r === row ? 0 : -1}
 									on:click={() => pick(r)}
 									on:keydown={(e) => rowKey(e, r)}
 								>
@@ -358,13 +376,13 @@
 							type="button"
 							class:active={order === 'tf'}
 							aria-pressed={order === 'tf'}
-							on:click={() => (order = 'tf')}>T and F</button
+							on:click={() => setOrder('tf')}>T and F</button
 						>
 						<button
 							type="button"
 							class:active={order === '01'}
 							aria-pressed={order === '01'}
-							on:click={() => (order = '01')}>1 and 0</button
+							on:click={() => setOrder('01')}>1 and 0</button
 						>
 					</div>
 					<div class="opt" role="group" aria-label="Chains of ∧ and ∨">

@@ -4,8 +4,28 @@
 // notations). Dependency free; the layout is in abstract units so the same
 // numbers serve the SVG component and the tests.
 
-import { formatProp, CONNECTIVE_SYMBOL, type Prop } from './propositional.js';
-import { format, type Ast, type Notation } from './boolean.js';
+import { formatProp, CONNECTIVE_SYMBOL, MAX_PROP_VARS, type Prop } from './propositional.js';
+import { format, variablesOf, type Ast, type Notation } from './boolean.js';
+
+/**
+ * The longest expression the expression tree generator reads from its link.
+ * Other tools hand it circuit expressions rewritten in logic notation, which
+ * is about three times longer than what was typed, so this is well above the
+ * usual 200 characters for a query string value.
+ */
+export const MAX_TREE_INPUT = 1000;
+
+/**
+ * A link that opens a circuit expression in the expression tree generator, or
+ * '' when that page could not show it: too many letters, or too long to read
+ * back from its link. Hiding the link beats opening the page on its default.
+ */
+export function expressionTreeLink(ast: Ast): string {
+	if (variablesOf(ast).length > MAX_PROP_VARS) return '';
+	const text = format(ast, 'math');
+	if (text.length > MAX_TREE_INPUT) return '';
+	return `/expression-tree?${new URLSearchParams({ s: text })}`;
+}
 
 export type TreeOp = 'not' | 'and' | 'or' | 'xor' | 'imp' | 'iff';
 
