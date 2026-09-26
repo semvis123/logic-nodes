@@ -34,19 +34,24 @@ test.describe('fixed width numbers', () => {
 	});
 
 	test("a negative number is its two's complement", () => {
+		// Every value at 16 bits is 65,536 checks; collecting the mismatches and
+		// asserting once keeps it exhaustive without an expect() per value, which
+		// took the test past its time limit.
+		const wrong: string[] = [];
 		for (const width of [4, 8, 16]) {
 			const { signedMin, signedMax } = rangeOf(width);
 			for (let value = signedMin; value <= signedMax; value++) {
 				const bits = toBits(value, width);
 				// Reading it back as signed must give the number we started with.
-				expect(signedValue(bits), `${value} in ${width} bits`).toBe(value);
+				if (signedValue(bits) !== value) wrong.push(`${value} in ${width} bits reads back as ${signedValue(bits)}`);
 				// And the defining property: x + (-x) is zero, in this width.
 				if (value !== signedMin) {
 					const sum = fromBits(toBits(value, width)) + fromBits(toBits(-value, width));
-					expect(sum % 2 ** width, `${value} + ${-value}`).toBe(0);
+					if (sum % 2 ** width !== 0) wrong.push(`${value} + ${-value} is ${sum % 2 ** width} in ${width} bits`);
 				}
 			}
 		}
+		expect(wrong).toEqual([]);
 	});
 
 	test('values outside the width wrap rather than overflow the array', () => {

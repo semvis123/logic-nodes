@@ -279,7 +279,7 @@
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
 					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
-					{ '@type': 'ListItem', position: 2, name: 'Tools', item: `${SITE}/tools` },
+					{ '@type': 'ListItem', position: 2, name: 'Logic', item: `${SITE}/logic` },
 					{ '@type': 'ListItem', position: 3, name: 'Logical equivalence calculator' }
 				]
 			}

@@ -8,6 +8,9 @@ test.beforeAll(async ({ request }) => {
 });
 
 test('every page is legible and fits at 1280 and 390', async ({ page, request }) => {
+	// Every page in the sitemap, twice: well past the default 30 seconds now
+	// that there are over a hundred of them.
+	test.setTimeout(600_000);
 	const all = await sitemapPaths(request);
 	const problems: string[] = [];
 

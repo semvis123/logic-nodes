@@ -4,7 +4,7 @@
 	import { onMount } from 'svelte';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
-	import { tools } from '$lib/tools';
+	import { tools, toolCount } from '$lib/tools';
 
 	// The reference and teaching pages, which are most of the site. Listed here
 	// rather than only in the nav, so the homepage actually points at them.
@@ -486,7 +486,7 @@
 		<h2>Free digital logic tools</h2>
 		<p class="section-intro">
 			Type an expression and get the table, the map, the minimal form or the diagram. Every one of them works on its
-			own, in the browser, with no account. <a href="/tools">See all eleven on the tools page</a>.
+			own, in the browser, with no account. <a href="/tools">See all {toolCount()} on the tools page</a>.
 		</p>
 		<div class="link-grid">
 			{#each tools as tool}

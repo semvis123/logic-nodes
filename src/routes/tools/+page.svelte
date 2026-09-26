@@ -2,12 +2,14 @@
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
-	import { tools } from '$lib/tools';
+	import { tools, toolGroups, toolCount } from '$lib/tools';
+
+	const count = toolCount();
+	const Count = count[0].toUpperCase() + count.slice(1);
 
 	const page = {
 		title: 'Digital Logic Tools: Truth Tables, K-Maps, Boolean Algebra',
-		description:
-			'Eleven free digital logic tools: truth tables, boolean algebra calculator, Karnaugh map solver, SOP and POS, NAND conversion and circuit diagrams.',
+		description: `${Count} free tools: truth tables, boolean algebra, Karnaugh maps, logic proofs, Venn diagrams, binary and hex calculators, ASCII and Base64.`,
 		url: `${SITE}/tools`,
 		image: `${SITE}/og/tools.png`,
 		imageAlt: 'LogicGates.org: tools'
@@ -87,24 +89,26 @@
 	<section class="intro">
 		<h1>Digital logic tools</h1>
 		<p class="lede">
-			Eleven calculators for the things you actually have to work out: truth tables for circuits and for logic
-			statements, simplification, Karnaugh maps, canonical forms, universal gates, gate diagrams, printable worksheets,
-			fixed width binary and Gray code. All free, all in your browser, nothing uploaded.
+			{Count} calculators for the things you actually have to work out, from truth tables, simplification and Karnaugh maps
+			to logic proofs, number bases and text encodings. Each one shows its working, and all of them are free and run in your
+			browser, with nothing uploaded.
 		</p>
 	</section>
 
-	<section>
-		<h2>The tools</h2>
-		<div class="grid">
-			{#each tools as tool}
-				<a class="card tool" href={tool.href}>
-					<h3>{tool.name}</h3>
-					<p>{tool.blurb}</p>
-					<span class="more">Open →</span>
-				</a>
-			{/each}
-		</div>
-	</section>
+	{#each toolGroups as group}
+		<section id={group.id}>
+			<h2>{group.name}</h2>
+			<div class="grid">
+				{#each tools.filter((tool) => tool.group === group.id) as tool}
+					<a class="card tool" href={tool.href}>
+						<h3>{tool.name}</h3>
+						<p>{tool.blurb}</p>
+						<span class="more">Open →</span>
+					</a>
+				{/each}
+			</div>
+		</section>
+	{/each}
 
 	<section>
 		<h2>Which one do I want?</h2>
