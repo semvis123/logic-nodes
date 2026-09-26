@@ -11,8 +11,13 @@
 		simplify,
 		BooleanError,
 		MAX_VARS,
+		format,
+		type Output,
 		type SystemTable
 	} from '$lib/boolean';
+	import { MAX_PROP_VARS } from '$lib/propositional';
+	import { treeFromAst } from '$lib/exprTree';
+	import ExpressionTree from '$lib/ExpressionTree.svelte';
 	import { truthTableToSvg, type Palette } from '$lib/exportSvg';
 	import { downloadSvg, downloadPng, slugifyExpression } from '$lib/download';
 
@@ -38,11 +43,12 @@
 	let table: SystemTable | null = null;
 	let reading = '';
 	let sops: { name: string; text: string; high: number }[] = [];
+	let outputs: Output[] = [];
 	let error = '';
 	$: {
 		try {
 			// One expression, or several separated by semicolons: `sum = a ^ b; carry = a & b`.
-			const outputs = parseSystem(expression);
+			outputs = parseSystem(expression);
 			table = truthTables(outputs);
 			reading = formatSystem(outputs, 'math');
 			sops = table.outputs.map((o) => ({
@@ -53,7 +59,33 @@
 			error = '';
 		} catch (e) {
 			table = null;
+			outputs = [];
 			error = e instanceof BooleanError ? e.message : 'That expression did not parse';
+		}
+	}
+
+	// The expression tree below the table shows every node's value for one row,
+	// picked by clicking the table. The first row until then.
+	let selectedRow = 0;
+	$: rowCount = table ? table.outputs[0].rows.length : 0;
+	$: if (selectedRow >= rowCount) selectedRow = 0;
+	$: rowValues = table
+		? Object.fromEntries(
+				table.variables.map((v, bit) => [v, !!(selectedRow & (1 << (table!.variables.length - 1 - bit)))])
+		  )
+		: {};
+	$: trees = outputs.map((o) => ({ name: o.name, tree: treeFromAst(o.ast, 'math') }));
+
+	function rowKey(event: KeyboardEvent, row: number) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			selectedRow = row;
+		} else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			const next = Math.max(0, Math.min(rowCount - 1, row + (event.key === 'ArrowDown' ? 1 : -1)));
+			selectedRow = next;
+			const rows = (event.currentTarget as HTMLElement).parentElement?.children;
+			(rows?.[next] as HTMLElement | undefined)?.focus();
 		}
 	}
 
@@ -273,7 +305,14 @@
 						</thead>
 						<tbody>
 							{#each table.outputs[0].rows as _, row}
-								<tr class:high={table.outputs.every((o) => o.rows[row])}>
+								<tr
+									class:high={table.outputs.every((o) => o.rows[row])}
+									class:selected={row === selectedRow}
+									aria-selected={row === selectedRow}
+									tabindex="0"
+									on:click={() => (selectedRow = row)}
+									on:keydown={(e) => rowKey(e, row)}
+								>
 									{#each table.variables as _, bit}
 										{@const on = !!(row & (1 << (table.variables.length - 1 - bit)))}
 										<td class={on ? 'bit-1' : 'bit-0'}>{on ? 1 : 0}</td>
@@ -329,6 +368,36 @@
 						&nbsp;<a href={toolLink('/logic-circuit-generator', { expr: expression })}>draw the circuit</a>
 					</p>
 				{/if}
+
+				<div class="tree-block">
+					<h2 class="tree-head">Expression tree</h2>
+					<p class="tree-intro">
+						{#if table.variables.length}
+							How the expression is built, with the value of each part when
+							<span class="mono">{table.variables.map((v) => `${v} = ${rowValues[v] ? 1 : 0}`).join(', ')}</span>. Click
+							a row of the table to pick another.
+						{:else}
+							How the expression is built, with the value of each part.
+						{/if}
+					</p>
+					<div class="trees" class:several={trees.length > 1}>
+						{#each trees as t}
+							<figure class="tree-fig">
+								{#if trees.length > 1}
+									<figcaption class="mono">{t.name}</figcaption>
+								{/if}
+								<ExpressionTree tree={t.tree} values={rowValues} marks="01" />
+							</figure>
+						{/each}
+					</div>
+					{#if trees.length === 1 && table.variables.length <= MAX_PROP_VARS}
+						<p class="tree-link">
+							<a href={toolLink('/expression-tree', { s: format(outputs[0].ast, 'math') })}
+								>Open it in the expression tree generator</a
+							>
+						</p>
+					{/if}
+				</div>
 			{/if}
 		</div>
 	</section>
@@ -549,6 +618,74 @@
 
 	.result tr.high td {
 		background-color: rgba(51, 119, 34, 0.16);
+	}
+
+	.result tbody tr {
+		cursor: pointer;
+	}
+
+	.result tbody tr:hover td {
+		background-color: rgba(255, 255, 255, 0.05);
+	}
+
+	/* The row the expression tree shows: framed, so a green (true) row keeps its tint. */
+	.result tr.selected td {
+		font-weight: 700;
+		box-shadow: inset 0 2px 0 #ddd, inset 0 -2px 0 #ddd;
+	}
+
+	.result tr.selected td:first-child {
+		box-shadow: inset 0 2px 0 #ddd, inset 0 -2px 0 #ddd, inset 3px 0 0 #ddd;
+	}
+
+	.result tr.selected td:last-child {
+		box-shadow: inset 0 2px 0 #ddd, inset 0 -2px 0 #ddd, inset -3px 0 0 #ddd;
+	}
+
+	.result tr:focus-visible {
+		outline: 2px solid #5db65d;
+		outline-offset: -2px;
+	}
+
+	.tree-block {
+		margin-top: 1rem;
+		padding-top: 0.9rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.15);
+	}
+
+	.tree-head {
+		font-size: 1rem;
+		color: #fff;
+		margin: 0 0 0.3rem;
+	}
+
+	.tree-intro {
+		color: #bbb;
+		font-size: 0.85rem;
+		margin: 0 0 0.6rem;
+	}
+
+	.trees.several {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+		gap: 12px;
+	}
+
+	.tree-fig {
+		margin: 0;
+		min-width: 0;
+	}
+
+	.tree-fig figcaption {
+		color: #ddd;
+		font-size: 0.85rem;
+		text-align: center;
+		margin-bottom: 0.2rem;
+	}
+
+	.tree-link {
+		font-size: 0.85rem;
+		margin: 0.5rem 0 0;
 	}
 
 	.result .out {
