@@ -89,7 +89,7 @@ type Chart = { file: string; title: string; alt: string; path: string; body: str
 const charts: Chart[] = [];
 
 const tf = (v: boolean) => (v ? 'T' : 'F');
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
 
 // --- 1. ASCII table ------------------------------------------------------------
 {
@@ -291,7 +291,11 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 		title: 'Rules of inference chart',
 		alt: `Rules of inference chart: the premises and conclusion of ${plural(valid.length, 'valid rule')}, ${valid
 			.map((r) => r.name.toLowerCase())
-			.join(', ')}, and ${plural(invalid.length, 'invalid fallacy')} such as ${invalid[0].name.toLowerCase()}`,
+			.join(', ')}, and ${plural(
+			invalid.length,
+			'invalid fallacy',
+			'invalid fallacies'
+		)} such as ${invalid[0].name.toLowerCase()}`,
 		path: '/logic/rules-of-inference',
 		body: shell(
 			'Rules of inference',
