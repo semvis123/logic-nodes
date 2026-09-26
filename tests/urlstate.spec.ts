@@ -14,6 +14,9 @@ const tools: { path: string; change: string; value: string }[] = [
 for (const tool of tools) {
 	test(`${tool.path} round trips through the address bar`, async ({ page }) => {
 		await page.goto(tool.path);
+		// The address bar only follows the tool once it has hydrated; typing
+		// before that, which happens under load, changes nothing to share.
+		await page.waitForLoadState('networkidle');
 		await page.fill(tool.change, tool.value);
 		await expect(page).toHaveURL(/\?/);
 		const shared = page.url();
@@ -30,6 +33,7 @@ test('several outputs travel in the link on both generators', async ({ page }) =
 	const system = 'lt = !a & b; eq = !(a ^ b); gt = a & !b';
 	for (const path of ['/truth-table-generator', '/logic-circuit-generator']) {
 		await page.goto(path);
+		await page.waitForLoadState('networkidle');
 		await page.fill('#expression', system);
 		await expect(page).toHaveURL(/expr=/);
 		const shared = page.url();
