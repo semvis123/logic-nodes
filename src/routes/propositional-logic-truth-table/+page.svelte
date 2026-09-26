@@ -49,12 +49,46 @@
 		return withWorking ? shown : shown.filter((c) => c.main);
 	}
 
-	type Verdict = { tone: 'yes' | 'no' | 'neutral'; head: string; detail: string };
+	type Verdict = {
+		tone: 'yes' | 'no' | 'neutral';
+		head: string;
+		/** What the term means in general, for anyone meeting it for the first time. */
+		means: string;
+		/** The section of this page that explains it further. */
+		more: string;
+		/** What it means for this particular table. */
+		detail: string;
+	};
 
-	const KIND: Record<ReturnType<typeof classify>, Verdict> = {
-		tautology: { tone: 'yes', head: 'Tautology', detail: 'True in every row, whatever the letters are.' },
-		contradiction: { tone: 'no', head: 'Contradiction', detail: 'False in every row, whatever the letters are.' },
-		contingency: { tone: 'neutral', head: 'Contingency', detail: '' }
+	const TERMS = {
+		tautology: {
+			means: 'A tautology is a statement that is true in every row, whatever its letters stand for.',
+			more: '#by-hand'
+		},
+		contradiction: {
+			means: 'A contradiction is a statement that is false in every row, whatever its letters stand for.',
+			more: '#by-hand'
+		},
+		contingency: {
+			means:
+				'A contingency is a statement that is true in some rows and false in others: whether it holds depends on its letters.',
+			more: '#by-hand'
+		},
+		valid: {
+			means:
+				'An argument is valid when its conclusion is true in every row where all of its premises are true, so true premises can never lead to a false conclusion.',
+			more: '#arguments'
+		},
+		invalid: {
+			means:
+				'An argument is invalid when at least one row makes every premise true and the conclusion false. Such a row is called a counterexample.',
+			more: '#arguments'
+		},
+		equivalent: {
+			means:
+				'Statements are logically equivalent when they have the same truth value in every row, so each can replace the other.',
+			more: '#equivalence'
+		}
 	};
 
 	// Runs during prerendering too, so the page ships with a real, crawlable
@@ -80,56 +114,52 @@
 					? {
 							tone: 'no',
 							head: 'Invalid argument',
-							detail: `${
-								counter.size === 1 ? 'One row makes' : `${counter.size} rows make`
-							} every premise true and the conclusion false. ${
-								counter.size === 1 ? 'That row is a counterexample' : 'Those rows are counterexamples'
-							}, marked in red.`
-					  }
-					: result.critical.length
-					? {
-							tone: 'yes',
-							head: 'Valid argument',
-							detail: `The premises are all true in ${rowsWord(
-								result.critical.length
-							)}, marked in green, and the conclusion is true ${
-								result.critical.length === 1 ? 'there too' : 'in each of them'
-							}.`
+							...TERMS.invalid,
+							detail: `Here ${
+								counter.size === 1 ? 'one row makes' : `${counter.size} rows make`
+							} every premise true and the conclusion false, marked in red.`
 					  }
 					: {
 							tone: 'yes',
 							head: 'Valid argument',
-							detail: 'But only because the premises are never all true at once, so no row could be a counterexample.'
+							...TERMS.valid,
+							detail: result.critical.length
+								? `Here the premises are all true in ${rowsWord(
+										result.critical.length
+								  )}, marked in green, and the conclusion is true ${
+										result.critical.length === 1 ? 'there too' : 'in each of them'
+								  }.`
+								: 'Here the premises are never all true at once, so no row could be a counterexample.'
 					  };
 			} else if (table.statements.length === 1) {
 				const values = table.statements[0].values;
 				const kind = classify(values);
 				const high = values.filter(Boolean).length;
-				verdict =
-					kind === 'contingency'
-						? {
-								...KIND.contingency,
-								detail: `True in ${high} of ${values.length} rows and false in the rest, so it depends on the letters.`
-						  }
-						: KIND[kind];
+				verdict = {
+					tone: kind === 'tautology' ? 'yes' : kind === 'contradiction' ? 'no' : 'neutral',
+					head: kind[0].toUpperCase() + kind.slice(1),
+					...TERMS[kind],
+					detail:
+						kind === 'contingency'
+							? `Here it is true in ${high} of ${values.length} rows and false in ${values.length - high}.`
+							: `Here all ${values.length} rows come out ${kind === 'tautology' ? 'T' : 'F'} in the last column.`
+				};
 			} else {
 				const groups = equivalenceGroups(table.statements).filter((g) => g.length > 1);
-				verdict = groups.length
-					? {
-							tone: 'yes',
-							head:
-								groups.length === 1 && groups[0].length === table.statements.length
-									? 'Equivalent'
-									: 'Some are equivalent',
-							detail:
-								groups.map((g) => g.map((i) => table!.statements[i].label).join(' ≡ ')).join(';  ') +
-								', since their columns match in every row.'
-					  }
-					: {
-							tone: 'no',
-							head: 'Not equivalent',
-							detail: 'Each pair differs in at least one row.'
-					  };
+				verdict = {
+					tone: groups.length ? 'yes' : 'no',
+					head: !groups.length
+						? 'Not equivalent'
+						: groups.length === 1 && groups[0].length === table.statements.length
+						? 'Equivalent'
+						: 'Some are equivalent',
+					...TERMS.equivalent,
+					detail: groups.length
+						? 'Here these match in every row: ' +
+						  groups.map((g) => g.map((i) => table!.statements[i].label).join(' ≡ ')).join(';  ') +
+						  '.'
+						: 'Here each pair differs in at least one row.'
+				};
 			}
 			error = '';
 		} catch (e) {
@@ -313,6 +343,7 @@
 					<div class="verdict {verdict.tone}" role="status">
 						<strong class="verdict-head">{verdict.head}</strong>
 						<span class="verdict-detail">{verdict.detail}</span>
+						<span class="verdict-means">{verdict.means} <a href={verdict.more}>More on this</a></span>
 					</div>
 				{/if}
 				<div class="table-scroll">
@@ -424,7 +455,7 @@
 		</div>
 	</section>
 
-	<section>
+	<section id="by-hand">
 		<h2>How to build a truth table by hand</h2>
 		<ol class="steps">
 			<li>
@@ -485,7 +516,7 @@
 		</p>
 	</section>
 
-	<section>
+	<section id="equivalence">
 		<h2>Converse, inverse and contrapositive</h2>
 		<p class="section-intro">
 			Swap or negate the parts of a conditional and you get three related statements. Only one of them says the same
@@ -527,7 +558,7 @@
 		</p>
 	</section>
 
-	<section>
+	<section id="arguments">
 		<h2>Testing an argument</h2>
 		<p class="section-intro">
 			An argument is valid when its conclusion is true in every row where all its premises are true. To test one, look
@@ -762,6 +793,18 @@
 	.verdict-detail {
 		color: #ddd;
 		font-size: 0.9rem;
+	}
+
+	.verdict-means {
+		color: #aaa;
+		font-size: 0.82rem;
+		margin-top: 0.35rem;
+		padding-top: 0.4rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.12);
+	}
+
+	.verdict-means a {
+		white-space: nowrap;
 	}
 
 	.export {
