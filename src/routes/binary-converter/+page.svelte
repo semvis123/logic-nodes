@@ -132,7 +132,7 @@
 	];
 
 	const page = {
-		title: 'Binary Converter: Decimal, Hex and Two’s Complement',
+		title: 'Binary to Decimal and Decimal to Binary Converter, With Hex',
 		description:
 			'Convert between decimal, binary, hex and octal at a fixed bit width, with two’s complement and BCD, and a register you can click through bit by bit.',
 		url: `${SITE}/binary-converter`,

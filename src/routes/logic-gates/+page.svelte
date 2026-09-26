@@ -44,7 +44,7 @@
 	];
 
 	const page = {
-		title: 'The 7 Logic Gates: Types, Truth Tables, Symbols and Uses',
+		title: 'What Is a Logic Gate? The 7 Types, Truth Tables and Symbols',
 		description:
 			'What a logic gate is, then all seven types: AND, OR, NOT, XOR, NAND, NOR and XNOR, each with its truth table, symbol, boolean expression and real uses.',
 		url: `${SITE}/logic-gates`,
