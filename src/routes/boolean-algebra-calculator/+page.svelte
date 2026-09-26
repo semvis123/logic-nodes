@@ -14,6 +14,9 @@
 	} from '$lib/boolean';
 	import { laws, lawSlug } from '$lib/laws';
 	import { simplifySteps, type Working } from '$lib/steps';
+	import { MAX_PROP_VARS } from '$lib/propositional';
+	import { treeFromAst, type TreeNode } from '$lib/exprTree';
+	import ExpressionTree from '$lib/ExpressionTree.svelte';
 
 	import { readUrl, syncUrl, safeText, safeOption, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
@@ -48,10 +51,16 @@
 	let literalsAfter = 0;
 	let error = '';
 	let working: Working | null = null;
+	let tree: TreeNode | null = null;
+	let treeLink = '';
 	$: {
 		try {
 			const ast = parseExpression(expression);
 			const table = truthTable(ast);
+			tree = treeFromAst(ast, notation);
+			// The expression tree generator reads logic notation and up to six letters.
+			treeLink =
+				table.variables.length <= MAX_PROP_VARS ? toolLink('/expression-tree', { s: format(ast, 'math') }) : '';
 			const result = simplify(table, notation);
 			working = simplifySteps(ast, notation);
 			original = format(ast, notation);
@@ -64,6 +73,7 @@
 		} catch (e) {
 			simplified = '';
 			working = null;
+			tree = null;
 			error = e instanceof BooleanError ? e.message : 'That expression did not parse';
 		}
 	}
@@ -286,6 +296,24 @@
 						{/if}
 						<a href={toolLink('/truth-table-generator', { expr: expression })}>See the full truth table</a>
 					</p>
+
+					{#if tree}
+						<details class="tree-details">
+							<summary>Expression tree</summary>
+							<p class="working-note">
+								How <span class="mono">{original}</span> is built: the connective at the top is applied last, and each branch
+								leads to the part it works on.
+							</p>
+							<div class="tree-wrap">
+								<ExpressionTree {tree} />
+							</div>
+							{#if treeLink}
+								<p class="working-note">
+									<a href={treeLink}>Open it in the expression tree generator</a> to see each node's value, row by row.
+								</p>
+							{/if}
+						</details>
+					{/if}
 
 					{#if working && !working.tooBig}
 						<details class="working" open={working.steps.length > 0 && working.steps.length <= 8}>
@@ -623,13 +651,15 @@
 		word-break: break-word;
 	}
 
-	.working {
+	.working,
+	.tree-details {
 		margin-top: 1rem;
 		border-top: 1px solid rgba(255, 255, 255, 0.12);
 		padding-top: 0.8rem;
 	}
 
-	.working summary {
+	.working summary,
+	.tree-details summary {
 		cursor: pointer;
 		color: #ddd;
 		font-size: 0.9rem;
@@ -684,6 +714,10 @@
 		grid-column: 2;
 		color: #999;
 		font-size: 0.8rem;
+	}
+
+	.tree-wrap {
+		margin-top: 0.7rem;
 	}
 
 	.working-note {
