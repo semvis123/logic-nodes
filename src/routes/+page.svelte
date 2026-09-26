@@ -4,7 +4,8 @@
 	import { onMount } from 'svelte';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
-	import { tools, toolCount } from '$lib/tools';
+	import { tools, toolGroups, toolCount } from '$lib/tools';
+	import ToolIcon from '$lib/ToolIcon.svelte';
 
 	// The reference and teaching pages, which are most of the site. Listed here
 	// rather than only in the nav, so the homepage actually points at them.
@@ -511,14 +512,20 @@
 		<h2>Free digital logic tools</h2>
 		<p class="section-intro">
 			Type an expression and get the table, the map, the minimal form or the diagram. Every one of them works on its
-			own, in the browser, with no account. <a href="/tools">See all {toolCount()} on the tools page</a>.
+			own, in the browser, with no account. <a href="/tools">The tools page</a> says what each of the {toolCount()} does.
 		</p>
-		<div class="link-grid">
-			{#each tools as tool}
-				<a class="card link-card" href={tool.href}>
-					<span class="link-title">{tool.name}</span>
-					<span class="link-blurb">{tool.blurb}</span>
-				</a>
+		<div class="tool-groups">
+			{#each toolGroups as group}
+				<div class="card tool-group">
+					<h3>{group.name}</h3>
+					<ul>
+						{#each tools.filter((tool) => tool.group === group.id) as tool}
+							<li>
+								<a href={tool.href}><ToolIcon href={tool.href} />{tool.name}</a>
+							</li>
+						{/each}
+					</ul>
+				</div>
 			{/each}
 		</div>
 	</section>
@@ -771,6 +778,51 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 		gap: 12px;
+	}
+
+	.tool-groups {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 12px;
+	}
+
+	@media (max-width: 700px) {
+		.tool-groups {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	.tool-group {
+		padding: 1rem 1.1rem 0.8rem;
+	}
+
+	.tool-group h3 {
+		margin: 0 0 0.5rem;
+		color: #999;
+		font-size: 0.8rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.tool-group ul {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.tool-group a {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.35rem 0;
+		color: #e6e6e6;
+		text-decoration: none;
+	}
+
+	.tool-group a:hover,
+	.tool-group a:focus-visible {
+		color: #fff;
 	}
 
 	.link-card {

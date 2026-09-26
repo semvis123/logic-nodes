@@ -3,6 +3,7 @@
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { tools, toolGroups, toolCount } from '$lib/tools';
+	import ToolIcon from '$lib/ToolIcon.svelte';
 
 	const count = toolCount();
 	const Count = count[0].toUpperCase() + count.slice(1);
@@ -103,7 +104,7 @@
 			<div class="grid">
 				{#each tools.filter((tool) => tool.group === group.id) as tool}
 					<a class="card tool" href={tool.href}>
-						<h3>{tool.name}</h3>
+						<h3><ToolIcon href={tool.href} />{tool.name}</h3>
 						<p>{tool.blurb}</p>
 						<span class="more">Open →</span>
 					</a>
@@ -228,6 +229,9 @@
 	}
 
 	.tool h3 {
+		display: flex;
+		align-items: center;
+		gap: 0.55rem;
 		color: #fff;
 	}
 
@@ -240,5 +244,46 @@
 	.more {
 		color: #8ede8e;
 		font-size: 0.8rem;
+	}
+
+	/* On a phone each group is one panel with a row per tool, rather than a
+	   tall stack of separate cards. */
+	@media (max-width: 600px) {
+		.grid {
+			gap: 0;
+			background-color: #161618;
+			border: 1px solid rgba(255, 255, 255, 0.35);
+			border-radius: 3px;
+		}
+
+		/* .grid raises these above the shared card style. */
+		.grid .tool {
+			padding: 0.75rem 0.9rem;
+			background: none;
+			border: 0;
+			border-radius: 0;
+		}
+
+		.grid .tool + .tool {
+			border-top: 1px solid rgba(255, 255, 255, 0.12);
+		}
+
+		.grid .tool:hover {
+			transform: none;
+		}
+
+		.tool h3 {
+			margin: 0 0 0.2rem;
+			font-size: 1rem;
+		}
+
+		.tool p {
+			margin: 0 0 0 calc(20px + 0.55rem);
+			font-size: 0.85rem;
+		}
+
+		.more {
+			display: none;
+		}
 	}
 </style>
