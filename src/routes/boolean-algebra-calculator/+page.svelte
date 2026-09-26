@@ -219,6 +219,7 @@
 		{ href: '/quine-mccluskey', label: 'How the minimiser works' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
+		{ href: '/logical-equivalence-calculator', label: 'Logical equivalence proofs' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' },

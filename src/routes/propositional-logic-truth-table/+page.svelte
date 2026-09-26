@@ -313,6 +313,7 @@
 <ContentPage
 	related={[
 		{ href: '/truth-table-generator', label: 'Truth table generator (circuits)' },
+		{ href: '/logical-equivalence-calculator', label: 'Logical equivalence calculator' },
 		{ href: '/de-morgans-laws', label: "De Morgan's laws" },
 		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
