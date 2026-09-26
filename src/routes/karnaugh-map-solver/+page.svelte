@@ -197,7 +197,7 @@
 	];
 
 	const page = {
-		title: "Karnaugh Map Solver With Don't Cares: K-Map Simplifier",
+		title: "Karnaugh Map Solver (K-Map, Kmap) With Don't Cares",
 		description:
 			"Build a K-map from an expression or by clicking squares, mark don't cares, and get the groups highlighted with the minimal expression. Two to six variables.",
 		url: `${SITE}/karnaugh-map-solver`,

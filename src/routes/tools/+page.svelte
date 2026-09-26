@@ -7,7 +7,7 @@
 	const page = {
 		title: 'Digital Logic Tools: Truth Tables, K-Maps, Boolean Algebra',
 		description:
-			'Nine free digital logic tools: truth table generator, boolean algebra calculator, Karnaugh map solver, SOP and POS, NAND conversion and circuit diagrams.',
+			'Eleven free digital logic tools: truth tables, boolean algebra calculator, Karnaugh map solver, SOP and POS, NAND conversion and circuit diagrams.',
 		url: `${SITE}/tools`,
 		image: `${SITE}/og/tools.png`,
 		imageAlt: 'LogicGates.org: tools'
@@ -87,9 +87,9 @@
 	<section class="intro">
 		<h1>Digital logic tools</h1>
 		<p class="lede">
-			Nine calculators for the things you actually have to work out: truth tables, simplification, Karnaugh maps,
-			canonical forms, universal gates, gate diagrams, printable worksheets, fixed width binary and Gray code. All free,
-			all in your browser, nothing uploaded.
+			Eleven calculators for the things you actually have to work out: truth tables for circuits and for logic
+			statements, simplification, Karnaugh maps, canonical forms, universal gates, gate diagrams, printable worksheets,
+			fixed width binary and Gray code. All free, all in your browser, nothing uploaded.
 		</p>
 	</section>
 

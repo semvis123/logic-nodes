@@ -15,9 +15,14 @@
 	$: ogImage = `${SITE}/og/logic-gates-${gate.slug}.png`;
 
 	$: title = `${gate.name} Gate: Truth Table, Symbol and How It Works`;
+	// The snippet answers the query itself: the rule, then the whole table,
+	// read off the same engine output the page renders.
+	$: rowsText = table.rows
+		.map((out, i) => `${i.toString(2).padStart(table.variables.length, '0')}→${out ? 1 : 0}`)
+		.join(', ');
 	$: description =
-		`What the ${gate.name} gate does, its truth table and boolean expression, ` +
-		`how to build it from other gates, and where it is used. Free reference with a live simulator.`;
+		`The ${gate.name} gate outputs 1 when ${gate.outputHigh}. Truth table: ${rowsText}. ` +
+		`Its symbol, expression and uses, with a live simulator.`;
 
 	$: jsonLd = `<script type="application/ld+json">${JSON.stringify({
 		'@context': 'https://schema.org',
