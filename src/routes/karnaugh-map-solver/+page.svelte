@@ -278,6 +278,7 @@
 		{ href: '/boolean-algebra-calculator', label: 'Boolean algebra calculator' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },
+		{ href: '/venn-diagram-generator', label: 'Venn diagram generator' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/tools', label: 'All tools' }
 	]}

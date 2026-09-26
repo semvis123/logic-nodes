@@ -159,6 +159,7 @@
 	related={[
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/ripple-carry-adder', label: 'The ripple carry adder' },
+		{ href: '/binary-calculator', label: 'Binary calculator' },
 		{ href: '/common-circuits/full-subtractor', label: 'The full subtractor' },
 		{ href: '/gray-code-converter', label: 'Gray code' },
 		{ href: '/learn', label: 'Learn digital logic' }

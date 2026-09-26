@@ -246,6 +246,7 @@
 		{ href: '/logic-gate-symbols', label: 'Logic gate symbols' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
+		{ href: '/expression-tree', label: 'Expression tree generator' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >

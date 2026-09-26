@@ -117,7 +117,8 @@
 		{ href: '/boolean-algebra-calculator', label: 'Simplify your own expression' },
 		{ href: '/boolean-algebra-laws', label: 'All the laws, with proofs' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
-		{ href: '/de-morgans-laws', label: "De Morgan's laws" }
+		{ href: '/de-morgans-laws', label: "De Morgan's laws" },
+		{ href: '/set-notation', label: 'Set notation and the laws of sets' }
 	]}
 >
 	<section class="intro">

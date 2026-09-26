@@ -1,12 +1,14 @@
 // Every reference image generated from the site's own data: the timing
-// diagrams and the circuit, symbol, laws and flip-flop charts.
+// diagrams, the circuit, symbol, laws and flip-flop charts, and the reference
+// charts of the number, text, logic and set pages.
 //
-// The manifests are written by scripts/timing-cards.ts and
-// scripts/diagram-cards.ts, which record the real pixel dimensions and the alt
+// The manifests are written by scripts/timing-cards.ts,
+// scripts/diagram-cards.ts and scripts/reference-charts.ts, which record the real pixel dimensions and the alt
 // text alongside each file, so a page never hardcodes either.
 
 import timing from './timingCards.json';
 import diagrams from './diagramCards.json';
+import charts from './referenceCharts.json';
 
 export type GeneratedImage = {
 	file: string;
@@ -18,12 +20,13 @@ export type GeneratedImage = {
 	height: number;
 };
 
-export const generatedImages = [...timing, ...diagrams] as GeneratedImage[];
+export const generatedImages = [...timing, ...diagrams, ...charts] as GeneratedImage[];
 
 /** Looks an image up by filename, failing loudly rather than rendering a gap. */
 export function generatedImage(file: string): GeneratedImage {
 	const found = generatedImages.find((image) => image.file === file);
-	if (!found) throw new Error(`no generated image called ${file}; run "npm run timing" and "npm run diagrams"`);
+	if (!found)
+		throw new Error(`no generated image called ${file}; run "npm run timing", "npm run diagrams" and "npm run charts"`);
 	return found;
 }
 

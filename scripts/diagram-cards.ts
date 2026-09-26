@@ -202,7 +202,9 @@ cards.push({
 });
 
 mkdirSync(OUT_DIR, { recursive: true });
-const browser = await chromium.launch({ channel: 'chrome' });
+// CHROMIUM_PATH points at a Chromium binary where Chrome is not installed.
+const executablePath = process.env.CHROMIUM_PATH;
+const browser = await chromium.launch(executablePath ? { executablePath } : { channel: 'chrome' });
 const page = await browser.newPage({ deviceScaleFactor: 2 });
 
 for (const entry of cards) {

@@ -1,0 +1,90 @@
+[
+	{
+		"file": "ascii-table-chart.png",
+		"title": "ASCII table chart",
+		"alt": "ASCII table chart: all 128 ASCII codes in four blocks of 32, with decimal, hexadecimal and 7-bit binary values, the printable characters and the 33 control character abbreviations",
+		"url": "logicgates.org/ascii-table",
+		"width": 2064,
+		"height": 2148
+	},
+	{
+		"file": "binary-alphabet-chart.png",
+		"title": "Binary alphabet chart",
+		"alt": "Binary alphabet chart: the letters A to Z and a to z and the digits 0 to 9 as 8-bit binary ASCII codes with their decimal values, from A = 01000001 (65)",
+		"url": "logicgates.org/binary-translator",
+		"width": 2192,
+		"height": 1156
+	},
+	{
+		"file": "hex-to-decimal-chart.png",
+		"title": "Hex to decimal chart",
+		"alt": "Hex to decimal conversion chart: a 16 by 16 grid of every two-digit hexadecimal value from 00 to FF with its decimal equivalent from 0 to 255, rows by first hex digit and columns by second",
+		"url": "logicgates.org/hex-to-decimal",
+		"width": 1938,
+		"height": 1620
+	},
+	{
+		"file": "logic-symbols-chart.png",
+		"title": "Logic symbols chart",
+		"alt": "Logic symbols chart: the connectives ¬ negation, ∧ conjunction, ∨ disjunction, ⊕ exclusive or, → conditional (implication), ↔ biconditional with how to read them, other notations and their truth tables, plus ⊤, ⊥, ∴, ≡, ⊨ and ⊢",
+		"url": "logicgates.org/logic",
+		"width": 2358,
+		"height": 1510
+	},
+	{
+		"file": "rules-of-inference-chart.png",
+		"title": "Rules of inference chart",
+		"alt": "Rules of inference chart: the premises and conclusion of 10 valid rules, modus ponens, modus tollens, hypothetical syllogism, disjunctive syllogism, addition, simplification, conjunction, resolution, constructive dilemma, destructive dilemma, and 3 invalid fallacies such as affirming the consequent",
+		"url": "logicgates.org/logic/rules-of-inference",
+		"width": 2340,
+		"height": 1458
+	},
+	{
+		"file": "logical-equivalences-chart.png",
+		"title": "Logical equivalences chart",
+		"alt": "Logical equivalences chart: 34 equivalences each checked by truth table, including identity, domination, De Morgan's, distributive, absorption, material implication, contraposition, exportation and the biconditional laws",
+		"url": "logicgates.org/logic/logical-equivalences",
+		"width": 1986,
+		"height": 1432
+	},
+	{
+		"file": "conditional-statements-chart.png",
+		"title": "Conditional statements chart",
+		"alt": "Conditional statements chart: the conditional p → q, its converse, inverse and contrapositive in symbols with their truth table, showing conditional ≡ contrapositive and converse ≡ inverse",
+		"url": "logicgates.org/logic/conditional-statements",
+		"width": 1906,
+		"height": 1066
+	},
+	{
+		"file": "set-operations-venn-chart.png",
+		"title": "Set operations Venn diagram chart",
+		"alt": "Set operations Venn diagram chart: eight shaded two-set Venn diagrams for A ∪ B, A ∩ B, A − B, B − A, A Δ B, A′, (A ∪ B)′, (A ∩ B)′, each with its name and boolean logic equivalent",
+		"url": "logicgates.org/venn-diagram-generator",
+		"width": 2220,
+		"height": 1418
+	},
+	{
+		"file": "set-notation-chart.png",
+		"title": "Set notation symbols chart",
+		"alt": "Set notation symbols chart: 18 set theory symbols including ∈ ∉ ⊆ ⊂ ⊇ ∪ ∩ A′ A − B Δ ∅ with their names, how to read them and a worked example on A = {1, 2, 3, 4} and B = {3, 4, 5, 6}",
+		"url": "logicgates.org/set-notation",
+		"width": 2212,
+		"height": 1600
+	},
+	{
+		"file": "ieee-754-format-chart.png",
+		"title": "IEEE 754 floating point format chart",
+		"alt": "IEEE 754 floating point format chart: bit layouts of 32-bit single precision (1 sign, 8 exponent, 23 fraction bits, bias 127) and 64-bit double precision (1 sign, 11 exponent, 52 fraction bits, bias 1023), the value formula, the ranges, and 5.75 worked through as 40B80000",
+		"url": "logicgates.org/ieee-754-converter",
+		"width": 2532,
+		"height": 1422
+	},
+	{
+		"file": "base64-alphabet-chart.png",
+		"title": "Base64 alphabet chart",
+		"alt": "Base64 alphabet chart: the index table of all 64 Base64 characters, A to Z, a to z, 0 to 9, + and /, with each 6-bit binary value, plus how = padding works and the URL-safe alphabet",
+		"url": "logicgates.org/base64",
+		"width": 2466,
+		"height": 1268
+	}
+]

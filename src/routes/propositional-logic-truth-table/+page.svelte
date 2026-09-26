@@ -8,13 +8,17 @@
 		classify,
 		checkArgument,
 		equivalenceGroups,
+		normalForms,
 		PropError,
 		MAX_PROP_VARS,
 		type PropTable,
-		type Column
+		type Column,
+		type NormalForms
 	} from '$lib/propositional';
 	import { readUrl, syncUrl, safeText, safeOption, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
+	import ExpressionTree from '$lib/ExpressionTree.svelte';
+	import { treeFromProp } from '$lib/exprTree';
 	import { onMount } from 'svelte';
 
 	// Every setting lives in the query string, so a link reopens this exactly.
@@ -108,6 +112,8 @@
 	let critical = new Set<number>();
 	let counter = new Set<number>();
 	let error = '';
+	// DNF and CNF, for a single statement only.
+	let forms: NormalForms | null = null;
 	$: {
 		try {
 			table = propTable(parsePropInput(input), order === '01');
@@ -170,9 +176,11 @@
 						: 'Here each pair differs in at least one row.'
 				};
 			}
+			forms = table.statements.length === 1 && !table.conclusion ? normalForms(table.statements[0].prop) : null;
 			error = '';
 		} catch (e) {
 			table = null;
+			forms = null;
 			error = e instanceof PropError ? e.message : 'That statement did not parse';
 		}
 	}
@@ -187,6 +195,30 @@
 		const field = document.getElementById('statement');
 		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
+	}
+
+	// The expression tree under the table shows every part's value for one row,
+	// picked by clicking the table. Only drawn for a single statement.
+	let selectedRow = 0;
+	$: rowCount = table ? table.rows.length : 0;
+	$: if (selectedRow >= rowCount) selectedRow = 0;
+	$: treeProp = table && table.statements.length === 1 && !table.conclusion ? table.statements[0].prop : null;
+	$: tree = treeProp ? treeFromProp(treeProp) : null;
+	$: rowValues = table
+		? Object.fromEntries(table.variables.map((v, j) => [v, table!.rows[selectedRow]?.[j] ?? false]))
+		: {};
+
+	function rowKey(event: KeyboardEvent, row: number) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			selectedRow = row;
+		} else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+			event.preventDefault();
+			const next = Math.max(0, Math.min(rowCount - 1, row + (event.key === 'ArrowDown' ? 1 : -1)));
+			selectedRow = next;
+			const rows = (event.currentTarget as HTMLElement).parentElement?.children;
+			(rows?.[next] as HTMLElement | undefined)?.focus();
+		}
 	}
 
 	const mark = (v: boolean) => (order === '01' ? (v ? '1' : '0') : v ? 'T' : 'F');
@@ -243,6 +275,10 @@
 			a: 'Separate them with commas. They are equivalent when their columns match in every row, or equally when the biconditional between them is a tautology. The contrapositive example shows p → q and ¬q → ¬p agreeing everywhere, while the converse q → p does not.'
 		},
 		{
+			q: 'How do I find the DNF or CNF of a statement?',
+			a: 'Type the statement on its own and the calculator lists both under the table. By hand, take the rows where the statement is true and write an AND of the letters for each (negating the false ones), then join them with OR: that is the full DNF. For the full CNF, take the rows where it is false and write an OR of the letters for each, negating the true ones, then join those with AND. Simplify with the laws of logic for the shorter forms.'
+		},
+		{
 			q: 'Is this the same as a logic gate truth table?',
 			a: 'Yes, with different notation. T and F are 1 and 0, ∧ is an AND gate, ∨ is OR and ¬ is NOT. The conditional p → q has no gate of its own; it is ¬p ∨ q. The biconditional is an XNOR gate. For circuit expressions the truth table generator uses the engineering notation, where ab means a AND b.'
 		}
@@ -281,7 +317,7 @@
 				'@id': `${page.url}#breadcrumb`,
 				itemListElement: [
 					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
-					{ '@type': 'ListItem', position: 2, name: 'Tools', item: `${SITE}/tools` },
+					{ '@type': 'ListItem', position: 2, name: 'Logic', item: `${SITE}/logic` },
 					{ '@type': 'ListItem', position: 3, name: 'Logic statement truth tables' }
 				]
 			}
@@ -312,7 +348,13 @@
 
 <ContentPage
 	related={[
+		{ href: '/logic', label: 'Propositional logic' },
+		{ href: '/logic/conditional-statements', label: 'Conditional statements' },
+		{ href: '/logic/tautology', label: 'Tautologies' },
+		{ href: '/logic/rules-of-inference', label: 'Rules of inference' },
+		{ href: '/logic/logical-equivalences', label: 'Logical equivalences' },
 		{ href: '/truth-table-generator', label: 'Truth table generator (circuits)' },
+		{ href: '/logical-equivalence-calculator', label: 'Logical equivalence calculator' },
 		{ href: '/de-morgans-laws', label: "De Morgan's laws" },
 		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
@@ -383,7 +425,15 @@
 						</thead>
 						<tbody>
 							{#each table.rows as row, r}
-								<tr class:critical={critical.has(r) && !counter.has(r)} class:counter={counter.has(r)}>
+								<tr
+									class:critical={critical.has(r) && !counter.has(r)}
+									class:counter={counter.has(r)}
+									class:selected={tree && r === selectedRow}
+									aria-selected={tree ? r === selectedRow : undefined}
+									tabindex={tree ? 0 : undefined}
+									on:click={() => (selectedRow = r)}
+									on:keydown={(e) => rowKey(e, r)}
+								>
 									{#each row as value}
 										<td class={value ? 'bit-1' : 'bit-0'}>{mark(value)}</td>
 									{/each}
@@ -434,6 +484,52 @@
 					</div>
 					<ShareLink what="the statement" />
 				</div>
+				{#if forms}
+					<div class="forms">
+						<div class="form-row">
+							<span class="form-label">Disjunctive normal form (DNF): an OR of ANDs</span>
+							<span class="mono form-text">{forms.dnf}</span>
+						</div>
+						<div class="form-row">
+							<span class="form-label">Conjunctive normal form (CNF): an AND of ORs</span>
+							<span class="mono form-text">{forms.cnf}</span>
+						</div>
+						<details class="full-forms">
+							<summary>Full (canonical) DNF and CNF</summary>
+							<div class="form-row">
+								<span class="form-label">Full DNF: one AND for each row where it is true</span>
+								<span class="mono form-text">{forms.fullDnf}</span>
+							</div>
+							<div class="form-row">
+								<span class="form-label">Full CNF: one OR for each row where it is false</span>
+								<span class="mono form-text">{forms.fullCnf}</span>
+							</div>
+						</details>
+						<p class="forms-note">
+							<a href="#normal-forms">What these are</a>. The same thing for circuits:
+							<a href="/sum-of-products-calculator">sum of products and product of sums</a>.
+						</p>
+					</div>
+				{/if}
+				{#if tree}
+					<div class="tree-block">
+						<h2 class="tree-head">Expression tree</h2>
+						<p class="tree-intro">
+							{#if table.variables.length}
+								How the statement is built, with the value of each part when
+								<span class="mono">{table.variables.map((v) => `${v} = ${mark(rowValues[v])}`).join(', ')}</span>. Click
+								a row of the table to pick another.
+							{:else}
+								How the statement is built, with the value of each part.
+							{/if}
+						</p>
+						<ExpressionTree {tree} values={rowValues} marks={order === '01' ? '01' : 'tf'} />
+						<p class="tree-link">
+							<a href="/expression-tree">What an expression tree is</a>: each circle is one of the working columns
+							above.
+						</p>
+					</div>
+				{/if}
 			{/if}
 		</div>
 	</section>
@@ -533,7 +629,8 @@
 		<p class="reducer">
 			The last column is true in every row, so the statement is a <strong>tautology</strong>: true whatever p and q are.
 			One that is false in every row, such as <span class="mono">p ∧ ¬p</span>, is a <strong>contradiction</strong>, and
-			anything in between is a <strong>contingency</strong>.
+			anything in between is a <strong>contingency</strong>. More on these, with the famous tautologies, on the
+			<a href="/logic/tautology">tautology</a> page.
 		</p>
 	</section>
 
@@ -575,7 +672,9 @@
 		<p class="reducer">
 			The conditional and its contrapositive match in every row, so they are logically equivalent, and so are the
 			converse and the inverse. A conditional and its converse are not: "if it is a square, it has four sides" is true,
-			and "if it has four sides, it is a square" is not.
+			and "if it has four sides, it is a square" is not. See
+			<a href="/logic/conditional-statements">conditional statements</a> for "only if", "unless" and the biconditional,
+			and the table of <a href="/logic/logical-equivalences">logical equivalences</a> for the other laws.
 		</p>
 	</section>
 
@@ -626,7 +725,28 @@
 			<a
 				href={toolLink('/propositional-logic-truth-table', { s: 'p → q, p ∴ q' })}
 				on:click|preventDefault={() => tryStatement('p → q, p ∴ q')}>check it</a
-			>.
+			>. The other valid forms, and how to chain them into a proof, are on the
+			<a href="/logic/rules-of-inference">rules of inference</a> page.
+		</p>
+	</section>
+
+	<section id="normal-forms">
+		<h2>Normal forms: DNF and CNF</h2>
+		<p>
+			Every statement can be rewritten using only ¬, ∧ and ∨ in one of two standard shapes. The
+			<strong>disjunctive normal form</strong> (DNF) is an OR of ANDs, such as
+			<span class="mono">(p ∧ q) ∨ ¬r</span>. The <strong>conjunctive normal form</strong> (CNF) is an AND of ORs, such
+			as
+			<span class="mono">(p ∨ q) ∧ ¬r</span>. In both, ¬ only ever sits directly on a letter.
+		</p>
+		<p>
+			Both can be read straight off the truth table. The <strong>full</strong> (canonical) DNF has one AND term for each
+			row where the statement is true, naming every letter, true or negated as in that row. The full CNF has one OR
+			clause for each row where the statement is false, which rules that row out. The calculator shows those, and
+			shorter forms found by merging terms that differ in one letter. A contradiction has no true rows, so its DNF is ⊥;
+			a tautology has no false rows, so its CNF is ⊤. CNF is the input format of SAT solvers and of
+			<a href="/logic/rules-of-inference#resolution-proofs">resolution</a> proofs. In circuit design the same two shapes
+			are called <a href="/sum-of-products-calculator">sum of products and product of sums</a>.
 		</p>
 	</section>
 
@@ -914,5 +1034,87 @@
 
 	.steps li {
 		margin-bottom: 0.8rem;
+	}
+
+	.forms {
+		margin-top: 0.9rem;
+		padding-top: 0.9rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.15);
+	}
+
+	.form-row {
+		display: flex;
+		flex-direction: column;
+		gap: 0.1rem;
+		margin-bottom: 0.6rem;
+	}
+
+	.form-label {
+		color: #aaa;
+		font-size: 0.8rem;
+	}
+
+	.form-text {
+		color: #fff;
+		overflow-wrap: anywhere;
+	}
+
+	.full-forms summary {
+		cursor: pointer;
+		color: #ddd;
+		font-size: 0.85rem;
+		margin-bottom: 0.6rem;
+	}
+
+	.result tbody tr[tabindex] {
+		cursor: pointer;
+	}
+
+	/* The row the expression tree shows: framed, so a green or red row keeps its tint. */
+	.result tr.selected td {
+		box-shadow: inset 0 2px 0 #ddd, inset 0 -2px 0 #ddd;
+	}
+
+	.result tr.selected td:first-child {
+		box-shadow: inset 0 2px 0 #ddd, inset 0 -2px 0 #ddd, inset 3px 0 0 #ddd;
+	}
+
+	.result tr.selected td:last-child {
+		box-shadow: inset 0 2px 0 #ddd, inset 0 -2px 0 #ddd, inset -3px 0 0 #ddd;
+	}
+
+	.result tr:focus-visible {
+		outline: 2px solid #5db65d;
+		outline-offset: -2px;
+	}
+
+	.tree-block {
+		margin-top: 1rem;
+		padding-top: 0.9rem;
+		border-top: 1px solid rgba(255, 255, 255, 0.15);
+	}
+
+	.tree-head {
+		font-size: 1rem;
+		color: #fff;
+		margin: 0 0 0.3rem;
+	}
+
+	.tree-intro {
+		color: #bbb;
+		font-size: 0.85rem;
+		margin: 0 0 0.6rem;
+	}
+
+	.tree-link {
+		color: #bbb;
+		font-size: 0.85rem;
+		margin: 0.5rem 0 0;
+	}
+
+	.forms-note {
+		color: #aaa;
+		font-size: 0.8rem;
+		margin: 0.3rem 0 0;
 	}
 </style>

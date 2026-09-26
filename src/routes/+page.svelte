@@ -4,7 +4,7 @@
 	import { onMount } from 'svelte';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
-	import { tools } from '$lib/tools';
+	import { tools, toolCount } from '$lib/tools';
 
 	// The reference and teaching pages, which are most of the site. Listed here
 	// rather than only in the nav, so the homepage actually points at them.
@@ -65,6 +65,31 @@
 			href: '/seven-segment-decoder',
 			name: 'Seven-segment decoder',
 			blurb: 'The truth table, seven K-map expressions and a live display.'
+		},
+		{
+			href: '/logic',
+			name: 'Propositional logic',
+			blurb: 'The logic symbols and how to read them, from ¬ and ∧ to → and ↔.'
+		},
+		{
+			href: '/logic/conditional-statements',
+			name: 'Conditional statements',
+			blurb: 'If-then, converse, inverse and contrapositive, and which of them agree.'
+		},
+		{
+			href: '/logic/tautology',
+			name: 'Tautologies',
+			blurb: 'Tautology, contradiction and contingency, and how a truth table tells them apart.'
+		},
+		{
+			href: '/logic/rules-of-inference',
+			name: 'Rules of inference',
+			blurb: 'Modus ponens, modus tollens and the rest, each checked valid, plus the fallacies.'
+		},
+		{
+			href: '/set-notation',
+			name: 'Set notation',
+			blurb: 'Every set symbol with how to read it, and the laws of set algebra.'
 		},
 		{ href: '/glossary', name: 'Glossary', blurb: 'Every term on the site, defined in a paragraph.' },
 		{
@@ -264,7 +289,7 @@
 	const page = {
 		title: 'LogicGates.org: Digital Logic Tools and Reference',
 		description:
-			'Free tools and a full reference for digital logic: truth tables, Karnaugh maps, boolean algebra, the seven logic gates, flip-flops, practice and a simulator.',
+			'Free digital logic tools and reference: truth tables, K-maps, boolean algebra, logic proofs, Venn diagrams, binary, hex and ASCII converters, and a simulator.',
 		url: `${SITE}/`,
 		image: `${SITE}/og/home.png`,
 		imageAlt: 'LogicGates.org: digital logic tools and reference'
@@ -486,7 +511,7 @@
 		<h2>Free digital logic tools</h2>
 		<p class="section-intro">
 			Type an expression and get the table, the map, the minimal form or the diagram. Every one of them works on its
-			own, in the browser, with no account. <a href="/tools">See all eleven on the tools page</a>.
+			own, in the browser, with no account. <a href="/tools">See all {toolCount()} on the tools page</a>.
 		</p>
 		<div class="link-grid">
 			{#each tools as tool}

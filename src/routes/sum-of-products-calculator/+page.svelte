@@ -143,6 +143,7 @@
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/quine-mccluskey', label: 'The Quine-McCluskey method' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
+		{ href: '/set-notation', label: 'Set notation: the same algebra for sets' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >

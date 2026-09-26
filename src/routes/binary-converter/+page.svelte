@@ -198,8 +198,11 @@
 	related={[
 		{ href: '/gray-code-converter', label: 'Gray code converter' },
 		{ href: '/twos-complement', label: "Two's complement explained" },
+		{ href: '/hex-to-decimal', label: 'Hex to decimal, with steps' },
 		{ href: '/common-circuits', label: 'Adders and other circuits' },
 		{ href: '/counters', label: 'Counters' },
+		{ href: '/binary-translator', label: 'Binary translator (text)' },
+		{ href: '/ascii-table', label: 'ASCII table' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
