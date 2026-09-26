@@ -6,7 +6,7 @@ export const toolIcons: Record<string, string> = {
 	'/truth-table-generator': '<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 9h18M9 4v16M15 4v16"/>',
 	// p → q, the conditional.
 	'/propositional-logic-truth-table':
-		'<circle cx="4.5" cy="12" r="2.5"/><path d="M2 9.5V19"/><circle cx="19.5" cy="12" r="2.5"/><path d="M22 9.5V19M8.5 12h6M12.5 10l2 2-2 2"/>',
+		'<circle cx="4" cy="12" r="2.3"/><path d="M1.7 9.7V19"/><circle cx="20" cy="12" r="2.3"/><path d="M22.3 9.7V19M9 12h6M13 10l2 2-2 2"/>',
 	// Algebra: a bracketed sum.
 	'/boolean-algebra-calculator': '<path d="M7 3.5c-4 5-4 12 0 17M17 3.5c4 5 4 12 0 17M8.5 12h7M12 8.5v7"/>',
 	// A two by two map with its top row looped as one group.
@@ -36,7 +36,7 @@ export const toolIcons: Record<string, string> = {
 	'/venn-diagram-generator': '<circle cx="9" cy="12" r="6.5"/><circle cx="15" cy="12" r="6.5"/>',
 	// F → 15: a hex digit and its decimal value.
 	'/hex-to-decimal':
-		'<path d="M2 17V7h4.5M2 12h3.5M8 12h3M9.75 10.5l1.5 1.5-1.5 1.5M13.5 8.5 15 7v10M22 7h-3.5l-.4 3.9c.5-.3 1.1-.5 1.7-.5a2.8 2.8 0 0 1 0 5.6c-.9 0-1.7-.4-2.1-1"/>',
+		'<path d="M2 17V7h4.5M2 12h3.5M8 12h3M9.75 10.5l1.5 1.5-1.5 1.5M13.5 8.5 15 7v10M22 7h-3.5l-.4 4.2c.5-.2 1-.3 1.5-.3a3 3 0 0 1 0 6c-.9 0-1.7-.4-2.2-1"/>',
 	// F → 1111: a hex digit is four bits.
 	'/hex-to-binary':
 		'<path d="M2 17V7h4.5M2 12h3.5M8 12h3M9.75 10.5l1.5 1.5-1.5 1.5M12.8 9.7 14 8.5v7M15.8 9.7 17 8.5v7M18.8 9.7 20 8.5v7M21.8 9.7 23 8.5v7"/>',
