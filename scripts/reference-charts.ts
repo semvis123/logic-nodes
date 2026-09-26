@@ -641,7 +641,12 @@ const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ?
 		.map((ch, i) =>
 			ch === BASE64URL_ALPHABET[i]
 				? ''
-				: `index ${i}: <b class="mono">${esc(ch)}</b> becomes <b class="mono">${esc(BASE64URL_ALPHABET[i])}</b>`
+				: // Each character boxed, and the pair kept on one line, so a - cannot read as a hyphen.
+				  `<li style="white-space:nowrap">index ${i}: <b class="mono" style="border:1px solid #111;padding:0 6px">${esc(
+						ch
+				  )}</b> becomes <b class="mono" style="border:1px solid #111;padding:0 6px">${esc(
+						BASE64URL_ALPHABET[i]
+				  )}</b></li>`
 		)
 		.filter(Boolean);
 	const note = `<div class="note" style="max-width:330px">
@@ -651,7 +656,8 @@ const plural = (n: number, word: string, many = `${word}s`) => `${n} ${n === 1 ?
 				.map((e) => `<tr><td class="mono">${e.text}</td><td class="mono ch">${e.out}</td></tr>`)
 				.join('')}</tbody></table>
       <h2 style="margin-top:18px">URL-safe Base64</h2>
-      <p>Changes two characters, ${urlDiff.join(' and ')}, so the output can go in a URL or file name.</p>
+      <p>Changes two characters, so the output can go in a URL or file name:</p>
+      <ul style="list-style:none;margin-top:6px;display:flex;flex-direction:column;gap:6px">${urlDiff.join('')}</ul>
     </div>`;
 	charts.push({
 		file: 'base64-alphabet-chart.png',
