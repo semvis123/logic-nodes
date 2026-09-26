@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { afterNavigate } from '$app/navigation';
 	import { tools } from '$lib/tools';
 
 	// Shared chrome and design system for the content pages (the editor itself
@@ -12,13 +13,17 @@
 		{ href: '/learn', label: 'Learn' },
 		{ href: '/logic-gates', label: 'Gates' },
 		{ href: '/flip-flops', label: 'Flip-flops' },
+		{ href: '/logic', label: 'Logic' },
 		{ href: '/tools', label: 'Tools' },
 		{ href: '/practice', label: 'Practice' }
 	];
 
 	// A section counts as current when the path starts with it, so the gate
-	// detail pages keep "Gates" highlighted; each tool keeps "Tools" lit.
-	const toolPaths = tools.map((tool) => tool.href);
+	// detail pages keep "Gates" highlighted; each tool keeps "Tools" lit,
+	// except the logic statement tools, which light "Logic" instead: one
+	// section per page, and those two belong with the logic concept pages.
+	const logicPaths = ['/propositional-logic-truth-table', '/logical-equivalence-calculator'];
+	const toolPaths = tools.map((tool) => tool.href).filter((href) => !logicPaths.includes(href));
 
 	// Pages that belong to a section without living under its path.
 	const alsoIn: Record<string, string[]> = {
@@ -38,8 +43,21 @@
 			'/ripple-carry-adder',
 			'/twos-complement'
 		],
-		'/flip-flops': ['/counters', '/shift-registers', '/sr-latch', '/finite-state-machines']
+		'/flip-flops': ['/counters', '/shift-registers', '/sr-latch', '/finite-state-machines'],
+		'/logic': [...logicPaths, '/set-notation']
 	};
+
+	// On a phone the section links scroll sideways inside the bar, and the
+	// later ones (Tools, Practice) start out of view. Bring the current section
+	// into view after every navigation, so the highlight is never off screen.
+	let navEl: HTMLElement;
+	afterNavigate(() => {
+		if (!navEl || navEl.scrollWidth <= navEl.clientWidth) return;
+		const cur = navEl.querySelector<HTMLElement>('[aria-current="page"]');
+		if (!cur) return;
+		const offset = cur.getBoundingClientRect().left - navEl.getBoundingClientRect().left;
+		navEl.scrollLeft += offset - (navEl.clientWidth - cur.offsetWidth) / 2;
+	});
 	/** Printing should not hide answers behind a collapsed summary. */
 	function openAll() {
 		document.querySelectorAll('details').forEach((d) => d.setAttribute('open', ''));
@@ -70,7 +88,7 @@
 
 	<header class="topbar">
 		<a class="brand" href="/"><span class="brand-box" /> <span class="brand-text">LogicGates.org</span></a>
-		<nav class="nav" aria-label="Sections">
+		<nav class="nav" aria-label="Sections" bind:this={navEl}>
 			{#each nav as item}
 				<a href={item.href} aria-current={current(item.href) ? 'page' : undefined}>
 					{item.label}

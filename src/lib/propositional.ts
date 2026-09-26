@@ -2,7 +2,10 @@
 // Kept apart from the boolean engine on purpose. That one is circuit algebra
 // (ab means a AND b, rows count up from 0), which every other tool depends
 // on; this one follows the logic textbook: explicit connectives, a column for
-// every subformula, and rows starting from all true.
+// every subformula, and rows starting from all true. It borrows only the
+// circuit minimiser, for the normal forms.
+
+import { canonicalForms } from './boolean.js';
 
 export type Prop =
 	| { t: 'var'; name: string }
@@ -64,7 +67,10 @@ const SYMBOLS: [string, Token][] = [
 	['+', { k: 'op', op: 'or' }],
 	['⊕', { k: 'op', op: 'xor' }],
 	['⊻', { k: 'op', op: 'xor' }],
+	['↮', { k: 'op', op: 'xor' }],
 	['¬', { k: 'not' }],
+	// The minus sign (U+2212), not the hyphen, which would clash with ->.
+	['−', { k: 'not' }],
 	['~', { k: 'not' }],
 	['!', { k: 'not' }],
 	['⊤', { k: 'const', v: true }],
@@ -106,8 +112,14 @@ function tokenize(input: string): Token[] {
 			const lower = word.toLowerCase();
 			const keyword = Object.prototype.hasOwnProperty.call(KEYWORDS, lower) ? KEYWORDS[lower] : undefined;
 			if (keyword) tokens.push(keyword);
-			else if (word.length === 1) tokens.push({ k: 'var', name: word });
-			else throw new PropError(`Write each statement as one letter, like p or q, not "${word}"`);
+			else if (word.length === 1) {
+				// A bar over a letter (p̄, typed as p plus a combining macron) is its negation.
+				if (input[j] === '\u0304') {
+					tokens.push({ k: 'not' });
+					j++;
+				}
+				tokens.push({ k: 'var', name: word });
+			} else throw new PropError(`Write each statement as one letter, like p or q, not "${word}"`);
 			i = j;
 			continue;
 		}
@@ -402,4 +414,45 @@ export function equivalenceGroups(columns: Column[]): number[][] {
 		else groups.push([i]);
 	});
 	return groups;
+}
+
+export type NormalForms = {
+	/** Disjunctive normal form: an OR of ANDs, as few terms as possible. */
+	dnf: string;
+	/** Conjunctive normal form: an AND of ORs, as few clauses as possible. */
+	cnf: string;
+	/** The full (canonical) DNF: one term for every row where the statement is true. */
+	fullDnf: string;
+	/** The full (canonical) CNF: one clause for every row where the statement is false. */
+	fullCnf: string;
+};
+
+/**
+ * DNF and CNF read off the truth table. The minimising is the circuit
+ * engine's (sum of products is DNF, product of sums is CNF); only the
+ * notation changes: its 1 and 0 become ⊤ and ⊥.
+ */
+export function normalForms(prop: Prop): NormalForms {
+	const table = propTable({ statements: [prop], conclusion: null }, true);
+	const values = table.statements[0].values;
+	if (table.variables.length === 0) {
+		const c = values[0] ? '⊤' : '⊥';
+		return { dnf: c, cnf: c, fullDnf: c, fullCnf: c };
+	}
+	// Counting order with the first letter as the most significant bit, which
+	// is the order canonicalForms numbers its minterms in.
+	const forms = canonicalForms({ variables: table.variables, rows: values }, 'math');
+	// A lone term comes back bracketed; it needs no brackets on its own.
+	const tidy = (text: string) =>
+		text === '1' ? '⊤' : text === '0' ? '⊥' : /^\([^()]*\)$/.test(text) ? text.slice(1, -1) : text;
+	// The minimal sum of products leaves its AND terms bare; bracket them, as
+	// a logic textbook would, so the shape of an OR of ANDs is plain to see.
+	const terms = forms.minimalSop.split(' ∨ ');
+	const dnf = terms.length > 1 ? terms.map((t) => (t.includes(' ∧ ') ? `(${t})` : t)).join(' ∨ ') : terms[0];
+	return {
+		dnf: tidy(dnf),
+		cnf: tidy(forms.minimalPos),
+		fullDnf: tidy(forms.canonicalSop),
+		fullCnf: tidy(forms.canonicalPos)
+	};
 }

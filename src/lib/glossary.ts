@@ -40,6 +40,20 @@ export const glossary: GlossaryEntry[] = [
 		href: '/logic-gate-symbols'
 	},
 	{
+		term: 'ASCII',
+		slug: 'ascii',
+		definition:
+			'The American Standard Code for Information Interchange: 128 characters numbered 0 to 127, each stored in seven bits. It covers the English letters, digits, punctuation and 33 control characters such as line feed; the first 128 code points of Unicode are the same.',
+		href: '/ascii-table'
+	},
+	{
+		term: 'Base64',
+		slug: 'base64',
+		definition:
+			'A way of writing any bytes using only 64 safe characters (A to Z, a to z, 0 to 9, + and /). Every three bytes, 24 bits, become four 6-bit groups, each written as one character, so the text is a third longer than the data. It is an encoding, not encryption.',
+		href: '/base64'
+	},
+	{
 		term: 'BCD',
 		slug: 'bcd',
 		definition:
@@ -109,6 +123,20 @@ export const glossary: GlossaryEntry[] = [
 		href: '/common-circuits/comparator'
 	},
 	{
+		term: 'Conditional statement',
+		slug: 'conditional-statement',
+		definition:
+			'A statement of the form if p then q, written p → q. It is false in exactly one case, when p is true and q is false, and true otherwise, including whenever p is false.',
+		href: '/logic/conditional-statements'
+	},
+	{
+		term: 'Contrapositive',
+		slug: 'contrapositive',
+		definition:
+			'The contrapositive of p → q is ¬q → ¬p: swap the two parts and negate both. It is always logically equivalent to the original, unlike the converse q → p and the inverse ¬p → ¬q.',
+		href: '/logic/conditional-statements#converse-inverse-contrapositive'
+	},
+	{
 		term: 'Counter',
 		slug: 'counter',
 		definition:
@@ -172,6 +200,13 @@ export const glossary: GlossaryEntry[] = [
 		href: '/flip-flops'
 	},
 	{
+		term: 'Expression tree',
+		slug: 'expression-tree',
+		definition:
+			'A diagram of how an expression is built: each connective or gate is a node whose children are the parts it combines, and the letters are the leaves. The node at the top is applied last, so its value is the value of the whole expression.',
+		href: '/expression-tree'
+	},
+	{
 		term: 'Finite state machine',
 		slug: 'finite-state-machine',
 		definition:
@@ -184,6 +219,13 @@ export const glossary: GlossaryEntry[] = [
 		definition:
 			'A one-bit memory element that changes state only on a clock edge. The four standard kinds are SR, D, JK and T.',
 		href: '/flip-flops'
+	},
+	{
+		term: 'Floating point',
+		slug: 'floating-point',
+		definition:
+			'A way of storing real numbers in a fixed number of bits as a sign, an exponent and a fraction, like scientific notation in binary. The IEEE 754 standard defines the 32-bit single and 64-bit double formats used by almost every computer.',
+		href: '/ieee-754-converter'
 	},
 	{
 		term: 'Full adder',
@@ -204,6 +246,13 @@ export const glossary: GlossaryEntry[] = [
 		slug: 'half-adder',
 		definition: 'A circuit that adds two bits, giving a sum (XOR) and a carry (AND), with no way to take a carry in.',
 		href: '/common-circuits/half-adder'
+	},
+	{
+		term: 'Hexadecimal',
+		slug: 'hexadecimal',
+		definition:
+			'Base 16, written with the digits 0 to 9 and A to F. Each hex digit stands for exactly four bits, so a byte is always two hex digits, which is why programmers write binary values, colours and memory addresses in hex.',
+		href: '/hex-to-decimal'
 	},
 	{
 		term: 'IEC symbols',
@@ -241,6 +290,13 @@ export const glossary: GlossaryEntry[] = [
 		href: '/logic-gates'
 	},
 	{
+		term: 'Logical equivalence',
+		slug: 'logical-equivalence',
+		definition:
+			'Two statements are logically equivalent when they have the same truth value in every row of their truth table, written p ≡ q. Either can replace the other anywhere, which is what the laws of logic let you do step by step.',
+		href: '/logic/logical-equivalences'
+	},
+	{
 		term: 'Majority function',
 		slug: 'majority-function',
 		definition:
@@ -267,6 +323,13 @@ export const glossary: GlossaryEntry[] = [
 		definition:
 			'An AND of every variable, each either plain or negated, that is 1 for exactly one row of the truth table. A function is the OR of the minterms of its 1 rows, which is its canonical sum of products.',
 		href: '/sum-of-products-calculator'
+	},
+	{
+		term: 'Modus ponens',
+		slug: 'modus-ponens',
+		definition:
+			'The rule of inference that from p → q and p concludes q. It is valid: in no row of the truth table are both premises true while q is false. Its mirror image, modus tollens, concludes ¬p from p → q and ¬q.',
+		href: '/logic/rules-of-inference'
 	},
 	{
 		term: 'Moore machine',
@@ -345,6 +408,13 @@ export const glossary: GlossaryEntry[] = [
 		href: '/counters'
 	},
 	{
+		term: 'Proposition',
+		slug: 'proposition',
+		definition:
+			'A statement that is either true or false, such as it is raining. Propositional logic writes them as single letters, p, q and r, and combines them with connectives such as ¬, ∧, ∨, → and ↔.',
+		href: '/logic'
+	},
+	{
 		term: 'Quine-McCluskey method',
 		slug: 'quine-mccluskey',
 		definition:
@@ -371,6 +441,13 @@ export const glossary: GlossaryEntry[] = [
 		definition:
 			'Logic with memory: the output depends on the history of the inputs, not only their present values. Built from combinational logic plus feedback, usually in the form of flip-flops driven by a clock.',
 		href: '/combinational-vs-sequential'
+	},
+	{
+		term: 'Set',
+		slug: 'set',
+		definition:
+			'A collection of distinct things, its elements, written in braces as {1, 2, 3}. Sets combine by union, intersection and complement, which obey the same laws as OR, AND and NOT in boolean algebra.',
+		href: '/set-notation'
 	},
 	{
 		term: 'Seven-segment display',
@@ -422,6 +499,13 @@ export const glossary: GlossaryEntry[] = [
 		href: '/flip-flops/t'
 	},
 	{
+		term: 'Tautology',
+		slug: 'tautology',
+		definition:
+			'A statement that is true in every row of its truth table, whatever its letters stand for, such as p ∨ ¬p. A statement false in every row is a contradiction, and one that is sometimes true and sometimes false is a contingency.',
+		href: '/logic/tautology'
+	},
+	{
 		term: 'Truth table',
 		slug: 'truth-table',
 		definition:
@@ -441,6 +525,20 @@ export const glossary: GlossaryEntry[] = [
 		definition:
 			'A gate from which every boolean function can be built using no other kind of gate. NAND and NOR are the only two-input gates that are universal on their own.',
 		href: '/logic-gates#universal-gates'
+	},
+	{
+		term: 'UTF-8',
+		slug: 'utf-8',
+		definition:
+			'The usual way of storing Unicode text as bytes. ASCII characters take one byte, unchanged, and every other character takes two to four bytes, whose leading bits say how many bytes belong together.',
+		href: '/binary-translator'
+	},
+	{
+		term: 'Venn diagram',
+		slug: 'venn-diagram',
+		definition:
+			'Overlapping circles, one per set, inside a rectangle for everything. Each region is one combination of in or out of each set, so shading regions shows a set expression, and the regions of a three set diagram match the eight rows of a three variable truth table.',
+		href: '/venn-diagram-generator'
 	},
 	{
 		term: 'XNOR gate',
