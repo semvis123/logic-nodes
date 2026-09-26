@@ -3,7 +3,8 @@
 
 import { expect, test } from '@playwright/test';
 import { sitemapPaths } from './sitemap.js';
-import { search } from '../src/lib/search.js';
+import { search, within } from '../src/lib/search.js';
+import { answers } from '../src/lib/paletteAnswers.js';
 import type { SearchEntry } from '../src/lib/searchIndex.js';
 
 async function index(request: import('@playwright/test').APIRequestContext): Promise<SearchEntry[]> {
@@ -105,4 +106,116 @@ test('the results are not part of the page until it is opened', async ({ request
 	const html = await (await request.get('/')).text();
 	expect(html).not.toContain('palette-option');
 	expect(html).not.toContain('search.json');
+});
+
+test('misspelt words still find the page', async ({ request }) => {
+	const entries = await index(request);
+	const top = (query: string) => search(entries, query)[0]?.href;
+	expect(top('karnough')).toBe('/karnaugh-map-solver');
+	expect(top('multiplxer')).toBe('/common-circuits/multiplexer');
+	expect(top('venn diagarm')).toBe('/venn-diagram-generator');
+	expect(top('tautolgy')).toBe('/logic/tautology');
+	expect(top('sr lacth')).toBe('/sr-latch');
+	expect(top('boolen algebra')).toBe('/boolean-algebra-calculator');
+	expect(within('diagarm', 'diagram', 1)).toBe(true);
+	expect(within('gate', 'gates', 1)).toBe(true);
+	expect(within('and', 'xor', 1)).toBe(false);
+});
+
+test('instant answers are right, and plain words stay searches', () => {
+	const first = (query: string) => answers(query)[0];
+	expect(first('42')?.title).toBe('42 = 0010 1010');
+	expect(answers('42')[1]?.title).toBe("42 is '*' in ASCII");
+	expect(first('1011')?.title).toBe('1011 = 11');
+	expect(first('0x1F')?.title).toBe('0x1F = 31');
+	expect(first('0b101')?.title).toBe('0101 = 5');
+	expect(first('101 + 11')?.title).toBe('101 + 11 = 1000');
+	expect(first('1100 / 11')?.title).toBe('1100 ÷ 11 = 100');
+	expect(first('0xFF + 1')?.title).toBe('0xFF + 0x1 = 0x100');
+	expect(first('0.1')?.title).toBe('0.1 → 0x3DCCCCCD');
+	expect(first('1e-3')?.href).toContain('/ieee-754-converter');
+	expect(first('SGVsbG8=')?.title).toBe('"Hello"');
+	expect(first('"A"')?.title).toBe("'A' = 65");
+	expect(first('ab + a!b')?.title).toBe('= a');
+	expect(first('a & !a')?.title).toBe('Always 0');
+	expect(first('p v ~p')?.title).toBe('Tautology');
+	expect(first('p -> q')?.title).toBe('Contingency');
+	expect(first('p -> q, q therefore p')?.title).toBe('Invalid argument');
+	expect(first('p -> q, p therefore q')?.title).toBe('Valid argument');
+	for (const words of [
+		'karnaugh',
+		'full adder',
+		'not gate',
+		'sum of products',
+		'beef',
+		'add',
+		'de morgan',
+		'c++',
+		'Karnaugh',
+		'flip-flops'
+	]) {
+		expect(answers(words), words).toEqual([]);
+	}
+});
+
+test('an answer opens its tool with the value already filled in', async ({ page }) => {
+	const cases: [string, RegExp, string][] = [
+		['ab + a!b', /\/boolean-algebra-calculator\?expr=/, 'ab + a!b'],
+		['0x1F', /\/hex-to-decimal\?v=1F/, '1F'],
+		['42', /\/binary-converter\?value=42/, '42'],
+		['101 + 11', /\/binary-calculator\?/, '101'],
+		['p -> q', /\/propositional-logic-truth-table\?s=/, 'p -> q'],
+		['SGVsbG8=', /\/base64\?m=decode/, 'SGVsbG8=']
+	];
+	await page.goto('/tools');
+	await page.waitForLoadState('networkidle');
+	for (const [query, url, value] of cases) {
+		await page.keyboard.press('Control+k');
+		const dialog = page.locator('dialog.palette');
+		await dialog.getByRole('combobox').fill(query);
+		await expect(dialog.locator('li.answer').first()).toBeVisible();
+		await page.keyboard.press('Enter');
+		await expect(page, query).toHaveURL(url);
+		await page.waitForLoadState('networkidle');
+		const fields = page.locator('main input[type="text"], main textarea');
+		const values = await fields.evaluateAll((els) => els.map((el) => (el as HTMLInputElement).value));
+		expect(
+			values.some((v) => v.includes(value)),
+			`${query}: ${values.join(' | ')}`
+		).toBe(true);
+	}
+});
+
+test('recent pages come first, and every row has an icon', async ({ page }) => {
+	await page.goto('/karnaugh-map-solver');
+	await page.waitForLoadState('networkidle');
+	await page.goto('/sr-latch');
+	await page.waitForLoadState('networkidle');
+	await page.keyboard.press('Control+k');
+	const dialog = page.locator('dialog.palette');
+	await expect(dialog.locator('.section').first()).toHaveText('Recent');
+	// The page you are on is not offered back to you.
+	const first = dialog.getByRole('option').first();
+	await expect(first).toContainText('Karnaugh map solver');
+	await expect(dialog.getByRole('option').filter({ hasText: /^SR latch/ })).toHaveCount(0);
+	const icons = await dialog
+		.getByRole('option')
+		.evaluateAll((options) => options.map((o) => o.querySelector('svg.tool-icon')?.innerHTML.trim().length ?? 0));
+	expect(icons.length).toBeGreaterThan(10);
+	expect(icons.filter((n) => n === 0)).toEqual([]);
+});
+
+test('closing with Escape and reopening straight away works', async ({ page }) => {
+	await page.goto('/tools');
+	await page.waitForLoadState('networkidle');
+	const dialog = page.locator('dialog.palette');
+	for (let i = 0; i < 3; i++) {
+		await page.keyboard.press('Control+k');
+		await expect(dialog.getByRole('option').first()).toBeVisible();
+		await page.keyboard.press('Escape');
+	}
+	await page.keyboard.press('Control+k');
+	await page.waitForTimeout(100);
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByRole('option').first()).toBeVisible();
 });

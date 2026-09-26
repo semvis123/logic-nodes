@@ -19,8 +19,48 @@ const kindWeight: Record<SearchKind, number> = {
 	Term: 0.6
 };
 
+/** On a tie, the tool first. */
+const kindOrder: SearchKind[] = ['Tool', 'Page', 'Gate', 'Flip-flop', 'Circuit', 'Lesson', 'Term'];
+
 const startsWord = (text: string, word: string) =>
 	new RegExp(`(^|[^a-z0-9])${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(text);
+
+/**
+ * Whether two words are within `max` edits, counting a swap of two neighbouring
+ * letters as one edit, since "diagarm" is one slip, not two.
+ */
+export function within(a: string, b: string, max: number): boolean {
+	if (Math.abs(a.length - b.length) > max) return false;
+	const d: number[][] = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+	for (let j = 1; j <= b.length; j++) d[0][j] = j;
+	for (let i = 1; i <= a.length; i++) {
+		let rowMin = Infinity;
+		for (let j = 1; j <= b.length; j++) {
+			const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+			d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+			if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
+				d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+			rowMin = Math.min(rowMin, d[i][j]);
+		}
+		if (rowMin > max) return false;
+	}
+	return d[a.length][b.length] <= max;
+}
+
+const wordsOf = (text: string) => text.split(/[^a-z0-9]+/).filter(Boolean);
+
+/** A misspelt word still matches a word, or the start of one, that it is close to. */
+function fuzzyScore(word: string, title: string, keywords: string): number {
+	if (word.length < 4) return 0;
+	const max = word.length >= 7 ? 2 : 1;
+	const near = (candidates: string[]) =>
+		candidates.some(
+			(w) => within(word, w, max) || (w.length > word.length && within(word, w.slice(0, word.length), max))
+		);
+	if (near(wordsOf(title))) return 45;
+	if (near(wordsOf(keywords))) return 30;
+	return 0;
+}
 
 function wordScore(word: string, title: string, keywords: string, hint: string): number {
 	if (title.startsWith(word)) return 100;
@@ -29,7 +69,7 @@ function wordScore(word: string, title: string, keywords: string, hint: string):
 	if (title.includes(word)) return 50;
 	if (keywords.includes(word)) return 30;
 	if (hint.includes(word)) return 20;
-	return 0;
+	return fuzzyScore(word, title, keywords);
 }
 
 export function search(entries: SearchEntry[], query: string, limit = 12): SearchEntry[] {
@@ -57,7 +97,12 @@ export function search(entries: SearchEntry[], query: string, limit = 12): Searc
 		scored.push({ entry, score: score * kindWeight[entry.kind] });
 	}
 	return scored
-		.sort((a, b) => b.score - a.score || a.entry.title.length - b.entry.title.length)
+		.sort(
+			(a, b) =>
+				b.score - a.score ||
+				kindOrder.indexOf(a.entry.kind) - kindOrder.indexOf(b.entry.kind) ||
+				a.entry.title.length - b.entry.title.length
+		)
 		.slice(0, limit)
 		.map((s) => s.entry);
 }
