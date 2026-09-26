@@ -313,6 +313,14 @@ export type AsciiRow = {
 	/** How it is typed as a caret sequence (^J) or escape (\n), where it has one. */
 	caret?: string;
 	escape?: string;
+	/**
+	 * The HTML numeric character reference, &#65;, for the printable characters
+	 * and the tab and line feed. HTML treats a reference to any other control
+	 * code as an error (and &#0; becomes U+FFFD), so those have none.
+	 */
+	entity?: string;
+	/** The HTML named character reference, &amp;, for the printable characters that have one. */
+	named?: string;
 	kind: AsciiKind;
 };
 
@@ -386,6 +394,47 @@ const SYMBOL_NAMES: Record<string, string> = {
 	'~': 'tilde'
 };
 
+/**
+ * HTML's named references for printable ASCII (from the HTML Living Standard's
+ * list). Only &amp; &lt; &gt; &quot; and &apos; also work in XML and old HTML;
+ * the rest arrived with HTML5. The tests parse every one in a browser.
+ */
+const NAMED_ENTITIES: Record<string, string> = {
+	'!': 'excl',
+	'"': 'quot',
+	'#': 'num',
+	$: 'dollar',
+	'%': 'percnt',
+	'&': 'amp',
+	"'": 'apos',
+	'(': 'lpar',
+	')': 'rpar',
+	'*': 'ast',
+	'+': 'plus',
+	',': 'comma',
+	'.': 'period',
+	'/': 'sol',
+	':': 'colon',
+	';': 'semi',
+	'<': 'lt',
+	'=': 'equals',
+	'>': 'gt',
+	'?': 'quest',
+	'@': 'commat',
+	'[': 'lsqb',
+	'\\': 'bsol',
+	']': 'rsqb',
+	'^': 'Hat',
+	_: 'lowbar',
+	'`': 'grave',
+	'{': 'lcub',
+	'|': 'verbar',
+	'}': 'rcub'
+};
+
+/** The five references that work everywhere: XML, XHTML and every HTML version. */
+export const CORE_ENTITIES = ['&amp;', '&lt;', '&gt;', '&quot;', '&apos;'];
+
 const ESCAPES: Record<number, string> = {
 	0: '\\0',
 	7: '\\a',
@@ -404,7 +453,8 @@ function asciiRow(code: number): AsciiRow {
 		hex: hex2(code),
 		binary: code.toString(2).padStart(7, '0'),
 		octal: code.toString(8).padStart(3, '0'),
-		escape: ESCAPES[code]
+		escape: ESCAPES[code],
+		entity: (code >= 32 && code < 127) || code === 9 || code === 10 ? `&#${code};` : undefined
 	};
 	if (code < 32) {
 		const [abbr, name, use] = CONTROLS[code];
@@ -425,7 +475,8 @@ function asciiRow(code: number): AsciiRow {
 	if (code >= 48 && code <= 57) return { ...base, char, name: `digit ${char}`, kind: 'digit' };
 	if (code >= 65 && code <= 90) return { ...base, char, name: `capital ${char}`, kind: 'upper' };
 	if (code >= 97 && code <= 122) return { ...base, char, name: `small ${char}`, kind: 'lower' };
-	return { ...base, char, name: SYMBOL_NAMES[char], kind: 'symbol' };
+	const named = NAMED_ENTITIES[char] ? `&${NAMED_ENTITIES[char]};` : undefined;
+	return { ...base, char, name: SYMBOL_NAMES[char], named, kind: 'symbol' };
 }
 
 /** All 128 ASCII codes, in order. */
@@ -447,6 +498,43 @@ export function asciiBlocks() {
 		contains: summary[block],
 		rows: rows.slice(block * 32, block * 32 + 32)
 	}));
+}
+
+// --- Extended ASCII ----------------------------------------------------------
+
+/**
+ * Code page 437, the original IBM PC character set, bytes 128 to 255 in order.
+ * Checked in rather than decoded, since browsers do not ship this code page. It
+ * matches Unicode's mapping file CP437.TXT (the source of Python's cp437 codec);
+ * the tests check anchors and that it has 128 distinct characters.
+ */
+export const CP437_HIGH =
+	'ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■\u00a0';
+
+export type ExtendedRow = {
+	code: number;
+	hex: string;
+	binary: string;
+	/** The Windows-1252 character, or null for the five bytes it leaves unassigned. */
+	win1252: string | null;
+	cp437: string;
+};
+
+/** Windows-1252 decoded by the platform's own TextDecoder, which follows the WHATWG Encoding Standard. */
+function decode1252(code: number): string | null {
+	const char = new TextDecoder('windows-1252').decode(new Uint8Array([code]));
+	const cp = char.codePointAt(0)!;
+	// The standard maps the five unassigned bytes to the C1 controls of the same number.
+	return cp >= 0x80 && cp <= 0x9f ? null : char;
+}
+
+/** Bytes 128 to 255 in the two most common 8-bit sets called extended ASCII. */
+export function extendedAsciiTable(): ExtendedRow[] {
+	const cp437 = [...CP437_HIGH];
+	return Array.from({ length: 128 }, (_, i) => {
+		const code = 128 + i;
+		return { code, hex: hex2(code), binary: bin8(code), win1252: decode1252(code), cp437: cp437[i] };
+	});
 }
 
 // --- Base64 -----------------------------------------------------------------

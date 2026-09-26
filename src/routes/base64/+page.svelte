@@ -162,9 +162,9 @@
 	];
 
 	const page = {
-		title: 'Base64 Encode and Decode, With Each Step Shown',
+		title: 'Base64 Decode and Encode Online, With Each Step Shown',
 		description:
-			'Encode text to Base64 or decode Base64 to text, and see how every 3 bytes become 4 characters, bit by bit, with padding and URL-safe Base64 explained.',
+			'Decode Base64 to text or encode text to Base64, and see how every 3 bytes become 4 characters, bit by bit, with padding and URL-safe Base64 explained.',
 		url: `${SITE}/base64`,
 		image: `${SITE}/og/base64.png`,
 		imageAlt: 'LogicGates.org: Base64 encode and decode, step by step'

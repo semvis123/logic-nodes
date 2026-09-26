@@ -16,6 +16,9 @@ import {
 	placeValues,
 	asciiTable,
 	asciiBlocks,
+	extendedAsciiTable,
+	CP437_HIGH,
+	CORE_ENTITIES,
 	base64Encode,
 	base64EncodeText,
 	base64Decode,
@@ -269,6 +272,71 @@ test.describe('ASCII', () => {
 		}
 	});
 
+	test('every code has a numeric HTML reference, and the named ones are the printable symbols', () => {
+		const rows = asciiTable();
+		for (const row of rows) {
+			const valid = (row.code >= 32 && row.code < 127) || row.code === 9 || row.code === 10;
+			expect(row.entity).toBe(valid ? `&#${row.code};` : undefined);
+		}
+		const named = rows.filter((r) => r.named);
+		expect(named.every((r) => r.kind === 'symbol')).toBe(true);
+		for (const core of CORE_ENTITIES) expect(named.map((r) => r.named)).toContain(core);
+		expect(rows[38].named).toBe('&amp;');
+		expect(rows[60].named).toBe('&lt;');
+		expect(rows[34].named).toBe('&quot;');
+		expect(rows[65].named).toBeUndefined();
+	});
+
+	test('DEL is the control code written with the character 64 below it', () => {
+		const rows = asciiTable();
+		for (let code = 0; code < 32; code++) expect(rows[code].caret).toBe('^' + String.fromCharCode(code + 64));
+		expect(rows[127].caret).toBe('^' + rows[127 - 64].char);
+	});
+
+	test('extended ASCII: Windows-1252 from TextDecoder and code page 437 from its table', () => {
+		const rows = extendedAsciiTable();
+		expect(rows).toHaveLength(128);
+		expect(rows.map((r) => r.code)).toEqual(Array.from({ length: 128 }, (_, i) => 128 + i));
+		const at = (code: number) => rows[code - 128];
+		// Windows-1252 anchors from the code page itself.
+		expect(at(0x80).win1252).toBe('€');
+		expect(at(0x92).win1252).toBe('\u2019');
+		expect(at(0x99).win1252).toBe('™');
+		expect(at(0xe9).win1252).toBe('é');
+		expect(rows.filter((r) => r.win1252 === null).map((r) => r.hex)).toEqual(['81', '8D', '8F', '90', '9D']);
+		// From A0 up, Windows-1252 is Latin-1, which is the first 256 code points of Unicode.
+		for (const r of rows.filter((r) => r.code >= 0xa0)) expect(r.win1252!.codePointAt(0)).toBe(r.code);
+		// Code page 437: 128 distinct characters, none of them ASCII, with its well-known landmarks.
+		const cp = [...CP437_HIGH];
+		expect(cp).toHaveLength(128);
+		expect(new Set(cp).size).toBe(128);
+		expect(cp.every((c) => c.codePointAt(0)! > 127)).toBe(true);
+		expect(at(0x80).cp437).toBe('Ç');
+		expect(at(0x82).cp437).toBe('é');
+		expect(at(0xb0).cp437).toBe('░');
+		expect(at(0xc4).cp437).toBe('─');
+		expect(at(0xc9).cp437).toBe('╔');
+		expect(at(0xdb).cp437).toBe('█');
+		expect(at(0xe1).cp437).toBe('ß');
+		expect(at(0xe9).cp437).toBe('Θ');
+		expect(at(0xfb).cp437).toBe('√');
+		expect(at(0xff).cp437).toBe('\u00a0');
+		// The double-line box characters sit together in B9 to BC and C8 to CE.
+		expect(
+			rows
+				.slice(0xb9 - 128, 0xbd - 128)
+				.map((r) => r.cp437)
+				.join('')
+		).toBe('╣║╗╝');
+		// The Greek and maths run from E0.
+		expect(
+			rows
+				.slice(0xe0 - 128, 0xf0 - 128)
+				.map((r) => r.cp437)
+				.join('')
+		).toBe('αßΓπΣσµτΦΘΩδ∞φε∩');
+	});
+
 	test('four blocks of 32', () => {
 		const blocks = asciiBlocks();
 		expect(blocks.map((b) => b.topBits)).toEqual(['00', '01', '10', '11']);
@@ -380,6 +448,43 @@ test.describe('the pages', () => {
 		await expect(page).toHaveURL(/d=decode/);
 	});
 
+	test('swapping to decode reads back whatever the display options were', async ({ page }) => {
+		// 7-bit groups mixed with 6-bit ones used to be copied across and refused.
+		await page.goto('/binary-translator?t=Hi%21&zeros=off');
+		await expect(page.locator('#output')).toHaveValue('1001000 1101001 100001');
+		await page.getByRole('button', { name: 'Binary to text', exact: true }).click();
+		await expect(page.locator('#input')).toHaveValue('01001000 01101001 00100001');
+		await expect(page.locator('#output')).toHaveValue('Hi!');
+		await expect(page.locator('.error')).toHaveCount(0);
+		// Decimal is always separated, so 72 105 cannot become the ambiguous 72105.
+		await page.goto('/binary-translator?t=Hi&f=decimal&sep=none');
+		await expect(page.locator('#output')).toHaveValue('72 105');
+		await expect(page.getByRole('group', { name: 'Separator' })).toHaveCount(0);
+		await page.getByRole('button', { name: 'Decimal to text', exact: true }).click();
+		await expect(page.locator('#output')).toHaveValue('Hi');
+		// Hex run together still swaps cleanly.
+		await page.goto('/binary-translator?t=Hi&f=hex&sep=none');
+		await expect(page.locator('#output')).toHaveValue('4869');
+		await page.getByRole('button', { name: 'Hex to text', exact: true }).click();
+		await expect(page.locator('#input')).toHaveValue('48 69');
+		await expect(page.locator('#output')).toHaveValue('Hi');
+	});
+
+	test('the binary alphabet is in the served HTML, computed', async ({ page }) => {
+		const html = await (await page.request.get('/binary-translator')).text();
+		expect(html).toContain('Binary code for letters (binary alphabet)');
+		await page.goto('/binary-translator');
+		const items = page.locator('#alphabet .alphabet li');
+		await expect(items).toHaveCount(62);
+		const texts = await items.allTextContents();
+		const bad = texts.filter((t) => {
+			const m = t.trim().match(/^(\S)\s+([01]{8})\s+(\d+)$/);
+			return !m || m[1].charCodeAt(0) !== parseInt(m[2], 2) || Number(m[3]) !== m[1].charCodeAt(0);
+		});
+		expect(bad).toEqual([]);
+		expect(texts[0]).toContain('01000001');
+	});
+
 	test('the ASCII table is complete in the served HTML and filters', async ({ page }) => {
 		const html = await (await page.request.get('/ascii-table')).text();
 		expect(html).toContain('carriage return');
@@ -390,6 +495,45 @@ test.describe('the pages', () => {
 		await expect(page.locator('.ascii tbody tr')).toHaveCount(1);
 		await page.locator('#filter').fill('A');
 		await expect(page.locator('.ascii tbody tr').first()).toContainText('65');
+	});
+
+	test('every HTML reference in the ASCII table parses to its character in a browser', async ({ page }) => {
+		await page.goto('/ascii-table');
+		const rows = asciiTable().filter((r) => r.code >= 32 && r.code < 127);
+		const refs = rows.flatMap((r) => [
+			{ ref: r.entity!, char: r.char },
+			...(r.named ? [{ ref: r.named, char: r.char }] : [])
+		]);
+		const wrong = await page.evaluate((refs) => {
+			const box = document.createElement('div');
+			return refs.filter(({ ref, char }) => {
+				box.innerHTML = ref;
+				return box.textContent !== char;
+			});
+		}, refs);
+		expect(wrong).toEqual([]);
+		await expect(page.locator('.ascii tbody tr').nth(38)).toContainText('&amp;');
+	});
+
+	test('the extended ASCII table matches the browser decoder and the DEL caret wording', async ({ page }) => {
+		await page.goto('/ascii-table');
+		await expect(page.locator('.extended tbody tr')).toHaveCount(128);
+		const shown = await page.locator('.extended tbody tr td:nth-child(4)').allTextContents();
+		const browser = await page.evaluate(() => {
+			const d = new TextDecoder('windows-1252');
+			return Array.from({ length: 128 }, (_, i) => d.decode(new Uint8Array([128 + i])));
+		});
+		const node = extendedAsciiTable();
+		node.forEach((row, i) => {
+			const cp = browser[i].codePointAt(0)!;
+			expect(row.win1252 ?? browser[i], row.hex).toBe(browser[i]);
+			if (cp >= 0x80 && cp <= 0x9f) expect(shown[i]).toBe('unused');
+		});
+		await expect(page.locator('.extended tbody tr').nth(233 - 128)).toContainText('é');
+		await expect(page.locator('.extended tbody tr').nth(233 - 128)).toContainText('Θ');
+		const control = page.locator('#control .section-intro');
+		await expect(control).toContainText('DEL (127) is the exception: it is written ^?, because ? (63) is 64 below it');
+		await expect(page).toHaveTitle('ASCII Table: All 128 Codes in Decimal, Hex, Binary, Octal');
 	});
 
 	test('Base64 encodes, shows its steps, and explains a bad input', async ({ page }) => {

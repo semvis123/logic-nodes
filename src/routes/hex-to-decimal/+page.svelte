@@ -14,21 +14,27 @@
 		RadixError,
 		MAX_DIGITS
 	} from '$lib/radix';
+	import { toSigned, signedDecimal } from '$lib/arithmetic';
 	import { readUrl, syncUrl, safeText, safeOption } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import { onMount } from 'svelte';
 
 	type Direction = 'hex' | 'dec';
-	const DEFAULTS = { v: 'BEEF', from: 'hex' };
+	const signedWidths = ['off', '8', '16', '32', '64'] as const;
+	type SignedWidth = typeof signedWidths[number];
+	const DEFAULTS = { v: 'BEEF', from: 'hex', signed: 'off' };
 	onMount(() => {
 		const p = readUrl();
 		input = safeText(p.v, MAX_DIGITS + 10) ?? input;
 		from = safeOption(p.from, ['hex', 'dec'] as const) ?? from;
+		signed = safeOption(p.signed, signedWidths) ?? signed;
 	});
-	$: syncUrl({ v: input, from }, DEFAULTS);
+	$: syncUrl({ v: input, from, signed }, DEFAULTS);
 
 	let input = DEFAULTS.v;
 	let from: Direction = 'hex';
+	/** Also read the hex as a two's complement number of this many bits. */
+	let signed: SignedWidth = 'off';
 
 	// Runs at build time too, so the page ships with a real worked conversion.
 	let value = 0n;
@@ -47,6 +53,10 @@
 	$: hex = toRadix(value, 16);
 	$: places = placeValueSteps(from === 'hex' ? digits : hex, 16);
 	$: division = divisionSteps(value, 16);
+	$: signedBits = signed === 'off' ? 0 : Number(signed);
+	$: bitsNeeded = value.toString(2).length;
+	$: signedFits = signedBits > 0 && bitsNeeded <= signedBits;
+	$: signedValue = signedFits ? toSigned(value, signedBits) : 0n;
 
 	/** Switching direction carries the answer across, so the reverse is one click away. */
 	function swap() {
@@ -81,6 +91,11 @@
 	const worked1 = placeValueSteps('1A3', 16);
 	const worked2 = divisionSteps(1000n, 16);
 	const colour = { r: parseRadix('1E', 16).value, g: parseRadix('90', 16).value, b: parseRadix('FF', 16).value };
+	// The byte chart: row is the first hex digit, column the second, each cell read by the converter's own parser.
+	const byteChart = hexDigitTable.map((high) => ({
+		high: high.hex,
+		cells: hexDigitTable.map((low) => ({ hex: high.hex + low.hex, value: parseRadix(high.hex + low.hex, 16).value }))
+	}));
 	const powers = Array.from({ length: 9 }, (_, n) => ({ n, value: 16n ** BigInt(n) }));
 
 	const faqs = [
@@ -113,7 +128,7 @@
 	const page = {
 		title: 'Hex to Decimal Converter (and Decimal to Hex), With Steps',
 		description:
-			'Convert hex to decimal and decimal to hex with every step shown: place values for hex to decimal, repeated division by 16 for decimal to hex.',
+			'Convert hex to decimal and decimal to hex with every step shown: the place-value sum from hexadecimal to decimal, repeated division by 16 back again.',
 		url: `${SITE}/hex-to-decimal`,
 		image: `${SITE}/og/hex-to-decimal.png`,
 		imageAlt: 'LogicGates.org: hex to decimal converter with steps'
@@ -178,6 +193,7 @@
 		{ href: '/hex-calculator', label: 'Hex calculator' },
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/twos-complement', label: "Two's complement" },
+		{ href: '/ascii-table', label: 'ASCII table' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
@@ -224,9 +240,20 @@
 				{#if from === 'hex'}
 					Digits 0 to 9 and A to F, upper or lower case. A leading 0x, # or $ is ignored, and so are spaces.
 				{:else}
-					A whole number of zero or more, up to {MAX_DIGITS} digits.
+					A whole number of zero or more, up to {MAX_DIGITS} digits. Commas between thousands are fine.
 				{/if}
 			</p>
+			{#if from === 'hex'}
+				<div class="signed-row">
+					<label class="field inline" for="signed">Also read as signed</label>
+					<select id="signed" bind:value={signed}>
+						<option value="off">No, unsigned only</option>
+						{#each signedWidths.slice(1) as w}
+							<option value={w}>{w} bit two's complement</option>
+						{/each}
+					</select>
+				</div>
+			{/if}
 
 			<div class="chips">
 				{#each examples as example}
@@ -244,10 +271,28 @@
 						>{from === 'hex' ? `${hex} in hex` : `${dec(value)} in decimal`} is
 						<span class="mono">{groupDigits(value.toString(2), 4)}</span> in binary</span
 					>
+					{#if from === 'hex' && signedBits}
+						<span class="answer-signed">
+							{#if signedFits}
+								As a signed {signedBits} bit number:
+								<strong class="mono">{signedDecimal(signedValue)}</strong>.
+								{#if signedValue < 0n}
+									The top bit is 1, so subtract 2{superscript(signedBits)}: {dec(value)} − {dec(
+										1n << BigInt(signedBits)
+									)} = {signedDecimal(signedValue)}.
+								{:else}
+									The top bit is 0, so it is the same as unsigned.
+								{/if}
+								See <a href="/twos-complement">two's complement</a>.
+							{:else}
+								{hex} needs {bitsNeeded} bits, more than {signedBits}, so it has no {signedBits} bit signed reading.
+							{/if}
+						</span>
+					{/if}
 				</div>
 
 				{#if from === 'hex'}
-					<h3 class="working-title">Working: each digit times its place value</h3>
+					<h2 class="working-title">Working: each digit times its place value</h2>
 					<div class="table-wrap scroll-box">
 						<table class="data-table steps">
 							<thead>
@@ -283,7 +328,7 @@
 						</p>
 					{/if}
 				{:else}
-					<h3 class="working-title">Working: divide by 16, keep the remainders</h3>
+					<h2 class="working-title">Working: divide by 16, keep the remainders</h2>
 					<div class="table-wrap scroll-box">
 						<table class="data-table steps">
 							<thead>
@@ -351,6 +396,41 @@
 				</tbody>
 			</table>
 		</div>
+	</section>
+
+	<section id="chart">
+		<h2>Hex to decimal chart: 00 to FF</h2>
+		<p class="section-intro">
+			Every one-byte value. Find the first hex digit down the side and the second along the top: 7F is row 7, column F,
+			which is {byteChart[7].cells[15].value}. The top row is 0 to 15, and each row down adds 16.
+		</p>
+		<div class="table-wrap">
+			<table class="data-table byte-chart">
+				<caption class="visually-hidden">Decimal values of the hex bytes 00 to FF</caption>
+				<thead>
+					<tr>
+						<th scope="col"><span class="visually-hidden">First digit</span></th>
+						{#each hexDigitTable as low}
+							<th scope="col" class="mono">{low.hex}</th>
+						{/each}
+					</tr>
+				</thead>
+				<tbody>
+					{#each byteChart as row}
+						<tr>
+							<th scope="row" class="mono">{row.high}</th>
+							{#each row.cells as cell}
+								<td class="mono" title="{cell.hex} = {cell.value}">{cell.value}</td>
+							{/each}
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+		<p class="reducer">
+			The same bytes as characters are in the <a href="/ascii-table">ASCII table</a>, and a byte read as a signed number
+			(80 to FF as −128 to −1) is covered by <a href="/twos-complement">two's complement</a>.
+		</p>
 	</section>
 
 	<section id="why">
@@ -584,7 +664,73 @@
 	}
 
 	.working-title {
+		color: #fff;
+		font-size: 1.1rem;
 		margin-top: 1.1rem !important;
+	}
+
+	.signed-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 0.9rem;
+	}
+
+	.field.inline {
+		margin: 0;
+	}
+
+	.signed-row select {
+		background-color: #0d0d0f;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		border-radius: 3px;
+		color: #fff;
+		font-size: 0.85rem;
+		padding: 0.3rem 0.4rem;
+	}
+
+	.answer-signed {
+		color: #ddd;
+		display: block;
+		font-size: 0.85rem;
+		margin-top: 0.4rem;
+		overflow-wrap: anywhere;
+	}
+
+	.answer-signed strong {
+		color: #8ede8e;
+	}
+
+	/* 17 narrow columns, small enough to fit a phone without scrolling. */
+	.byte-chart {
+		width: auto;
+		table-layout: fixed;
+	}
+
+	.byte-chart th,
+	.byte-chart td {
+		padding: 0.2rem 0.3rem;
+		text-align: right;
+		font-size: 0.8rem;
+		white-space: nowrap;
+	}
+
+	.byte-chart th {
+		color: #8ede8e;
+	}
+
+	.byte-chart tbody tr:nth-child(4n) td {
+		border-bottom-color: rgba(255, 255, 255, 0.3);
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 
 	.scroll-box {
@@ -689,6 +835,13 @@
 
 	/* Both halves of the table fit a phone without scrolling. */
 	@media (max-width: 560px) {
+		.byte-chart th,
+		.byte-chart td {
+			padding: 0.15rem 0.08rem;
+			font-size: 0.64rem;
+			letter-spacing: -0.02em;
+		}
+
 		.digits th,
 		.digits td {
 			padding-left: 0.45rem;

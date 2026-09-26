@@ -32,7 +32,7 @@ const allowed: Record<Radix, string> = {
 
 /**
  * Strips what people paste along with a number: spaces and underscores used as
- * separators, and the prefixes that languages put in front of literals (0x,
+ * separators, commas between groups of three in decimal (65,535), and the prefixes that languages put in front of literals (0x,
  * 0b, 0o, #, and h or b suffixes are not handled, being ambiguous).
  */
 export function cleanDigits(text: string, radix: Radix): string {
@@ -40,6 +40,8 @@ export function cleanDigits(text: string, radix: Radix): string {
 	if (radix === 16) s = s.replace(/^(0x|#|\$)/i, '');
 	if (radix === 2) s = s.replace(/^0b/i, '');
 	if (radix === 8) s = s.replace(/^0o/i, '');
+	// Only well-formed thousands groups, so a decimal comma such as 1,5 is still refused.
+	if (radix === 10 && /^\d{1,3}(,\d{3})+$/.test(s)) s = s.replace(/,/g, '');
 	return s;
 }
 

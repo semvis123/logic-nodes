@@ -67,9 +67,16 @@
 	function check(c: Calculation): string {
 		const s = ops.find((o) => o.id === c.op)!.symbol;
 		if (c.op === 'not') return `NOT ${decimal(c.a)} = ${decimal(c.result)} in ${c.layout.columns} bits`;
+		if (c.op === 'shl' && c.overflow)
+			return `${decimal(c.a)} ${s} ${c.b} = ${decimal(c.a << c.b)}; ${c.width} bits keep ${decimal(c.result)}`;
 		if (c.op === 'shl' || c.op === 'shr') return `${decimal(c.a)} ${s} ${c.b} = ${decimal(c.result)}`;
 		if (c.op === 'div')
 			return `${decimal(c.a)} ÷ ${decimal(c.b)} = ${decimal(c.result)} remainder ${decimal(c.remainder!)}`;
+		// In a fixed width the true answer and the bits kept can differ; say both rather than a wrong sum.
+		const exact = c.op === 'add' ? c.a + c.b : c.op === 'sub' ? c.a - c.b : c.op === 'mul' ? c.a * c.b : c.result;
+		if (exact !== c.result) {
+			return `${decimal(c.a)} ${s} ${decimal(c.b)} = ${decimal(exact)}; ${c.width} bits keep ${decimal(c.result)}`;
+		}
 		return `${decimal(c.a)} ${s} ${decimal(c.b)} = ${decimal(c.result)}`;
 	}
 
@@ -78,6 +85,16 @@
 		b = example.b;
 		op = example.op;
 		if (example.width !== undefined) width = example.width;
+	}
+
+	/**
+	 * A shift reads its second box as a count of places in decimal, so a number
+	 * left there from a sum (11011 is eleven thousand places) is replaced by 1.
+	 */
+	function setOp(next: Op) {
+		const shiftNext = !!ops.find((o) => o.id === next)?.shift;
+		if (shiftNext && !spec.shift) b = '1';
+		op = next;
 	}
 
 	function setWidth(event: Event) {
@@ -98,7 +115,7 @@
 				class:active={op === o.id}
 				aria-pressed={op === o.id}
 				title={o.label}
-				on:click={() => (op = o.id)}
+				on:click={() => setOp(o.id)}
 				><span class="op-symbol">{o.symbol}</span>{#if o.symbol !== o.label}<span class="op-label">{o.label}</span
 					>{/if}</button
 			>
@@ -186,16 +203,23 @@
 				</p>
 			{/if}
 			{#if calc.wrappedNegative}
-				<p class="note">
-					The answer is negative. With a fixed width the subtraction wraps round, and the bits shown are the
-					<a href="/twos-complement">two's complement</a> of {calc.result === 0n ? '0' : decimal(calc.a - calc.b)}.
-				</p>
+				{#if calc.signedResult === calc.a - calc.b}
+					<p class="note">
+						The answer is negative. With a fixed width the subtraction wraps round, and the bits shown are the
+						<a href="/twos-complement">two's complement</a> of {decimal(calc.a - calc.b)}.
+					</p>
+				{:else}
+					<p class="warning">
+						Signed overflow: the true answer, {decimal(calc.a - calc.b)}, is below the smallest number {calc.width}
+						signed bits can hold, so the wrapped bits are not its <a href="/twos-complement">two's complement</a>.
+					</p>
+				{/if}
 			{/if}
 			{#each calc.notes.filter((n) => !n.startsWith('Quotient')) as note}
 				<p class="note">{note}</p>
 			{/each}
 
-			<h3 class="working-title">Working</h3>
+			<h2 class="working-title">Working</h2>
 			{#if calc.layoutTitle}
 				<p class="layout-title">{calc.layoutTitle}</p>
 			{/if}
@@ -442,6 +466,7 @@
 
 	.working-title {
 		color: #fff;
+		font-size: 1.15rem;
 		margin-top: 1rem !important;
 	}
 

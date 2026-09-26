@@ -2,7 +2,15 @@
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
-	import { asciiTable, asciiBlocks, encodeText, placeValues, type AsciiRow } from '$lib/textEncoding';
+	import {
+		asciiTable,
+		asciiBlocks,
+		encodeText,
+		placeValues,
+		extendedAsciiTable,
+		CORE_ENTITIES,
+		type AsciiRow
+	} from '$lib/textEncoding';
 	import { readUrl, syncUrl, safeText, safeInt } from '$lib/urlState';
 	import { onMount } from 'svelte';
 
@@ -68,6 +76,17 @@
 	const caseBit = A.binary.split('').findIndex((bit, i) => bit !== a.binary[i]);
 	const digits = table.filter((r) => r.kind === 'digit');
 	const eAcute = encodeText('é')[0];
+	const namedCount = table.filter((r) => r.named).length;
+	// DEL is the one control code whose caret character is below it, not above.
+	const del = table[127];
+	const delCaret = table[127 - 64];
+
+	// 128 to 255 in the two sets most often meant by extended ASCII.
+	const extended = extendedAsciiTable();
+	const unassigned = extended.filter((r) => r.win1252 === null);
+	const at233 = extended[233 - 128];
+	/** Invisible characters are shown by name. */
+	const showChar = (c: string | null) => (c === null ? '' : c === '\u00a0' ? 'NBSP' : c === '\u00ad' ? 'SHY' : c);
 
 	const faqs = [
 		{
@@ -101,9 +120,9 @@
 	];
 
 	const page = {
-		title: 'ASCII Table: Every Code in Decimal, Hex and Binary',
+		title: 'ASCII Table: All 128 Codes in Decimal, Hex, Binary, Octal',
 		description:
-			'The full ASCII table: all 128 characters with their decimal, hex, binary and octal codes, what each control character does, and how the table is laid out.',
+			'The full ASCII table: all 128 characters in decimal, hex, binary and octal with HTML entities, the control codes explained, and extended ASCII 128 to 255.',
 		url: `${SITE}/ascii-table`,
 		image: `${SITE}/og/ascii-table.png`,
 		imageAlt: 'LogicGates.org: the ASCII table in decimal, hex and binary'
@@ -174,8 +193,9 @@
 	<section class="intro">
 		<h1>ASCII table</h1>
 		<p class="lede">
-			All 128 ASCII characters with their codes in decimal, hex and binary. Control characters are listed by their
-			abbreviation and name. Search for a character, a code or a name, and select a row to see its bits.
+			All 128 ASCII characters with their codes in decimal, hex, binary and octal, and the HTML entity for each
+			printable one. Control characters are listed by their abbreviation and name. Search for a character, a code or a
+			name, and select a row to see its bits. Codes 128 to 255 are in <a href="#extended">extended ASCII</a> below.
 		</p>
 
 		<div class="filter-bar no-print">
@@ -209,6 +229,7 @@
 						<th scope="col">Binary</th>
 						<th scope="col" class="oct">Oct</th>
 						<th scope="col">Char</th>
+						<th scope="col" class="html">HTML</th>
 						<th scope="col">Name</th>
 					</tr>
 				</thead>
@@ -228,13 +249,16 @@
 									on:click|stopPropagation={() => toggle(row.code)}>{row.char === ' ' ? 'SP' : row.char}</button
 								>
 							</td>
+							<td class="mono html"
+								>{row.entity ?? ''}{#if row.named}<span class="named"> {row.named}</span>{/if}</td
+							>
 							<td class="name">{row.name}</td>
 						</tr>
 						{#if selected === row.code}
 							{@const pv = placeValues(row.code)}
 							{@const other = partner(row)}
 							<tr class="detail">
-								<td colspan="6">
+								<td colspan="7">
 									<div class="detail-box">
 										<div class="bits-grid" aria-label="Bits of {row.code}">
 											{#each pv.bits as bit, i}
@@ -246,7 +270,8 @@
 										<p>
 											<strong>{row.abbr ? `${row.abbr}, ${row.name}` : `${row.char}, ${row.name}`}.</strong>
 											{#if pv.terms.length}{pv.terms.join(' + ')} = {row.code}.{:else}All bits 0.{/if}
-											Octal {row.octal}, HTML <span class="mono">&amp;#{row.code};</span>{#if row.caret}, typed as
+											Octal {row.octal}{#if row.entity}, HTML <span class="mono">{row.entity}</span>{/if}{#if row.named}
+												or <span class="mono">{row.named}</span>{/if}{#if row.caret}, typed as
 												<span class="mono">{row.caret}</span>{/if}{#if row.escape}, written
 												<span class="mono">{row.escape}</span> in C{/if}. As a byte it is
 											<span class="mono">0{row.binary}</span>, the same in UTF-8.
@@ -270,8 +295,10 @@
 			<p class="field-help">Nothing in ASCII matches that. ASCII has only codes 0 to 127.</p>
 		{/if}
 		<p class="reducer">
-			Binary is shown in the 7 bits ASCII uses; stored in a byte it has an extra 0 in front. To turn a whole message
-			into binary, use the <a href="/binary-translator">binary translator</a>.
+			Binary is shown in the 7 bits ASCII uses; stored in a byte it has an extra 0 in front. The HTML column gives the
+			numeric reference, which works for any character, and the named one where HTML has it ({namedCount} of the printable
+			characters). Only {CORE_ENTITIES.join(' ')} also work in XML. To turn a whole message into binary, use the
+			<a href="/binary-translator">binary translator</a>.
 		</p>
 	</section>
 
@@ -379,8 +406,11 @@
 		<h2>Control characters</h2>
 		<p class="section-intro">
 			Codes 0 to 31 and 127 are not printed. They were written for teleprinters and data links, and a few are in daily
-			use: tab, line feed, carriage return and escape. Each can be typed as Ctrl with the character 64 above it, which
-			is where the caret notation comes from.
+			use: tab, line feed, carriage return and escape. Codes 0 to 31 can each be typed as Ctrl plus the character 64
+			codes higher: J is {table[74].code}, so Ctrl+J gives {table[10].code}, {table[10].abbr}, which is where the caret
+			notation {table[10].caret} comes from.
+			{del.abbr} ({del.code}) is the exception: it is written {del.caret}, because {delCaret.char} ({delCaret.code}) is
+			64 below it.
 		</p>
 		<div class="table-scroll">
 			<table class="data-table controls">
@@ -431,8 +461,46 @@
 			ASCII uses 7 bits, and computers store 8, which leaves codes 128 to 255 free. Many character sets filled them, and
 			all of them are loosely called extended ASCII, but there was never one standard. ISO 8859-1 (Latin-1) and
 			Windows-1252 put accented letters there, so 233 is é; the original IBM PC's code page 437 put box-drawing
-			characters and Greek letters there, so 233 is Θ. A file written with one and read with another comes out garbled.
-			That mess is what Unicode ended; in UTF-8, bytes above 127 only ever appear as parts of multi-byte characters.
+			characters and Greek letters there, so {at233.code} is {at233.cp437}. A file written with one and read with
+			another comes out garbled. That mess is what Unicode ended; in UTF-8, bytes above 127 only ever appear as parts of
+			multi-byte characters.
+		</p>
+		<p class="section-intro">
+			Here are codes 128 to 255 in the two sets most often meant. Windows-1252 is what Windows used for English and
+			Western European text, and what browsers assume when a page says it is Latin-1; its column is decoded by the
+			browser's own decoder. It leaves {unassigned.length} codes unused ({unassigned.map((r) => r.hex).join(', ')}).
+			Code page 437 is the IBM PC's set, still seen in DOS programs and box-drawn text.
+		</p>
+		<div class="table-scroll">
+			<table class="data-table extended">
+				<caption class="visually-hidden">Extended ASCII codes 128 to 255 in Windows-1252 and code page 437</caption>
+				<thead>
+					<tr>
+						<th scope="col">Dec</th>
+						<th scope="col">Hex</th>
+						<th scope="col">Binary</th>
+						<th scope="col">Windows-1252</th>
+						<th scope="col">CP437</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each extended as row}
+						<tr>
+							<td class="mono">{row.code}</td>
+							<td class="mono">{row.hex}</td>
+							<td class="mono bin">{row.binary}</td>
+							<td class="xchar" class:unused={row.win1252 === null}
+								>{#if row.win1252 === null}unused{:else}{showChar(row.win1252)}{/if}</td
+							>
+							<td class="xchar">{showChar(row.cp437)}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+		<p class="reducer">
+			NBSP is a no-break space and SHY a soft hyphen, both invisible. In UTF-8 none of these is one byte: é, 233 in
+			Windows-1252, is stored as <span class="mono">{eAcute.bytes.map((b) => b.hex).join(' ')}</span>.
 		</p>
 	</section>
 
@@ -664,9 +732,48 @@
 		font-weight: 600;
 	}
 
+	.html {
+		white-space: nowrap;
+		color: #ccc;
+	}
+
+	.named {
+		color: #8ede8e;
+	}
+
+	.extended th,
+	.extended td {
+		padding: 0.25rem 0.7rem;
+	}
+
+	.xchar {
+		color: #fff !important;
+		font: 600 1rem ui-monospace, SFMono-Regular, Menlo, monospace;
+	}
+
+	.xchar.unused {
+		color: #999 !important;
+		font-size: 0.8rem;
+		font-weight: 400;
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+
 	@media (max-width: 560px) {
-		.oct {
+		.oct,
+		.html {
 			display: none;
+		}
+		.extended th,
+		.extended td {
+			padding: 0.25rem 0.4rem;
 		}
 		.ascii th,
 		.ascii td {
@@ -681,7 +788,8 @@
 		.ascii .row-btn {
 			display: inline !important;
 		}
-		.oct {
+		.oct,
+		.html {
 			display: table-cell !important;
 		}
 	}

@@ -2,7 +2,7 @@
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
-	import { add, subtract, multiply, divide, bitwise, MAX_DIGITS, type Op } from '$lib/arithmetic';
+	import { add, subtract, multiply, divide, bitwise, signedDecimal, MAX_DIGITS, type Op } from '$lib/arithmetic';
 	import Calculator from '$lib/Calculator.svelte';
 	import ColumnWorking from '$lib/ColumnWorking.svelte';
 
@@ -36,6 +36,7 @@
 	const division = divide(0b110101n, 0b101n, 2);
 	const overflow = add(0b11001000n, 0b01100100n, 2, 8);
 	const negative = subtract(0b11n, 0b101n, 2, 8);
+	const tooNegative = subtract(0n, 0b11111111n, 2, 8);
 	const masked = bitwise('and', 0b10110110n, 0b00001111n, 2, 8);
 	const bin = (n: bigint) => n.toString(2);
 
@@ -58,7 +59,7 @@
 		},
 		{
 			q: 'What is overflow?',
-			a: "In a fixed number of bits, an answer that needs more bits than there are. Adding 1 to 11111111 in eight bits gives 00000000 with a carry out that has nowhere to go. For unsigned numbers that carry out is the overflow flag; for signed two's complement numbers overflow is when two numbers of the same sign add up to the opposite sign."
+			a: "In a fixed number of bits, an answer that needs more bits than there are. Adding 1 to 11111111 in eight bits gives 00000000 with a carry out that has nowhere to go. For unsigned numbers that carry out is what signals overflow, and a processor records it in the carry flag (C or CF). For signed two's complement numbers overflow is when two numbers of the same sign add up to the opposite sign, and that is what the overflow flag (V or OF) records."
 		},
 		{
 			q: 'How long can the numbers be?',
@@ -71,7 +72,7 @@
 	];
 
 	const page = {
-		title: 'Binary Calculator: Add, Subtract, Multiply With Working',
+		title: 'Binary Calculator: Add, Subtract, Multiply and Divide Binary',
 		description:
 			'Add, subtract, multiply and divide binary numbers with every carry, borrow and partial product shown, plus AND, OR, XOR, NOT and shifts at any width.',
 		url: `${SITE}/binary-calculator`,
@@ -296,10 +297,18 @@
 		<p>
 			The true answer, {overflow.a + overflow.b}, needs 9 bits. The register keeps the low 8, {overflow.resultText},
 			which is {overflow.result}. Subtraction wraps the other way: in 8 bits, 11 − 101 (3 − 5) leaves
-			<span class="mono">{negative.resultText}</span>, which is {negative.result} read as unsigned and {String(
-				negative.a - negative.b
-			).replace('-', '−')} read as a signed
+			<span class="mono">{negative.resultText}</span>, which is {negative.result} read as unsigned and {signedDecimal(
+				negative.signedResult ?? 0n
+			)} read as a signed
 			<a href="/twos-complement">two's complement</a> number. The bits are the same; only the reading differs.
+		</p>
+		<p>
+			The signed reading is only right while the true answer fits. Eight signed bits reach down to −128, so
+			{bin(tooNegative.a)} − {bin(tooNegative.b)} ({tooNegative.a} − {tooNegative.b} = {signedDecimal(
+				tooNegative.a - tooNegative.b
+			)}) leaves <span class="mono">{tooNegative.resultText}</span>, which reads as {signedDecimal(
+				tooNegative.signedResult ?? 0n
+			)} either way. That is a signed overflow: the bits cannot hold the answer at all.
 		</p>
 	</section>
 

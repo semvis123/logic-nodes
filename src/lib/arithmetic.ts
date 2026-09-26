@@ -93,6 +93,12 @@ export type Calculation = {
 	overflow: boolean;
 	/** A borrow came out of the top column in fixed width: the pattern is a two's complement negative. */
 	wrappedNegative: boolean;
+	/**
+	 * Fixed-width subtraction only: the result bits read as a signed (two's
+	 * complement) number. It equals a − b unless the true difference is below
+	 * the smallest signed value the width holds.
+	 */
+	signedResult?: bigint;
 	layout: Layout;
 	/** Describes the layout when it is not simply a op b. */
 	layoutTitle?: string;
@@ -106,6 +112,13 @@ const bitsPer = (radix: CalcRadix) => (radix === 16 ? 4 : 1);
 
 /** The digits to show for a value: at least `pad` of them, zero filled. */
 const digitsOf = (value: bigint, radix: CalcRadix, pad = 1) => toRadix(value, radix).padStart(pad, '0');
+
+/** A BigInt in decimal with a typographic minus sign. */
+export const signedDecimal = (n: bigint) => n.toString().replace(/^-/, '−');
+
+/** A pattern of `width` bits read as a two's complement signed number. */
+export const toSigned = (pattern: bigint, width: number) =>
+	pattern >= 1n << BigInt(width - 1) ? pattern - (1n << BigInt(width)) : pattern;
 
 /** A string placed at the right of `columns` cells, the rest empty. */
 function rightAlign(text: string, columns: number, tone?: Tone): Cell[] {
@@ -306,18 +319,30 @@ export function subtract(a: bigint, b: bigint, radix: CalcRadix, width: number |
 	let result: bigint;
 	let resultText: string;
 	let wrappedNegative = false;
+	let signedResult: bigint | undefined;
 	if (width !== null) {
 		result = (a - b) & ((1n << BigInt(width)) - 1n);
 		resultText = work.digits;
+		signedResult = toSigned(result, width);
 		if (work.borrowOut) {
 			wrappedNegative = true;
+			const fits = signedResult === a - b;
 			work.explanation.push(
-				`A borrow is still owed out of the top column, which means the answer is negative. The ${width} bits left behind are its two's complement.`
+				fits
+					? `A borrow is still owed out of the top column, which means the answer is negative. The ${width} bits left behind are its two's complement.`
+					: `A borrow is still owed out of the top column, which means the answer is negative, but it is too far below zero for ${width} signed bits, so the bits left behind wrap round.`
 			);
+			const smallest = signedDecimal(-(1n << BigInt(width - 1)));
 			notes.push(
-				`Read as unsigned this is ${result}; read as a signed ${width} bit number it is ${
-					a - b
-				}, which is the true difference.`
+				fits
+					? `Read as unsigned this is ${result}; read as a signed ${width} bit number it is ${signedDecimal(
+							signedResult
+					  )}, which is the true difference.`
+					: `Read as unsigned this is ${result}; read as a signed ${width} bit number it is ${signedDecimal(
+							signedResult
+					  )}. Neither is the true difference, ${signedDecimal(
+							a - b
+					  )}, which does not fit in ${width} signed bits (the smallest is ${smallest}): a signed overflow.`
 			);
 		}
 	} else {
@@ -337,6 +362,7 @@ export function subtract(a: bigint, b: bigint, radix: CalcRadix, width: number |
 		resultText,
 		overflow: false,
 		wrappedNegative,
+		signedResult,
 		layout,
 		layoutTitle,
 		explanation: work.explanation,
@@ -614,6 +640,13 @@ export function shift(
 				overflow ? ', apart from the bits that no longer fit' : ''
 			}.`
 		);
+		if (overflow) {
+			explanation.push(
+				`Bits pushed above bit ${
+					w - 1
+				} are lost. From the highest 1 down, they are struck through at the left of the working.`
+			);
+		}
 	} else {
 		const lost = a & ((1n << n) - 1n);
 		explanation.push(
@@ -624,16 +657,22 @@ export function shift(
 			}.`
 		);
 	}
-	const columns = Math.max(outWidth, w);
+	// When bits fall off the top, the result row shows the full shifted number
+	// with the bits that no longer fit struck through, up to the highest 1.
+	const dropped = overflow ? exact.toString(2).length - w : 0;
+	const columns = Math.max(outWidth, w) + dropped;
 	const aCells = [...Array(columns - w).fill(null), ...bitCells(a, w)];
-	const rCells = bitCells(result, outWidth);
+	const lost: Cell[] = dropped
+		? [...(exact >> BigInt(w)).toString(2).padStart(dropped, '0')].map((ch) => ({ text: ch, tone: 'overflow' }))
+		: [];
+	const rCells = [...lost, ...bitCells(result, outWidth)];
 	const rows: LayoutRow[] = [
 		{ sign: '', kind: 'operand', label: 'number', cells: aCells },
 		{
 			sign: op === 'shl' ? `<< ${places}` : `>> ${places}`,
 			kind: 'result',
 			label: 'shifted',
-			cells: [...Array(columns - outWidth).fill(null), ...rCells],
+			cells: [...Array(columns - rCells.length).fill(null), ...rCells],
 			rule: true
 		}
 	];

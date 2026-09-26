@@ -78,8 +78,17 @@ const bitLength = (n: bigint) => (n === 0n ? 0 : n.toString(2).length);
 
 type Rational = { num: bigint; den: bigint };
 
+/** Beyond 10 to this power either way, a decimal is out of range for every format here. */
+const MAX_DECIMAL_ORDER = 400;
+
 /** Parses a decimal such as -1.25e-3 into an exact fraction and a sign. */
-function parseDecimal(text: string): { negative: boolean; value: Rational; normalised: string } {
+function parseDecimal(text: string): {
+	negative: boolean;
+	value: Rational;
+	normalised: string;
+	/** Far outside any float's range: 'huge' becomes infinity and 'tiny' zero, without the arithmetic. */
+	beyond?: 'huge' | 'tiny';
+} {
 	const s = text.trim().replace(/[\s_]/g, '').replace(/^\+/, '').replace(/−/g, '-');
 	const m = s.match(/^(-)?(\d*)(?:\.(\d*))?(?:e([+-]?\d+))?$/i);
 	if (!m || (!m[2] && !m[3])) throw new FloatError(`"${text.trim()}" is not a decimal number`);
@@ -87,10 +96,22 @@ function parseDecimal(text: string): { negative: boolean; value: Rational; norma
 	const whole = m[2] || '';
 	const frac = m[3] || '';
 	const exp = m[4] ? Number(m[4]) : 0;
-	if (Math.abs(exp) > 2000 || whole.length + frac.length > 1200)
-		throw new FloatError('That number is too long to convert');
-	const digits = BigInt((whole + frac).replace(/^0+(?=.)/, '') || '0');
+	if (whole.length + frac.length > 1200) throw new FloatError('That number is too long to convert');
+	const significant = (whole + frac).replace(/^0+(?=.)/, '') || '0';
+	const digits = BigInt(significant);
 	const e10 = exp - frac.length;
+	// The power of ten of the leading digit. A double's range is about 10^-324 to
+	// 10^308, so anything beyond 10^±400 rounds to zero or infinity whatever its
+	// digits, and is settled here rather than with a huge exact fraction.
+	const order = significant.length - 1 + e10;
+	if (digits !== 0n && Math.abs(order) > MAX_DECIMAL_ORDER) {
+		return {
+			negative,
+			value: { num: digits, den: 1n },
+			normalised: s.toLowerCase(),
+			beyond: order > 0 ? 'huge' : 'tiny'
+		};
+	}
 	const value = e10 >= 0 ? { num: digits * 10n ** BigInt(e10), den: 1n } : { num: digits, den: 10n ** BigInt(-e10) };
 	return { negative, value, normalised: s.toLowerCase() };
 }
@@ -312,8 +333,33 @@ export function encode(text: string, format: Format): Encoding {
 			underflowed: false
 		};
 	}
-	const { negative, value, normalised } = parseDecimal(t);
+	const { negative, value, normalised, beyond } = parseDecimal(t);
 	const signBit = negative ? pow2(f.bits - 1) : 0n;
+	if (beyond === 'huge') {
+		const infinity = BigInt(2 ** f.exponentBits - 1) << BigInt(f.fractionBits);
+		return {
+			...decode(infinity | signBit, format),
+			input: normalised,
+			error: 'Infinity',
+			errorShort: 'Infinity',
+			rounded: negative ? 'down' : 'up',
+			overflowed: true,
+			underflowed: false
+		};
+	}
+	if (beyond === 'tiny') {
+		// Stored as zero, so the error is exactly minus the number typed.
+		const error = negative ? normalised.slice(1) : `-${normalised}`;
+		return {
+			...decode(signBit, format),
+			input: normalised,
+			error,
+			errorShort: error,
+			rounded: negative ? 'up' : 'down',
+			overflowed: false,
+			underflowed: true
+		};
+	}
 	if (value.num === 0n) {
 		return {
 			...decode(signBit, format),
