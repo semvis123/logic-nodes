@@ -4,8 +4,9 @@
 export const toolIcons: Record<string, string> = {
 	// A table with a header row and three columns.
 	'/truth-table-generator': '<rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 9h18M9 4v16M15 4v16"/>',
-	// ¬ and →, the notation of logic statements.
-	'/propositional-logic-truth-table': '<path d="M2.5 8.5h7v4.5M12 12h9.5M18.5 9l3 3-3 3"/>',
+	// p → q, the conditional.
+	'/propositional-logic-truth-table':
+		'<circle cx="4.5" cy="12" r="2.5"/><path d="M2 9.5V19"/><circle cx="19.5" cy="12" r="2.5"/><path d="M22 9.5V19M8.5 12h6M12.5 10l2 2-2 2"/>',
 	// Algebra: a bracketed sum.
 	'/boolean-algebra-calculator': '<path d="M7 3.5c-4 5-4 12 0 17M17 3.5c4 5 4 12 0 17M8.5 12h7M12 8.5v7"/>',
 	// A two by two map with its top row looped as one group.
@@ -45,7 +46,7 @@ export const toolIcons: Record<string, string> = {
 	'/hex-calculator': '<path d="M2.5 17V7h4.5M2.5 12h3.5M9 12h5.5M11.75 9.25v5.5M17.5 8.5 20 7v10"/>',
 	// 0.1, the classic number a float cannot hold exactly.
 	'/ieee-754-converter':
-		'<ellipse cx="6.5" cy="12" rx="3.5" ry="6"/><circle cx="12.5" cy="17.25" r=".9" fill="currentColor"/><path d="M16.5 8.5l3-2.5v12"/>',
+		'<ellipse cx="6" cy="12" rx="3.5" ry="6"/><circle cx="12.5" cy="17.4" r=".55" fill="currentColor"/><path d="M15.5 8.5 18.5 6v12"/>',
 	// A message written in bits.
 	'/binary-translator': '<path d="M3 4h18v12H10l-4 4v-4H3z"/><path d="M7 8v4M10 8h2v4h-2zM15 8v4"/>',
 	// A keyboard: every key has a code.
