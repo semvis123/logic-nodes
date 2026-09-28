@@ -20,6 +20,9 @@ export const toolIcons: Record<string, string> = {
 	// One gate feeding a second.
 	'/logic-circuit-generator':
 		'<path d="M.75 5h2.25M.75 8h2.25M3 3h2a3.5 3.5 0 0 1 0 7H3zM8.5 6.5h3v6h3M.75 17.5h13.75M14.5 10H17a4.75 4.75 0 0 1 0 9.5h-2.5zM21.75 14.75H23"/>',
+	// A question mark over a small truth table.
+	'/boolean-function-guesser':
+		'<path d="M3 4h8M3 9h8M3 14h8M7 2v14"/><path d="M14 8.5a3 3 0 1 1 4.5 2.6c-1 .6-1.5 1.2-1.5 2.4M17 17.5v.5"/>',
 	// A sheet with a ticked question.
 	'/worksheet': '<path d="M6 2.5h9l4 4v15H6z"/><path d="M15 2.5v4h4M9 11l1.5 1.5L13 10M9 16.5h7"/>',
 	// Converting one way and back.

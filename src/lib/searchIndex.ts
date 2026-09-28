@@ -185,6 +185,7 @@ const toolKeywords: Record<string, string> = {
 	'/sum-of-products-calculator': 'sop pos minterms maxterms canonical product of sums',
 	'/nand-nor-converter': 'universal gates',
 	'/logic-circuit-generator': 'circuit diagram draw expression schematic',
+	'/boolean-function-guesser': 'game puzzle wordle daily guess hidden function',
 	'/worksheet': 'printable homework teacher',
 	'/binary-converter': 'decimal to binary binary to decimal octal bcd base converter',
 	'/gray-code-converter': 'gray code reflected binary',

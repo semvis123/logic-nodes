@@ -72,6 +72,13 @@ export const tools: Tool[] = [
 			'Draws one expression, or several outputs at once, as a gate diagram you can click through, with live signal colours.'
 	},
 	{
+		href: '/boolean-function-guesser',
+		group: 'circuits',
+		name: 'Boolean function guesser',
+		short: 'Function guesser',
+		blurb: 'A puzzle game: probe a hidden function one truth table row at a time, then guess the expression. A new puzzle daily.'
+	},
+	{
 		href: '/worksheet',
 		group: 'circuits',
 		name: 'Worksheet generator',
