@@ -39,7 +39,7 @@
 	"/logic-gates/[gate]": "2026-09-27",
 	"/logical-equivalence-calculator": "2026-09-26",
 	"/nand-nor-converter": "2026-09-15",
-	"/practice": "2026-09-26",
+	"/practice": "2026-09-28",
 	"/propositional-logic-truth-table": "2026-09-26",
 	"/quine-mccluskey": "2026-09-20",
 	"/ripple-carry-adder": "2026-09-20",
@@ -50,8 +50,8 @@
 	"/sr-latch": "2026-09-20",
 	"/sum-of-products-calculator": "2026-09-26",
 	"/tools": "2026-09-26",
-	"/truth-table-generator": "2026-09-26",
+	"/truth-table-generator": "2026-09-28",
 	"/twos-complement": "2026-09-26",
 	"/venn-diagram-generator": "2026-09-26",
-	"/worksheet": "2026-09-15"
+	"/worksheet": "2026-09-28"
 }
