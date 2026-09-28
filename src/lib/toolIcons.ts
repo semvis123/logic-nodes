@@ -20,8 +20,8 @@ export const toolIcons: Record<string, string> = {
 	// One gate feeding a second.
 	'/logic-circuit-generator':
 		'<path d="M.75 5h2.25M.75 8h2.25M3 3h2a3.5 3.5 0 0 1 0 7H3zM8.5 6.5h3v6h3M.75 17.5h13.75M14.5 10H17a4.75 4.75 0 0 1 0 9.5h-2.5zM21.75 14.75H23"/>',
-	// A sealed box: an isometric cube.
-	'/boolean-function-guesser': '<path d="M12 3 4 7.5v9L12 21l8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/>',
+	// A marble on a slanted plank.
+	'/marble-machine': '<circle cx="7" cy="5" r="2.6"/><path d="M3 10l17 6M3 21h18M20 16v5"/>',
 	// A sheet with a ticked question.
 	'/worksheet': '<path d="M6 2.5h9l4 4v15H6z"/><path d="M15 2.5v4h4M9 11l1.5 1.5L13 10M9 16.5h7"/>',
 	// Converting one way and back.

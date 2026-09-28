@@ -348,7 +348,7 @@
 <ContentPage
 	related={[
 		{ href: '/worksheet', label: 'Printable worksheets' },
-		{ href: '/boolean-function-guesser', label: 'Mystery box puzzle game' },
+		{ href: '/marble-machine', label: 'Marble machine puzzle game' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/tools', label: 'All tools' }

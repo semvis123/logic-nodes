@@ -13,7 +13,8 @@ export const toolGroups = [
 	{ id: 'circuits', name: 'Boolean algebra and circuits' },
 	{ id: 'logic', name: 'Logic statements and sets' },
 	{ id: 'numbers', name: 'Numbers and binary arithmetic' },
-	{ id: 'text', name: 'Text and encodings' }
+	{ id: 'text', name: 'Text and encodings' },
+	{ id: 'games', name: 'Puzzle games' }
 ] as const;
 
 export type ToolGroup = typeof toolGroups[number]['id'];
@@ -72,11 +73,11 @@ export const tools: Tool[] = [
 			'Draws one expression, or several outputs at once, as a gate diagram you can click through, with live signal colours.'
 	},
 	{
-		href: '/boolean-function-guesser',
-		group: 'circuits',
-		name: 'Mystery box',
-		short: 'Mystery box',
-		blurb: 'A puzzle game: flip the switches on a sealed box, watch the lamp, and work out the boolean expression inside. A new box daily.'
+		href: '/marble-machine',
+		group: 'games',
+		name: 'Marble machine',
+		short: 'Marble machine',
+		blurb: 'A puzzle game: build a machine of planks and seesaws that sends the marble to the cup only when the levers say so.'
 	},
 	{
 		href: '/worksheet',
