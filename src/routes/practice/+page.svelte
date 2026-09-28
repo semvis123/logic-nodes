@@ -348,6 +348,7 @@
 <ContentPage
 	related={[
 		{ href: '/worksheet', label: 'Printable worksheets' },
+		{ href: '/boolean-function-guesser', label: 'Boolean function guesser' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/tools', label: 'All tools' }

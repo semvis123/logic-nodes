@@ -39,7 +39,9 @@
 	$: label = seed === null ? `#${today}` : `seed ${seed}`;
 	$: syncUrl({ n: size, seed: seed ?? '' }, DEFAULTS);
 
-	const key = () => `logicgates-guesser:${activeSeed}:${size}`;
+	// Worked out from the variables directly, not from activeSeed: that one only
+	// updates after the next flush, and load() runs straight after they change.
+	const key = () => `logicgates-guesser:${seed ?? today}:${size}`;
 
 	function load() {
 		revealed = [];
