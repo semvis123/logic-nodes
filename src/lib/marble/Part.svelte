@@ -24,9 +24,12 @@
 				arrow={part.open === 'down' ? 'down' : 'up'}
 			/>
 		{:else if part.kind === 'seesaw'}
-			<!-- The right hand flap tips the marble left, and swings out when only the first lever is down. -->
-			<Flap side={1} open={!seesawB} length={34} lever={part.b} ring={part.a} />
-			<Flap side={-1} open={!seesawA} length={34} lever={part.a} ring={part.b} />
+			<!-- One assembly: a bar across the cell with a flap hinged at each end. The right hand flap tips the
+			     marble left and swings out when only the first lever is down. -->
+			<path d="M-28 -16H28" class="bar" />
+			<Flap side={1} open={!seesawB} length={34} lever={part.b} />
+			<Flap side={-1} open={!seesawA} length={34} lever={part.a} />
+			<circle cx="0" cy="-16" r="4" class="pivot" />
 		{:else}
 			<g clip-path="url(#marble-cell-clip)">
 				<g transform="scale({part.side} 1)">
@@ -46,6 +49,16 @@
 		stroke: #3d4c62;
 		stroke-width: 1.6;
 		stroke-linejoin: round;
+	}
+	.bar {
+		stroke: #5a636f;
+		stroke-width: 5;
+		stroke-linecap: round;
+	}
+	.pivot {
+		fill: #cfd6e0;
+		stroke: #3d4c62;
+		stroke-width: 1.6;
 	}
 	.rivet {
 		fill: #38465a;

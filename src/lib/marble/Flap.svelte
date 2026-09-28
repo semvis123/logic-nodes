@@ -33,7 +33,7 @@
 		</g>
 	</g>
 	<g transform="translate({hingeX} {HINGE_Y})">
-		<circle r="7.5" class="tab" style="fill: var(--lever-{lever})" />
+		<circle r="8.5" class="tab" style="fill: var(--lever-{lever})" />
 		<text class="tab-letter" y="0.5">{LEVER_NAMES[lever]}</text>
 		{#if arrow}
 			<path class="tab-arrow" d={arrow === 'down' ? 'M-3 10.5h6l-3 4z' : 'M-3 14.5h6l-3-4z'} />
@@ -65,7 +65,7 @@
 		stroke-width: 1.6;
 	}
 	.tab-letter {
-		font: 700 9px ui-monospace, SFMono-Regular, Menlo, monospace;
+		font: 700 10.5px ui-monospace, SFMono-Regular, Menlo, monospace;
 		fill: #101010;
 		text-anchor: middle;
 		dominant-baseline: central;

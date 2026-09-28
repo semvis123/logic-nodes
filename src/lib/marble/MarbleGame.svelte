@@ -57,6 +57,10 @@
 	let reduced = false;
 	/** True once the page has hydrated, so a test (or a very quick tap) knows the handlers are attached. */
 	let ready = false;
+	/** Temporary while the rope styles are compared: 'always', 'demand' or 'circuit'. */
+	let ropeMode: 'always' | 'demand' | 'circuit' = 'always';
+	/** The lever whose ropes are lit in 'demand' mode. */
+	let activeLever: number | null = null;
 
 	// Every run has a number. Starting a new one, or editing the board, changes it,
 	// which tells the run in progress to stop wherever it is.
@@ -71,7 +75,7 @@
 	$: best = progress.solved[level.id];
 	$: passed = results !== null && results.every((r) => r === true);
 	$: selectedPart = selected !== null ? cells[selected] : null;
-	$: ropes = buildRopes(cells, levers);
+	$: ropes = buildRopes(cells, levers, ropeMode);
 	$: summary = describe(cells, levers);
 	$: start = cellCenter(setup.start, 0);
 
@@ -128,6 +132,8 @@
 
 	onMount(() => {
 		reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+		const mode = new URL(location.href).searchParams.get('ropes');
+		if (mode === 'demand' || mode === 'circuit') ropeMode = mode;
 		load();
 		const wanted = Number(new URL(location.href).searchParams.get('level'));
 		const first = Number.isInteger(wanted) && wanted >= 1 && wanted <= levels.length ? wanted - 1 : 0;
@@ -306,7 +312,26 @@
 
 	type Rope = { idx: number; lever: number; d: string };
 
-	function buildRopes(board: Cells, state: Levers): Rope[] {
+	/** A polyline with its corners rounded off. */
+	function rounded(points: { x: number; y: number }[], radius: number): string {
+		let d = `M${points[0].x} ${points[0].y}`;
+		for (let i = 1; i < points.length - 1; i++) {
+			const [before, corner, after] = [points[i - 1], points[i], points[i + 1]];
+			const back = Math.min(radius, Math.hypot(corner.x - before.x, corner.y - before.y) / 2);
+			const forward = Math.min(radius, Math.hypot(after.x - corner.x, after.y - corner.y) / 2);
+			const unit = (from: { x: number; y: number }, to: { x: number; y: number }, len: number) => {
+				const dist = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+				return { x: to.x + ((from.x - to.x) / dist) * len, y: to.y + ((from.y - to.y) / dist) * len };
+			};
+			const start = unit(before, corner, back);
+			const end = unit(after, corner, forward);
+			d += ` L${start.x} ${start.y} Q${corner.x} ${corner.y} ${end.x} ${end.y}`;
+		}
+		const last = points[points.length - 1];
+		return `${d} L${last.x} ${last.y}`;
+	}
+
+	function buildRopes(board: Cells, state: Levers, mode: typeof ropeMode): Rope[] {
 		const out: Rope[] = [];
 		board.forEach((part, idx) => {
 			if (!part) return;
@@ -316,6 +341,18 @@
 			const tie = (lever: number, to: { x: number; y: number }) => {
 				const from = leverPosition(setup, lever, level.levers);
 				const startY = from.y + LEVER_SLOT.height + 4;
+				if (mode === 'circuit') {
+					// Straight down from the lever, along its own lane, then down to the tab.
+					const lane = 78 + lever * 10;
+					const pts = [
+						{ x: from.x, y: startY },
+						{ x: from.x, y: lane },
+						{ x: to.x, y: lane },
+						{ x: to.x, y: to.y - 9 }
+					].filter((p, i, all) => i === 0 || p.x !== all[i - 1].x || p.y !== all[i - 1].y);
+					out.push({ idx, lever, d: rounded(pts, 7) });
+					return;
+				}
 				// Pulled down, the rope is taut. Up, it hangs slack.
 				const sag = state[lever] ? 6 : 34;
 				out.push({
@@ -325,11 +362,10 @@
 				});
 			};
 			if (part.kind === 'plank') tie(part.lever, part.side === 1 ? left : right);
+			// One rope per lever, to the tab that wears its colour: the first lever's flap is on the right.
 			if (part.kind === 'seesaw') {
-				for (const lever of [part.a, part.b]) {
-					tie(lever, left);
-					tie(lever, right);
-				}
+				tie(part.a, right);
+				tie(part.b, left);
 			}
 		});
 		return out;
@@ -454,6 +490,7 @@
 	}
 
 	function cellDown(e: PointerEvent, index: number) {
+		activeLever = null;
 		const part = cells[index];
 		if (part) {
 			startDrag(e, 'cell', part.kind, index);
@@ -582,13 +619,17 @@
 
 				<!-- Ropes tie each part to its lever. -->
 				{#each ropes as rope}
+					{@const lit = rope.lever === activeLever || rope.idx === selected}
+					{#if ropeMode !== 'demand' || lit}
 					<path
 						class="rope rope-{rope.lever}"
-						class:dim={selected !== null && rope.idx !== selected}
-						class:hot={selected !== null && rope.idx === selected}
+						class:circuit={ropeMode === 'circuit'}
+						class:dim={ropeMode !== 'demand' && selected !== null && rope.idx !== selected}
+						class:hot={ropeMode === 'demand' || (selected !== null && rope.idx === selected)}
 						d={rope.d}
 						style="stroke: var(--lever-{rope.lever})"
 					/>
+					{/if}
 				{/each}
 
 				<!-- The parts. -->
@@ -649,7 +690,12 @@
 						aria-checked={down}
 						aria-label={`Lever ${LEVER_NAMES[i]}`}
 						tabindex="0"
-						on:click={() => toggleLever(i)}
+						on:click={() => {
+							activeLever = i;
+							toggleLever(i);
+						}}
+						on:pointerenter={() => (activeLever = i)}
+						on:focus={() => (activeLever = i)}
 						on:keydown={(e) => leverKey(e, i)}
 					>
 						<rect class="slot" x={-LEVER_SLOT.width / 2} y="0" width={LEVER_SLOT.width} height={LEVER_SLOT.height} rx="13" />
@@ -970,6 +1016,11 @@
 	.rope-2 {
 		stroke-dasharray: 1.5 4.5;
 		stroke-width: 3;
+	}
+	.rope.circuit {
+		stroke-dasharray: none;
+		stroke-width: 2.4;
+		stroke-linejoin: round;
 	}
 	.rope.dim {
 		opacity: 0.25;
