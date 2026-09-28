@@ -245,7 +245,7 @@
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/propositional-logic-truth-table', label: 'Truth tables for p → q' },
 		{ href: '/logic-circuit-generator', label: 'Circuit diagram generator' },
-		{ href: '/boolean-function-guesser', label: 'Boolean function guesser' },
+		{ href: '/boolean-function-guesser', label: 'Mystery box puzzle game' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/tools', label: 'All tools' }

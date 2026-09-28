@@ -74,9 +74,9 @@ export const tools: Tool[] = [
 	{
 		href: '/boolean-function-guesser',
 		group: 'circuits',
-		name: 'Boolean function guesser',
-		short: 'Function guesser',
-		blurb: 'A puzzle game: probe a hidden function one truth table row at a time, then guess the expression. A new puzzle daily.'
+		name: 'Mystery box',
+		short: 'Mystery box',
+		blurb: 'A puzzle game: flip the switches on a sealed box, watch the lamp, and work out the boolean expression inside. A new box daily.'
 	},
 	{
 		href: '/worksheet',

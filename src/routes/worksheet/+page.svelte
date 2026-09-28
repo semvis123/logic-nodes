@@ -158,7 +158,7 @@
 <ContentPage
 	related={[
 		{ href: '/practice', label: 'Practice questions' },
-		{ href: '/boolean-function-guesser', label: 'Boolean function guesser' },
+		{ href: '/boolean-function-guesser', label: 'Mystery box puzzle game' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/tools', label: 'All tools' }
