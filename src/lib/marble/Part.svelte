@@ -7,6 +7,8 @@
 	export let levers: Levers;
 	/** Changes each time the marble hits this part, to replay the little bump. */
 	export let bump = 0;
+	/** Colour each plank with its lever's colour. */
+	export let tint = false;
 
 	$: plankOpen = part.kind === 'plank' && !!levers[part.lever] === (part.open === 'down');
 	$: seesawA = part.kind === 'seesaw' && !!levers[part.a] && !levers[part.b];
@@ -20,6 +22,7 @@
 				side={part.side}
 				open={plankOpen}
 				length={64}
+				{tint}
 				lever={part.lever}
 				arrow={part.open === 'down' ? 'down' : 'up'}
 			/>
@@ -27,8 +30,8 @@
 			<!-- One assembly: a bar across the cell with a flap hinged at each end. The right hand flap tips the
 			     marble left and swings out when only the first lever is down. -->
 			<path d="M-28 -16H28" class="bar" />
-			<Flap side={1} open={!seesawB} length={34} lever={part.b} />
-			<Flap side={-1} open={!seesawA} length={34} lever={part.a} />
+			<Flap side={1} open={!seesawB} length={34} {tint} lever={part.b} />
+			<Flap side={-1} open={!seesawA} length={34} {tint} lever={part.a} />
 			<circle cx="0" cy="-16" r="4" class="pivot" />
 		{:else}
 			<g clip-path="url(#marble-cell-clip)">

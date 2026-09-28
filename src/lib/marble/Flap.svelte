@@ -16,6 +16,8 @@
 	export let ring: number | null = null;
 	/** Which way the tab's arrow points: the way the lever has to be for the flap to open. */
 	export let arrow: 'up' | 'down' | null = null;
+	/** Colour the board itself with the lever's colour, so the tie is visible without a wire. */
+	export let tint = false;
 
 	const HINGE_X = 28;
 	const HINGE_Y = -16;
@@ -27,15 +29,15 @@
 	<g clip-path="url(#marble-cell-clip)">
 		<g transform="translate({hingeX} {HINGE_Y}) scale({side} 1)">
 			<g class="swing" style="transform: rotate({angle}deg)">
-				<rect x="0" y="-4" width={length} height="8" rx="3" class="board" />
-				<path d="M7 0H{length - 7}" class="grain" />
+				<rect x="0" y="-4.5" width={length} height="9" rx="3.5" class="board" class:tinted={tint} style={tint ? `fill: var(--lever-${lever})` : ''} />
+				{#if !tint}<path d="M7 0H{length - 7}" class="grain" />{/if}
 			</g>
 		</g>
 	</g>
 	<g transform="translate({hingeX} {HINGE_Y})">
-		<circle r="8.5" class="tab" style="fill: var(--lever-{lever})" />
-		<text class="tab-letter" y="0.5">{LEVER_NAMES[lever]}</text>
-		{#if arrow}
+		<circle r={tint ? 6.5 : 8.5} class="tab" style="fill: var(--lever-{lever})" />
+		<text class="tab-letter" class:small={tint} y="0.5">{LEVER_NAMES[lever]}</text>
+		{#if arrow && !tint}
 			<path class="tab-arrow" d={arrow === 'down' ? 'M-3 10.5h6l-3 4z' : 'M-3 14.5h6l-3-4z'} />
 		{/if}
 		{#if ring !== null}
@@ -49,6 +51,13 @@
 		fill: #d9a05b;
 		stroke: #6b4118;
 		stroke-width: 1.6;
+	}
+	.board.tinted {
+		stroke: #0e0e10;
+		stroke-width: 1.8;
+	}
+	.tab-letter.small {
+		font-size: 8.5px;
 	}
 	.grain {
 		stroke: #a5692a;

@@ -58,7 +58,7 @@
 	/** True once the page has hydrated, so a test (or a very quick tap) knows the handlers are attached. */
 	let ready = false;
 	/** Temporary while the rope styles are compared: 'always', 'demand' or 'circuit'. */
-	let ropeMode: 'always' | 'demand' | 'circuit' = 'always';
+	let ropeMode: 'always' | 'demand' | 'circuit' | 'none' = 'always';
 	/** The lever whose ropes are lit in 'demand' mode. */
 	let activeLever: number | null = null;
 
@@ -133,7 +133,7 @@
 	onMount(() => {
 		reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 		const mode = new URL(location.href).searchParams.get('ropes');
-		if (mode === 'demand' || mode === 'circuit') ropeMode = mode;
+		if (mode === 'demand' || mode === 'circuit' || mode === 'none') ropeMode = mode;
 		load();
 		const wanted = Number(new URL(location.href).searchParams.get('level'));
 		const first = Number.isInteger(wanted) && wanted >= 1 && wanted <= levels.length ? wanted - 1 : 0;
@@ -547,7 +547,7 @@
 	}
 </script>
 
-<div class="game" data-ready={ready} data-level={level.id} data-solved={best !== undefined}>
+<div class="game" class:plain={ropeMode === 'none'} data-ready={ready} data-level={level.id} data-solved={best !== undefined}>
 	<div class="levels" role="group" aria-label="Levels">
 		{#each levels as l, i}
 			<button
@@ -620,7 +620,7 @@
 				<!-- Ropes tie each part to its lever. -->
 				{#each ropes as rope}
 					{@const lit = rope.lever === activeLever || rope.idx === selected}
-					{#if ropeMode !== 'demand' || lit}
+					{#if ropeMode !== 'none' && (ropeMode !== 'demand' || lit)}
 					<path
 						class="rope rope-{rope.lever}"
 						class:circuit={ropeMode === 'circuit'}
@@ -640,7 +640,7 @@
 							{#if selected === idx}
 								<rect class="selected" x="-31" y="-31" width="62" height="62" rx="8" />
 							{/if}
-							<PartArt {part} {levers} bump={bumps[idx] ?? 0} />
+							<PartArt {part} {levers} bump={bumps[idx] ?? 0} tint={ropeMode === 'none'} />
 						</g>
 					{/if}
 				{/each}
@@ -977,6 +977,12 @@
 	}
 	.checker {
 		fill: rgba(255, 255, 255, 0.025);
+	}
+	.plain .checker {
+		display: none;
+	}
+	.plain .peg {
+		opacity: 0.4;
 	}
 	.peg {
 		fill: rgba(255, 255, 255, 0.16);
