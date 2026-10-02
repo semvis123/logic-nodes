@@ -556,6 +556,25 @@ test.describe('masks and penalties', () => {
 		}
 	});
 
+	// The standard only says to pick the lowest score; on a tie we keep the
+	// lowest-numbered mask, so the choice is stable. These inputs tie for real.
+	test('a tie for the lowest total goes to the lowest-numbered mask', () => {
+		const ties: [string, EcLevel, number[]][] = [
+			['32', 'L', [2, 5]],
+			['51', 'Q', [0, 7]],
+			['193', 'L', [3, 7]]
+		];
+		for (const [text, ec, tied] of ties) {
+			const qr = encodeQr(text, { ec });
+			const lowest = Math.min(...qr.penalties.map((p) => p.total));
+			expect(
+				qr.penalties.filter((p) => p.total === lowest).map((p) => p.mask),
+				text
+			).toEqual(tied);
+			expect(qr.mask, text).toBe(tied[0]);
+		}
+	});
+
 	test('the four rules on hand-made patterns', () => {
 		const blank = Array.from({ length: 21 }, () => new Array(21).fill(false));
 		// 42 lines of 21: 3 + 16 each; 20×20 boxes of 3; no finder lookalikes; 0% dark is 10 steps of 5%.

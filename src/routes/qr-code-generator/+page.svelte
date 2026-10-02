@@ -503,12 +503,13 @@
 					</table>
 				</div>
 				<p class="note after-table">
-					The three real finder patterns score {finderBaseline(qr.size)} of the finder-like column in every mask, against
+					The three real finder patterns add {finderBaseline(qr.size)} to the finder-like penalty of every mask, against
 					the quiet zone, so only the differences between the masks matter there.
 				</p>
 				<p class="visually-hidden" aria-live="polite">{maskMessage}</p>
 			</div>
-			<p class="share-row"><ShareLink what="this code" /></p>
+			<!-- Hidden, not removed, while the input cannot be encoded: a link to that state is no use, and keeping the space stops the page jumping. -->
+			<p class="share-row" class:unshareable={!!error}><ShareLink what="this code" /></p>
 		</div>
 	</section>
 
@@ -1020,6 +1021,10 @@
 	.penalties td {
 		white-space: nowrap;
 		padding: 0.3rem 0.7rem;
+	}
+
+	.share-row.unshareable {
+		visibility: hidden;
 	}
 
 	.rules-toggle {

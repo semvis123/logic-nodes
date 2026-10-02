@@ -64,6 +64,10 @@
 	$: dataTotal = qr.blocks.reduce((n, b) => n + b.data.length, 0);
 	$: padStart = qr.dataCodewords.length - qr.padCount;
 	$: modeName = { numeric: 'Numeric', alphanumeric: 'Alphanumeric', byte: 'Byte' }[qr.mode];
+	// Its own sentence, with the space built in: whitespace at the start of an {#if} block is trimmed.
+	$: remainderNote = qr.remainderBits
+		? ` ${qr.remainderBits} remainder bit${qr.remainderBits === 1 ? ' fills' : 's fill'} the modules left over.`
+		: '';
 	$: unitWord = qr.mode === 'byte' ? 'byte' : 'character';
 	$: groupRule =
 		qr.mode === 'numeric'
@@ -220,8 +224,7 @@
 				codewords the same way. A scratch across the symbol then hits several blocks a little rather than one a lot.
 			{/if}
 			That makes {qr.sequence.length} codewords, placed two columns at a time from the bottom right, zigzagging up and down
-			and stepping round the patterns.{#if qr.remainderBits}
-				{qr.remainderBits} remainder bit{qr.remainderBits === 1 ? '' : 's'} fill the modules left over.{/if}
+			and stepping round the patterns.{remainderNote}
 		</p>
 		<div class="cells">
 			{#each qr.sequence.slice(0, SEQUENCE_SHOWN) as c, i}
