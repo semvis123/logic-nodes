@@ -3,6 +3,7 @@ import { gates } from '$lib/gates';
 import { flipFlops } from '$lib/flipflops';
 import { commonCircuits } from '$lib/commonCircuits';
 import { allLessons } from '$lib/course/lessons';
+import { intTypes } from '$lib/intLimits';
 import { lastModified } from '$lib/lastmod';
 import { generatedImages } from '$lib/generatedImages';
 
@@ -50,7 +51,10 @@ function routes(): string[] {
 	const paths = new Set<string>();
 	for (const file of found) {
 		const path = file.replace('/src/routes', '').replace('/+page.svelte', '') || '/';
-		if (path.includes('[gate]')) {
+		if (path === '/integer-limits/[type]') {
+			// Checked before the flip-flops' [type], which shares the parameter name.
+			for (const t of intTypes) paths.add(`/integer-limits/${t.slug}`);
+		} else if (path.includes('[gate]')) {
 			for (const gate of gates) paths.add(path.replace('[gate]', gate.slug));
 		} else if (path.includes('[type]')) {
 			for (const ff of flipFlops) paths.add(path.replace('[type]', ff.slug));

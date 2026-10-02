@@ -1,0 +1,667 @@
+<script lang="ts">
+	import { SITE } from '$lib/site';
+	import ContentPage from '$lib/ContentPage.svelte';
+	import ShareLink from '$lib/ShareLink.svelte';
+	import { modifiedFields } from '$lib/lastmod';
+	import { readUrl, syncUrl, safeText, safeOption } from '$lib/urlState';
+	import { onMount } from 'svelte';
+	import {
+		intTypes,
+		intSlugs,
+		intTypeBySlug,
+		formulas,
+		formatDecimal,
+		hexOf,
+		lookup,
+		parseInteger,
+		storiesFor,
+		wrap,
+		describeType,
+		IntLimitsError,
+		MAX_INPUT,
+		type IntSlug,
+		type IntType,
+		type Lookup,
+		type Op
+	} from '$lib/intLimits';
+	import OverflowPlayground from './OverflowPlayground.svelte';
+	import OverflowRules from './OverflowRules.svelte';
+
+	const opIds = ['inc', 'dec', 'dbl', 'neg', 'cast'] as const;
+	const DEFAULTS = { q: '3000000000', t: 'int8', v: '127', op: 'inc', to: 'uint8' };
+
+	let query = DEFAULTS.q;
+	let pgType: IntSlug = 'int8';
+	let pgValue = DEFAULTS.v;
+	let pgOp: Op = 'inc';
+	let pgTo: IntSlug = 'uint8';
+
+	onMount(() => {
+		const p = readUrl();
+		query = safeText(p.q, MAX_INPUT) ?? query;
+		pgType = safeOption(p.t, intSlugs) ?? pgType;
+		pgValue = safeText(p.v, MAX_INPUT) ?? pgValue;
+		pgOp = safeOption(p.op, opIds) ?? pgOp;
+		pgTo = safeOption(p.to, intSlugs) ?? pgTo;
+	});
+	$: syncUrl({ q: query, t: pgType, v: pgValue, op: pgOp, to: pgTo }, DEFAULTS);
+
+	let found: Lookup = lookup(parseInteger(DEFAULTS.q));
+	let lookupError = '';
+	$: {
+		try {
+			found = lookup(parseInteger(query));
+			lookupError = '';
+		} catch (e) {
+			lookupError = e instanceof IntLimitsError ? e.message : 'That is not a whole number';
+		}
+	}
+
+	const examples = [
+		{ label: '255', v: '255' },
+		{ label: '-129', v: '-129' },
+		{ label: '65,536', v: '65,536' },
+		{ label: '2^31', v: '2^31' },
+		{ label: '0xFFFFFFFF', v: '0xFFFFFFFF' },
+		{ label: '2^53 - 1', v: '2^53 - 1' },
+		{ label: '2^64', v: '2^64' }
+	];
+
+	function tryLookup(v: string) {
+		query = v;
+		document.getElementById('lookup')?.focus();
+	}
+
+	const T = (slug: IntSlug) => intTypeBySlug(slug) as IntType;
+	const int8 = T('int8');
+	const int32 = T('int32');
+	const uint32 = T('uint32');
+	const int64 = T('int64');
+	const signedPairs = intTypes.filter((t) => t.signed);
+	const withStories = intTypes.filter((t) => storiesFor(t).length);
+	const safeMax = 2n ** 53n - 1n;
+
+	const faqs = [
+		{
+			q: 'What is the maximum value of an int?',
+			a: `In Java, C# and Kotlin an int is 32 bits, so its maximum is ${formatDecimal(
+				int32.max
+			)} (2³¹ − 1) and its minimum ${formatDecimal(
+				int32.min
+			)}. C and C++ only promise that int is at least 16 bits, though it is 32 on every common desktop and phone platform. Python’s int has no maximum.`
+		},
+		{
+			q: 'What is the formula for the range of an n-bit integer?',
+			a: 'A signed two’s complement integer of n bits holds −2ⁿ⁻¹ to 2ⁿ⁻¹ − 1. An unsigned one holds 0 to 2ⁿ − 1. Both have 2ⁿ distinct values; the signed type just spends half of them on negative numbers.'
+		},
+		{
+			q: 'Why is the maximum 2ⁿ − 1 and not 2ⁿ?',
+			a: `Because zero needs a pattern too. n bits make 2ⁿ patterns, and counting from 0 the last one is 2ⁿ − 1. Eight bits all set to 1 are 255, not 256, and 256 needs a ninth bit.`
+		},
+		{
+			q: 'What happens when an integer overflows?',
+			a: `The processor keeps the low n bits of the result and drops the carry, so the value wraps around: ${formatDecimal(
+				int8.max
+			)} + 1 in int8 becomes ${formatDecimal(
+				wrap(int8.max + 1n, int8)
+			)}. Java, Go, Kotlin and C# expose that directly. C and C++ treat signed overflow as undefined behaviour, Rust panics in debug builds, Swift stops the program, and Python’s ints never overflow at all.`
+		},
+		{
+			q: 'What is the largest integer JavaScript can hold exactly?',
+			a: `Number.MAX_SAFE_INTEGER, ${formatDecimal(
+				safeMax
+			)} or 2⁵³ − 1. JavaScript numbers are 64-bit floats with a 53-bit significand, so past that not every whole number exists: 2⁵³ + 1 rounds to 2⁵³. BigInt has no such limit, and BigInt64Array stores true 64-bit integers.`
+		},
+		{
+			q: 'Which integer type should I use?',
+			a: `The smallest type whose range covers every value the data can take, with room to spare for anything that grows, such as counters, IDs and timestamps. A signed 32-bit count of seconds since 1970 runs out in 2038, so time and ever-growing IDs belong in 64 bits. Type a number into the lookup above to see which types hold it.`
+		}
+	];
+
+	const page = {
+		title: 'Integer Limits: Min and Max Values from int8 to uint128',
+		description:
+			'The minimum and maximum of every integer type from int8 to uint128, in decimal, hex and as powers of two, plus an overflow playground and a type lookup.',
+		url: `${SITE}/integer-limits`,
+		image: `${SITE}/og/integer-limits.png`,
+		imageAlt: 'LogicGates.org: integer limits for int8 to uint128'
+	};
+
+	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
+		'@context': 'https://schema.org',
+		'@graph': [
+			{
+				'@type': ['WebPage', 'FAQPage'],
+				'@id': `${page.url}#webpage`,
+				url: page.url,
+				name: page.title,
+				description: page.description,
+				isPartOf: { '@id': `${SITE}/#website` },
+				breadcrumb: { '@id': `${page.url}#breadcrumb` },
+				inLanguage: 'en',
+				...modifiedFields(page.url),
+				mainEntity: faqs.map((f) => ({
+					'@type': 'Question',
+					name: f.q,
+					acceptedAnswer: { '@type': 'Answer', text: f.a }
+				}))
+			},
+			{
+				'@type': 'BreadcrumbList',
+				'@id': `${page.url}#breadcrumb`,
+				itemListElement: [
+					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
+					{ '@type': 'ListItem', position: 2, name: 'Tools', item: `${SITE}/tools` },
+					{ '@type': 'ListItem', position: 3, name: 'Integer limits' }
+				]
+			}
+		]
+	})}${'<'}/script>`;
+</script>
+
+<svelte:head>
+	<title>{page.title}</title>
+	<meta name="description" content={page.description} />
+	<link rel="canonical" href={page.url} />
+	<meta name="author" content="Sem" />
+	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+	<meta property="og:type" content="website" />
+	<meta property="og:site_name" content="LogicGates.org" />
+	<meta property="og:locale" content="en" />
+	<meta property="og:title" content={page.title} />
+	<meta property="og:description" content={page.description} />
+	<meta property="og:url" content={page.url} />
+	<meta property="og:image" content={page.image} />
+	<meta property="og:image:alt" content={page.imageAlt} />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content={page.title} />
+	<meta name="twitter:description" content={page.description} />
+	<meta name="twitter:image" content={page.image} />
+	{@html jsonLd}
+</svelte:head>
+
+<ContentPage
+	related={[
+		{ href: '/twos-complement', label: "Two's complement" },
+		{ href: '/binary-converter', label: 'Binary converter' },
+		{ href: '/hex-to-decimal', label: 'Hex to decimal converter' },
+		{ href: '/fp16-bf16-fp8-converter', label: 'FP16, BF16 and FP8 converter' },
+		{ href: '/bit-manipulation-tricks', label: 'Bit manipulation tricks' },
+		{ href: '/tools', label: 'All tools' }
+	]}
+>
+	<section class="intro">
+		<h1>Integer limits</h1>
+		<p class="lede">
+			The smallest and largest value of every fixed-width integer type, from int8 to uint128, with what each one is
+			called in C, Java, C#, Rust, Go, SQL and JavaScript. Type a number to see which types can hold it.
+		</p>
+
+		<div class="card tool">
+			<label class="field" for="lookup">Which types hold this number?</label>
+			<input
+				id="lookup"
+				class="value-input"
+				type="text"
+				bind:value={query}
+				spellcheck="false"
+				autocomplete="off"
+				autocapitalize="off"
+				aria-invalid={lookupError ? 'true' : 'false'}
+				aria-describedby="lookup-help"
+			/>
+			{#if lookupError}
+				<p class="error" role="alert" id="lookup-error">{lookupError}</p>
+			{/if}
+			<p class="field-help" id="lookup-help">
+				A whole number in decimal, 0x hex or 0b binary, negative if you like. Commas are fine, and so is 2^31{'\u00a0'}-{'\u00a0'}1.
+			</p>
+			<div class="chips">
+				{#each examples as example}
+					<button type="button" class="chip-btn" on:click={() => tryLookup(example.v)}>{example.label}</button>
+				{/each}
+			</div>
+
+			<div class="results" class:stale={!!lookupError} aria-hidden={lookupError ? 'true' : 'false'}>
+				<div class="answer" role={lookupError ? undefined : 'status'}>
+					<span class="answer-label">{formatDecimal(found.value)}</span>
+					<div class="smallest">
+						<span
+							>Smallest signed type:
+							{#if found.smallestSigned}
+								<a class="mono strong" href="/integer-limits/{found.smallestSigned.slug}" data-testid="lookup-signed"
+									>{found.smallestSigned.slug}</a
+								>
+							{:else}
+								<strong class="none" data-testid="lookup-signed">none up to 128 bits</strong>
+							{/if}</span
+						>
+						<span
+							>Smallest unsigned type:
+							{#if found.smallestUnsigned}
+								<a
+									class="mono strong"
+									href="/integer-limits/{found.smallestUnsigned.slug}"
+									data-testid="lookup-unsigned">{found.smallestUnsigned.slug}</a
+								>
+							{:else}
+								<strong class="none" data-testid="lookup-unsigned"
+									>{found.value < 0n ? 'none: it is negative' : 'none up to 128 bits'}</strong
+								>
+							{/if}</span
+						>
+					</div>
+					<span class="answer-also">
+						It needs {found.bits.signed} bits as a signed two’s complement number{found.bits.unsigned === null
+							? ''
+							: ` and ${found.bits.unsigned} as an unsigned one`}.
+						{#if found.value > safeMax || found.value < -safeMax}
+							That is past 2⁵³ − 1, so a JavaScript number cannot hold it exactly; a BigInt can.
+						{/if}
+					</span>
+				</div>
+				<ul class="fit-grid" aria-label="Every type">
+					{#each found.all as row}
+						<li class:fits={row.fits}>
+							<a class="mono" href="/integer-limits/{row.type.slug}">{row.type.slug}</a>
+							<span>{row.fits ? 'holds it' : 'too small'}</span>
+						</li>
+					{/each}
+				</ul>
+			</div>
+			<p class="share-row"><ShareLink what="this lookup and the playground below" /></p>
+		</div>
+	</section>
+
+	<section id="table">
+		<h2>Minimum and maximum of every integer type</h2>
+		<p class="section-intro">
+			Each name links to a page with the limits in hex and binary, the type’s name in each language, and an overflow
+			playground set to that type.
+		</p>
+		<div class="table-wrap">
+			<table class="data-table limits">
+				<thead>
+					<tr>
+						<th scope="col">Type</th>
+						<th scope="col" class="num">Bits</th>
+						<th scope="col" class="num">Minimum</th>
+						<th scope="col" class="num">Maximum</th>
+						<th scope="col">Maximum as a power</th>
+						<th scope="col">Maximum in hex</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each intTypes as t}
+						<tr>
+							<th scope="row"><a class="mono" href="/integer-limits/{t.slug}">{t.slug}</a></th>
+							<td class="num">{t.bits}</td>
+							<td class="mono num">{formatDecimal(t.min)}</td>
+							<td class="mono num big">{formatDecimal(t.max)}</td>
+							<td class="mono">{formulas(t).max}</td>
+							<td class="mono">{hexOf(t.max, t.bits)}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section id="formulas">
+		<h2>The formulas</h2>
+		<p>
+			n bits make 2ⁿ different patterns. An unsigned type reads them all as magnitudes, a signed type gives the half
+			with the top bit set to negative numbers, using <a href="/twos-complement">two’s complement</a>:
+		</p>
+		<div class="formula-grid">
+			<div class="card formula">
+				<h3>Signed, n bits</h3>
+				<p class="mono big-formula">−2ⁿ⁻¹ to 2ⁿ⁻¹ − 1</p>
+				<p class="small">
+					For 32 bits: −2³¹ to 2³¹ − 1, which is {formatDecimal(int32.min)} to {formatDecimal(int32.max)}.
+				</p>
+			</div>
+			<div class="card formula">
+				<h3>Unsigned, n bits</h3>
+				<p class="mono big-formula">0 to 2ⁿ − 1</p>
+				<p class="small">For 32 bits: 0 to 2³² − 1, which is 0 to {formatDecimal(uint32.max)}.</p>
+			</div>
+		</div>
+		<p>
+			The signed range is lopsided: there is one more negative number than positive, because zero takes one of the
+			patterns whose top bit is 0. So the smallest int8 is {formatDecimal(int8.min)} but the largest is only {formatDecimal(
+				int8.max
+			)}, and negating {formatDecimal(int8.min)} overflows back to itself. In hex the limits are easy to spot: a signed maximum
+			is 7F followed by Fs ({hexOf(int64.max, 64)} for int64), the signed minimum is 8 followed by zeros, and an unsigned
+			maximum is all Fs.
+		</p>
+		<div class="table-wrap">
+			<table class="data-table pairs">
+				<caption>Same bits, two readings: the signed and unsigned type of each width</caption>
+				<thead>
+					<tr>
+						<th scope="col">Width</th>
+						<th scope="col">Signed range</th>
+						<th scope="col">Unsigned range</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each signedPairs as t}
+						{@const f = formulas(t)}
+						<tr>
+							<th scope="row">{t.bits} bits</th>
+							<td class="mono">{f.min} to {f.max}</td>
+							<td class="mono">0 to 2{f.count.slice(1)} − 1</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	</section>
+
+	<section id="playground">
+		<h2>Overflow playground</h2>
+		<p class="section-intro">
+			Pick a type and a value, then add one, subtract one, double, negate or cast it to another type. The bits show what
+			the processor does: it keeps the low bits and drops whatever does not fit.
+		</p>
+		<div class="card tool">
+			<OverflowPlayground bind:type={pgType} bind:value={pgValue} bind:op={pgOp} bind:to={pgTo} />
+		</div>
+	</section>
+
+	<section id="overflow">
+		<h2>What each language does on overflow</h2>
+		<p class="section-intro">
+			The bits wrap the same way on every processor; what differs is whether the language lets that happen silently,
+			stops the program, or never runs out of bits at all. The C, Java, Rust, Go, JavaScript and Python behaviour here
+			was checked by running code.
+		</p>
+		<OverflowRules />
+		<p class="reducer">
+			One C and C++ detail: arithmetic on 8 and 16-bit types is done in int, so <span class="mono">x + 1</span> on an int8_t
+			at 127 is 128 as an int. It only wraps when stored back into the int8_t; that conversion is implementation defined
+			in C (GCC and Clang wrap) and defined as wrapping since C++20.
+		</p>
+	</section>
+
+	<section id="stories">
+		<h2>Real overflows</h2>
+		<ul class="stories">
+			{#each withStories as t}
+				{#each storiesFor(t) as story}
+					<li>
+						<strong>{story.title}</strong>
+						<span class="mono">(<a href="/integer-limits/{t.slug}">{t.slug}</a>)</span>: {story.text}
+					</li>
+				{/each}
+			{/each}
+		</ul>
+	</section>
+
+	<section id="types">
+		<h2>Each type in detail</h2>
+		<ul class="type-links">
+			{#each intTypes as t}
+				<li>
+					<a href="/integer-limits/{t.slug}"><span class="mono">{t.slug}</span></a>
+					<span>{describeType(t)}</span>
+				</li>
+			{/each}
+		</ul>
+	</section>
+
+	<section class="faq">
+		<h2>Questions</h2>
+		{#each faqs as faq, i}
+			<details open={i === 0}>
+				<summary>{faq.q}</summary>
+				<p>{faq.a}</p>
+			</details>
+		{/each}
+	</section>
+</ContentPage>
+
+<style>
+	.intro {
+		padding-top: 64px;
+	}
+
+	.tool {
+		padding: 1.1rem 1.2rem 1.3rem;
+		margin-bottom: 1rem;
+	}
+
+	.field {
+		display: block;
+		font-size: 0.85rem;
+		color: #ddd;
+		margin-bottom: 0.35rem;
+	}
+
+	.value-input {
+		width: 100%;
+		box-sizing: border-box;
+		background-color: #0d0d0f;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		border-radius: 3px;
+		color: #fff;
+		font: 1.15rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		padding: 0.6rem 0.7rem;
+	}
+
+	.value-input:focus {
+		outline: none;
+		border-color: #5db65d;
+	}
+
+	.value-input[aria-invalid='true'] {
+		border-color: #f66;
+	}
+
+	.field-help {
+		color: #999;
+		font-size: 0.8rem;
+		margin: 0.45rem 0 0.7rem;
+	}
+
+	.error {
+		color: #f66;
+		font-size: 0.9rem;
+		margin: 0.4rem 0 0;
+	}
+
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-bottom: 1rem;
+	}
+
+	.chip-btn {
+		background: #0d0d0f;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		border-radius: 3px;
+		color: #ddd;
+		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		padding: 0.25rem 0.6rem;
+		cursor: pointer;
+	}
+
+	.chip-btn:hover {
+		border-color: #5db65d;
+		color: #fff;
+	}
+
+	.results {
+		border-top: 1px solid rgba(255, 255, 255, 0.12);
+		padding-top: 1rem;
+	}
+
+	.results.stale {
+		opacity: 0.35;
+		pointer-events: none;
+	}
+
+	.answer {
+		background: #0d0d0f;
+		border: 1px solid rgba(93, 182, 93, 0.5);
+		border-radius: 3px;
+		padding: 0.6rem 0.8rem;
+	}
+
+	.answer-label {
+		color: #aaa;
+		display: block;
+		font: 0.85rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		overflow-wrap: anywhere;
+	}
+
+	.smallest {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.2rem 1.4rem;
+		color: #ddd;
+		font-size: 1rem;
+		margin: 0.3rem 0;
+	}
+
+	.smallest .strong {
+		color: #8ede8e;
+		font-size: 1.35rem;
+		font-weight: 700;
+	}
+
+	.smallest .none {
+		color: #e9c46a;
+		font-weight: 600;
+	}
+
+	.answer-also {
+		color: #bbb;
+		display: block;
+		font-size: 0.85rem;
+		margin-top: 0.2rem;
+	}
+
+	.fit-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+		gap: 6px;
+		list-style: none;
+		margin: 0.9rem 0 0;
+		padding: 0;
+	}
+
+	.fit-grid li {
+		border: 1px dashed rgba(255, 255, 255, 0.25);
+		border-radius: 3px;
+		display: flex;
+		justify-content: space-between;
+		gap: 0.4rem;
+		padding: 0.3rem 0.5rem;
+		font-size: 0.82rem;
+		color: #aaa;
+	}
+
+	.fit-grid li.fits {
+		border: 1px solid rgba(93, 182, 93, 0.6);
+		color: #8ede8e;
+	}
+
+	.share-row {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+		margin: 1rem 0 0;
+	}
+
+	.limits td,
+	.limits th {
+		white-space: nowrap;
+	}
+
+	.num {
+		text-align: right !important;
+	}
+
+	.limits .big {
+		color: #8ede8e;
+	}
+
+	.formula-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 12px;
+		margin-bottom: 1rem;
+	}
+
+	.formula {
+		padding: 0.9rem 1rem;
+	}
+
+	.formula h3 {
+		color: #fff;
+	}
+
+	.big-formula {
+		color: #8ede8e;
+		font-size: 1.3rem;
+		margin: 0.3rem 0;
+	}
+
+	.small {
+		font-size: 0.9rem;
+		margin: 0.3rem 0 0;
+		overflow-wrap: anywhere;
+	}
+
+	.pairs caption {
+		text-align: left;
+		color: #bbb;
+		font-size: 0.85rem;
+		padding-bottom: 0.4rem;
+	}
+
+	.pairs td {
+		white-space: nowrap;
+		font-size: 0.85rem;
+	}
+
+	.pairs th[scope='row'] {
+		color: #fff;
+		white-space: nowrap;
+	}
+
+	.stories,
+	.type-links {
+		color: #ddd;
+		max-width: 760px;
+		padding-left: 1.25rem;
+	}
+
+	.stories li,
+	.type-links li {
+		margin-bottom: 0.6rem;
+	}
+
+	/* 128-bit limits are 40 digits with no natural break; let prose wrap them. */
+	section p,
+	.stories li {
+		overflow-wrap: anywhere;
+	}
+
+	.stories strong {
+		color: #fff;
+	}
+
+	.type-links {
+		columns: 2 16rem;
+	}
+
+	.type-links li span:last-child {
+		color: #bbb;
+		margin-left: 0.4rem;
+	}
+</style>
