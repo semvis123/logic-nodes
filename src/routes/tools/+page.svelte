@@ -191,9 +191,14 @@
 						<td><a href="/struct-padding-calculator">Struct padding calculator</a></td>
 					</tr>
 					<tr>
-						<th scope="row">A UUID or a Discord ID</th>
-						<td>the moment it was made</td>
+						<th scope="row">A UUID, ULID or ObjectId</th>
+						<td>its version and when it was made</td>
 						<td><a href="/uuid-decoder">UUID decoder and generator</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A Discord or Twitter/X ID</th>
+						<td>the moment it was created</td>
+						<td><a href="/snowflake-id-decoder">Snowflake ID decoder</a></td>
 					</tr>
 					<tr>
 						<th scope="row">A file with a doubtful extension</th>

@@ -796,6 +796,23 @@
 		padding: 1rem 1.1rem 0.8rem;
 	}
 
+	/* An odd group out would sit beside an empty slot; give it the full row,
+	   with its list in two columns so it is no taller than its neighbours. */
+	@media (min-width: 701px) {
+		.tool-group:last-child:nth-child(odd) {
+			grid-column: 1 / -1;
+		}
+
+		.tool-group:last-child:nth-child(odd) ul {
+			columns: 2;
+			column-gap: 24px;
+		}
+
+		.tool-group:last-child:nth-child(odd) li {
+			break-inside: avoid;
+		}
+	}
+
 	.tool-group h3 {
 		margin: 0 0 0.5rem;
 		color: #999;
