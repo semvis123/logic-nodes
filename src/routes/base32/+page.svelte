@@ -26,7 +26,7 @@
 	const VARIANTS = ['rfc4648', 'hex', 'crockford'] as const;
 
 	// Every setting lives in the query string, so a link reopens this exactly.
-	const DEFAULTS = { m: 'encode', t: 'Hello', a: 'rfc4648', pad: 'on', in: 'text' };
+	const DEFAULTS = { m: 'encode', t: 'Hello', a: 'rfc4648', pad: 'on', in: 'text', r: 'number' };
 	onMount(() => {
 		const p = readUrl();
 		mode = safeOption(p.m, ['encode', 'decode'] as const) ?? mode;
@@ -34,6 +34,7 @@
 		variant = safeOption(p.a, VARIANTS) ?? variant;
 		pad = safeOption(p.pad, ['on', 'off'] as const) ?? pad;
 		source = safeOption(p.in, ['text', 'hex'] as const) ?? source;
+		reading = safeOption(p.r, ['number', 'bytes'] as const) ?? reading;
 	});
 
 	let mode: Mode = 'encode';
@@ -41,7 +42,10 @@
 	let variant: Base32Variant = 'rfc4648';
 	let pad: 'on' | 'off' = 'on';
 	let source: Source = 'text';
-	$: syncUrl({ m: mode, t: input, a: variant, pad, in: source }, DEFAULTS);
+	// A ULID-shaped Crockford string can be read two ways (see the engine); a
+	// ULID is a number, so that reading comes first, and the RFC 4648 cut is a click away.
+	let reading: 'number' | 'bytes' = 'number';
+	$: syncUrl({ m: mode, t: input, a: variant, pad, in: source, r: reading }, DEFAULTS);
 
 	const SHOWN_GROUPS = 4;
 
@@ -53,6 +57,7 @@
 	let notes: string[] = [];
 	let notText = false;
 	let asNumber: number[] | undefined;
+	let numberNote: string | undefined;
 	let byteCount = 0;
 	let byteHex = '';
 	$: {
@@ -73,9 +78,12 @@
 				groups = result.groups;
 				notes = result.notes;
 				asNumber = result.asNumber;
-				byteCount = result.bytes.length;
-				byteHex = hexBytes(result.bytes);
-				const read = bytesAsText(result.bytes);
+				numberNote = result.numberNote;
+				const bytes = asNumber && reading === 'number' ? asNumber : result.bytes;
+				byteCount = bytes.length;
+				byteHex = hexBytes(bytes);
+				// A 128-bit number is an ID, not text, even when its bytes happen to be printable.
+				const read = asNumber && reading === 'number' ? { text: '', isText: false } : bytesAsText(bytes);
 				notText = !read.isText;
 				output = read.isText ? read.text : byteHex;
 			}
@@ -87,6 +95,7 @@
 			errorAt = e instanceof BaseNError ? e.position : undefined;
 		}
 	}
+	$: asWholeNumber = mode === 'decode' && !!asNumber && reading === 'number';
 	$: outputRows = Math.min(8, Math.max(2, Math.ceil(output.length / 56) + output.split('\n').length - 1));
 
 	/** Switches mode, carrying the result across so the toggle reads as a swap. */
@@ -366,6 +375,23 @@
 						>
 					</div>
 				{/if}
+				{#if mode === 'decode' && asNumber && !error}
+					<div class="opt" role="group" aria-label="Read as">
+						<span class="opt-label">Read as</span>
+						<button
+							type="button"
+							class:active={reading === 'number'}
+							aria-pressed={reading === 'number'}
+							on:click={() => (reading = 'number')}>128-bit number (ULID)</button
+						>
+						<button
+							type="button"
+							class:active={reading === 'bytes'}
+							aria-pressed={reading === 'bytes'}
+							on:click={() => (reading = 'bytes')}>Bytes from the left</button
+						>
+					</div>
+				{/if}
 			</div>
 
 			<label class="field" for="input"
@@ -427,7 +453,12 @@
 				{#if mode === 'decode' && !notText && byteCount}
 					<p class="note">Bytes: <span class="mono wrap">{byteHex}</span></p>
 				{/if}
-				{#if notText}
+				{#if asWholeNumber}
+					<p class="note">
+						Read as one 128-bit number, the way a ULID is written: 26 characters hold 130 bits, so the first character's
+						top 2 bits are zeros in front of the number. These are its 16 bytes, in hex.
+					</p>
+				{:else if notText}
 					<p class="note">
 						These bytes are not readable UTF-8 text, so they are shown in hex. A 2FA secret, a hash or a key is random
 						bytes like this.
@@ -436,13 +467,23 @@
 				{#each notes as note}
 					<p class="note">{note}</p>
 				{/each}
+				{#if asNumber && !asWholeNumber}
+					<p class="note">{numberNote}</p>
+				{/if}
 				{#if asNumber}
 					<p class="note">
 						Take a ULID apart, time and all, in the <a href="/uuid-decoder">UUID and ULID decoder</a>.
 					</p>
 				{/if}
 
-				{#if groups.length}
+				{#if asWholeNumber}
+					<p class="note">
+						The step-by-step drawing cuts the characters into bytes from the left, the RFC 4648 way, which lines the
+						bits up differently; choose <button type="button" class="link-btn" on:click={() => (reading = 'bytes')}
+							>Bytes from the left</button
+						> to see it.
+					</p>
+				{:else if groups.length}
 					<h2 class="steps-title">Step by step</h2>
 					<p class="note legend">
 						{#if mode === 'encode'}
@@ -537,8 +578,8 @@
 				number, with any spare bits at the front; this page, like many libraries, applies the alphabet to bytes the RFC
 				4648 way, with the spare bits at the end. The two agree whenever the length is a multiple of 8 characters.
 				ULIDs, the sortable IDs the <a href="/uuid-decoder">UUID and ULID decoder</a> takes apart, are one 128-bit number
-				in 26 characters, so 2 zero bits come first; paste one in Crockford decode mode and the page also gives its bytes
-				read that way.
+				in 26 characters, so 2 zero bits come first; paste one in Crockford decode mode and the page reads it as that number,
+				with the bytes cut from the left a click away.
 			</li>
 		</ul>
 	</section>
@@ -558,7 +599,9 @@
 						<th scope="col">Base32</th>
 						<th scope="col">base32hex</th>
 						<th scope="col" class="num">= signs</th>
-						<th scope="col" class="num">Zero bits added</th>
+						<th scope="col" class="num"
+							><span class="wide-only">Zero bits added</span><span class="narrow-only">Fill bits</span></th
+						>
 						<th scope="col" class="num wide-only">Bytes</th>
 						<th scope="col" class="num wide-only">Bits</th>
 						<th scope="col" class="num wide-only">Characters</th>
@@ -902,6 +945,17 @@
 		overflow-wrap: anywhere;
 	}
 
+	.link-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		color: #8ede8e;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		cursor: pointer;
+	}
+
 	.alphabet {
 		width: auto;
 		min-width: 320px;
@@ -920,6 +974,10 @@
 
 	.num {
 		text-align: right !important;
+	}
+
+	.narrow-only {
+		display: none;
 	}
 
 	.data-table.pad-table td,
@@ -946,6 +1004,10 @@
 
 		.wide-only {
 			display: none;
+		}
+
+		.narrow-only {
+			display: inline;
 		}
 	}
 </style>

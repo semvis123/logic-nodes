@@ -158,6 +158,11 @@ export type Base32Decoded = {
 	 * these are its 16 bytes read that way.
 	 */
 	asNumber?: number[];
+	/**
+	 * Says what `asNumber` is. Kept out of `notes`, so a page that shows the
+	 * number reading as its result need not repeat it.
+	 */
+	numberNote?: string;
 	/** A Crockford check symbol at the end, what it stands for, and whether it matches. */
 	check?: { symbol: string; value: number; expected: number; valid: boolean };
 };
@@ -207,15 +212,23 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 		checkSymbol = kept.pop();
 	if (crockford) {
 		const misplaced = kept.find((k) => CROCKFORD_CHECK_SYMBOLS.includes(asciiUpper(k.ch)));
-		if (misplaced)
+		if (misplaced) {
+			const symbols = CROCKFORD_CHECK_SYMBOLS.split('').join(' ');
+			// Only reached with one character when it is all there is: a check
+			// symbol checks the number before it, so it cannot stand alone.
 			throw new BaseNError(
-				`${show(misplaced.ch)} (character ${
-					misplaced.at
-				}) is one of Crockford's check symbols (${CROCKFORD_CHECK_SYMBOLS.split('').join(
-					' '
-				)}), which can only come once, at the very end. Crockford Base32 has no = padding.`,
+				kept.length === 1
+					? `${show(misplaced.ch)} (character ${
+							misplaced.at
+					  }) is one of Crockford's check symbols (${symbols}), which check the characters before them, so it needs data in front of it.`
+					: `${show(misplaced.ch)} (character ${
+							misplaced.at
+					  }) is one of Crockford's check symbols (${symbols}), which can only come once, at the very end.${
+							misplaced.ch === '=' ? ' Crockford Base32 has no = padding.' : ''
+					  }`,
 				misplaced.at
 			);
+		}
 	}
 
 	// Split off the padding first, so an = in the middle is reported as such.
@@ -271,7 +284,9 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 	const needed = BASE32_PAD[leftover];
 	if (needed === undefined)
 		throw new BaseNError(
-			`${body.length} characters leave ${leftover} over after the groups of eight, and a group can only end after 2, 4, 5 or 7 characters (1, 2, 3 or 4 bytes). A character is probably missing or extra.`
+			`${body.length} character${body.length === 1 ? '' : 's'} leave${
+				body.length === 1 ? 's' : ''
+			} ${leftover} over after the groups of eight, and a group can only end after 2, 4, 5 or 7 characters (1, 2, 3 or 4 bytes). A character is probably missing or extra.`
 		);
 	if (padding) {
 		if (padding !== needed)
@@ -347,13 +362,12 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 		});
 		bytes.push(...groupBytes);
 	}
-	if (asNumber)
-		notes.push(
-			`26 characters is the length of a ULID, which is one 128-bit number with 2 zero bits at the front, not bytes cut from the left. Read as a number, these characters are the 16 bytes ${hexBytes(
-				asNumber
-			)}.`
-		);
-	return { bytes, groups, notes, asNumber, check };
+	const numberNote =
+		asNumber &&
+		`26 characters is the length of a ULID, which is one 128-bit number with 2 zero bits at the front, not bytes cut from the left. Read as a number, these characters are the 16 bytes ${hexBytes(
+			asNumber
+		)}.`;
+	return { bytes, groups, notes, asNumber, numberNote, check };
 }
 
 // --- Base58 ----------------------------------------------------------------

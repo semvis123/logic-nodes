@@ -31,6 +31,7 @@ import {
 	bytesToBigInt,
 	bigIntToBytes,
 	bytesAsText,
+	hexBytes,
 	MAX_TEXT_BYTES,
 	BaseNError,
 	type Base32Variant
@@ -234,7 +235,7 @@ test.describe('Base32', () => {
 		expect(read.asNumber?.[1]).toBe(0x56);
 		// No false warning about the last bits: in a ULID the spare bits are at the front.
 		expect(read.notes.join(' ')).not.toMatch(/may have been altered/);
-		expect(read.notes.join(' ')).toMatch(/length of a ULID/);
+		expect(read.numberNote).toMatch(/length of a ULID.*01 56 3E 3A/);
 		// Only Crockford, and only a 26-character input that fits in 128 bits, is read that way.
 		expect(base32Decode(ulid.slice(0, 24), 'crockford').asNumber).toBeUndefined();
 		expect(base32Decode('8' + ulid.slice(1), 'crockford').asNumber).toBeUndefined();
@@ -251,7 +252,15 @@ test.describe('Base32', () => {
 		expect(positionOf(() => base32Decode(ulid + '*', 'crockford'))).toBe(27);
 		// = is a check symbol (35) in Crockford's scheme, not padding.
 		expect(errorOf(() => base32Decode('91JPRV3F=', 'crockford'))).toMatch(/check symbol for 35/);
-		expect(errorOf(() => base32Decode('91JPRV3F==', 'crockford'))).toMatch(/can only come once, at the very end/);
+		expect(errorOf(() => base32Decode('91JPRV3F==', 'crockford'))).toMatch(
+			/can only come once, at the very end\. Crockford Base32 has no = padding\.$/
+		);
+		// The padding remark is only for an =, and a symbol with nothing before it gets its own message.
+		expect(errorOf(() => base32Decode('91J*PRV3F', 'crockford'))).toMatch(/at the very end\.$/);
+		expect(positionOf(() => base32Decode('91J*PRV3F', 'crockford'))).toBe(4);
+		for (const lone of ['U', 'u', '*', ' -$ ', '**'])
+			expect(errorOf(() => base32Decode(lone, 'crockford'))).toMatch(/needs data in front of it/);
+		expect(positionOf(() => base32Decode(' -$', 'crockford'))).toBe(3);
 		expect(CROCKFORD_CHECK_SYMBOLS).toBe('*~$=U');
 		// Each extra symbol on a two-character string whose value mod 37 is that symbol's value.
 		// (A check symbol from the 32 ordinary characters cannot be told apart from data.)
@@ -307,6 +316,7 @@ test.describe('Base32', () => {
 		expect(errorOf(() => base32Decode('MZXWZ', 'hex'))).toMatch(/base32hex stops at V/);
 		expect(errorOf(() => base32Decode('MZX'))).toMatch(/3 characters leave 3 over/);
 		expect(errorOf(() => base32Decode('MZXW6Y'))).toMatch(/leave 6 over/);
+		expect(errorOf(() => base32Decode('M'))).toMatch(/^1 character leaves 1 over/);
 		expect(errorOf(() => base32Decode('MY====='))).toMatch(/needs 6 = signs, not 5/);
 		expect(errorOf(() => base32Decode('MZXW6YTB='))).toMatch(/needs no padding/);
 		expect(errorOf(() => base32Decode('MY==MY=='))).toMatch(/Padding \(=\) can only come at the very end/);
@@ -584,9 +594,26 @@ test.describe('the base32 page', () => {
 		await expect(page.locator('#output')).toHaveValue('000H1ZVW');
 		await page.goto('/base32?m=decode&a=crockford&t=9ijp-rv3f');
 		await expect(page.locator('#output')).toHaveValue('Hello');
-		await page.goto('/base32?m=decode&a=crockford&t=01ARZ3NDEKTSV4RRFFQ69G5FAV');
-		await expect(page.locator('.tool')).toContainText('01 56 3E 3A B5 D3 D6 76 4C 61 EF B9 93 02 BD 5B');
+		// A ULID is read as its number first: that is what the output and Copy give.
+		const ulid = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
+		const asNumber = '01 56 3E 3A B5 D3 D6 76 4C 61 EF B9 93 02 BD 5B';
+		const cut = hexBytes(base32Decode(ulid, 'crockford').bytes);
+		await page.goto(`/base32?m=decode&a=crockford&t=${ulid}`);
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#output')).toHaveValue(asNumber);
+		await expect(page.locator('.count')).toHaveText('16 bytes');
 		await expect(page.locator('.tool')).not.toContainText('may have been altered');
+		await expect(page.locator('.steps-title')).toHaveCount(0);
+		await page.getByRole('button', { name: 'Bytes from the left' }).first().click();
+		await expect(page.locator('#output')).toHaveValue(cut);
+		await expect(page.locator('.steps-title')).toHaveCount(1);
+		await expect(page).toHaveURL(/r=bytes/);
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#output')).toHaveValue(cut);
+		await page.getByRole('button', { name: '128-bit number (ULID)' }).click();
+		await expect(page.locator('#output')).toHaveValue(asNumber);
+		await expect(page).not.toHaveURL(/r=/);
 	});
 
 	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {
@@ -714,10 +741,16 @@ test.describe('the base36 page', () => {
 		await expect(page.locator('.error')).toContainText('negative');
 		await expect(page.locator('.answer')).toHaveCount(0);
 		// A long text's link round trips, as an error rather than as another text.
-		await page.goto('/base36?m=text&v=' + 'x'.repeat(260));
+		for (const n of [260, 600]) {
+			await page.goto('/base36?m=text&v=' + 'x'.repeat(n));
+			await page.waitForLoadState('networkidle');
+			await expect(page.locator('#value')).toHaveValue('x'.repeat(n));
+			await expect(page.locator('.error')).toContainText('up to 250 bytes');
+		}
+		// So does a number past the digit limit.
+		await page.goto('/base36?v=' + '9'.repeat(450));
 		await page.waitForLoadState('networkidle');
-		await expect(page.locator('#value')).toHaveValue('x'.repeat(260));
-		await expect(page.locator('.error')).toContainText('up to 250 bytes');
+		await expect(page.locator('.error')).toContainText('more than 400 digits');
 		await page.goto('/base36?m=from36&v=hello&c=lower');
 		await expect(page.locator('.answer-value')).toHaveText(Number(parseInt('hello', 36)).toLocaleString('en-GB'));
 		await faqMatches(page);

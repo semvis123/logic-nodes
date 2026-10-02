@@ -30,15 +30,15 @@
 	const MODES = ['to36', 'from36', 'any', 'text'] as const;
 
 	// Every setting lives in the query string, so a link reopens this exactly.
+	const URL_MAX = 4000;
 	const DEFAULTS = { m: 'to36', v: '1000000', from: 16, to: 36, d: 'encode', c: 'upper' };
 	onMount(() => {
 		const p = readUrl();
 		mode = safeOption(p.m, MODES) ?? mode;
 		// Text mode's own starting example, when a link names the mode but not the text.
-		// Text up to MAX_TEXT_BYTES is never longer than that in characters; a little more
-		// is let through so a link to a too-long text opens on its error, not on another text.
-		input =
-			safeText(p.v, mode === 'text' ? 2 * MAX_TEXT_BYTES : MAX_NUMBER_DIGITS + 20) ?? (mode === 'text' ? 'Hi' : input);
+		// The cap is well above what any mode accepts, so a link to a too-long number or
+		// text opens on its error, not on another example; the engine refuses those cheaply.
+		input = safeText(p.v, URL_MAX) ?? (mode === 'text' ? 'Hi' : input);
 		anyFrom = safeInt(p.from, 2, 36) ?? anyFrom;
 		anyTo = safeInt(p.to, 2, 36) ?? anyTo;
 		direction = safeOption(p.d, ['encode', 'decode'] as const) ?? direction;
@@ -1121,6 +1121,12 @@
 	@media (max-width: 480px) {
 		.wide-only {
 			display: none;
+		}
+
+		.data-table.steps td,
+		.data-table.steps th {
+			padding-left: 0.3rem;
+			padding-right: 0.3rem;
 		}
 	}
 
