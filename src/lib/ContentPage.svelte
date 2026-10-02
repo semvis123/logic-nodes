@@ -22,8 +22,12 @@
 	// A section counts as current when the path starts with it, so the gate
 	// detail pages keep "Gates" highlighted; each tool keeps "Tools" lit,
 	// except the logic statement tools, which light "Logic" instead: one
-	// section per page, and those two belong with the logic concept pages.
-	const logicPaths = ['/propositional-logic-truth-table', '/logical-equivalence-calculator'];
+	// section per page, and those belong with the logic concept pages.
+	const logicPaths = [
+		'/propositional-logic-truth-table',
+		'/logical-equivalence-calculator',
+		'/logic-symbols-copy-paste'
+	];
 	const toolPaths = tools.map((tool) => tool.href).filter((href) => !logicPaths.includes(href));
 
 	// Pages that belong to a section without living under its path.

@@ -54,5 +54,51 @@ export const toolIcons: Record<string, string> = {
 		'<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M6 9h1M9.5 9h1M13 9h1M16.5 9h1M6 12.5h1M9.5 12.5h1M13 12.5h1M16.5 12.5h1M8 16h8"/>',
 	// B64, the usual short form of Base64.
 	'/base64':
-		'<path d="M2 7v10M2 7h2a2.5 2.5 0 0 1 0 5H2M2 12h2.5a2.5 2.5 0 0 1 0 5H2M14 7l-4.2 6.3"/><circle cx="12" cy="14.5" r="2.5"/><path d="M21 17V7l-4.5 6.5H23"/>'
+		'<path d="M2 7v10M2 7h2a2.5 2.5 0 0 1 0 5H2M2 12h2.5a2.5 2.5 0 0 1 0 5H2M14 7l-4.2 6.3"/><circle cx="12" cy="14.5" r="2.5"/><path d="M21 17V7l-4.5 6.5H23"/>',
+	// ∧ and ∨ on a key, ready to copy.
+	'/logic-symbols-copy-paste':
+		'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 15 L10 8 L13 15"/><path d="M14 9 L17 15 L20 9"/>',
+	// Three float formats, each narrower than the last.
+	'/fp16-bf16-fp8-converter':
+		'<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M6 4v4M10 4v4"/><rect x="3" y="10" width="12" height="4" rx="1"/><path d="M6 10v4M9 10v4"/><rect x="3" y="16" width="6" height="4" rx="1"/><path d="M5 16v4M7 16v4"/>',
+	// 0 to Z: a digit and a letter over a baseline.
+	'/base36': '<circle cx="7" cy="12" r="3"/><path d="M13 8h6l-4 8"/><path d="M3 20h18"/>',
+	// A question mark: one yes/no answer per bit.
+	'/guess-my-number':
+		'<circle cx="12" cy="12" r="9.5"/><path d="M9 9.3a3 3 0 1 1 4.4 2.6c-.9.5-1.4 1.2-1.4 2.2v.9M12 17.3v.4"/>',
+	// A block of characters, read off five bits at a time.
+	'/base32':
+		'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h4M7 12h4M7 15h4"/><path d="M14 9l3 3-3 3"/>',
+	// Lines of text with a tick: the checksum passes.
+	'/base58': '<path d="M4 7h10M4 12h7M4 17h10"/><path d="M15 14l2.5 3L21 10"/>',
+	// Three finder patterns and some data modules.
+	'/qr-code-generator':
+		'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M6 6h1v1H6zM17 6h1v1h-1zM6 17h1v1H6zM14 14h3v3h-3zM18 18h3v3h-3zM14 20.5v.5M20.5 14h.5"/>',
+	// Bars of a barcode, with the long guard bars.
+	'/ean-13-barcode-generator': '<path d="M3 4v16M5.5 4v12M8 4v12M10.5 4v12M13 4v16M15.5 4v12M18 4v12M21 4v16"/>',
+	// An address split into network and host parts.
+	'/subnet-calculator':
+		'<rect x="2" y="6" width="20" height="12" rx="1.5"/><path d="M13 6v12M5 12h5"/><circle cx="16.5" cy="12" r="1"/><circle cx="19.5" cy="12" r="1"/>',
+	// One network cut into blocks of different sizes.
+	'/vlsm-calculator': '<rect x="2" y="7" width="20" height="10" rx="1.5"/><path d="M12 7v10M17 7v10M19.5 7v10"/>',
+	// Expand outwards, compress inwards: the colons between.
+	'/ipv6-expand-compress':
+		'<path d="M1.5 12h5M3.5 9l3 3-3 3M22.5 12h-5M20.5 9l-3 3 3 3"/><circle cx="10.5" cy="9.5" r=".8"/><circle cx="10.5" cy="14.5" r=".8"/><circle cx="13.5" cy="9.5" r=".8"/><circle cx="13.5" cy="14.5" r=".8"/>',
+	// A row of bits becoming the next row.
+	'/bit-manipulation-tricks':
+		'<rect x="2.5" y="4" width="19" height="6" rx="1"/><path d="M7.25 4v6M12 4v6M16.75 4v6"/><rect x="2.5" y="14" width="19" height="6" rx="1"/><path d="M7.25 14v6M12 14v6M16.75 14v6M14.4 10.5v3M13.2 12.3l1.2 1.2 1.2-1.2"/>',
+	// From the minimum to the maximum, both ends marked.
+	'/integer-limits': '<path d="M4 6v12M20 6v12M4 12h16M7.5 8.5 4 12l3.5 3.5M16.5 8.5 20 12l-3.5 3.5"/>',
+	// A struct in memory, with hatched padding.
+	'/struct-padding-calculator':
+		'<rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 12h18"/><path d="M9 5v7"/><path d="M15 12v7"/><path d="M11 5l4 7"/><path d="M13 5l4 7"/><path d="M17 5l4 7"/>',
+	// An ID cut into labelled fields.
+	'/uuid-decoder':
+		'<rect x="3" y="7" width="18" height="10" rx="1.5"/><path d="M7 7v10"/><path d="M11 7v10"/><path d="M15 7v10"/><path d="M6 20h4"/><path d="M14 20h4"/>',
+	// A snowflake.
+	'/snowflake-id-decoder':
+		'<path d="M12 3v18"/><path d="M4.2 7.5l15.6 9"/><path d="M4.2 16.5l15.6-9"/><path d="M10 4.5l2 1.5 2-1.5"/><path d="M10 19.5l2-1.5 2 1.5"/>',
+	// A file whose first bytes are highlighted.
+	'/file-signature-checker':
+		'<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 11h6"/><path d="M9 14h6"/><rect x="8.5" y="16.5" width="4" height="2"/>'
 };

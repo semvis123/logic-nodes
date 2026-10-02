@@ -10,7 +10,7 @@
 
 	const page = {
 		title: 'Digital Logic Tools: Truth Tables, K-Maps, Boolean Algebra',
-		description: `${Count} free tools: truth tables, boolean algebra, Karnaugh maps, logic proofs, Venn diagrams, binary and hex calculators, ASCII and Base64.`,
+		description: `${Count} free tools: truth tables, boolean algebra, Karnaugh maps, logic proofs, binary and hex, floats, subnets, QR codes, UUIDs and Base64.`,
 		url: `${SITE}/tools`,
 		image: `${SITE}/og/tools.png`,
 		imageAlt: 'LogicGates.org: tools'
@@ -93,8 +93,8 @@
 		<h1>Digital logic tools</h1>
 		<p class="lede">
 			{Count} calculators for the things you actually have to work out, from truth tables, simplification and Karnaugh maps
-			to logic proofs, number bases and text encodings. Each one shows its working, and all of them are free and run in your
-			browser, with nothing uploaded.
+			to logic proofs, number bases, text encodings, and the bits inside subnets, floats, IDs and file formats. Each one
+			shows its working, and all of them are free and run in your browser, with nothing uploaded.
 		</p>
 	</section>
 
@@ -164,6 +164,46 @@
 						<th scope="row">A number</th>
 						<td>it in another base, or in two's complement</td>
 						<td><a href="/binary-converter">Binary converter</a></td>
+					</tr>
+					<tr>
+						<th scope="row">An IP address and a prefix</th>
+						<td>its network, broadcast and host range</td>
+						<td><a href="/subnet-calculator">Subnet calculator</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A network and some host counts</th>
+						<td>a subnet for each, without overlaps</td>
+						<td><a href="/vlsm-calculator">VLSM calculator</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A long IPv6 address</th>
+						<td>its shortest correct form</td>
+						<td><a href="/ipv6-expand-compress">IPv6 expand and compress</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A model in FP16 or FP8</th>
+						<td>what one number turns into</td>
+						<td><a href="/fp16-bf16-fp8-converter">FP16, BF16 and FP8 converter</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A C struct</th>
+						<td>its size and where the padding goes</td>
+						<td><a href="/struct-padding-calculator">Struct padding calculator</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A UUID or a Discord ID</th>
+						<td>the moment it was made</td>
+						<td><a href="/uuid-decoder">UUID decoder and generator</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A file with a doubtful extension</th>
+						<td>what its first bytes say it is</td>
+						<td><a href="/file-signature-checker">File signature checker</a></td>
+					</tr>
+					<tr>
+						<th scope="row">Some text or a link</th>
+						<td>a QR code, and how it is built</td>
+						<td><a href="/qr-code-generator">QR code generator</a></td>
 					</tr>
 					<tr>
 						<th scope="row">A class to teach</th>
