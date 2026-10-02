@@ -12,9 +12,8 @@
 		copyText,
 		unicodeLabel,
 		hexReference,
-		decimalReference,
 		htmlCode,
-		wordInput,
+		lookAlikeOf,
 		transcribe,
 		needsAmssymb,
 		hex4,
@@ -24,6 +23,7 @@
 	} from '$lib/symbolTable';
 	import { readUrl, syncUrl, safeText, safeOption } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
+	import SymbolDetail from './SymbolDetail.svelte';
 	import { onMount, tick } from 'svelte';
 
 	const ids = SYMBOLS.map((s) => s.id);
@@ -35,19 +35,64 @@
 	let query = DEFAULTS.q;
 	let format: CopyFormat = 'symbol';
 	let selectedId = DEFAULTS.s;
+	/** The group whose tile was used last, for a symbol listed in two groups. */
+	let selectedGroup = '';
+	/** Under 860px the panel goes under the group of the tile in use, not beside the grid. */
+	let narrow = false;
+	/** On a phone the panel stays under the grid until a tile is used, so nothing moves on load. */
+	let placed = false;
+	const MAX_QUERY = 60;
 
 	onMount(() => {
 		const p = readUrl();
-		query = safeText(p.q, 60) ?? query;
+		query = safeText(p.q, MAX_QUERY) ?? query;
 		format = safeOption(p.as, COPY_FORMATS) ?? format;
 		selectedId = safeOption(p.s, ids) ?? selectedId;
+		const mq = window.matchMedia('(max-width: 859px)');
+		narrow = mq.matches;
+		const onChange = () => (narrow = mq.matches);
+		mq.addEventListener('change', onChange);
+		return () => mq.removeEventListener('change', onChange);
 	});
 	$: syncUrl({ q: query, as: format, s: selectedId }, DEFAULTS);
 
 	// Runs at build time too, so the served page lists every symbol and shows ∧ in full.
 	$: groups = filterGroups(query);
 	$: selected = symbolById(selectedId) as SymbolEntry;
-	$: word = wordInput(selected);
+	$: matchCount = new Set(groups.flatMap((g) => g.symbols.map((s) => s.id))).size;
+	$: lookAlike = lookAlikeOf(query);
+
+	/** The tile that holds the selection: the group last used if it shows it, else the first that does. */
+	$: currentGroup = (
+		groups.find((g) => g.group.id === selectedGroup && g.symbols.some((s) => s.id === selectedId)) ??
+		groups.find((g) => g.symbols.some((s) => s.id === selectedId))
+	)?.group.id;
+	/** Only one tile is in the Tab order: the current one, or the first when it is filtered out. */
+	$: tabKey = currentGroup
+		? `${currentGroup}:${selectedId}`
+		: groups.length
+		? `${groups[0].group.id}:${groups[0].symbols[0].id}`
+		: '';
+	$: panelInGroup = narrow && placed ? currentGroup : undefined;
+
+	const tileId = (s: SymbolEntry, groupId: string) =>
+		firstGroup[s.id] === groupId ? `sym-${s.id}` : `sym-${s.id}-${groupId}`;
+
+	/**
+	 * Makes a tile current. On a phone the panel then moves under that tile's
+	 * group, which can shift the tile; the page scrolls by the same amount so the
+	 * tile stays where the reader's finger or focus is.
+	 */
+	async function select(s: SymbolEntry, groupId: string) {
+		const id = tileId(s, groupId);
+		const before = document.getElementById(id)?.getBoundingClientRect().top;
+		selectedId = s.id;
+		selectedGroup = groupId;
+		placed = true;
+		await tick();
+		const after = document.getElementById(id)?.getBoundingClientRect().top;
+		if (before !== undefined && after !== undefined && after !== before) window.scrollBy(0, after - before);
+	}
 
 	/** What the last copy did, read out by the live region. */
 	let status = '';
@@ -58,7 +103,8 @@
 		status = message;
 		statusKind = kind;
 		clearTimeout(statusTimer);
-		statusTimer = setTimeout(() => (status = ''), 4000);
+		// A failure stays up until the next copy, so there is time to copy by hand.
+		if (kind !== 'fail') statusTimer = setTimeout(() => (status = ''), 4000);
 	}
 
 	async function writeClipboard(text: string): Promise<boolean> {
@@ -70,14 +116,17 @@
 		}
 	}
 
+	const clipboardFailed = (text: string) =>
+		`Could not reach the clipboard. Select ${text} in the symbol panel and copy it from there.`;
+
 	/** A tile was pressed: select the symbol and copy it in the chosen format. */
-	async function pick(s: SymbolEntry) {
-		selectedId = s.id;
+	async function pick(s: SymbolEntry, groupId: string) {
+		await select(s, groupId);
 		const { text, fellBack } = copyText(s, format);
 		const ok = await writeClipboard(text);
 		const name = s.names[0];
 		if (!ok) {
-			say(`Could not reach the clipboard. Select ${text} in the panel below and press Ctrl+C.`, 'fail');
+			say(clipboardFailed(text), 'fail');
 		} else if (fellBack) {
 			say(
 				`${s.glyph} has no LaTeX command in base LaTeX or amssymb, so the symbol itself was copied (${name}).`,
@@ -96,15 +145,16 @@
 	async function copyCode(text: string, what: string) {
 		const ok = await writeClipboard(text);
 		if (ok) say(`Copied ${text} (${what})`, 'ok');
-		else say(`Could not reach the clipboard. Select ${text} and press Ctrl+C.`, 'fail');
+		else say(clipboardFailed(text), 'fail');
 	}
 
 	/**
-	 * Arrow keys move between tiles, as in a character map. Up and down pick the
+	 * Arrow keys move between tiles, as in a character map, and show each symbol
+	 * in the panel without copying it; Enter or Space copies. Up and down pick the
 	 * tile in the row above or below whose centre is nearest, so it works however
 	 * many columns the screen fits and across the group headings.
 	 */
-	function onGridKey(event: KeyboardEvent) {
+	async function onGridKey(event: KeyboardEvent) {
 		const tiles = Array.from(document.querySelectorAll<HTMLButtonElement>('.tile'));
 		const i = tiles.indexOf(document.activeElement as HTMLButtonElement);
 		if (i < 0) return;
@@ -131,8 +181,13 @@
 			} else next = i;
 		} else return;
 		event.preventDefault();
-		tiles[next].focus();
-		tiles[next].scrollIntoView({ block: 'nearest' });
+		const target = tiles[next];
+		const s = symbolById(target.dataset.symbol ?? '');
+		if (s) await select(s, target.dataset.group ?? '');
+		// The panel may have moved, so find the tile again by its id.
+		const tile = document.getElementById(target.id) ?? target;
+		tile.focus();
+		tile.scrollIntoView({ block: 'nearest' });
 	}
 
 	async function clearSearch() {
@@ -209,7 +264,7 @@
 				and.glyph
 			} those are ${and.glyph}, ${and.latex}, ${and.entity} and ${unicodeLabel(
 				and
-			)}. The panel beside the grid has a copy button for every other form.`
+			)}. The symbol panel, beside the grid or under it on a phone, has copy buttons for the symbol, its code point, its HTML codes (named, hex and decimal) and its LaTeX command.`
 		},
 		{
 			q: 'How do I type logic symbols in Word?',
@@ -246,7 +301,7 @@
 	const page = {
 		title: 'Logic Symbols Copy and Paste: ¬ ∧ ∨ → ↔ ∀ ∃ ⊢ With LaTeX',
 		description:
-			'Copy and paste logic symbols in one click: ¬ ∧ ∨ ⊕ → ↔ ∀ ∃ ⊢ ⊨ ∴ and set symbols, each with its Unicode code point, HTML entity, LaTeX command and Word code.',
+			'Copy and paste logic symbols in one click: ¬ ∧ ∨ ⊕ → ↔ ∀ ∃ ⊢ ⊨ ∴ and set symbols, each with its Unicode code point, HTML code, LaTeX command and Word code.',
 		url: `${SITE}/logic-symbols-copy-paste`,
 		image: `${SITE}/og/logic-symbols-copy-paste.png`,
 		imageAlt: 'LogicGates.org: logic symbols to copy and paste, with LaTeX and HTML codes'
@@ -318,8 +373,8 @@
 	<section class="intro">
 		<h1>Logic symbols to copy and paste</h1>
 		<p class="lede">
-			Every symbol of logic, boolean algebra and set theory in one grid. Select one to copy it, as the character itself
-			or as LaTeX, HTML or a Unicode code point, and see how to type it in Word.
+			The {SYMBOLS.length} most common symbols of logic, boolean algebra and set theory in one grid. Select one to copy it,
+			as the character itself or as LaTeX, HTML or a Unicode code point, and see how to type it in Word.
 		</p>
 
 		<div class="card tool">
@@ -329,6 +384,7 @@
 					<input
 						id="filter"
 						type="search"
+						maxlength={MAX_QUERY}
 						bind:value={query}
 						placeholder="and, \land, 2227 or a pasted ∧"
 						spellcheck="false"
@@ -337,7 +393,19 @@
 						aria-describedby="filter-help"
 					/>
 					<p class="field-help" id="filter-help">
-						Matches names, LaTeX commands, HTML entities and code points. Arrow keys move around the grid.
+						Matches names, LaTeX commands, HTML entities and code points. In the grid, arrow keys move between symbols
+						and Enter copies one.
+					</p>
+					{#if lookAlike}
+						<p class="field-help look-hint">
+							{lookAlike.char} ({u(lookAlike.char.codePointAt(0) ?? 0)}) is a look-alike of {lookAlike.symbol.glyph}
+							({unicodeLabel(lookAlike.symbol)}), {lookAlike.symbol.names[0]}. They are different characters.
+						</p>
+					{/if}
+					<p class="visually-hidden" role="status">
+						{#if query.trim()}{matchCount
+								? `${matchCount} ${matchCount === 1 ? 'symbol matches' : 'symbols match'}`
+								: `No symbol matches “${query.trim()}”`}{/if}
 					</p>
 				</div>
 				<div class="format">
@@ -358,11 +426,16 @@
 			<div class="workspace">
 				<!-- svelte-ignore a11y-no-static-element-interactions -->
 				<div class="grid-area" on:keydown={onGridKey}>
+					<h2 class="visually-hidden">Symbol grid</h2>
 					{#each groups as { group, symbols } (group.id)}
 						<div class="group">
-							<h2 class="group-title" id="group-{group.id}">
-								{group.title} <span class="count">{symbols.length}</span>
-							</h2>
+							<h3 class="group-title" id="group-{group.id}">
+								{group.title}
+								<span class="count" aria-hidden="true">{symbols.length}</span><span class="visually-hidden"
+									>({symbols.length} {symbols.length === 1 ? 'symbol' : 'symbols'})</span
+								>
+							</h3>
+							{#if !query.trim()}<p class="group-intro">{group.intro}</p>{/if}
 							<ul class="tiles" aria-labelledby="group-{group.id}">
 								{#each symbols as s (s.id)}
 									<li>
@@ -370,16 +443,23 @@
 											type="button"
 											class="tile"
 											class:current={s.id === selectedId}
-											id={firstGroup[s.id] === group.id ? `sym-${s.id}` : `sym-${s.id}-${group.id}`}
+											id={tileId(s, group.id)}
+											data-symbol={s.id}
+											data-group={group.id}
+											tabindex={`${group.id}:${s.id}` === tabKey ? 0 : -1}
+											aria-current={s.id === selectedId ? 'true' : undefined}
 											aria-label="Copy {s.names[0]}, {unicodeLabel(s)}"
-											on:click={() => pick(s)}
+											on:click={() => pick(s, group.id)}
 										>
 											<span class="glyph" aria-hidden="true">{show(s)}</span>
-											<span class="tile-name" aria-hidden="true">{s.names[0]}</span>
+											<span class="tile-name" aria-hidden="true">{s.tile ?? s.names[0]}</span>
 										</button>
 									</li>
 								{/each}
 							</ul>
+							{#if panelInGroup === group.id}
+								<div class="panel-inline"><SymbolDetail {selected} copy={copyCode} /></div>
+							{/if}
 						</div>
 					{:else}
 						<div class="empty">
@@ -392,72 +472,9 @@
 					{/each}
 				</div>
 
-				<aside class="detail" id="detail" aria-labelledby="detail-name">
-					<div class="detail-head">
-						<span class="detail-glyph" aria-hidden="true">{show(selected)}</span>
-						<div>
-							<p class="detail-name" id="detail-name">{selected.names[0]}</p>
-							{#if selected.names.length > 1}
-								<p class="detail-also">Also: {selected.names.slice(1).join(', ')}</p>
-							{/if}
-						</div>
-					</div>
-					<p class="detail-meaning">{selected.meaning}</p>
-					<dl class="codes">
-						<div>
-							<dt>Unicode</dt>
-							<dd>
-								<code class="mono">{unicodeLabel(selected)}</code>
-								<button type="button" class="copy" on:click={() => copyCode(selected.glyph, 'the symbol')}
-									>Copy symbol</button
-								>
-							</dd>
-						</div>
-						<div>
-							<dt>HTML</dt>
-							<dd>
-								<code class="mono">{htmlCode(selected)}</code>
-								<button type="button" class="copy" on:click={() => copyCode(htmlCode(selected), 'HTML')}>Copy</button>
-								<span class="sub mono">{hexReference(selected)} · {decimalReference(selected)}</span>
-								{#if !selected.entity}<span class="sub">HTML has no named entity for it.</span>{/if}
-							</dd>
-						</div>
-						<div>
-							<dt>LaTeX</dt>
-							<dd>
-								{#if selected.latex}
-									<code class="mono">{selected.latex}</code>
-									<button type="button" class="copy" on:click={() => copyCode(selected.latex ?? '', 'LaTeX')}
-										>Copy</button
-									>
-									{#if selected.amssymb}<span class="sub"
-											>Needs <span class="mono">\usepackage{'{'}amssymb{'}'}</span></span
-										>{/if}
-								{:else}
-									<span class="none">No command</span>
-								{/if}
-								{#if selected.latexNote}<span class="sub">{selected.latexNote}</span>{/if}
-							</dd>
-						</div>
-						<div>
-							<dt>Word</dt>
-							<dd>
-								{#if word.kind === 'keyboard'}
-									Type it on the keyboard.
-								{:else}
-									Type <kbd>{word.code}</kbd> then press <kbd>Alt</kbd>+<kbd>X</kbd>{#if word.then}, then type
-										<kbd>{word.then}</kbd>{/if}.
-								{/if}
-							</dd>
-						</div>
-					</dl>
-					{#if selected.links.length}
-						<p class="detail-links">
-							Learn more:
-							{#each selected.links as link, i}{i ? ', ' : ''}<a href={link.href}>{link.label}</a>{/each}
-						</p>
-					{/if}
-				</aside>
+				{#if !panelInGroup}
+					<div class="panel-side"><SymbolDetail {selected} copy={copyCode} /></div>
+				{/if}
 			</div>
 
 			<p class="share-row"><ShareLink what="this symbol and search" /></p>
@@ -499,8 +516,8 @@
 				<p>
 					A page saved as UTF-8 can hold the symbol itself. Otherwise use the named entity, such as
 					<span class="mono">{and.entity}</span>, or the numeric one, <span class="mono">{hexReference(and)}</span>,
-					which works for every character. A bare <span class="mono">&lt;</span> must always be written
-					<span class="mono">&amp;lt;</span>.
+					which works for every character. A <span class="mono">&lt;</span> in text is safest written
+					<span class="mono">&amp;lt;</span>, since a <span class="mono">&lt;</span> followed by a letter starts a tag.
 				</p>
 			</div>
 			<div class="card way">
@@ -527,9 +544,21 @@
 					<p class="formula-text">{w.text}</p>
 					<dl>
 						<dt>LaTeX</dt>
-						<dd class="mono">{w.latex}</dd>
+						<dd>
+							<span class="mono">{w.latex}</span>
+							<button type="button" class="copy-small" on:click={() => copyCode(w.latex, 'LaTeX')}
+								><span aria-hidden="true">Copy</span><span class="visually-hidden">Copy the LaTeX for {w.text}</span
+								></button
+							>
+						</dd>
 						<dt>HTML</dt>
-						<dd class="mono">{w.html}</dd>
+						<dd>
+							<span class="mono">{w.html}</span>
+							<button type="button" class="copy-small" on:click={() => copyCode(w.html, 'HTML')}
+								><span aria-hidden="true">Copy</span><span class="visually-hidden">Copy the HTML for {w.text}</span
+								></button
+							>
+						</dd>
 					</dl>
 					{#if w.amssymb}<p class="reducer">The LaTeX needs amssymb.</p>{/if}
 				</div>
@@ -553,9 +582,13 @@
 		<ul class="look-list">
 			{#each lookAlikes as l}
 				<li class="card look">
-					<span class="look-glyphs" aria-hidden="true">{l.pair.join('  ')}</span>
-					<span class="mono look-codes">{l.codes.join(', ')}</span>
-					<span class="look-note">{l.note}</span>
+					<span class="look-glyphs" aria-hidden="true">
+						{#each l.pair as c}<span class="look-glyph">{c}</span>{/each}
+					</span>
+					<span class="look-text">
+						<span class="mono look-codes">{l.codes.join(', ')}</span>
+						<span class="look-note">{l.note}</span>
+					</span>
 				</li>
 			{/each}
 		</ul>
@@ -570,7 +603,8 @@
 	<section id="reference">
 		<h2>Printable logic symbols table</h2>
 		<p class="section-intro">
-			All {reference.length} symbols on one sheet with their codes. Symbols with two jobs, such as ⊃ and ≡, appear once.
+			All {reference.length} symbols in one table with their codes, ready to print. Symbols with two jobs, such as ⊃ and
+			≡, appear once.
 		</p>
 		<p class="no-print"><button type="button" class="chip-btn" on:click={printTable}>Print this table</button></p>
 		<div class="table-wrap">
@@ -578,7 +612,7 @@
 				<thead>
 					<tr>
 						<th scope="col">Symbol</th>
-						<th scope="col">Name</th>
+						<th scope="col" class="ref-name">Name</th>
 						<th scope="col">Unicode</th>
 						<th scope="col">HTML</th>
 						<th scope="col">LaTeX</th>
@@ -590,9 +624,9 @@
 							<tr class="group-row"><th scope="rowgroup" colspan="5">{group}</th></tr>
 						{/if}
 						<tr>
-							<td class="ref-glyph">{show(s)}</td>
-							<td>{s.names[0]}</td>
-							<td class="mono">{unicodeLabel(s)}</td>
+							<td class="ref-glyph">{show(s)}<span class="ref-name-inline">{s.names[0]}</span></td>
+							<td class="ref-name">{s.names[0]}</td>
+							<td class="mono ref-cp">{unicodeLabel(s)}</td>
 							<td class="mono">{htmlCode(s)}</td>
 							<td class="mono">{s.latex ?? '—'}{s.amssymb ? ' *' : ''}</td>
 						</tr>
@@ -707,17 +741,26 @@
 			grid-template-columns: minmax(0, 1fr) 290px;
 		}
 
-		.detail {
+		.panel-side {
 			position: sticky;
 			top: 70px;
 			align-self: start;
 		}
 	}
 
-	.group-title {
+	.panel-side {
+		margin-top: 0.8rem;
+		min-width: 0;
+	}
+
+	.panel-inline {
+		margin-top: 0.7rem;
+	}
+
+	.grid-area .group-title {
 		color: #fff;
-		font-size: 0.95rem !important;
-		margin: 0.8rem 0 0.45rem !important;
+		font-size: 0.95rem;
+		margin: 0.8rem 0 0.2rem;
 	}
 
 	.count {
@@ -726,12 +769,31 @@
 		font-size: 0.8rem;
 	}
 
+	.group-intro {
+		color: #aaa;
+		font-size: 0.8rem;
+		margin: 0 0 0.45rem;
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+
+	.look-hint {
+		color: #d9c48a;
+	}
+
 	.tiles {
 		list-style: none;
 		margin: 0;
 		padding: 0;
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(66px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
 		gap: 5px;
 	}
 
@@ -761,6 +823,17 @@
 		background: #142114;
 	}
 
+	/* Focus is a white ring outside the tile, so it never looks like the green
+	   hover or selected state. */
+	.tile:focus {
+		outline: none;
+	}
+
+	.tile:focus-visible {
+		outline: 2px solid #fff;
+		outline-offset: 2px;
+	}
+
 	.glyph,
 	.detail-glyph,
 	.ref-glyph,
@@ -776,7 +849,8 @@
 
 	.tile-name {
 		color: #bbb;
-		font-size: 0.66rem;
+		font-size: 0.7rem;
+		hyphens: manual;
 		line-height: 1.15;
 		text-align: center;
 		max-width: 100%;
@@ -807,110 +881,6 @@
 	.chip-btn:hover {
 		border-color: #5db65d;
 		color: #fff;
-	}
-
-	.detail {
-		background: #0d0d0f;
-		border: 1px solid rgba(93, 182, 93, 0.5);
-		border-radius: 3px;
-		padding: 0.8rem 0.9rem;
-		margin-top: 0.8rem;
-		min-width: 0;
-	}
-
-	.detail-head {
-		display: flex;
-		align-items: center;
-		gap: 0.8rem;
-	}
-
-	.detail-glyph {
-		font-size: 2.8rem;
-		line-height: 1;
-		min-width: 3.2rem;
-		text-align: center;
-		color: #8ede8e;
-	}
-
-	.detail-name {
-		color: #fff;
-		font-weight: 700;
-		font-size: 1.05rem;
-		margin: 0;
-	}
-
-	.detail-also {
-		color: #bbb;
-		font-size: 0.8rem;
-		margin: 0.1rem 0 0;
-	}
-
-	.detail-meaning {
-		font-size: 0.88rem;
-		margin: 0.7rem 0;
-	}
-
-	.codes {
-		margin: 0;
-	}
-
-	.codes > div {
-		border-top: 1px solid rgba(255, 255, 255, 0.12);
-		padding: 0.45rem 0;
-	}
-
-	.codes dt {
-		color: #999;
-		font-size: 0.7rem;
-		letter-spacing: 0.05em;
-		text-transform: uppercase;
-	}
-
-	.codes dd {
-		margin: 0.1rem 0 0;
-		font-size: 0.9rem;
-		color: #ddd;
-		overflow-wrap: anywhere;
-	}
-
-	.codes code {
-		color: #8ede8e;
-		font-size: 0.95rem;
-		margin-right: 0.4rem;
-	}
-
-	.copy {
-		background: #161618;
-		border: 1px solid rgba(255, 255, 255, 0.4);
-		border-radius: 3px;
-		color: #ddd;
-		font-size: 0.75rem;
-		padding: 0.1rem 0.5rem;
-		cursor: pointer;
-		vertical-align: 1px;
-	}
-
-	.copy:hover {
-		border-color: #5db65d;
-		color: #fff;
-	}
-
-	.sub {
-		display: block;
-		color: #aaa;
-		font-size: 0.78rem;
-		margin-top: 0.15rem;
-	}
-
-	.none {
-		color: #bbb;
-	}
-
-	.detail-links {
-		font-size: 0.85rem;
-		margin: 0.5rem 0 0;
-		border-top: 1px solid rgba(255, 255, 255, 0.12);
-		padding-top: 0.5rem;
 	}
 
 	.share-row {
@@ -972,7 +942,7 @@
 
 	.ways {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
 		gap: 12px;
 	}
 
@@ -991,7 +961,7 @@
 
 	.formulas {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
 		gap: 12px;
 	}
 
@@ -1038,19 +1008,35 @@
 
 	.look {
 		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
-		gap: 0.15rem 0.9rem;
+		grid-template-columns: 6.5rem minmax(0, 1fr);
+		gap: 0 0.9rem;
 		align-items: start;
 		padding: 0.6rem 0.9rem;
 	}
 
 	.look-glyphs {
-		font-size: 1.4rem;
-		white-space: pre;
+		display: flex;
+		gap: 4px;
+	}
+
+	.look-glyph {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2.4rem;
+		font-size: 1.6rem;
 		color: #fff;
-		grid-row: 1 / span 2;
-		line-height: 1.2;
-		min-width: 4.5rem;
+		background: #0d0d0f;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 3px;
+	}
+
+	.look-text {
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		min-width: 0;
 	}
 
 	.look-codes {
@@ -1063,19 +1049,54 @@
 		font-size: 0.88rem;
 	}
 
-	.reference {
-		font-size: 0.88rem;
+	.formula dd {
+		display: flex;
+		align-items: baseline;
+		gap: 0.5rem;
 	}
 
-	.reference td,
-	.reference th {
-		padding: 0.25rem 0.7rem;
+	.formula dd .mono {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.copy-small {
+		flex: 0 0 auto;
+		background: #161618;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		border-radius: 3px;
+		color: #ddd;
+		font-size: 0.75rem;
+		min-height: 28px;
+		padding: 0.2rem 0.6rem;
+		cursor: pointer;
+	}
+
+	.copy-small:hover {
+		border-color: #5db65d;
+		color: #fff;
+	}
+
+	.reference {
+		font-size: 0.85rem;
+	}
+
+	/* .reference.data-table outranks the site's roomier .data-table cells, so
+	   the table stays compact enough to print on few pages. */
+	.reference.data-table td,
+	.reference.data-table th {
+		padding: 2px 10px;
+		line-height: 1.35;
 	}
 
 	.reference .ref-glyph {
-		font-size: 1.2rem;
+		font-size: 1.05rem;
 		color: #fff;
 		text-align: center;
+	}
+
+	.ref-name-inline {
+		display: none;
 	}
 
 	.reference td.mono {
@@ -1097,12 +1118,63 @@
 		.tile {
 			height: 68px;
 		}
+
+		.look {
+			grid-template-columns: minmax(0, 1fr);
+			gap: 0.4rem;
+		}
+
+		/* The name moves under the glyph, so the code columns people come for fit. */
+		.reference .ref-name {
+			display: none;
+		}
+
+		.reference .ref-glyph {
+			text-align: left;
+		}
+
+		.ref-name-inline {
+			display: block;
+			color: #bbb;
+			font-family: system-ui, sans-serif;
+			font-size: 0.72rem;
+			line-height: 1.2;
+		}
+
+		.reference.data-table td,
+		.reference.data-table th {
+			padding: 2px 4px;
+		}
+
+		.reference td.mono {
+			font-size: 0.7rem;
+		}
+
+		/* U+2203 U+0021 may wrap between its two code points. */
+		.reference td.ref-cp {
+			white-space: normal;
+		}
 	}
 
 	@media print {
 		:global(html.print-symbol-table section:not(#reference)),
-		:global(html.print-symbol-table #reference .section-intro) {
+		:global(html.print-symbol-table #reference .section-intro),
+		:global(html.print-symbol-table #reference .no-print) {
 			display: none;
+		}
+
+		.reference {
+			font-size: 8.5pt;
+		}
+
+		.reference .ref-glyph {
+			font-size: 10pt;
+		}
+
+		.reference.data-table td,
+		.reference.data-table th {
+			padding: 0 6px;
+			line-height: 1.25;
 		}
 
 		.toast-wrap {

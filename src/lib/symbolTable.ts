@@ -33,6 +33,15 @@ export type SymbolEntry = {
 	links: ConceptLink[];
 	/** Extra words people search for, beyond the names. */
 	keywords?: string;
+	/**
+	 * Other LaTeX commands and HTML entities for the symbol, and the commands its
+	 * note compares it with, so that searching for any of them finds it.
+	 */
+	aliases?: string[];
+	/** Characters drawn almost the same, which a reader may paste by mistake. */
+	lookAlikes?: number[];
+	/** A shorter name for the tile, when the first name does not fit on it. */
+	tile?: string;
 };
 
 const gate = (slug: string, name: string): ConceptLink => ({ href: `/logic-gates/${slug}`, label: `${name} gate` });
@@ -60,6 +69,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&not;',
 		latex: '\\lnot',
 		latexNote: '\\neg is the same symbol',
+		aliases: ['\\neg'],
 		links: [gate('not', 'NOT'), logic],
 		keywords: 'not negation negate'
 	},
@@ -72,6 +82,8 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: null,
 		latex: '\\sim',
 		latexNote: 'prints the tilde operator ∼ (U+223C); \\textasciitilde gives a text tilde',
+		aliases: ['\\textasciitilde'],
+		lookAlikes: [0x223c],
 		links: [gate('not', 'NOT')],
 		keywords: 'not negation squiggle'
 	},
@@ -84,6 +96,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&and;',
 		latex: '\\land',
 		latexNote: '\\wedge is the same symbol',
+		aliases: ['\\wedge', '&wedge;'],
 		links: [gate('and', 'AND'), logic],
 		keywords: 'and conjunction wedge hat'
 	},
@@ -96,6 +109,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&or;',
 		latex: '\\lor',
 		latexNote: '\\vee is the same symbol',
+		aliases: ['\\vee', '&vee;'],
 		links: [gate('or', 'OR'), logic],
 		keywords: 'or disjunction vee'
 	},
@@ -132,6 +146,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&rarr;',
 		latex: '\\to',
 		latexNote: '\\rightarrow is the same symbol',
+		aliases: ['\\rightarrow', '&rightarrow;'],
 		links: [conditional],
 		keywords: 'implies implication if then arrow conditional'
 	},
@@ -144,6 +159,7 @@ export const SYMBOLS: SymbolEntry[] = [
 			'Some books write the conditional this way; others keep ⇒ for "implies" as a claim that p → q holds in every case, or between the steps of a proof.',
 		entity: '&rArr;',
 		latex: '\\Rightarrow',
+		aliases: ['&Rightarrow;'],
 		links: [conditional],
 		keywords: 'implies implication double arrow'
 	},
@@ -151,7 +167,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		id: 'supset',
 		glyph: '⊃',
 		codePoints: [0x2283],
-		names: ['Horseshoe', 'superset', 'conditional (older notation)'],
+		names: ['Horseshoe', 'superset', 'older conditional sign'],
 		meaning:
 			'In older logic books p ⊃ q is the conditional "if p then q". In set theory A ⊃ B says A contains B; whether that allows A = B depends on the book, as with ⊂.',
 		entity: '&sup;',
@@ -167,8 +183,9 @@ export const SYMBOLS: SymbolEntry[] = [
 		meaning: 'p ↔ q, "p if and only if q", is true when p and q have the same truth value.',
 		entity: '&harr;',
 		latex: '\\leftrightarrow',
-		links: [biconditional],
-		keywords: 'iff biconditional if and only if equivalence xnor double arrow'
+		aliases: ['&leftrightarrow;'],
+		links: [biconditional, gate('xnor', 'XNOR')],
+		keywords: 'iff biconditional if only if equivalence xnor double arrow'
 	},
 	{
 		id: 'iff-double',
@@ -180,8 +197,9 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&hArr;',
 		latex: '\\Leftrightarrow',
 		latexNote: '\\iff prints a longer arrow ⟺ with extra space around it',
-		links: [biconditional],
-		keywords: 'iff if and only if equivalent double arrow'
+		aliases: ['\\iff', '&iff;', '&Leftrightarrow;'],
+		links: [biconditional, gate('xnor', 'XNOR')],
+		keywords: 'iff if only if equivalent double arrow'
 	},
 	{
 		id: 'equiv',
@@ -238,6 +256,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&barvee;',
 		latex: null,
 		latexNote: 'neither base LaTeX nor amssymb has it; \\barvee comes with the stix and unicode-math packages',
+		aliases: ['\\barvee'],
 		links: [gate('nor', 'NOR')],
 		keywords: 'nor barvee'
 	},
@@ -262,6 +281,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&bot;',
 		latex: '\\bot',
 		latexNote: '\\perp is the same glyph with relation spacing',
+		aliases: ['\\perp', '&perp;', '&bottom;'],
 		links: [tautology],
 		keywords: 'false contradiction falsum bottom up tack perpendicular'
 	},
@@ -275,7 +295,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		meaning: '∀x P(x) says P(x) holds for every x in the domain.',
 		entity: '&forall;',
 		latex: '\\forall',
-		links: [],
+		links: [logic],
 		keywords: 'for all every each any universal quantifier upside down a'
 	},
 	{
@@ -286,7 +306,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		meaning: '∃x P(x) says at least one x in the domain has P(x).',
 		entity: '&exist;',
 		latex: '\\exists',
-		links: [],
+		links: [logic],
 		keywords: 'there exists some existential quantifier backwards e'
 	},
 	{
@@ -298,7 +318,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&nexist;',
 		latex: '\\nexists',
 		amssymb: true,
-		links: [],
+		links: [logic],
 		keywords: 'not exists there is no none quantifier'
 	},
 	{
@@ -309,7 +329,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		meaning: '∃!x P(x) says exactly one x has P(x). It is two characters: ∃ followed by an ordinary exclamation mark.',
 		entity: '&exist;!',
 		latex: '\\exists!',
-		links: [],
+		links: [logic],
 		keywords: 'unique exactly one uniqueness quantifier'
 	},
 
@@ -335,6 +355,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&vDash;',
 		latex: '\\models',
 		latexNote: '\\vDash, with amssymb, is the same shape',
+		aliases: ['\\vDash'],
 		links: [inference, tautology],
 		keywords: 'entails models satisfies semantic consequence double turnstile valid'
 	},
@@ -385,7 +406,8 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&square;',
 		latex: '\\Box',
 		amssymb: true,
-		latexNote: 'the latexsym package also has \\Box',
+		latexNote: 'the latexsym package also has \\Box, and amssymb has \\square for the same square',
+		aliases: ['\\square'],
 		links: [],
 		keywords: 'box necessarily necessity modal white square'
 	},
@@ -425,6 +447,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&middot;',
 		latex: '\\cdot',
 		latexNote: 'prints the dot operator ⋅ (U+22C5), which is the same idea',
+		lookAlikes: [0x22c5],
 		links: [gate('and', 'AND'), laws],
 		keywords: 'and product dot multiply boolean'
 	},
@@ -448,7 +471,9 @@ export const SYMBOLS: SymbolEntry[] = [
 			"A′ is NOT A, the complement of A. Easier to type than a bar, and a plain apostrophe A' is the usual stand-in.",
 		entity: '&prime;',
 		latex: "'",
-		latexNote: "in math mode A' prints A′; \\prime is the same glyph",
+		latexNote:
+			"in math mode A' is shorthand for A^{\\prime}, which prints A′; a bare \\prime prints a large prime on the baseline",
+		aliases: ['\\prime'],
 		links: [gate('not', 'NOT'), laws],
 		keywords: 'not complement prime apostrophe inverse boolean'
 	},
@@ -459,10 +484,11 @@ export const SYMBOLS: SymbolEntry[] = [
 		display: 'A̅',
 		names: ['Overline', 'bar', 'NOT in boolean algebra'],
 		meaning:
-			'A̅, "A bar", is NOT A. U+0305 is a combining character: it draws its bar over the character just before it, so paste it straight after the letter. A bar over a whole expression needs LaTeX or an equation editor; in plain text write (A + B)′.',
+			'A̅, "A bar", is NOT A. U+0305 is a combining character: it draws its bar over the character just before it, so paste it straight after the letter. A bar over a whole expression needs LaTeX or an equation editor; in plain text write (A + B)\u2060′.',
 		entity: null,
 		latex: '\\overline{A}',
 		latexNote: '\\bar{A} gives a shorter bar; \\overline stretches over several letters',
+		aliases: ['\\overline', '\\bar', '\\bar{A}'],
 		links: [gate('not', 'NOT'), laws],
 		keywords: 'not bar overline overbar complement combining boolean'
 	},
@@ -589,14 +615,17 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&empty;',
 		latex: '\\emptyset',
 		latexNote: '\\varnothing, with amssymb, is the rounder form',
+		aliases: ['\\varnothing', '&emptyset;', '&emptyv;', '&varnothing;'],
+		lookAlikes: [0xd8, 0x3c6],
 		links: [setLink('empty', 'Empty set, in set notation')],
-		keywords: 'empty null void nothing zero slash'
+		keywords: 'empty null void zero slash'
 	},
 	{
 		id: 'wp',
 		glyph: '℘',
 		codePoints: [0x2118],
 		names: ['Weierstrass p', 'power set'],
+		tile: 'Weier\u00adstrass p',
 		meaning: '℘(A) is the set of all subsets of A. The glyph is the Weierstrass p, borrowed for the power set.',
 		entity: '&weierp;',
 		latex: '\\wp',
@@ -648,6 +677,8 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&Delta;',
 		latex: '\\Delta',
 		latexNote: '\\triangle (△) is also used',
+		aliases: ['\\triangle'],
+		lookAlikes: [0x2206],
 		links: [setLink('symmetric-difference', 'Symmetric difference, in set notation')],
 		keywords: 'symmetric difference delta triangle xor'
 	},
@@ -744,6 +775,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&ne;',
 		latex: '\\neq',
 		latexNote: '\\ne is the same symbol',
+		aliases: ['\\ne'],
 		links: [],
 		keywords: 'not equal unequal different'
 	},
@@ -763,6 +795,7 @@ export const SYMBOLS: SymbolEntry[] = [
 		glyph: '≈',
 		codePoints: [0x2248],
 		names: ['Approximately equal to'],
+		tile: 'Approx. equal',
 		meaning: 'The two sides are close but not exactly equal, as in π ≈ 3.14.',
 		entity: '&asymp;',
 		latex: '\\approx',
@@ -789,8 +822,9 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&le;',
 		latex: '\\leq',
 		latexNote: '\\le is the same symbol',
+		aliases: ['\\le', '&leq;'],
 		links: [],
-		keywords: 'less than or equal at most'
+		keywords: 'less than equal at most'
 	},
 	{
 		id: 'gt',
@@ -812,8 +846,9 @@ export const SYMBOLS: SymbolEntry[] = [
 		entity: '&ge;',
 		latex: '\\geq',
 		latexNote: '\\ge is the same symbol',
+		aliases: ['\\ge', '&geq;'],
 		links: [],
-		keywords: 'greater than or equal at least'
+		keywords: 'greater than equal at least'
 	}
 ];
 
@@ -993,47 +1028,100 @@ export function copyText(s: SymbolEntry, format: CopyFormat): { text: string; fe
 
 const fold = (text: string) => text.toLowerCase().replace(/\s+/g, ' ').trim();
 
-/** \land, &and; and land all find the same symbol. */
+/** \land, &and; and land all find the same symbol when typed as a plain word. */
 const bare = (word: string) => word.replace(/^(u\+|\\|&#x|&#|&)/, '').replace(/;$/, '');
 
+/**
+ * Joining words inside a name ("less than or equal to", "if and only if").
+ * They are left out of the name words, so "or" does not find ≤, and dropped
+ * from a query that has other words. The keywords keep them on purpose: "or"
+ * still finds ∨ and +.
+ */
+const STOP_WORDS = new Set(['and', 'or', 'of', 'to', 'the', 'a', 'an']);
+
+/**
+ * Every code the page shows or names for a symbol, exactly as written. LaTeX
+ * and HTML are case sensitive (\vdash is ⊢, \vDash is ⊨; &rarr; is →, &rArr; is
+ * ⇒), so these are compared without folding.
+ */
+const codesOf = (s: SymbolEntry): string[] =>
+	[s.latex, s.entity, htmlCode(s), ...(s.aliases ?? [])].filter((c): c is string => !!c && /^[\\&]/.test(c));
+
+const codes = new Map(SYMBOLS.map((s) => [s.id, codesOf(s)]));
+const allCodes = new Set(SYMBOLS.flatMap(codesOf));
+
 /** Every word a person might type to find a symbol, folded once. */
-const tokens = new Map(
+const words = new Map(
 	SYMBOLS.map((s) => {
-		const text = fold(
-			[
-				...s.names,
-				s.keywords ?? '',
-				s.entity ?? '',
-				s.latex ?? '',
-				unicodeLabel(s),
-				s.codePoints.map(hex4).join(' ')
-			].join(' ')
-		);
-		const words = text.split(/[\s,(){}]+/).filter(Boolean);
-		return [s.id, [...new Set([...words, ...words.map(bare)])]];
+		const nameWords = fold(s.names.join(' '))
+			.split(/[\s,(){}]+/)
+			.filter((w) => w && !STOP_WORDS.has(w));
+		const codeWords = fold(
+			[s.keywords ?? '', ...codesOf(s), unicodeLabel(s), s.codePoints.map(hex4).join(' ')].join(' ')
+		)
+			.split(/[\s,(){}]+/)
+			.filter(Boolean);
+		const all = [...nameWords, ...codeWords];
+		return [s.id, [...new Set([...all, ...all.map(bare)])]];
 	})
 );
 
+/** &#x2227; and &#8743; turned back into the characters they stand for. */
+const decodeNumeric = (text: string) =>
+	text.replace(/&#(x[0-9a-f]+|\d+);/gi, (ref, n: string) => {
+		const cp = n[0].toLowerCase() === 'x' ? parseInt(n.slice(1), 16) : Number(n);
+		return cp <= 0x10ffff ? String.fromCodePoint(cp) : ref;
+	});
+
+/** The symbol a pasted look-alike character is often mistaken for. */
+export function lookAlikeOf(text: string): { char: string; symbol: SymbolEntry } | undefined {
+	const char = text.trim();
+	if (Array.from(char).length !== 1) return undefined;
+	const cp = char.codePointAt(0) as number;
+	const symbol = SYMBOLS.find((s) => s.lookAlikes?.includes(cp));
+	return symbol && { char, symbol };
+}
+
+/** One word of a query, against one symbol. */
+function matchesWord(s: SymbolEntry, w: string): boolean {
+	// A numeric reference, complete or still being typed, against the ones shown.
+	if (/^&#/.test(w)) {
+		const lower = w.toLowerCase();
+		return [hexReference(s), decimalReference(s)].some((r) => r.toLowerCase().startsWith(lower));
+	}
+	// A LaTeX command or HTML entity, case and all. A complete code finds only
+	// the symbols it belongs to, so \to does not also bring up \top; a code
+	// still being typed finds every code it starts.
+	if (/^[\\&]/.test(w)) {
+		const own = codes.get(s.id) ?? [];
+		return allCodes.has(w) ? own.includes(w) : own.some((c) => c.startsWith(w));
+	}
+	const folded = bare(fold(w));
+	return !folded || (words.get(s.id) ?? []).some((t) => t.startsWith(folded));
+}
+
 /**
- * True when the symbol matches the query. Pasting a character finds every
- * symbol containing it; otherwise every word of the query must start one of
- * the words in its names, keywords, LaTeX, entity or code point. Matching word
- * starts rather than anywhere keeps "and" from finding NAND, and the meaning
- * text is left out because nearly every meaning contains "and" or "or".
+ * True when the symbol matches the query. Pasting a character, a numeric
+ * reference or a look-alike finds every symbol containing it; otherwise every
+ * word of the query must start one of the words in the symbol's names,
+ * keywords, codes or code point. Matching word starts rather than anywhere
+ * keeps "and" from finding NAND, and the meaning text is left out because
+ * nearly every meaning contains "and" or "or".
  */
 export function matchesQuery(s: SymbolEntry, query: string): boolean {
 	const trimmed = query.trim();
 	if (!trimmed) return true;
-	if (trimmed === s.glyph || trimmed === s.display) return true;
-	if (Array.from(trimmed).length === 1 && !/[a-z0-9]/i.test(trimmed)) return s.glyph.includes(trimmed);
-	const own = tokens.get(s.id) ?? [];
-	// A typed \land or &and; is a code, matched as written; a plain word is matched
-	// against the codes with their \ and & taken off as well.
-	return fold(trimmed)
-		.split(' ')
-		.map((w) => (/^[\\&]/.test(w) ? w : bare(w)))
-		.filter(Boolean)
-		.every((w) => own.some((t) => t.startsWith(w)));
+	const decoded = decodeNumeric(trimmed);
+	if (decoded === s.glyph || decoded === s.display) return true;
+	if (lookAlikeOf(decoded)?.symbol === s) return true;
+	if (allCodes.has(trimmed)) return (codes.get(s.id) ?? []).includes(trimmed);
+	// The LaTeX for + = < > and the prime is typed as it is: ' finds the prime.
+	if (s.latex === trimmed) return true;
+	if (Array.from(decoded).length === 1 && !/[a-z0-9]/i.test(decoded)) return s.glyph.includes(decoded);
+	if (decoded !== trimmed) return false;
+	const parts = trimmed.split(/\s+/);
+	const content = parts.filter((w) => !STOP_WORDS.has(w.toLowerCase()));
+	return (content.length ? content : parts).every((w) => matchesWord(s, w));
 }
 
 /** The groups with only the matching symbols in them, empty groups dropped. */
@@ -1049,9 +1137,19 @@ export function filterGroups(query: string): { group: SymbolGroup; symbols: Symb
 /** One symbol per single character, for transcribing a formula. */
 const byChar = new Map(SYMBOLS.filter((s) => s.codePoints.length === 1).map((s) => [s.glyph, s]));
 
+/** Characters that mean something to LaTeX or HTML, escaped when a formula has them. */
+const LATEX_SPECIAL: Record<string, string> = {
+	'{': '\\{',
+	'}': '\\}',
+	'%': '\\%',
+	'#': '\\#',
+	'&': '\\&'
+};
+
 /**
  * A formula typed with Unicode symbols, rewritten as LaTeX or HTML. Letters,
- * digits, spaces and brackets pass through. A LaTeX command made of letters
+ * digits, spaces and brackets pass through; set braces, % # & in LaTeX and &
+ * in HTML are escaped, since both languages treat them as markup. A LaTeX command made of letters
  * swallows a letter right after it (\lnot p must not become \lnotp), so a
  * space is put in where one is needed. A letter followed by the combining
  * overline becomes \overline{A} in LaTeX.
@@ -1068,10 +1166,10 @@ export function transcribe(text: string, format: 'latex' | 'html'): string {
 		}
 		const s = byChar.get(c);
 		if (format === 'latex') {
-			const piece = s ? s.latex ?? c : c;
+			const piece = s ? s.latex ?? c : LATEX_SPECIAL[c] ?? c;
 			out = joinLatex(out, piece);
 		} else {
-			out += s ? htmlCode(s) : c;
+			out += s ? htmlCode(s) : c === '&' ? '&amp;' : c;
 		}
 	}
 	return out;
