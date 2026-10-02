@@ -31,6 +31,7 @@
 	} from '$lib/minifloat';
 	import { readUrl, syncUrl, safeText, safeOption } from '$lib/urlState';
 	import { groupDecimal } from '$lib/radix';
+	import { shortDecimal } from '$lib/ieee754';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import { onMount } from 'svelte';
 
@@ -93,11 +94,22 @@
 	$: shown = typed ?? detail.enc.result;
 	$: sf = FORMATS[format];
 	$: steps = mode === 'dec' ? detail.enc.steps : null;
+	/** A gap after every fourth bit counted from the right of the whole pattern, so the groups are the hex digits. */
+	$: nibbleAfter = (g: number) => (sf.bits - 1 - g) % 4 === 0;
 
 	function setMode(next: Mode) {
 		if (next === mode) return;
 		if (!error) {
-			const d = shown;
+			let d = shown;
+			if (!d && next !== 'dec') {
+				// The chosen format has no code for this value (NaN in FP4): switch to
+				// one that has, rather than leave text that is not a bit pattern.
+				const other = rows.find((r) => r.id === DEFAULTS.fmt && r.enc.result) ?? rows.find((r) => r.enc.result);
+				if (other?.enc.result) {
+					format = other.id;
+					d = other.enc.result;
+				}
+			}
 			if (next === 'dec') input = d ? d.exact : 'NaN';
 			else if (d) input = next === 'hex' ? d.hex : d.bits;
 		}
@@ -159,13 +171,21 @@
 		nan: 'NaN'
 	};
 
-	/** The relative error as a percentage, for people who think in those. */
-	function percent(rel: string | null): string {
+	/**
+	 * The relative error as a percentage, always with the % sign. Three figures,
+	 * except that 99.99% is never rounded to a 100% that would read as "became
+	 * zero"; relativeShort has four figures, so it is '1' only when the error is
+	 * the whole value to that precision, and then a nonzero result says ≈ 100%.
+	 */
+	function percent(e: Encoding): string {
+		const rel = e.relativeShort;
 		if (rel === null) return '';
 		const p = Number(rel) * 100;
 		if (p === 0) return '0%';
-		// Below a hundredth of a percent, a plain ratio reads better than 0.0000015%.
-		return p >= 0.01 ? `${Number(p.toPrecision(3))}%` : `${minus(rel)}`;
+		if (rel === '1') return e.result?.kind === 'zero' ? '100%' : '≈ 100%';
+		if (p < 0.01) return `${minus(p.toExponential(2))}%`;
+		const three = Number(p.toPrecision(3));
+		return `${three >= 100 ? Number(p.toPrecision(4)) : three}%`;
 	}
 
 	function roundedText(e: Encoding): string {
@@ -179,18 +199,37 @@
 		return `rounded ${e.rounded}`;
 	}
 
-	// Copying a code: one live region announces it for every card.
+	// Copying a code: the button itself says Copied, and one live region
+	// announces it (or the failure, which is shown too) for every card.
 	let copied = '';
+	let copiedId: FormatId | null = null;
+	let copyFailed = false;
 	let copyTimer: ReturnType<typeof setTimeout>;
-	async function copy(text: string, what: string) {
+	async function copy(id: FormatId, text: string, what: string) {
 		try {
 			await navigator.clipboard.writeText(text);
 			copied = `Copied ${what}`;
+			copiedId = id;
+			copyFailed = false;
 		} catch {
-			copied = 'Copying failed: select the text and press ctrl+C';
+			copied = 'Copying failed: select the hex and press Ctrl+C';
+			copiedId = null;
+			copyFailed = true;
 		}
 		clearTimeout(copyTimer);
-		copyTimer = setTimeout(() => (copied = ''), 2500);
+		copyTimer = setTimeout(() => {
+			copied = '';
+			copiedId = null;
+			copyFailed = false;
+		}, 2500);
+	}
+
+	/** A typed value short enough for a heading: long ones keep their first figures. */
+	function shortTyped(p: Parsed): string {
+		if (p.normalised.length <= 24) return p.normalised;
+		if (p.kind === 'number' && !p.beyond && p.value.num !== 0n)
+			return `${p.negative ? '-' : ''}${shortDecimal(p.value.num, p.value.den, 8)}…`;
+		return `${p.normalised.slice(0, 20)}…`;
 	}
 
 	// --- Generated reference content ---------------------------------------
@@ -201,15 +240,14 @@
 	};
 	const digitsText = (x: number) => x.toFixed(1);
 
-	// Worked rounding examples: the first two are exact ties in E4M3, the third never ends.
-	const tieDown = encode('1.0625', 'e4m3');
-	const tieUp = encode('1.1875', 'e4m3');
-	const pointOne16 = encode('0.1', 'fp16');
+	// Worked rounding examples in E4M3: two exact ties, and a value a hair above
+	// the first tie (1.0001001 in binary) where only the sticky bit says so. The
+	// tests check each one's guard, round and sticky bits.
 	const worked = [
-		{ title: '1.0625 to E4M3: a tie, kept even', e: tieDown, v: '1.0625', fmt: 'e4m3' as FormatId },
-		{ title: '1.1875 to E4M3: a tie, rounded up to even', e: tieUp, v: '1.1875', fmt: 'e4m3' as FormatId },
-		{ title: '0.1 to FP16: sticky decides', e: pointOne16, v: '0.1', fmt: 'fp16' as FormatId }
-	];
+		{ title: '1.0625 to E4M3: a tie, kept even', v: '1.0625' },
+		{ title: '1.1875 to E4M3: a tie, rounded up to even', v: '1.1875' },
+		{ title: '1.0703125 to E4M3: sticky decides', v: '1.0703125' }
+	].map((w) => ({ ...w, fmt: 'e4m3' as FormatId, e: encode(w.v, 'e4m3') }));
 
 	// What happens just past the top of each format.
 	const overflowRows = FORMAT_IDS.map((id) => {
@@ -249,6 +287,9 @@
 	const truncated = decode(parseInt(truncSource.hex.slice(0, 4), 16), 'bf16');
 	const roundedBf = stored('0.1', 'bf16');
 	const e4m3Hundred = encode('100', 'e4m3');
+	const e4m3Tenth = encode('0.1', 'e4m3');
+	/** Half of E4M3's epsilon, the bound on its relative error for normal numbers, as a percentage. */
+	const e4m3Bound = 100 / 2 ** (FORMATS.e4m3.mantissaBits + 1);
 
 	const block = mxBlock(['0.31', '-1.2', '2.5', '0.05', '-0.7', '1.9', '0.004', '-2.2']);
 
@@ -263,6 +304,8 @@
 	const e4m3 = facts('e4m3');
 	const e5m2 = facts('e5m2');
 	const bf16 = facts('bf16');
+	const fp32 = facts('fp32');
+	const fp4Positive = fp4Codes.filter((d) => d.sign === 0 && d.kind !== 'zero').length;
 	const fp16Over = encode('70000', 'fp16');
 
 	const faqs = [
@@ -289,11 +332,17 @@
 		},
 		{
 			q: 'What happens when a number is too big for FP8?',
-			a: `In E5M2, as in FP16 and BF16, it becomes infinity. E4M3 has no infinity, so the OCP specification allows two behaviours: saturate to ±${e4m3.max.exact}, or produce NaN. This converter saturates by default and lets you switch to NaN. Either way the threshold is ${e4m3Tie.input}, halfway to the step above ${e4m3.max.exact}; ${e4m3Tie.input} itself rounds down to ${e4m3Tie.result?.exact} because ties go to even.`
+			a: `In E5M2, as in FP16 and BF16, it becomes infinity. E4M3 has no infinity, so the OCP specification allows two behaviours: saturate to ±${e4m3.max.exact}, or produce NaN. This converter saturates by default, so everything above ${e4m3.max.exact} becomes ${e4m3.max.exact}, and lets you switch to NaN. In NaN mode the threshold is ${e4m3Tie.input}, halfway to the step above ${e4m3.max.exact}; ${e4m3Tie.input} itself rounds down to ${e4m3Tie.result?.exact} because ties go to even.`
 		},
 		{
 			q: 'Why is BF16 just the top half of an FP32?',
-			a: "Because it was designed that way: the sign and the 8 exponent bits are the same as FP32, and the 7 mantissa bits are the top 7 of FP32's 23. Converting is dropping the low 16 bits, after rounding, so BF16 covers the same range as FP32 and converts to and from it cheaply. The cost is precision: about 2 to 3 significant decimal digits."
+			a: `Because it was designed that way: the sign and the 8 exponent bits are the same as FP32, and the 7 mantissa bits are the top 7 of FP32's 23. Converting is dropping the low 16 bits, after rounding, so BF16 covers almost the same range as FP32 (its largest value is ${shortValue(
+				bf16.max,
+				8
+			)} against ${shortValue(
+				fp32.max,
+				8
+			)}) and converts to and from it cheaply. The cost is precision: about 2 to 3 significant decimal digits.`
 		},
 		{
 			q: 'What is FP4 and what values can it hold?',
@@ -340,7 +389,7 @@
 				itemListElement: [
 					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
 					{ '@type': 'ListItem', position: 2, name: 'Tools', item: `${SITE}/tools` },
-					{ '@type': 'ListItem', position: 3, name: 'FP16, BF16 and FP8 converter' }
+					{ '@type': 'ListItem', position: 3, name: 'FP16, BF16, FP8 and FP4 converter' }
 				]
 			}
 		]
@@ -439,20 +488,21 @@
 				autocomplete="off"
 				autocapitalize="off"
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="value-help"
+				aria-describedby={error ? 'value-error' : 'value-help'}
 			/>
-			{#if error}
-				<p class="error" role="alert">{error}</p>
-			{/if}
-			<p class="field-help" id="value-help">
-				{#if mode === 'dec'}
-					Any decimal, such as 0.1, -2.5e-3 or 65504, and also Infinity and NaN. It is rounded straight to each format,
-					exactly, never through a JavaScript number.
-				{:else}
-					Shorter patterns are padded with zeros on the left. A leading {mode === 'hex' ? '0x' : '0b'} and spaces are ignored.
-				{/if}
-			</p>
-
+			<!-- The help and the error share one slot, so the tool does not jump when the input turns invalid. -->
+			<div class="msg-slot">
+				<p class="field-help" class:hidden={!!error} id="value-help">
+					{#if mode === 'dec'}
+						Any decimal, such as 0.1, -2.5e-3 or 65504, with a point for the decimal, and also Infinity and NaN. It is
+						rounded straight to each format, exactly, never through a JavaScript number.
+					{:else}
+						Shorter patterns are padded with zeros on the left. A leading {mode === 'hex' ? '0x' : '0b'}, and spaces,
+						dots or underscores between digits, are ignored.
+					{/if}
+				</p>
+				<p class="error" id="value-error" role="alert">{error}</p>
+			</div>
 			<div class="overflow-row">
 				<span class="opt-label" id="of-label">E4M3 overflow</span>
 				<div class="opt" role="group" aria-labelledby="of-label">
@@ -483,7 +533,12 @@
 				{/each}
 			</div>
 
-			<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
+			<div
+				class="results"
+				class:stale={!!error}
+				aria-hidden={error ? 'true' : 'false'}
+				inert={error ? true : undefined}
+			>
 				{#if shown}
 					<div class="bits" role="group" aria-label="The {sf.bits} bits of {sf.name}: click one to flip it">
 						<div class="field-bits sign">
@@ -505,6 +560,7 @@
 									<button
 										type="button"
 										class="bit"
+										class:nibble={i + 1 < sf.exponentBits && nibbleAfter(1 + i)}
 										tabindex={error ? -1 : 0}
 										aria-label="Exponent bit {sf.exponentBits - 1 - i}, {bit}"
 										on:click={() => flip(1 + i)}>{bit}</button
@@ -519,7 +575,7 @@
 									<button
 										type="button"
 										class="bit"
-										class:nibble={(i + 1) % 4 === 0 && i + 1 < sf.mantissaBits}
+										class:nibble={i + 1 < sf.mantissaBits && nibbleAfter(1 + sf.exponentBits + i)}
 										tabindex={error ? -1 : 0}
 										aria-label="Mantissa bit {sf.mantissaBits - 1 - i}, {bit}"
 										on:click={() => flip(1 + sf.exponentBits + i)}>{bit}</button
@@ -529,24 +585,76 @@
 						</div>
 					</div>
 					<p class="hint">
-						{sf.name}{mode === 'dec' ? ` of ${minus(parsed.normalised)}` : ''}: hex
+						{sf.name}{mode === 'dec' ? ` of ${minus(shortTyped(parsed))}` : ''}: hex
 						<span class="mono">{shown.hex}</span>,
 						{kindText[shown.kind]}{shown.exponent !== null && shown.kind !== 'zero'
 							? `, ${shown.significand} × ${powerOfTwo(shown.exponent)}`
-							: ''}. Click a bit to flip it.
+							: ''}. Click a bit to flip it; the space after every fourth bit from the right marks a hex digit.
 					</p>
 				{:else}
 					<p class="hint">{detail.enc.note}, so there is no {FORMATS[format].name} pattern to show.</p>
 				{/if}
 
 				<div class="answer" role={error ? undefined : 'status'}>
-					<span class="answer-label"
-						>{mode === 'dec' || !typed ? 'You typed' : `${FORMATS[typed.format].name} ${typed.hex} is`}</span
-					>
-					<span class="answer-value mono">{minus(typed ? typed.exact : parsed.normalised)}</span>
-					<span class="answer-also">Below: the nearest value in each format, rounded to nearest, ties to even.</span>
+					{#if mode === 'dec' || !typed}
+						<span class="answer-label">{detail.f.name} stores</span>
+						<span class="answer-value mono">{detail.enc.result ? minus(detail.enc.result.exact) : 'nothing'}</span>
+						<span class="answer-also"
+							>You typed <span class="mono">{minus(shortTyped(parsed))}</span>{#if detail.enc.result}; hex
+								<span class="mono">{detail.enc.result.hex}</span>, {roundedText(
+									detail.enc
+								)}{#if detail.enc.errorShort !== null && detail.enc.rounded !== 'exact'}, error <span class="mono"
+										>{minus(detail.enc.errorShort)}</span
+									>{/if}{:else}: {detail.enc.note}{/if}. Every format's nearest value is below.</span
+						>
+					{:else}
+						<span class="answer-label">{FORMATS[typed.format].name} {typed.hex} is</span>
+						<span class="answer-value mono">{minus(typed.exact)}</span>
+						<span class="answer-also">Below: the same value rounded to nearest, ties to even, in every format.</span>
+					{/if}
 				</div>
 
+				{#if steps}
+					<details class="steps-box" open>
+						<summary>How {minus(shortTyped(parsed))} rounds to {detail.f.name}: guard, round and sticky bits</summary>
+						<p class="small">
+							In binary the magnitude is {steps.keptText}{steps.guard}{steps.round}{steps.tail}… × {powerOfTwo(
+								steps.lsb + detail.f.mantissaBits
+							)}{#if steps.subnormal}, written with the smallest exponent {powerOfTwo(
+									steps.lsb + detail.f.mantissaBits
+								)} because it is below the normal range (subnormal){/if}. {detail.f.name} keeps {detail.f.mantissaBits}
+							bit{detail.f.mantissaBits === 1 ? '' : 's'} after the point.
+						</p>
+						<div
+							class="grs mono"
+							aria-label="Kept bits {steps.keptText}, guard {steps.guard}, round {steps.round}, sticky {steps.sticky}"
+						>
+							<span class="grs-cell kept"><span class="tag">kept</span>{steps.keptText}</span>
+							<span class="grs-cell"><span class="tag">G</span>{steps.guard}</span>
+							<span class="grs-cell"><span class="tag">R</span>{steps.round}</span>
+							<span class="grs-cell"><span class="tag">S</span>{steps.sticky}</span>
+						</div>
+						<p class="small">
+							Sticky is 1 if any bit after the round bit is 1 ({steps.tail}…{steps.sticky && !steps.tail.includes('1')
+								? ' and more beyond'
+								: ''}). {steps.reason}
+							{#if detail.enc.overflow}
+								The result is beyond {detail.f.name}'s largest value, {minus(facts(detail.id).max.exact)}, so it {detail
+									.enc.overflow === 'infinity'
+									? 'becomes infinity'
+									: detail.enc.overflow === 'nan'
+									? 'becomes NaN'
+									: 'is clamped to it'}.
+							{:else if detail.enc.result}
+								Result: <span class="mono">{detail.enc.result.sign ? '−' : ''}{detail.enc.result.significand}</span>
+								× {powerOfTwo(detail.enc.result.exponent ?? 0)} =
+								<span class="mono">{minus(detail.enc.result.exact)}</span>.
+							{/if}
+						</p>
+					</details>
+				{/if}
+
+				<h2 class="visually-hidden">Every format at once</h2>
 				<p class="visually-hidden" aria-live="polite">{copied}</p>
 				<div class="cards">
 					{#each rows as row (row.id)}
@@ -579,7 +687,8 @@
 												type="button"
 												class="copy"
 												aria-label="Copy {row.f.name} hex {r.hex}"
-												on:click={() => copy(r.hex, `${row.f.name} ${r.hex}`)}>Copy</button
+												on:click={() => copy(row.id, r.hex, `${row.f.name} ${r.hex}`)}
+												>{copiedId === row.id ? 'Copied' : 'Copy'}</button
 											>
 										</dd>
 									</div>
@@ -592,8 +701,7 @@
 										<dd>
 											{#if row.enc.errorShort !== null && row.enc.rounded !== 'exact'}
 												<span class="mono">{minus(row.enc.errorShort)}</span>
-												{#if row.enc.relativeShort}<span class="rel">({percent(row.enc.relativeShort)} relative)</span
-													>{/if}
+												{#if row.enc.relativeShort}<span class="rel">({percent(row.enc)} relative)</span>{/if}
 												<span class="note">{roundedText(row.enc)}</span>
 											{:else}
 												<span class="note" class:ok={row.enc.rounded === 'exact'}>{roundedText(row.enc)}</span>
@@ -607,62 +715,27 @@
 									{#if r.kind !== 'nan' && r.kind !== 'infinity'}
 										<div>
 											<dt>Neighbours</dt>
-											<dd class="mono near">
-												{row.nearText.below}
-												<span aria-hidden="true">‹</span><span class="visually-hidden">below,</span>
-												<strong>{row.nearText.value}</strong>
-												<span aria-hidden="true">›</span><span class="visually-hidden">above,</span>
-												{row.nearText.above}
+											<dd class="near">
+												<span class="near-row"
+													><span class="near-tag">below</span><span class="mono">{row.nearText.below}</span></span
+												>
+												<span class="near-row"
+													><span class="near-tag">stored</span><strong class="mono">{row.nearText.value}</strong></span
+												>
+												<span class="near-row"
+													><span class="near-tag">above</span><span class="mono">{row.nearText.above}</span></span
+												>
 											</dd>
 										</div>
 									{/if}
 								</dl>
 							{:else}
-								<p class="note none">{row.enc.note}: it has no infinity or NaN, only the 16 numbers.</p>
+								<p class="note none">{row.enc.note}: all {2 ** row.f.bits} codes are numbers.</p>
 							{/if}
 						</article>
 					{/each}
 				</div>
-
-				{#if steps}
-					<details class="steps-box" open>
-						<summary>How {minus(parsed.normalised)} rounds to {detail.f.name}: guard, round and sticky bits</summary>
-						<p class="small">
-							In binary the value is {steps.keptText}{steps.guard}{steps.round}{steps.tail}… × {powerOfTwo(
-								steps.lsb + detail.f.mantissaBits
-							)}{#if steps.subnormal}, written with the smallest exponent {powerOfTwo(
-									steps.lsb + detail.f.mantissaBits
-								)} because it is below the normal range (subnormal){/if}. {detail.f.name} keeps {detail.f.mantissaBits} bits
-							after the point.
-						</p>
-						<div
-							class="grs mono"
-							aria-label="Kept bits {steps.keptText}, guard {steps.guard}, round {steps.round}, sticky {steps.sticky}"
-						>
-							<span class="grs-cell kept"><span class="tag">kept</span>{steps.keptText}</span>
-							<span class="grs-cell"><span class="tag">G</span>{steps.guard}</span>
-							<span class="grs-cell"><span class="tag">R</span>{steps.round}</span>
-							<span class="grs-cell"><span class="tag">S</span>{steps.sticky}</span>
-						</div>
-						<p class="small">
-							Sticky is 1 if any bit after the round bit is 1 ({steps.tail}…{steps.sticky && !steps.tail.includes('1')
-								? ' and more beyond'
-								: ''}). {steps.reason}
-							{#if detail.enc.overflow}
-								The result is beyond {detail.f.name}'s largest value, {minus(facts(detail.id).max.exact)}, so it {detail
-									.enc.overflow === 'infinity'
-									? 'becomes infinity'
-									: detail.enc.overflow === 'nan'
-									? 'becomes NaN'
-									: 'is clamped to it'}.
-							{:else if detail.enc.result}
-								Result: <span class="mono">{detail.enc.result.significand}</span> × {powerOfTwo(
-									detail.enc.result.exponent ?? 0
-								)} = <span class="mono">{minus(detail.enc.result.exact)}</span>.
-							{/if}
-						</p>
-					</details>
-				{/if}
+				<p class="copy-failed" aria-hidden="true">{copyFailed ? copied : ''}</p>
 			</div>
 			<p class="share-row"><ShareLink what="this value and format" /></p>
 		</div>
@@ -842,9 +915,11 @@
 		<h2>Why BF16 keeps FP32's range</h2>
 		<p>
 			BF16 is the top 16 bits of an FP32: the same sign, the same 8 bit exponent with the same bias of 127, and the
-			first 7 of FP32's 23 mantissa bits. So anything an FP32 can hold, BF16 can hold too, only less precisely, and
-			converting is a matter of rounding off the low 16 bits. FP16 has more precision but a 5 bit exponent, so it runs
-			out at {fp16.max.exact}. The same values in all three:
+			first 7 of FP32's 23 mantissa bits. So BF16 covers almost the same range as FP32, only less precisely: its largest
+			value is {shortValue(bf16.max, 8)} against FP32's {shortValue(fp32.max, 8)}, and its subnormals stop at {pow(
+				bf16.minSubnormal
+			)} rather than {pow(fp32.minSubnormal)}. Converting is a matter of rounding off the low 16 bits. FP16 has more
+			precision but a 5 bit exponent, so it runs out at {fp16.max.exact}. The same values in all three:
 		</p>
 		<div class="table-wrap">
 			<table class="data-table">
@@ -881,11 +956,11 @@
 	<section id="block-scaling">
 		<h2>Block scaling: how FP4 is usable at all (MXFP4)</h2>
 		<p>
-			Eight positive values are too few to store anything useful on their own. The OCP microscaling (MX) formats fix
-			that by sharing a scale: a block of 32 values stores one 8-bit scale, an E8M0 number that is nothing but a power
-			of two (an exponent with bias 127 and no mantissa), and each value is stored as an E2M1 after dividing by it. The
-			scale exponent is the power of two of the block's largest magnitude minus 2, the largest exponent of E2M1, so the
-			largest value lands between 4 and 8; anything above 6 is clamped.
+			FP4's {fp4Positive} positive values ({fp4Positive + 1} with zero) are too few to store anything useful on their own.
+			The OCP microscaling (MX) formats fix that by sharing a scale: a block of 32 values stores one 8-bit scale, an E8M0
+			number that is nothing but a power of two (an exponent with bias 127 and no mantissa), and each value is stored as
+			an E2M1 after dividing by it. The scale exponent is the power of two of the block's largest magnitude minus 2, the
+			largest exponent of E2M1, so the largest value lands between 4 and 8; anything above 6 is clamped.
 		</p>
 		<p>
 			Here is a block of {block.elements.length} values (a real block has 32), worked by the engine. The largest magnitude
@@ -945,9 +1020,12 @@
 				to 0x7E are ordinary numbers from 256 to 448.
 			</li>
 			<li>
-				<strong>Reading the error as absolute.</strong> An error of {minus(e4m3Hundred.errorShort ?? '')} for 100 in E4M3
-				sounds large, but it is {percent(e4m3Hundred.relativeShort)} of the value. For normal numbers every format here keeps
-				the relative error below half of its epsilon; only subnormals do worse.
+				<strong>Comparing absolute errors across sizes.</strong> E4M3 stores 100 with an error of {minus(
+					e4m3Hundred.errorShort ?? ''
+				)} and 0.1 with an error of {minus(e4m3Tenth.errorShort ?? '')}, yet relative to the value those are {percent(
+					e4m3Hundred
+				)} and {percent(e4m3Tenth)}, both within E4M3's bound of half its epsilon, {e4m3Bound}%. For normal numbers
+				every format here keeps the relative error within half of its epsilon; only subnormals do worse.
 			</li>
 		</ul>
 	</section>
@@ -1116,16 +1194,30 @@
 		border-color: #f66;
 	}
 
+	/* Help and error stacked in one grid cell: the slot is as tall as the taller of the two. */
+	.msg-slot {
+		display: grid;
+		margin: 0.45rem 0 0.7rem;
+	}
+
+	.msg-slot > p {
+		grid-area: 1 / 1;
+		margin: 0;
+	}
+
 	.field-help {
 		color: #999;
 		font-size: 0.8rem;
-		margin: 0.45rem 0 0.7rem;
+	}
+
+	.field-help.hidden {
+		visibility: hidden;
 	}
 
 	.error {
 		color: #f66;
 		font-size: 0.9rem;
-		margin: 0.4rem 0 0;
+		overflow-wrap: anywhere;
 	}
 
 	.chips {
@@ -1274,6 +1366,7 @@
 		display: block;
 		font-size: 0.82rem;
 		margin-top: 0.2rem;
+		overflow-wrap: anywhere;
 	}
 
 	.cards {
@@ -1427,8 +1520,20 @@
 		overflow-wrap: anywhere;
 	}
 
+	.near-row {
+		display: grid;
+		grid-template-columns: 3.2rem minmax(0, 1fr);
+		gap: 0 0.3rem;
+	}
+
+	.near-tag {
+		color: #999;
+		font-size: 0.75rem;
+	}
+
 	.near strong {
 		color: #fff;
+		font-weight: 600;
 	}
 
 	.copy {
@@ -1437,9 +1542,18 @@
 		border-radius: 3px;
 		color: #ddd;
 		cursor: pointer;
-		font: 0.72rem 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font: 0.75rem 'Helvetica Neue', Helvetica, Arial, sans-serif;
 		margin-left: 0.4rem;
-		padding: 0.05rem 0.45rem;
+		min-height: 24px;
+		min-width: 3.9rem;
+		padding: 0.2rem 0.6rem;
+	}
+
+	.copy-failed {
+		color: #f99;
+		font-size: 0.82rem;
+		margin: 0.4rem 0 0;
+		min-height: 1.2em;
 	}
 
 	.copy:hover {
@@ -1464,6 +1578,7 @@
 		color: #8ede8e;
 		cursor: pointer;
 		font-size: 0.9rem;
+		overflow-wrap: anywhere;
 	}
 
 	.grs {
@@ -1677,7 +1792,7 @@
 
 	@media (max-width: 560px) {
 		.bit {
-			width: 1.3rem;
+			width: 1.5rem;
 			height: 1.75rem;
 			font-size: 0.85rem;
 		}

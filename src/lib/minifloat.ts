@@ -232,49 +232,77 @@ const MAX_DECIMAL_ORDER = 400;
 export const MAX_INPUT = 400;
 
 export type Parsed =
-	| { kind: 'number'; negative: boolean; value: Rational; normalised: string; beyond?: 'huge' | 'tiny' }
+	| {
+			kind: 'number';
+			negative: boolean;
+			/** The magnitude; for a number beyond every range, just its digits (see order). */
+			value: Rational;
+			normalised: string;
+			beyond?: 'huge' | 'tiny';
+			/** For a number beyond every range, the power of ten of its leading digit. */
+			order?: number;
+	  }
 	| { kind: 'infinity'; negative: boolean; normalised: string }
 	| { kind: 'nan'; negative: boolean; normalised: string };
 
+/**
+ * Commas are only accepted as thousands separators (1,000 or 12,345.6). Any
+ * other comma is almost certainly a decimal comma, and silently dropping it
+ * would turn 0,1 into 1, so that is an error that says what to type instead.
+ */
+function stripThousands(s: string): string {
+	if (!s.includes(',')) return s;
+	if (/^[+-]?\d{1,3}(,\d{3})+(\.\d*)?(e[+-]?\d+)?$/.test(s)) return s.replace(/,/g, '');
+	const suggestion = /^[+-]?\d*,\d+(e[+-]?\d+)?$/.test(s) ? `: ${s.replace(',', '.')}` : '';
+	throw new MiniFloatError(
+		`Use a point for the decimal${suggestion}. A comma is only read between groups of three digits, as in 1,000`
+	);
+}
+
 /** Reads a decimal such as -1.25e-3, or Infinity or NaN, into an exact fraction. */
 export function parseDecimal(text: string): Parsed {
-	const s = text
-		.trim()
-		.replace(/[\s_,]/g, '')
-		.replace(/[−–]/g, '-')
-		.replace(/^\+/, '')
-		.toLowerCase();
-	if (!s) throw new MiniFloatError('Type a number first');
-	if (s.length > MAX_INPUT) throw new MiniFloatError(`That is longer than ${MAX_INPUT} characters`);
-	const special = s.match(/^(-?)(inf|infinity|∞|nan)$/);
+	const cleaned = text.trim().replace(/[\s_]/g, '').replace(/[−–]/g, '-').toLowerCase();
+	if (!cleaned) throw new MiniFloatError('Type a number first');
+	if (cleaned.length > MAX_INPUT) throw new MiniFloatError(`That is longer than ${MAX_INPUT} characters`);
+	const s = stripThousands(cleaned);
+	const special = s.match(/^([+-]?)(inf|infinity|∞|nan)$/);
 	if (special) {
 		const negative = special[1] === '-';
 		if (special[2] === 'nan') return { kind: 'nan', negative, normalised: 'NaN' };
 		return { kind: 'infinity', negative, normalised: negative ? '-Infinity' : 'Infinity' };
 	}
-	const m = s.match(/^(-)?(\d*)(?:\.(\d*))?(?:e([+-]?\d+))?$/);
+	// One sign at most: '+-5' is a typo, not -5.
+	const m = s.match(/^([+-])?(\d*)(?:\.(\d*))?(?:e([+-]?\d+))?$/);
 	if (!m || (!m[2] && !m[3])) throw new MiniFloatError(`"${text.trim()}" is not a decimal number`);
-	const negative = !!m[1];
+	const negative = m[1] === '-';
+	const normalised = negative ? s : s.replace(/^\+/, '');
 	const whole = m[2] || '';
 	const frac = m[3] || '';
-	const exp = m[4] ? Number(m[4]) : 0;
 	const significant = (whole + frac).replace(/^0+(?=.)/, '') || '0';
 	const digits = BigInt(significant);
+	// Zero times any power of ten is zero. Settled before the exponent is even
+	// read, so 0e999999999 cannot ask for a power of ten with a billion digits.
+	if (digits === 0n) return { kind: 'number', negative, value: { num: 0n, den: 1n }, normalised };
+	// A JavaScript number holds any exponent that fits in 400 characters (as
+	// Infinity at worst), and the order check below catches all of them.
+	const exp = m[4] ? Number(m[4]) : 0;
 	const e10 = exp - frac.length;
 	// The power of ten of the leading digit. Far outside every format's range the
 	// answer is zero or infinity whatever the digits are, so it is settled here
-	// rather than with an enormous exact fraction.
+	// rather than with an enormous exact fraction. The digits are at most 400
+	// long, so within this order e10 is too, and the power of ten stays small.
 	const order = significant.length - 1 + e10;
-	if (digits !== 0n && Math.abs(order) > MAX_DECIMAL_ORDER)
+	if (!(Math.abs(order) <= MAX_DECIMAL_ORDER))
 		return {
 			kind: 'number',
 			negative,
 			value: { num: digits, den: 1n },
-			normalised: s,
+			normalised,
+			order,
 			beyond: order > 0 ? 'huge' : 'tiny'
 		};
 	const value = e10 >= 0 ? { num: digits * 10n ** BigInt(e10), den: 1n } : { num: digits, den: 10n ** BigInt(-e10) };
-	return { kind: 'number', negative, value, normalised: s };
+	return { kind: 'number', negative, value, normalised };
 }
 
 // --- Rounding --------------------------------------------------------------
@@ -326,8 +354,13 @@ function divPow2(v: Rational, k: number): { q: bigint; rem: bigint; den: bigint 
 	return { q: N / D, rem: N % D, den: D };
 }
 
-/** The guard/round/sticky working for a positive value (exponent range unbounded above). */
-export function roundingSteps(v: Rational, id: FormatId): RoundingSteps {
+/**
+ * The guard/round/sticky working for a magnitude (exponent range unbounded
+ * above). The rounding itself only ever looks at the magnitude; `negative`
+ * only changes the words, because moving a negative number's magnitude up
+ * moves the number down.
+ */
+export function roundingSteps(v: Rational, id: FormatId, negative = false): RoundingSteps {
 	const f = FORMATS[id];
 	const e = floorLog2(v);
 	const subnormal = e < emin(f);
@@ -348,13 +381,19 @@ export function roundingSteps(v: Rational, id: FormatId): RoundingSteps {
 	const tie = guard === 1 && round === 0 && sticky === 0;
 	const odd = kept % 2n === 1n;
 	const roundUp = guard === 1 && (round === 1 || sticky === 1 || odd);
+	const towardZero = negative ? 'up, toward zero' : 'down';
+	const awayFromZero = negative ? 'down, away from zero' : 'up';
 	let reason: string;
-	if (guard === 0) reason = 'The guard bit is 0, so the rest is less than half a step: round down (truncate).';
+	if (guard === 0 && round === 0 && sticky === 0)
+		reason = 'Guard, round and sticky are all 0: nothing is lost, so the value is stored exactly.';
+	else if (guard === 0)
+		reason = `The guard bit is 0, so the rest is less than half a step: drop it, which rounds ${towardZero} (truncation).`;
+	else if (round === 0 && sticky === 1)
+		reason = `Guard is 1 and round is 0, which would be a tie, but sticky is 1: something further down is set, so the rest is more than half a step. Round ${awayFromZero}.`;
 	else if (!tie)
-		reason = 'The guard bit is 1 and round or sticky is 1, so the rest is more than half a step: round up.';
+		reason = `The guard bit is 1 and the round bit is 1, so the rest is more than half a step: round ${awayFromZero}.`;
 	else if (odd)
-		reason =
-			'Guard is 1 and round and sticky are 0: exactly halfway. The last kept bit is 1 (odd), so round up to even.';
+		reason = `Guard is 1 and round and sticky are 0: exactly halfway. The last kept bit is 1 (odd), so round ${awayFromZero} to the even pattern.`;
 	else reason = 'Guard is 1 and round and sticky are 0: exactly halfway. The last kept bit is 0 (even), so keep it.';
 	const keptBits = kept.toString(2).padStart(f.mantissaBits + 1, '0');
 	return {
@@ -383,7 +422,7 @@ export type Encoding = {
 	result: Decoded | null;
 	/** Why there is no result, when there is none. */
 	note: string;
-	/** stored − input, exactly, as a decimal; null when either is not finite. */
+	/** stored − input, exactly, as a decimal; null when either is not finite, or the input is beyond 10^400. */
 	error: string | null;
 	errorShort: string | null;
 	/** |stored − input| ÷ |input|, to a few figures; null for zero input or non-finite values. */
@@ -479,7 +518,7 @@ export function encodeParsed(p: Parsed, id: FormatId, mode: OverflowMode = 'satu
 	if (p.kind === 'nan') {
 		const nan = nanCode(id);
 		if (nan === null)
-			return { ...base, result: null, note: `${f.name} has no NaN code`, rounded: 'special', overflow: null };
+			return { ...base, result: null, note: `${f.name} has no NaN`, rounded: 'special', overflow: null };
 		return { ...base, result: decode(nan + signBit, id), rounded: 'special', overflow: null };
 	}
 	if (p.kind === 'infinity') {
@@ -489,10 +528,21 @@ export function encodeParsed(p: Parsed, id: FormatId, mode: OverflowMode = 'satu
 	const { value, beyond } = p;
 	if (beyond === 'huge') {
 		const o = overflowCode(f, mode);
+		// Clamped to the largest value, the error is that minus a number above
+		// 10^400: to four figures, minus the number itself, and 100% of it. The
+		// exact error would need the whole power of ten, which is the point of
+		// not building it.
+		const saturated = o.overflow === 'saturated';
+		// The leading digits as d.ddd, from a value in [1, 10); rounding 9.9996 up gives 10, one order higher.
+		const lead = shortDecimal(value.num, 10n ** BigInt(value.num.toString().length - 1), 4);
+		const order = (p.order ?? 0) + (lead === '10' ? 1 : 0);
+		const errorShort = saturated ? `${p.negative ? '' : '-'}${lead === '10' ? '1' : lead}e${order}` : null;
 		return {
 			...base,
 			result: decode(o.code + signBit, id),
-			rounded: o.overflow === 'nan' ? 'special' : p.negative === (o.overflow === 'saturated') ? 'up' : 'down',
+			errorShort,
+			relativeShort: saturated ? '1' : null,
+			rounded: o.overflow === 'nan' ? 'special' : p.negative === saturated ? 'up' : 'down',
 			overflow: o.overflow
 		};
 	}
@@ -514,7 +564,7 @@ export function encodeParsed(p: Parsed, id: FormatId, mode: OverflowMode = 'satu
 	if (value.num === 0n) {
 		return { ...base, result: decode(signBit, id), error: '0', errorShort: '0', rounded: 'exact', overflow: null };
 	}
-	const steps = roundingSteps(value, id);
+	const steps = roundingSteps(value, id, p.negative);
 	const { code, overflowed } = roundMagnitude(value, f);
 	if (overflowed) {
 		const o = overflowCode(f, mode);

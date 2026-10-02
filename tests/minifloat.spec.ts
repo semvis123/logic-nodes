@@ -7,7 +7,7 @@
 // Results the tests have just computed are known to exist, so `!` is allowed here.
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
 	FORMATS,
 	FORMAT_IDS,
@@ -44,6 +44,23 @@ function formulaValue(code: number, id: FormatId): number {
 	if (E === topE && f.specials === 'fn' && M === 2 ** f.mantissaBits - 1) return NaN;
 	if (E === 0) return sign * Math.pow(2, 1 - f.bias) * (M / 2 ** f.mantissaBits);
 	return sign * Math.pow(2, E - f.bias) * (1 + M / 2 ** f.mantissaBits);
+}
+
+/**
+ * A small seeded generator (mulberry32), so a failure in the random tests
+ * repeats: the seed is printed, and SEED=<n> reruns with it.
+ */
+const SEED = Number(process.env.SEED) || Math.floor(Math.random() * 2 ** 32);
+console.log(`minifloat random tests: SEED=${SEED}`);
+function mulberry32(seed: number) {
+	let a = seed >>> 0;
+	return () => {
+		a = (a + 0x6d2b79f5) >>> 0;
+		let t = a;
+		t = Math.imul(t ^ (t >>> 15), t | 1);
+		t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
 }
 
 const same = (a: number, b: number) => Object.is(a, b) || (Number.isNaN(a) && Number.isNaN(b));
@@ -189,6 +206,7 @@ test.describe('minifloat engine', () => {
 
 	test('encoding matches a brute-force nearest-value search', () => {
 		const bad: string[] = [];
+		const random = mulberry32(SEED);
 		for (const id of ['e4m3', 'e5m2', 'e2m1', 'fp16', 'bf16'] as const) {
 			const pos = finiteTable(id).filter((t) => t.code < 2 ** (FORMATS[id].bits - 1));
 			const max = pos[pos.length - 1].v;
@@ -196,10 +214,10 @@ test.describe('minifloat engine', () => {
 				// Random doubles across and beyond the range, plus exact values nudged a little.
 				const x =
 					i % 3 === 0
-						? Math.random() * max * 1.2
+						? random() * max * 1.2
 						: i % 3 === 1
-						? Math.pow(2, Math.random() * Math.log2(max) * 2.2 - Math.log2(max) * 1.1)
-						: pos[Math.floor(Math.random() * pos.length)].v * (1 + (Math.random() - 0.5) * 0.1);
+						? Math.pow(2, random() * Math.log2(max) * 2.2 - Math.log2(max) * 1.1)
+						: pos[Math.floor(random() * pos.length)].v * (1 + (random() - 0.5) * 0.1);
 				const text = exactDecimal(...rationalOf(x));
 				const want = bruteRound(x, id);
 				const got = encode(text, id, 'nan');
@@ -208,7 +226,7 @@ test.describe('minifloat engine', () => {
 					bad.push(`${id} ${text}: ${got.result!.hex}, want ${want.code.toString(16)}`);
 			}
 		}
-		expect(bad.slice(0, 10)).toEqual([]);
+		expect(bad.slice(0, 10), `SEED=${SEED}`).toEqual([]);
 	});
 
 	test('every midpoint between neighbours rounds to the even code, and a hair off it does not', () => {
@@ -287,21 +305,22 @@ test.describe('minifloat engine', () => {
 	});
 
 	test('FP32 agrees with ieee754.ts, and BF16 with rounding the FP32 bits', () => {
+		const random = mulberry32(SEED + 1);
 		const randomDecimal = () => {
-			const digits = String(Math.floor(Math.random() * 1e9));
-			const e = Math.floor(Math.random() * 90) - 50;
-			return `${Math.random() < 0.5 ? '-' : ''}${digits[0]}.${digits.slice(1)}e${e}`;
+			const digits = String(Math.floor(random() * 1e9));
+			const e = Math.floor(random() * 90) - 50;
+			return `${random() < 0.5 ? '-' : ''}${digits[0]}.${digits.slice(1)}e${e}`;
 		};
 		for (let i = 0; i < 400; i++) {
 			const t = randomDecimal();
 			const ours = encode(t, 'fp32').result!;
 			const theirs = ieeeEncode(t, 'single');
-			expect(ours.hex, t).toBe(theirs.hex);
-			expect(ours.exact, t).toBe(theirs.exact);
+			expect(ours.hex, `${t} SEED=${SEED}`).toBe(theirs.hex);
+			expect(ours.exact, `${t} SEED=${SEED}`).toBe(theirs.exact);
 		}
 		const bad: string[] = [];
 		for (let i = 0; i < 2000; i++) {
-			const code32 = Math.floor(Math.random() * 2 ** 32);
+			const code32 = Math.floor(random() * 2 ** 32);
 			const fp32 = ieeeDecode(BigInt(code32), 'single');
 			if (fp32.kind === 'nan') continue;
 			// Round to nearest even on the bits: add 0x7FFF plus the lowest kept bit, keep the top half.
@@ -317,7 +336,7 @@ test.describe('minifloat engine', () => {
 			const got = encode(d.exact, 'fp32').result!.hex;
 			if (got !== d.hex + '0000') bad.push(`${d.hex} as FP32 is ${got}`);
 		}
-		expect(bad.slice(0, 10)).toEqual([]);
+		expect(bad.slice(0, 10), `SEED=${SEED}`).toEqual([]);
 	});
 
 	test('converting a decoded value to another format goes through its exact value', () => {
@@ -339,10 +358,29 @@ test.describe('minifloat engine', () => {
 		const t = roundingSteps({ num: 19n, den: 16n }, 'e4m3');
 		expect(t.keptText).toBe('1.001');
 		expect(t.roundUp).toBe(true);
-		// 0.1 never ends, so sticky is set.
+		// 0.1 never ends, so sticky is set; but its guard bit is 0, so it rounds toward zero.
 		const u = roundingSteps({ num: 1n, den: 10n }, 'fp16');
 		expect(u.sticky).toBe(1);
+		expect(u.guard).toBe(0);
 		expect(u.e).toBe(-4);
+		expect(u.reason).toContain('rounds down');
+		// The page's "sticky decides" example: 1.0703125 = 1.0001001, kept 1.000, G 1, R 0, S 1.
+		const st = encode('1.0703125', 'e4m3');
+		expect([st.steps!.keptText, st.steps!.guard, st.steps!.round, st.steps!.sticky]).toEqual(['1.000', 1, 0, 1]);
+		expect(st.steps!.roundUp).toBe(true);
+		expect(st.result!.exact).toBe('1.125');
+		expect(st.steps!.reason).toContain('sticky is 1');
+		// The page's two ties.
+		expect(encode('1.0625', 'e4m3').steps!.tie).toBe(true);
+		expect(encode('1.1875', 'e4m3').steps!.tie).toBe(true);
+		// For a negative number the words follow the number, not its magnitude:
+		// dropping bits of -0.1 moves it up, toward zero, as the card's error says.
+		const neg = encode('-0.1', 'fp16');
+		expect(neg.rounded).toBe('up');
+		expect(neg.steps!.reason).toContain('up, toward zero');
+		expect(encode('-1.0703125', 'e4m3').steps!.reason).toContain('down, away from zero');
+		// Nothing to round: no talk of truncating.
+		expect(encode('1', 'fp16').steps!.reason).toContain('stored exactly');
 	});
 
 	test('short forms of neighbours stay distinct', () => {
@@ -383,10 +421,48 @@ test.describe('minifloat engine', () => {
 		expect(() => encode('', 'fp16')).toThrow(/Type a number/);
 		expect(() => encode('1.2.3', 'fp16')).toThrow(MiniFloatError);
 		expect(encode('  +1_000 ', 'fp16').result!.exact).toBe('1000');
+		expect(encode('+5', 'fp16').input).toBe('5');
+		expect(() => encode('+-5', 'fp16')).toThrow(/not a decimal number/);
+		expect(() => encode('--5', 'fp16')).toThrow(/not a decimal number/);
+		// A comma is a thousands separator only between groups of three digits; a decimal comma is an error.
+		expect(encode('1,000', 'fp16').result!.exact).toBe('1000');
+		expect(encode('12,345.5', 'fp32').result!.exact).toBe('12345.5');
+		expect(() => encode('0,1', 'fp16')).toThrow(/Use a point for the decimal: 0\.1/);
+		expect(() => encode('1,5', 'fp16')).toThrow(/Use a point/);
+		expect(() => encode('2,5e-3', 'fp16')).toThrow(/Use a point/);
+		expect(() => encode('1,00', 'fp16')).toThrow(/Use a point/);
+		expect(() => encode('1,0000', 'fp16')).toThrow(/Use a point/);
 		expect(encode('−2.5', 'fp16').result!.exact).toBe('-2.5');
 		expect(encode('inf', 'bf16').result!.hex).toBe('7F80');
 		expect(encode('-Infinity', 'e5m2').result!.hex).toBe('FC');
 		expect(() => decode(256, 'e4m3')).toThrow(MiniFloatError);
+	});
+
+	test('hostile decimals are answered at once', () => {
+		const start = Date.now();
+		for (const t of ['0e999999999', '0e-999999999', '-0e999999999999', '0.000e300000000', '0e' + '9'.repeat(398)]) {
+			const e = encode(t, 'fp16');
+			expect(e.result!.kind, t).toBe('zero');
+			expect(e.result!.sign, t).toBe(t.startsWith('-') ? 1 : 0);
+		}
+		expect(encode('1e' + '9'.repeat(398), 'fp16').result!.exact).toBe('Infinity');
+		expect(encode('1e-' + '9'.repeat(397), 'fp16').result!.exact).toBe('0');
+		expect(encode('1' + '0'.repeat(380) + 'e-999999999', 'e4m3').underflowed).toBe(true);
+		expect(Date.now() - start).toBeLessThan(500);
+	});
+
+	test('a number far beyond every range still shows its error when clamped', () => {
+		for (const t of ['1e400', '1e401', '1e999']) {
+			const e = encode(t, 'e4m3', 'saturate');
+			expect(e.result!.exact).toBe('448');
+			expect(e.errorShort).toBe(`-${t}`);
+			expect(e.relativeShort).toBe('1');
+		}
+		expect(encode('-123456e500', 'e2m1').errorShort).toBe('1.235e505');
+		expect(encode('99999e500', 'e2m1').errorShort).toBe('-1e505');
+		// Infinity and NaN have no error to show.
+		expect(encode('1e999', 'fp16').errorShort).toBeNull();
+		expect(encode('1e999', 'e4m3', 'nan').errorShort).toBeNull();
 	});
 
 	test('errors are exact and relative errors sensible', () => {
@@ -434,26 +510,41 @@ function rationalOf(x: number): [bigint, bigint] {
 }
 
 test.describe('the fp16-bf16-fp8-converter page', () => {
-	test('ships 0.1 already converted to every format', async ({ page }) => {
-		const html = await (await page.request.get('/fp16-bf16-fp8-converter')).text();
-		for (const id of FORMAT_IDS) expect(html).toContain(encode('0.1', id).result!.hex);
-		expect(html).toContain(encode('0.1', 'fp16').result!.exact); // 0.0999755859375
-		expect(html).toContain('0.1015625'); // E4M3
-		expect(html).toContain('65504');
-		expect(html).toContain('57344');
+	const card = (page: Page, name: string) =>
+		page.locator('.fmt-card', { has: page.locator('h3', { hasText: new RegExp(`^${name}$`) }) });
+
+	test.describe('as prerendered, without JavaScript', () => {
+		test.use({ javaScriptEnabled: false });
+		test('ships 0.1 already converted, in each format card', async ({ page }) => {
+			await page.goto('/fp16-bf16-fp8-converter');
+			for (const id of FORMAT_IDS) {
+				const e = encode('0.1', id);
+				const c = card(page, FORMATS[id].name);
+				await expect(c.locator('.facts dd').first()).toContainText(e.result!.hex);
+				await expect(c.locator('.stored')).toHaveText(e.result!.exact);
+			}
+			await expect(card(page, 'FP4 E2M1').locator('.stored')).toHaveText('0');
+			await expect(card(page, 'FP4 E2M1')).toContainText('too small: rounded down to zero');
+			await expect(card(page, 'FP16')).toContainText('(0.0244% relative)');
+			await expect(card(page, 'FP32')).toContainText('(1.49e−6% relative)');
+			await expect(page.locator('.answer-label')).toHaveText('FP16 stores');
+			await expect(page.locator('.answer-value')).toHaveText('0.0999755859375');
+			await expect(page.locator('.steps-box summary')).toContainText('How 0.1 rounds to FP16');
+		});
 	});
 
 	test('typing converts, the overflow choice applies to E4M3, and bits read back', async ({ page }) => {
 		await page.goto('/fp16-bf16-fp8-converter');
 		await page.waitForLoadState('networkidle');
-		const card = (name: string) => page.locator('.fmt-card', { has: page.locator('h3', { hasText: name }) });
 		await page.locator('#value').fill('70000');
-		await expect(card('FP16').locator('.stored')).toHaveText('Infinity');
-		await expect(card('BF16').locator('.stored')).toHaveText('70144');
-		await expect(card('FP8 E4M3').locator('.stored')).toHaveText('448');
-		await expect(card('FP4 E2M1').locator('.stored')).toHaveText('6');
+		await expect(card(page, 'FP16').locator('.stored')).toHaveText('Infinity');
+		await expect(card(page, 'BF16').locator('.stored')).toHaveText('70144');
+		await expect(card(page, 'FP8 E4M3').locator('.stored')).toHaveText('448');
+		await expect(card(page, 'FP4 E2M1').locator('.stored')).toHaveText('6');
+		await expect(card(page, 'FP4 E2M1')).toContainText('(99.99% relative)');
+		await expect(page.locator('.answer-value')).toHaveText('Infinity');
 		await page.getByRole('button', { name: 'Become NaN' }).click();
-		await expect(card('FP8 E4M3').locator('.stored')).toHaveText('NaN');
+		await expect(card(page, 'FP8 E4M3').locator('.stored')).toHaveText('NaN');
 		await expect(page).toHaveURL(/of=nan/);
 
 		await page.getByRole('button', { name: 'Hex bits' }).click();
@@ -463,12 +554,81 @@ test.describe('the fp16-bf16-fp8-converter page', () => {
 		await page.locator('#value').fill('7G');
 		await expect(page.locator('.error')).toContainText('"G" is not a hex digit');
 		await page.locator('#value').fill('3C');
-		await expect(page.locator('.error')).toHaveCount(0);
+		await expect(page.locator('.error')).toHaveText('');
 		// Flipping the sign bit makes it negative.
 		await page.getByRole('button', { name: /^Sign bit/ }).click();
 		await expect(page.locator('#value')).toHaveValue('BC');
 		await expect(page.locator('.answer-value')).toHaveText('−1.5');
 	});
+
+	test('a negative value is worked through with matching words and sign', async ({ page }) => {
+		await page.goto('/fp16-bf16-fp8-converter?v=-0.1');
+		await expect(card(page, 'FP16')).toContainText('rounded up');
+		const steps = page.locator('.steps-box');
+		await expect(steps).toContainText('rounds up, toward zero');
+		await expect(steps).toContainText('−1.1001100110 × 2⁻⁴ = −0.0999755859375');
+	});
+
+	test('invalid input keeps the layout still and takes the stale results out of the tab order', async ({ page }) => {
+		await page.goto('/fp16-bf16-fp8-converter');
+		await page.waitForLoadState('networkidle');
+		// Measured from the top of the document, since tabbing may scroll.
+		const top = () => page.locator('.results').evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
+		const before = await top();
+		await page.locator('#value').fill('0,1');
+		await expect(page.locator('.error')).toContainText('Use a point for the decimal: 0.1');
+		expect(await top()).toBe(before);
+		await expect(page.locator('.results')).toHaveAttribute('inert', /.*/);
+		// Tabbing from the input skips everything in the results.
+		await page.locator('#value').focus();
+		for (let i = 0; i < 20; i++) {
+			await page.keyboard.press('Tab');
+			expect(await page.evaluate(() => !!document.activeElement?.closest('.results'))).toBe(false);
+		}
+		await page.locator('#value').fill('0.1');
+		await expect(page.locator('.results')).not.toHaveAttribute('inert', /.*/);
+		expect(await top()).toBe(before);
+	});
+
+	test('copying says Copied on the button', async ({ page, context }) => {
+		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+		await page.goto('/fp16-bf16-fp8-converter');
+		await page.waitForLoadState('networkidle');
+		const button = card(page, 'FP32').getByRole('button', { name: /^Copy FP32/ });
+		await button.click();
+		await expect(button).toHaveText('Copied');
+		expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('3DCCCCCD');
+		await expect(card(page, 'FP16').getByRole('button', { name: /^Copy FP16/ })).toHaveText('Copy');
+	});
+
+	test('switching to bits when the format has no code for the value picks one that has', async ({ page }) => {
+		await page.goto('/fp16-bf16-fp8-converter?v=NaN&fmt=e2m1');
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'Hex bits' }).click();
+		await expect(page.locator('#value')).toHaveValue('7E00');
+		await expect(page.locator('.fmt-card.current h3')).toHaveText('FP16');
+		await expect(page.locator('.error')).toHaveText('');
+	});
+
+	for (const width of [390, 1280]) {
+		test(`long values do not push the page sideways at ${width}px`, async ({ page }) => {
+			await page.setViewportSize({ width, height: 900 });
+			const fits = async () =>
+				expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+			await page.goto(`/fp16-bf16-fp8-converter?v=${'1'.repeat(300)}`);
+			await expect(page.locator('#value')).toHaveValue('1'.repeat(300));
+			await fits();
+			await page.goto('/fp16-bf16-fp8-converter?v=x' + 'y'.repeat(300));
+			await expect(page.locator('.error')).toContainText('is not a decimal number');
+			await fits();
+			// The smallest FP32 subnormal, read as bits and then shown as its 151-character exact decimal.
+			await page.goto('/fp16-bf16-fp8-converter?v=00000001&mode=hex&fmt=fp32');
+			await page.waitForLoadState('networkidle');
+			await page.getByRole('button', { name: 'Decimal' }).click();
+			await expect(page.locator('.steps-box summary')).toContainText('rounds to FP32');
+			await fits();
+		});
+	}
 
 	test('a shared link reopens the same state', async ({ page }) => {
 		await page.goto('/fp16-bf16-fp8-converter');
