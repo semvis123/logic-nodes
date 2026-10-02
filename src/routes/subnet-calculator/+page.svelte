@@ -449,7 +449,10 @@
 						})}>Check this AND in the binary calculator</a
 					>.
 				</p>
+			</div>
 
+			<!-- Outside the dimmed block, so the check field stays usable while the subnet above is being fixed. -->
+			<div class="check">
 				<h2 class="working-title" id="check-title">Is another address in this subnet?</h2>
 				<label class="field" for="test-address">Address to check</label>
 				<input
@@ -464,6 +467,8 @@
 				/>
 				{#if testError}
 					<p class="error" role="alert">{testError}</p>
+				{:else if error}
+					<p class="field-help">Fix the subnet above, then this address is checked against it.</p>
 				{:else if testAddress !== null}
 					<p class="verdict" class:yes={testIn} class:no={!testIn} role="status">
 						{#if testIn}

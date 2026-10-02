@@ -717,6 +717,12 @@ test.describe('the subnet-calculator page', () => {
 		// The dimmed last result cannot be reached while the input is wrong.
 		await page.fill('#cidr', '192.168.1.256/24');
 		await expect(page.locator('.results')).toHaveAttribute('inert', /.*/);
+		// The check field stays usable, and waits for a good subnet instead of using the dimmed one.
+		await page.fill('#test-address', '192.168.1.77');
+		await expect(page.locator('.check')).toContainText('Fix the subnet above');
+		await expect(page.locator('.verdict')).toHaveCount(0);
+		await page.fill('#cidr', '192.168.1.0/24');
+		await expect(page.locator('.verdict')).toContainText('192.168.1.77 is in 192.168.1.0/24');
 		await page.fill('#cidr', '224.0.0.1/4');
 		await expect(page.locator('.results')).not.toHaveAttribute('inert', /.*/);
 		await expect(page.locator('.notes')).toContainText('Multicast addresses name groups of receivers, not hosts');
