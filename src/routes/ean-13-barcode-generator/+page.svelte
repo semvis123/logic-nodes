@@ -14,6 +14,7 @@
 		isbn10To13,
 		isbn13To10,
 		isValidCode,
+		checkDigit,
 		cleanCode,
 		prefixInfo,
 		prefixLabel,
@@ -75,6 +76,12 @@
 	$: typed = cleanCode(input);
 	/** Twelve digits in the EAN-13 field that already end in a valid check digit are probably a UPC-A. */
 	$: upcHint = sym === 'ean13' && /^\d{12}$/.test(typed) && isValidCode(typed);
+	/**
+	 * Twelve digits starting with 0 that do not end in a valid check digit may be
+	 * a UPC-A with a typo, so the hint names the check digit it would need.
+	 */
+	$: upcTypo =
+		sym === 'ean13' && /^0\d{11}$/.test(typed) && !isValidCode(typed) ? checkDigit(typed.slice(0, 11)) : null;
 
 	// The highlighted digit, by its index in the number. Hovering wins, then the
 	// focused digit, then one pinned by a click or tap, which stays lit after
@@ -107,7 +114,9 @@
 		if (next === sym) return;
 		const t = typed;
 		if (sym === 'ean13' && next === 'upca') {
-			if (/^\d{12}$/.test(t) && isValidCode(t)) input = t; // already a UPC-A, as the hint says
+			// Already a UPC-A, as the hint says; or one starting with 0 whose check digit is
+			// probably mistyped, kept as typed so the UPC-A view can flag it rather than lose it.
+			if (/^\d{12}$/.test(t) && (isValidCode(t) || t[0] === '0')) input = t;
 			else if (/^0\d{12}$/.test(t)) input = t.slice(1);
 			else if (!error && parsed.code.startsWith('0')) input = parsed.code.slice(1);
 			else input = examplesFor[next];
@@ -334,7 +343,7 @@
 				autocapitalize="off"
 				inputmode="numeric"
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="code-help code-error"
+				aria-describedby={error ? 'code-error' : 'code-help'}
 			/>
 			<!-- The error takes the help text's place, so the card does not grow when one appears. -->
 			<div class="field-msg">
@@ -398,9 +407,13 @@
 								the number. The ISBN-13 does not use it: its check digit is worked out afresh.
 							</p>
 						{/if}
-						{#if !error && upcHint}
+						{#if !error && (upcHint || upcTypo !== null)}
 							<p class="hint">
-								These 12 digits already end in a valid check digit, so they may be a UPC-A.
+								{#if upcHint}
+									These 12 digits already end in a valid check digit, so they may be a UPC-A.
+								{:else}
+									If these 12 digits are a UPC-A, its check digit is wrong: the first 11 need {upcTypo}, not {typed[11]}.
+								{/if}
 								<button type="button" class="link-btn" on:click={() => tryValue(typed, 'upca')}
 									>Read them as UPC-A</button
 								>
@@ -510,76 +523,110 @@
 
 				<div class="working" class:stale={!!error} use:inert={!!error}>
 					<h2 class="working-title">Digit by digit</h2>
-					<p class="strip-help">
-						Hover over the bars, or focus a digit below, to see which modules it owns; click or tap a digit to keep it
-						lit, and press Escape to let go.
-						{#if hiddenFirst}The first digit has no bars: it picks the L and G pattern of the next six.{/if}
-					</p>
-					<div
-						class="strip"
-						role="group"
-						aria-label="Digits of the barcode"
-						on:keydown={(e) => e.key === 'Escape' && (pinned = null)}
-					>
-						{#if hiddenFirst}
-							<button
-								type="button"
-								class="digit-btn first"
-								class:hot={active === 0}
-								aria-pressed={pinned === 0}
-								aria-describedby="digit-detail"
-								on:click={() => togglePin(0)}
-								on:mouseenter={() => (hover = 0)}
-								on:mouseleave={() => (hover = null)}
-								on:focus={() => (focused = 0)}
-								on:blur={() => (focused = null)}
+					<!-- On a phone the barcode above is a screen or two away from the lower digits, so a
+					     small copy of its bars sticks to the top while the strip is in view. It repeats
+					     the drawing only, so it is hidden from assistive technology. -->
+					<div class="strip-area">
+						<div class="mini-paper" aria-hidden="true">
+							<svg
+								class="mini-barcode"
+								viewBox="0 {lay.barTop} {lay.width} {lay.longBottom - lay.barTop}"
+								preserveAspectRatio="none"
 							>
-								<span class="digit-num mono">{parsed.code[0]}</span>
-								<span class="digit-set">no bars</span>
-								<span class="digit-bits mono">{barcode.parity}</span>
-							</button>
-						{/if}
-						{#each digitSegments as seg, i (seg.digitIndex)}
-							{@const idx = seg.digitIndex ?? 0}
-							{#if i === info.half}<span class="centre-mark" aria-hidden="true">01010</span>{/if}
-							<button
-								type="button"
-								class="digit-btn"
-								class:hot={lit(idx)}
-								aria-pressed={pinned === idx}
-								aria-label="Digit {parsed.code[idx]}, position {idx + 1}, {seg.set} code {seg.bits}"
-								aria-describedby="digit-detail"
-								on:click={() => togglePin(idx)}
-								on:mouseenter={() => (hover = idx)}
-								on:mouseleave={() => (hover = null)}
-								on:focus={() => (focused = idx)}
-								on:blur={() => (focused = null)}
-							>
-								<span class="digit-num mono">{parsed.code[idx]}</span>
-								<span class="digit-set">{seg.set}</span>
-								<CodeBars bits={seg.bits} size={4} height={14} ink />
-								<span class="digit-bits mono">{seg.bits}</span>
-							</button>
-						{/each}
+								{#each lay.digitSpans as span (span.digitIndex)}
+									{#if lit(span.digitIndex)}
+										<rect
+											class="mini-band"
+											x={span.x}
+											y={lay.barTop}
+											width={span.width}
+											height={lay.longBottom - lay.barTop}
+										/>
+									{/if}
+								{/each}
+								{#each lay.bars as bar}
+									<rect
+										class="mini-bar"
+										class:hot={lit(bar.digitIndex)}
+										x={bar.x}
+										y={lay.barTop}
+										width={bar.width}
+										height={(bar.long ? lay.longBottom : lay.barBottom) - lay.barTop}
+									/>
+								{/each}
+							</svg>
+						</div>
+						<p class="strip-help">
+							Hover over the bars, or focus a digit below, to see which modules it owns; click or tap a digit to keep it
+							lit, and press Escape to let go.
+							{#if hiddenFirst}The first digit has no bars: it picks the L and G pattern of the next six.{/if}
+						</p>
+						<div
+							class="strip"
+							role="group"
+							aria-label="Digits of the barcode"
+							on:keydown={(e) => e.key === 'Escape' && (pinned = null)}
+						>
+							{#if hiddenFirst}
+								<button
+									type="button"
+									class="digit-btn first"
+									class:hot={active === 0}
+									aria-pressed={pinned === 0}
+									aria-describedby="digit-detail"
+									on:click={() => togglePin(0)}
+									on:mouseenter={() => (hover = 0)}
+									on:mouseleave={() => (hover = null)}
+									on:focus={() => (focused = 0)}
+									on:blur={() => (focused = null)}
+								>
+									<span class="digit-num mono">{parsed.code[0]}</span>
+									<span class="digit-set">no bars</span>
+									<span class="digit-bits mono">{barcode.parity}</span>
+								</button>
+							{/if}
+							{#each digitSegments as seg, i (seg.digitIndex)}
+								{@const idx = seg.digitIndex ?? 0}
+								{#if i === info.half}<span class="centre-mark" aria-hidden="true">01010</span>{/if}
+								<button
+									type="button"
+									class="digit-btn"
+									class:hot={lit(idx)}
+									aria-pressed={pinned === idx}
+									aria-label="Digit {parsed.code[idx]}, position {idx + 1}, {seg.set} code {seg.bits}"
+									aria-describedby="digit-detail"
+									on:click={() => togglePin(idx)}
+									on:mouseenter={() => (hover = idx)}
+									on:mouseleave={() => (hover = null)}
+									on:focus={() => (focused = idx)}
+									on:blur={() => (focused = null)}
+								>
+									<span class="digit-num mono">{parsed.code[idx]}</span>
+									<span class="digit-set">{seg.set}</span>
+									<CodeBars bits={seg.bits} size={4} height={14} ink />
+									<span class="digit-bits mono">{seg.bits}</span>
+								</button>
+							{/each}
+						</div>
+						<p class="digit-detail" id="digit-detail" aria-live="polite">
+							{#if active === 0 && hiddenFirst}
+								The first digit, {parsed.code[0]}, is not drawn. It sets the code sets of the left six digits to
+								<strong class="mono">{barcode.parity}</strong>, and a scanner works it out from that pattern.
+							{:else if activeSegment}
+								Position {(activeSegment.digitIndex ?? 0) + 1}: {parsed.code[activeSegment.digitIndex ?? 0]} drawn with its
+								{activeSegment.set} code <strong class="mono">{activeSegment.bits}</strong>, modules {moduleRange(
+									activeSegment
+								)}
+								of {barcode.modules.length}{activeSegment.set === 'R'
+									? ', on the right where every digit uses R'
+									: hiddenFirst
+									? `, ${activeSegment.set} because the first digit ${parsed.code[0]} gives ${barcode.parity}`
+									: ''}.
+							{:else}
+								{info.name}: {barcode.modules.length} modules between the quiet zones, {lay.width} with them.
+							{/if}
+						</p>
 					</div>
-					<p class="digit-detail" id="digit-detail" aria-live="polite">
-						{#if active === 0 && hiddenFirst}
-							The first digit, {parsed.code[0]}, is not drawn. It sets the code sets of the left six digits to
-							<strong class="mono">{barcode.parity}</strong>, and a scanner works it out from that pattern.
-						{:else if activeSegment}
-							Position {(activeSegment.digitIndex ?? 0) + 1}: {parsed.code[activeSegment.digitIndex ?? 0]} drawn with its
-							{activeSegment.set} code <strong class="mono">{activeSegment.bits}</strong>, modules {moduleRange(
-								activeSegment
-							)}
-							of {barcode.modules.length}{activeSegment.set === 'R'
-								? ', on the right where every digit uses R'
-								: hiddenFirst
-								? `, ${activeSegment.set} because the first digit ${parsed.code[0]} gives ${barcode.parity}`
-								: ''}.
-						{:else}
-							{info.name}: {barcode.modules.length} modules between the quiet zones, {lay.width} with them.
-						{/if}
-					</p>
 
 					<h2 class="working-title">All {barcode.modules.length} modules</h2>
 					<div class="modules" role="group" aria-label="The modules, segment by segment">
@@ -1246,6 +1293,51 @@
 		color: #bbb;
 		font-size: 0.85rem;
 		margin: 0 0 0.6rem;
+	}
+
+	/* Only below the width where the barcode sits beside the answer; above it the
+	   barcode and the strip share the screen. */
+	.mini-paper {
+		display: none;
+	}
+
+	@media (max-width: 859px) {
+		.mini-paper {
+			display: block;
+			position: sticky;
+			/* Just under the site's sticky top bar. */
+			top: 42px;
+			z-index: 2;
+			background: #fff;
+			border-radius: 3px;
+			box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+			margin: 0 0 0.6rem;
+			padding: 4px 6px;
+		}
+
+		/* Keyboard focus does not land a digit under the sticky copy. */
+		.digit-btn {
+			scroll-margin-top: 96px;
+		}
+	}
+
+	.mini-barcode {
+		display: block;
+		width: 100%;
+		height: 32px;
+	}
+
+	.mini-bar {
+		fill: #000;
+		shape-rendering: crispEdges;
+	}
+
+	.mini-bar.hot {
+		fill: #1b6a1b;
+	}
+
+	.mini-band {
+		fill: #cfeccf;
 	}
 
 	.strip {
