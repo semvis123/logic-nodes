@@ -20,6 +20,7 @@
 	import { readUrl, syncUrl, safeText, safeOption, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import ErrorAt from '$lib/ErrorAt.svelte';
+	import Num from '$lib/WorkingNumber.svelte';
 	import { onMount } from 'svelte';
 	import type { PageData } from './$types';
 
@@ -34,17 +35,21 @@
 	onMount(() => {
 		const p = readUrl();
 		mode = safeOption(p.m, ['encode', 'decode', 'check'] as const) ?? mode;
-		input = safeText(p.t, 2000) ?? input;
+		// Check mode starts from the example address when a link names the mode but not the string.
+		input = safeText(p.t, 2000) ?? (mode === 'check' ? data.example.address : input);
 		source = safeOption(p.in, ['text', 'hex'] as const) ?? source;
 	});
 
 	let mode: Mode = 'encode';
 	let input = DEFAULTS.t;
 	let source: Source = 'text';
-	$: syncUrl({ m: mode, t: input, in: source }, DEFAULTS);
+	// Check mode's default string is the example address, so that is what its link may leave out.
+	$: syncUrl({ m: mode, t: input, in: source }, mode === 'check' ? { ...DEFAULTS, t: example.address } : DEFAULTS);
 
 	/** Rows of working shown before the table says the rest go the same way. */
 	const MAX_ROWS = 120;
+	/** A working table longer than this scrolls in its own box; a shorter one is shown whole. */
+	const LONG_TABLE = 30;
 
 	// Encode and decode run during prerendering too, so the served page shows a worked example.
 	let output = '';
@@ -120,7 +125,19 @@
 		if (next === 'check') {
 			const usable = mode === 'decode' && !error && bytes.length >= 5;
 			if (!usable) input = example.address;
-		} else if (mode !== 'check' && !error && output) {
+		} else if (mode === 'check') {
+			// Leaving the checker: Decode keeps the string; Encode takes its bytes, since
+			// encoding the address's own characters as text would mean nothing.
+			if (next === 'encode') {
+				if (check && !checkError) {
+					input = hexBytes(check.decoded.bytes);
+					source = 'hex';
+				} else {
+					input = DEFAULTS.t;
+					source = 'text';
+				}
+			}
+		} else if (!error && output) {
 			if (next === 'encode' && notText) {
 				input = output;
 				source = 'hex';
@@ -137,7 +154,8 @@
 		input = ex.value;
 		source = ex.source ?? 'text';
 		const field = document.getElementById('input');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		field?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
@@ -226,7 +244,7 @@
 		},
 		{
 			q: 'Why do some Bitcoin addresses start with bc1?',
-			a: 'Those are SegWit addresses, written in Bech32 (BIP 173), a different encoding with its own error-detecting checksum. They are not Base58Check, so this checker does not read them.'
+			a: 'Those are SegWit addresses, written in Bech32 (BIP 173), or in Bech32m (BIP 350) for Taproot addresses starting bc1p: a different encoding with its own error-detecting checksum. They are not Base58Check, so this checker does not read them.'
 		}
 	];
 
@@ -402,7 +420,7 @@
 							)}.
 						{/if}
 					</div>
-					<div class="parts" aria-label="The decoded bytes, split into parts">
+					<div class="parts" role="group" aria-label="The decoded bytes, split into parts">
 						<div class="part version">
 							<span class="part-label">Version</span>
 							<span class="mono">{hexBytes([check.version])}</span>
@@ -429,13 +447,13 @@
 				<ErrorAt message={error} {input} position={errorAt} />
 			{:else}
 				<div class="out-head">
-					<label class="field" for="output"
-						>{mode === 'encode' ? 'Base58' : notText ? 'Bytes, in hex' : 'Text'}
+					<span class="field"
+						><label for="output">{mode === 'encode' ? 'Base58' : notText ? 'Bytes, in hex' : 'Text'}</label>
 						<span class="count" role="status"
 							>{bytes.length} byte{bytes.length === 1 ? '' : 's'}{mode === 'encode'
 								? `, ${output.length} characters`
 								: ''}</span
-						></label
+						></span
 					>
 					<span class="copy-wrap">
 						<button type="button" class="copy" on:click={copyOutput} disabled={!output}>Copy</button>
@@ -444,7 +462,7 @@
 						>
 					</span>
 				</div>
-				<textarea id="output" class="output mono" readonly rows={outputRows} value={output} aria-label="Result" />
+				<textarea id="output" class="output mono" readonly rows={outputRows} value={output} />
 				{#if mode === 'decode' && bytes.length >= 5}
 					<p class="note">
 						If this is an address or key, <button type="button" class="linkish" on:click={() => setMode('check')}
@@ -487,12 +505,12 @@
 						{/if}
 					</ol>
 					{#if divisions.length}
-						<div class="table-wrap scroll-box">
+						<div class="table-wrap" class:scroll-box={divisions.length > LONG_TABLE}>
 							<table class="data-table steps">
 								<thead>
 									<tr>
 										<th scope="col" class="num">Number</th>
-										<th scope="col" class="num">÷ 58</th>
+										<th scope="col" class="num quotient">÷ 58</th>
 										<th scope="col" class="num">Remainder</th>
 										<th scope="col">Character</th>
 									</tr>
@@ -500,8 +518,8 @@
 								<tbody>
 									{#each divisions.slice(0, MAX_ROWS) as step}
 										<tr>
-											<td class="mono num">{big(step.dividend)}</td>
-											<td class="mono num">{big(step.quotient)}</td>
+											<td class="mono num"><Num value={step.dividend} {big} /></td>
+											<td class="mono num quotient"><Num value={step.quotient} {big} /></td>
 											<td class="mono num">{step.remainder}</td>
 											<td class="mono strong">{step.digit}</td>
 										</tr>
@@ -518,7 +536,7 @@
 						</p>
 					{/if}
 					{#if readings.length}
-						<div class="table-wrap scroll-box">
+						<div class="table-wrap" class:scroll-box={readings.length > LONG_TABLE}>
 							<table class="data-table steps">
 								<thead>
 									<tr>
@@ -532,7 +550,7 @@
 										<tr>
 											<td class="mono strong">{step.digit}</td>
 											<td class="mono num">{step.value}</td>
-											<td class="mono num">{big(step.after)}</td>
+											<td class="mono num"><Num value={step.after} {big} /></td>
 										</tr>
 									{/each}
 								</tbody>
@@ -565,9 +583,9 @@
 			selects the whole of it, and an email program finds no punctuation to break a line at. Besides Bitcoin, IPFS uses
 			it for its original content identifiers, the ones starting with Qm.
 		</p>
-		<div class="alphabet" aria-label="The 58 characters and their values">
+		<div class="alphabet" role="list" aria-label="The 58 characters and their values">
 			{#each alphabetCells as cell}
-				<div class="letter">
+				<div class="letter" role="listitem">
 					<span class="lchar">{cell.char}</span>
 					<span class="lnum">{cell.index}</span>
 				</div>
@@ -681,16 +699,17 @@
 			>
 			(4.3 billion) tries.
 			<a
-				href={toolLink('/base58', { m: 'check', t: example.address })}
+				href={toolLink('/base58', { m: 'check', t: examples[6].value })}
 				on:click|preventDefault={() => tryExample(examples[6])}>Try a one-character mistake</a
 			>.
 		</p>
 
 		<h3 class="sub">Version bytes and the first character</h3>
 		<p class="section-intro">
-			The version byte is the most significant part of the number, so it fixes the first character of the result. These
-			are the common Bitcoin prefixes, with the first characters worked out by encoding the smallest and largest value
-			of each kind:
+			The version byte is the most significant part of the number, so it decides which character or two the result can
+			start with (a version byte of 0 is the exception: it is a leading zero byte, so it becomes a 1). These are the
+			common Bitcoin prefixes, with the first characters worked out by encoding the smallest and largest value of each
+			kind:
 		</p>
 		<div class="table-wrap">
 			<table class="data-table kinds">
@@ -897,6 +916,11 @@
 		font-size: 0.8rem;
 	}
 
+	.copy:disabled {
+		opacity: 0.45;
+		cursor: default;
+	}
+
 	.copy {
 		background: #0d0d0f;
 		border: 1px solid rgba(255, 255, 255, 0.4);
@@ -1078,8 +1102,8 @@
 		overflow: auto;
 	}
 
-	.steps td,
-	.steps th {
+	.data-table.steps td,
+	.data-table.steps th {
 		white-space: nowrap;
 		font-size: 0.85rem;
 		padding-left: 0.6rem;
@@ -1088,6 +1112,13 @@
 
 	.num {
 		text-align: right !important;
+	}
+
+	/* Each quotient is the next row's number, so a phone can do without the column. */
+	@media (max-width: 600px) {
+		.quotient {
+			display: none;
+		}
 	}
 
 	.data-table td.strong,

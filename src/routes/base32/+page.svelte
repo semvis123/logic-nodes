@@ -52,12 +52,14 @@
 	let errorAt: number | undefined;
 	let notes: string[] = [];
 	let notText = false;
+	let asNumber: number[] | undefined;
 	let byteCount = 0;
 	let byteHex = '';
 	$: {
 		try {
 			notes = [];
 			notText = false;
+			asNumber = undefined;
 			errorAt = undefined;
 			if (mode === 'encode') {
 				const bytes = source === 'hex' ? parseHex(input).bytes : textToBytes(input);
@@ -70,6 +72,7 @@
 				const result = base32Decode(input, variant);
 				groups = result.groups;
 				notes = result.notes;
+				asNumber = result.asNumber;
 				byteCount = result.bytes.length;
 				byteHex = hexBytes(result.bytes);
 				const read = bytesAsText(result.bytes);
@@ -107,7 +110,8 @@
 		variant = example.variant;
 		source = example.source ?? 'text';
 		const field = document.getElementById('input');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		field?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
@@ -197,8 +201,8 @@
 			)}. ULIDs use Crockford's Base32, and Tor's .onion addresses are Base32 in small letters.`
 		},
 		{
-			q: 'Why does Base32 use 2 to 7 and no 0, 1 or 8?',
-			a: 'RFC 4648 Base32 needs 32 characters. The 26 capital letters give 26, and the other six are the digits 2 to 7. Leaving out 0, 1 and 8 means the result never has a digit that could be mistaken for the letters O, I or B.'
+			q: 'Why does Base32 use 2 to 7 and no 0, 1, 8 or 9?',
+			a: 'RFC 4648 Base32 needs 32 characters. The 26 capital letters give 26, and the other six are the digits 2 to 7. Leaving out 0, 1 and 8 means the result never has a digit that could be mistaken for the letters O, I or B, and once 2 to 7 fill the six places, 9 is not needed.'
 		},
 		{
 			q: 'Why does Base32 end with ======?',
@@ -206,9 +210,12 @@
 		},
 		{
 			q: 'What is the difference between Base32, base32hex and Crockford Base32?',
-			a: `Only the alphabet. RFC 4648 Base32 is A–Z then 2–7. base32hex is 0–9 then A–V, so encoded strings sort in the same order as the bytes. Crockford's alphabet is 0–9 and the letters without I, L, O and U; a decoder reads I and L as 1 and O as 0, ignores hyphens and case, and there is no padding. "Hello" is ${
+			a: `RFC 4648 Base32 is A–Z then 2–7. base32hex is 0–9 then A–V, so encoded strings without padding sort in the same order as the bytes. Crockford's alphabet is 0–9 and the letters without I, L, O and U, and his scheme also has reading rules: a decoder reads I and L as 1 and O as 0, ignores hyphens and case, there is no padding, and an optional check symbol may end the string. "Hello" is ${
 				hello.text
-			}, ${enc('Hello', 'hex')} and ${crockfordHello} in the three.`
+			}, ${enc(
+				'Hello',
+				'hex'
+			)} and ${crockfordHello} in the three. Crockford's own scheme, and ULIDs, write a number rather than bytes, with the spare bits at the front instead of the end, so unless the length is a multiple of 8 characters the bits line up differently.`
 		},
 		{
 			q: 'How much bigger does Base32 make data?',
@@ -328,6 +335,20 @@
 						>
 					{/each}
 				</div>
+				{#if mode === 'encode' && variant !== 'crockford'}
+					<div class="opt" role="group" aria-label="Padding">
+						<span class="opt-label">Padding</span>
+						<button type="button" class:active={pad === 'on'} aria-pressed={pad === 'on'} on:click={() => (pad = 'on')}
+							>With =</button
+						>
+						<button
+							type="button"
+							class:active={pad === 'off'}
+							aria-pressed={pad === 'off'}
+							on:click={() => (pad = 'off')}>Without</button
+						>
+					</div>
+				{/if}
 				{#if mode === 'encode'}
 					<div class="opt" role="group" aria-label="Input">
 						<span class="opt-label">Input</span>
@@ -367,7 +388,8 @@
 				{:else if mode === 'encode'}
 					Any text, including accents and emoji. It is turned into UTF-8 bytes first, and the bytes are encoded.
 				{:else if variant === 'crockford'}
-					Upper or lower case. Hyphens and spaces are ignored, and I, L and O are read as 1, 1 and 0.
+					Upper or lower case. Hyphens and spaces are ignored, I, L and O are read as 1, 1 and 0, and a check symbol (*
+					~ $ = U) at the end is checked.
 				{:else}
 					Spaces, line breaks and small letters are fine, and so is missing padding.
 				{/if}
@@ -385,13 +407,14 @@
 				<ErrorAt message={error} {input} position={errorAt} />
 			{:else}
 				<div class="out-head">
-					<label class="field" for="output"
-						>{mode === 'encode' ? BASE32_NAMES[variant] : notText ? 'Bytes, in hex' : 'Text'}
+					<span class="field"
+						><label for="output">{mode === 'encode' ? BASE32_NAMES[variant] : notText ? 'Bytes, in hex' : 'Text'}</label
+						>
 						<span class="count" role="status"
 							>{byteCount} byte{byteCount === 1 ? '' : 's'}{mode === 'encode'
 								? `, ${output.length} characters`
 								: ''}</span
-						></label
+						></span
 					>
 					<span class="copy-wrap">
 						<button type="button" class="copy" on:click={copyOutput} disabled={!output}>Copy</button>
@@ -400,7 +423,7 @@
 						>
 					</span>
 				</div>
-				<textarea id="output" class="output mono" readonly rows={outputRows} value={output} aria-label="Result" />
+				<textarea id="output" class="output mono" readonly rows={outputRows} value={output} />
 				{#if mode === 'decode' && !notText && byteCount}
 					<p class="note">Bytes: <span class="mono wrap">{byteHex}</span></p>
 				{/if}
@@ -413,6 +436,11 @@
 				{#each notes as note}
 					<p class="note">{note}</p>
 				{/each}
+				{#if asNumber}
+					<p class="note">
+						Take a ULID apart, time and all, in the <a href="/uuid-decoder">UUID and ULID decoder</a>.
+					</p>
+				{/if}
 
 				{#if groups.length}
 					<h2 class="steps-title">Step by step</h2>
@@ -436,20 +464,6 @@
 			{/if}
 
 			<div class="export">
-				{#if mode === 'encode' && variant !== 'crockford'}
-					<div class="opt" role="group" aria-label="Padding">
-						<span class="opt-label">Padding</span>
-						<button type="button" class:active={pad === 'on'} aria-pressed={pad === 'on'} on:click={() => (pad = 'on')}
-							>With =</button
-						>
-						<button
-							type="button"
-							class:active={pad === 'off'}
-							aria-pressed={pad === 'off'}
-							on:click={() => (pad = 'off')}>Without</button
-						>
-					</div>
-				{/if}
 				<ShareLink what="the input and settings" />
 			</div>
 		</div>
@@ -478,7 +492,7 @@
 			All three map the numbers 0 to 31 to characters; only the characters differ. Data encoded with one alphabet must
 			be decoded with the same one.
 		</p>
-		<div class="table-wrap scroll-box">
+		<div class="table-wrap">
 			<table class="data-table alphabet">
 				<thead>
 					<tr>
@@ -509,16 +523,22 @@
 			</li>
 			<li>
 				<strong>base32hex</strong>, from the same RFC, continues hexadecimal: 0–9, then A–V. Because the characters are
-				in ASCII order, encoded strings sort the same way as the bytes they hold. The bytes
+				in ASCII order, encoded strings sort the same way as the bytes they hold, as long as they are left unpadded (an
+				= sorts after the digits). The bytes
 				{sortRows.map((r) => r.hex).join(', ')} are <span class="mono">{listOf('rfc')}</span> in RFC 4648 Base32, which
-				sort as {sortedBy('rfc')}, because its digits come after its letters but before them in ASCII. In base32hex they
-				are <span class="mono">{listOf('b32hex')}</span>, which sort as {sortedBy('b32hex')}.
+				sort as {sortedBy('rfc')}: the alphabet puts 2–7 after Z, but ASCII puts digits before letters. In base32hex
+				they are <span class="mono">{listOf('b32hex')}</span>, which sort as {sortedBy('b32hex')}.
 			</li>
 			<li>
 				<strong>Crockford Base32</strong>, designed by Douglas Crockford for people to read and type, is 0–9 and the
 				letters without I, L, O and U. A decoder ignores case and hyphens and reads I and L as 1 and O as 0, so a code
-				read over the phone still decodes. It has no padding. ULIDs, the sortable IDs the
-				<a href="/uuid-decoder">UUID and ULID decoder</a> takes apart, are written in it.
+				read over the phone still decodes. It has no padding, and may end in a check symbol for the number modulo 37:
+				one of the 32 characters or one of five extras, * ~ $ = U, which this decoder checks. His scheme encodes a
+				number, with any spare bits at the front; this page, like many libraries, applies the alphabet to bytes the RFC
+				4648 way, with the spare bits at the end. The two agree whenever the length is a multiple of 8 characters.
+				ULIDs, the sortable IDs the <a href="/uuid-decoder">UUID and ULID decoder</a> takes apart, are one 128-bit number
+				in 26 characters, so 2 zero bits come first; paste one in Crockford decode mode and the page also gives its bytes
+				read that way.
 			</li>
 		</ul>
 	</section>
@@ -535,24 +555,19 @@
 				<thead>
 					<tr>
 						<th scope="col">Input</th>
-						<th scope="col" class="num">Bytes</th>
-						<th scope="col" class="num">Bits</th>
-						<th scope="col" class="num">Characters</th>
-						<th scope="col" class="num">Zero bits added</th>
-						<th scope="col" class="num">= signs</th>
 						<th scope="col">Base32</th>
 						<th scope="col">base32hex</th>
+						<th scope="col" class="num">= signs</th>
+						<th scope="col" class="num">Zero bits added</th>
+						<th scope="col" class="num wide-only">Bytes</th>
+						<th scope="col" class="num wide-only">Bits</th>
+						<th scope="col" class="num wide-only">Characters</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each padRows as row}
 						<tr>
 							<td class="mono">{row.text}</td>
-							<td class="mono num">{row.bytes}</td>
-							<td class="mono num">{row.bits}</td>
-							<td class="mono num">{row.chars}</td>
-							<td class="mono num">{row.fill}</td>
-							<td class="mono num">{row.padding}</td>
 							<td class="mono strong">
 								<a
 									href={toolLink('/base32', { t: row.text })}
@@ -562,6 +577,11 @@
 								>
 							</td>
 							<td class="mono">{row.hexEncoded}</td>
+							<td class="mono num">{row.padding}</td>
+							<td class="mono num">{row.fill}</td>
+							<td class="mono num wide-only">{row.bytes}</td>
+							<td class="mono num wide-only">{row.bits}</td>
+							<td class="mono num wide-only">{row.chars}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -583,19 +603,19 @@
 			<table class="data-table sizes">
 				<thead>
 					<tr>
-						<th scope="col">Bytes</th>
-						<th scope="col">Base32</th>
-						<th scope="col">Without padding</th>
-						<th scope="col">Base64</th>
+						<th scope="col" class="num">Bytes</th>
+						<th scope="col" class="num">Base32</th>
+						<th scope="col" class="num">Without padding</th>
+						<th scope="col" class="num">Base64</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each sizes as s}
 						<tr>
-							<td class="mono">{fmt(s.n)}</td>
-							<td class="mono">{fmt(s.padded)}</td>
-							<td class="mono">{fmt(s.unpadded)}</td>
-							<td class="mono">{fmt(s.base64)}</td>
+							<td class="mono num">{fmt(s.n)}</td>
+							<td class="mono num">{fmt(s.padded)}</td>
+							<td class="mono num">{fmt(s.unpadded)}</td>
+							<td class="mono num">{fmt(s.base64)}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -632,12 +652,14 @@
 				<span class="mono">{abcHex}</span>.
 			</li>
 			<li>
-				<strong>Typing 0, 1 or 8 in RFC 4648 Base32.</strong> They are not in the alphabet. If a key seems to contain them,
-				they are almost certainly the letters O, I and B.
+				<strong>Typing 0, 1 or 8 in RFC 4648 Base32.</strong> They are not in the alphabet (nor is 9). If a key seems to
+				contain them, they are almost certainly the letters O, I and B.
 			</li>
 			<li>
-				<strong>Comparing Base32 strings as case-sensitive.</strong> Base32 decoders read small and capital letters the
-				same, so <span class="mono">jbswy3dp</span> and <span class="mono">JBSWY3DP</span> are the same bytes.
+				<strong>Comparing Base32 strings as case-sensitive.</strong> Most decoders, this one included, read small
+				letters as capitals, so <span class="mono">jbswy3dp</span> and <span class="mono">JBSWY3DP</span> are the same
+				bytes. Some refuse small letters, such as Python's <span class="mono">base64.b32decode</span> unless it is given
+				<span class="mono">casefold=True</span>, so write capitals when in doubt.
 			</li>
 			<li>
 				<strong>Treating it as encryption.</strong> Base32, like Base64, has no key; anyone can decode it.
@@ -792,6 +814,11 @@
 		font-size: 0.8rem;
 	}
 
+	.copy:disabled {
+		opacity: 0.45;
+		cursor: default;
+	}
+
 	.copy {
 		background: #0d0d0f;
 		border: 1px solid rgba(255, 255, 255, 0.4);
@@ -875,18 +902,13 @@
 		overflow-wrap: anywhere;
 	}
 
-	.scroll-box {
-		max-height: 420px;
-		overflow: auto;
-	}
-
 	.alphabet {
 		width: auto;
 		min-width: 320px;
 	}
 
-	.alphabet td,
-	.alphabet th {
+	.data-table.alphabet td,
+	.data-table.alphabet th {
 		text-align: center;
 	}
 
@@ -900,24 +922,30 @@
 		text-align: right !important;
 	}
 
-	.pad-table td,
-	.pad-table th {
+	.data-table.pad-table td,
+	.data-table.pad-table th {
 		white-space: nowrap;
 	}
 
-	.sizes td {
-		text-align: right;
-	}
-
-	/* The alphabet and size tables fit a phone without scrolling. */
+	/* On a phone the tables keep their main columns, in tighter cells. */
 	@media (max-width: 560px) {
-		.alphabet th,
-		.alphabet td,
-		.sizes th,
-		.sizes td {
-			padding-left: 0.4rem;
-			padding-right: 0.4rem;
+		.data-table.alphabet th,
+		.data-table.alphabet td,
+		.data-table.sizes th,
+		.data-table.sizes td,
+		.data-table.pad-table th,
+		.data-table.pad-table td {
+			padding-left: 0.35rem;
+			padding-right: 0.35rem;
 			font-size: 0.85rem;
+		}
+
+		.alphabet {
+			min-width: 0;
+		}
+
+		.wide-only {
+			display: none;
 		}
 	}
 </style>

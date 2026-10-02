@@ -11,6 +11,7 @@ import {
 	base32Decode,
 	base32Length,
 	BASE32_ALPHABETS,
+	CROCKFORD_CHECK_SYMBOLS,
 	base58Encode,
 	base58Decode,
 	base58CheckVerify,
@@ -30,6 +31,7 @@ import {
 	bytesToBigInt,
 	bigIntToBytes,
 	bytesAsText,
+	MAX_TEXT_BYTES,
 	BaseNError,
 	type Base32Variant
 } from '../src/lib/baseN.js';
@@ -142,6 +144,16 @@ const nodeDoubleSha = (bytes: number[]) =>
 
 // --- Base32 ----------------------------------------------------------------
 
+/** The three alphabets typed out here, not taken from the engine, so a typo there is caught. */
+const ALPHABETS: Record<Base32Variant, string> = {
+	rfc4648: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567',
+	hex: '0123456789ABCDEFGHIJKLMNOPQRSTUV',
+	crockford: '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
+};
+
+/** Crockford's reading as a number: the characters as base 32 digits, most significant first. */
+const crockfordValue = (s: string) => [...s].reduce((n, c) => n * 32n + BigInt(ALPHABETS.crockford.indexOf(c)), 0n);
+
 test.describe('Base32', () => {
 	test('matches the RFC 4648 section 10 vectors in both alphabets', () => {
 		const vectors: [string, string, string][] = [
@@ -169,7 +181,7 @@ test.describe('Base32', () => {
 		for (let n = 0; n < 300; n++) {
 			const bytes = randomBytes(random, Math.floor(random() * 40), n % 3 === 0 ? 0.3 : 0);
 			for (const variant of variants) {
-				const alphabet = BASE32_ALPHABETS[variant];
+				const alphabet = ALPHABETS[variant];
 				for (const pad of [true, false]) {
 					const { text, groups } = base32Encode(bytes, { variant, pad });
 					expect(text).toBe(refBase32(bytes, alphabet, pad && variant !== 'crockford'));
@@ -198,6 +210,79 @@ test.describe('Base32', () => {
 		expect(f.chars.join('')).toBe('MY======');
 	});
 
+	test('every character of every alphabet, in order, from 20 bytes that count 0 to 31 in fives', () => {
+		const bits = Array.from({ length: 32 }, (_, i) => i.toString(2).padStart(5, '0')).join('');
+		const bytes = Array.from({ length: 20 }, (_, i) => parseInt(bits.slice(i * 8, i * 8 + 8), 2));
+		for (const variant of ['rfc4648', 'hex', 'crockford'] as Base32Variant[]) {
+			expect(BASE32_ALPHABETS[variant]).toBe(ALPHABETS[variant]);
+			expect(base32Encode(bytes, { variant }).text).toBe(ALPHABETS[variant]);
+			expect(base32Decode(ALPHABETS[variant].toLowerCase(), variant).bytes).toEqual(bytes);
+		}
+		// Crockford leaves out I, L, O and U, and only those, from A to Z.
+		const missing = [...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'].filter((c) => !ALPHABETS.crockford.includes(c));
+		expect(missing.join('')).toBe('ILOU');
+	});
+
+	test('a ULID read as Crockford gives its 128-bit number as well as the RFC 4648 cut', () => {
+		const ulid = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
+		const read = base32Decode(ulid, 'crockford');
+		const value = crockfordValue(ulid);
+		expect(value < 1n << 128n).toBe(true);
+		const expected = Array.from({ length: 16 }, (_, i) => Number((value >> BigInt(8 * (15 - i))) & 0xffn));
+		expect(read.asNumber).toEqual(expected);
+		expect(read.asNumber?.[0]).toBe(0x01);
+		expect(read.asNumber?.[1]).toBe(0x56);
+		// No false warning about the last bits: in a ULID the spare bits are at the front.
+		expect(read.notes.join(' ')).not.toMatch(/may have been altered/);
+		expect(read.notes.join(' ')).toMatch(/length of a ULID/);
+		// Only Crockford, and only a 26-character input that fits in 128 bits, is read that way.
+		expect(base32Decode(ulid.slice(0, 24), 'crockford').asNumber).toBeUndefined();
+		expect(base32Decode('8' + ulid.slice(1), 'crockford').asNumber).toBeUndefined();
+	});
+
+	test('checks a Crockford check symbol at the end, and refuses one that does not match', () => {
+		// 01ARZ3NDEKTSV4RRFFQ69G5FAV mod 37 is 34, the symbol $.
+		const ulid = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
+		expect(Number(crockfordValue(ulid) % 37n)).toBe(34);
+		const good = base32Decode(ulid + '$', 'crockford');
+		expect(good.check).toEqual({ symbol: '$', value: 34, expected: 34, valid: true });
+		expect(good.asNumber).toEqual(base32Decode(ulid, 'crockford').asNumber);
+		expect(errorOf(() => base32Decode(ulid + '*', 'crockford'))).toMatch(/check symbol for 32.*is 34/);
+		expect(positionOf(() => base32Decode(ulid + '*', 'crockford'))).toBe(27);
+		// = is a check symbol (35) in Crockford's scheme, not padding.
+		expect(errorOf(() => base32Decode('91JPRV3F=', 'crockford'))).toMatch(/check symbol for 35/);
+		expect(errorOf(() => base32Decode('91JPRV3F==', 'crockford'))).toMatch(/can only come once, at the very end/);
+		expect(CROCKFORD_CHECK_SYMBOLS).toBe('*~$=U');
+		// Each extra symbol on a two-character string whose value mod 37 is that symbol's value.
+		// (A check symbol from the 32 ordinary characters cannot be told apart from data.)
+		for (let n = 32; n < 37; n++) {
+			const v = BigInt(n + 37);
+			const s = ALPHABETS.crockford[Number(v / 32n)] + ALPHABETS.crockford[Number(v % 32n)];
+			const symbol = CROCKFORD_CHECK_SYMBOLS[n - 32];
+			expect(base32Decode(s + symbol, 'crockford').check?.valid).toBe(true);
+			expect(base32Decode(s + symbol.toLowerCase(), 'crockford').check?.valid).toBe(true);
+		}
+	});
+
+	test('refuses non-ASCII look-alikes that change case into letters', () => {
+		// ı upper-cases to I, ſ to S and ﬆ to ST: none of them is a Base32 or base 36 digit.
+		for (const ch of ['ı', 'ſ', 'ﬆ', '\u212a', 'Ａ']) {
+			expect(
+				errorOf(() => base32Decode(ch + 'A')),
+				ch
+			).toMatch(/character 1\) is not in the RFC 4648/);
+			expect(
+				errorOf(() => base32Decode(ch + 'A', 'crockford')),
+				ch
+			).toMatch(/character 1\) is not in/);
+			expect(
+				errorOf(() => parseInBase(ch, 36)),
+				ch
+			).toMatch(/is not a base 36 digit/);
+		}
+		expect(errorOf(() => base32Decode('MZ😀A'))).toMatch(/character 3/);
+	});
+
 	test('reads Crockford leniently: any case, hyphens, I L O', () => {
 		const bytes = [0x00, 0x01, 0x10, 0xff, 0x7c];
 		const text = base32Encode(bytes, { variant: 'crockford' }).text;
@@ -207,12 +292,17 @@ test.describe('Base32', () => {
 		expect(read.bytes).toEqual(bytes);
 		expect(read.notes.join(' ')).toMatch(/I and L were read as 1 and O as 0/);
 		expect(base32Decode('1ili', 'crockford').bytes).toEqual(base32Decode('1111', 'crockford').bytes);
-		expect(errorOf(() => base32Decode('ABU0', 'crockford'))).toMatch(/Crockford leaves U out/);
+		expect(errorOf(() => base32Decode('ABU0', 'crockford'))).toMatch(
+			/check symbols .* only come once, at the very end/
+		);
 		expect(positionOf(() => base32Decode('ABU0', 'crockford'))).toBe(3);
 	});
 
 	test('refuses what cannot be Base32, saying where', () => {
-		expect(errorOf(() => base32Decode('MZXW1YQ='))).toMatch(/"1" \(character 5\).*only the digits 2 to 7/);
+		expect(errorOf(() => base32Decode('MZXW1YQ='))).toBe(
+			'"1" (character 5) is not in the RFC 4648 Base32 alphabet (A–Z and 2–7); a 0, 1 or 8 is probably the letter O, I or B.'
+		);
+		expect(errorOf(() => base32Decode('MZ9A'))).toMatch(/"9" \(character 3\).*; 9 is not used either\.$/);
 		expect(positionOf(() => base32Decode('MZ XW1YQ='))).toBe(6);
 		expect(errorOf(() => base32Decode('MZXWZ', 'hex'))).toMatch(/base32hex stops at V/);
 		expect(errorOf(() => base32Decode('MZX'))).toMatch(/3 characters leave 3 over/);
@@ -417,6 +507,10 @@ test.describe('base 36 and any base', () => {
 		expect(zero.leadingZeros).toBe(1);
 		expect(base36ToBytes(zero.digits).bytes).toEqual([0x41]);
 		expect(bytesToBase36([]).digits).toBe('');
+		// The longest text that is read still writes a number short enough to read back.
+		const longest = bytesToBase36(Array(MAX_TEXT_BYTES).fill(0xff));
+		expect(base36ToBytes(longest.digits).bytes).toEqual(Array(MAX_TEXT_BYTES).fill(0xff));
+		expect(errorOf(() => bytesToBase36(Array(MAX_TEXT_BYTES + 1).fill(0x41)))).toMatch(/up to 250 bytes/);
 		expect(bigIntToBytes(0n)).toEqual([]);
 		expect(bigIntToBytes(256n)).toEqual([1, 0]);
 	});
@@ -490,6 +584,9 @@ test.describe('the base32 page', () => {
 		await expect(page.locator('#output')).toHaveValue('000H1ZVW');
 		await page.goto('/base32?m=decode&a=crockford&t=9ijp-rv3f');
 		await expect(page.locator('#output')).toHaveValue('Hello');
+		await page.goto('/base32?m=decode&a=crockford&t=01ARZ3NDEKTSV4RRFFQ69G5FAV');
+		await expect(page.locator('.tool')).toContainText('01 56 3E 3A B5 D3 D6 76 4C 61 EF B9 93 02 BD 5B');
+		await expect(page.locator('.tool')).not.toContainText('may have been altered');
 	});
 
 	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {
@@ -531,6 +628,17 @@ test.describe('the base58 page', () => {
 		await page.getByRole('button', { name: 'A script address' }).click();
 		await expect(page.locator('.verdict')).toContainText('P2SH');
 		expect(page.url()).toContain('m=check');
+		// Leaving the checker for Encode takes the address's bytes, not its characters.
+		const script = await base58CheckVerify('3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy');
+		await page.getByRole('button', { name: 'Encode', exact: true }).click();
+		await expect(page.locator('#input')).toHaveValue(
+			script.decoded.bytes.map((b) => b.toString(16).toUpperCase().padStart(2, '0')).join(' ')
+		);
+		await expect(page.locator('#output')).toHaveValue('3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy');
+		// A link that names check mode but no string opens on the example address.
+		await page.goto('/base58?m=check');
+		await expect(page.locator('#input')).toHaveValue('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+		await expect(page.locator('.verdict')).toContainText('Checksum is valid');
 	});
 
 	test('a shared link reopens the same state, and the FAQ JSON-LD matches', async ({ page }) => {
@@ -589,6 +697,27 @@ test.describe('the base36 page', () => {
 		await expect(page.locator('.answer-value')).toHaveText(bytesToBase36(textToBytes('Hi')).digits);
 		await page.goto('/base36?m=text&v=1000000');
 		await expect(page.locator('#value')).toHaveValue('1000000');
+		// Text to any base carries the number across, in decimal, and reads it as decimal.
+		await page.goto('/base36?m=text&v=Hello');
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'Any base' }).click();
+		const helloValue = bytesToBase36(textToBytes('Hello')).value;
+		await expect(page.locator('#value')).toHaveValue(helloValue.toString());
+		await expect(page.locator('#from-base')).toHaveValue('10');
+		await expect(page.locator('.answer-value')).toHaveText(toBase(helloValue, 36));
+		await page.goto('/base36?m=text&v=0');
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'Any base' }).click();
+		await expect(page.locator('.answer-value')).toHaveText('1C');
+		// While there is an error, no stale result is shown.
+		await page.locator('#value').fill('-5');
+		await expect(page.locator('.error')).toContainText('negative');
+		await expect(page.locator('.answer')).toHaveCount(0);
+		// A long text's link round trips, as an error rather than as another text.
+		await page.goto('/base36?m=text&v=' + 'x'.repeat(260));
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#value')).toHaveValue('x'.repeat(260));
+		await expect(page.locator('.error')).toContainText('up to 250 bytes');
 		await page.goto('/base36?m=from36&v=hello&c=lower');
 		await expect(page.locator('.answer-value')).toHaveText(Number(parseInt('hello', 36)).toLocaleString('en-GB'));
 		await faqMatches(page);

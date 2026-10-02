@@ -14,6 +14,7 @@
 		hexBytes,
 		DIGITS36,
 		MAX_NUMBER_DIGITS,
+		MAX_TEXT_BYTES,
 		BaseNError,
 		type DivisionStep,
 		type PlaceTerm
@@ -22,6 +23,7 @@
 	import { readUrl, syncUrl, safeText, safeOption, safeInt, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import ErrorAt from '$lib/ErrorAt.svelte';
+	import Num from '$lib/WorkingNumber.svelte';
 	import { onMount } from 'svelte';
 
 	type Mode = 'to36' | 'from36' | 'any' | 'text';
@@ -33,7 +35,10 @@
 		const p = readUrl();
 		mode = safeOption(p.m, MODES) ?? mode;
 		// Text mode's own starting example, when a link names the mode but not the text.
-		input = safeText(p.v, MAX_NUMBER_DIGITS + 20) ?? (mode === 'text' ? 'Hi' : input);
+		// Text up to MAX_TEXT_BYTES is never longer than that in characters; a little more
+		// is let through so a link to a too-long text opens on its error, not on another text.
+		input =
+			safeText(p.v, mode === 'text' ? 2 * MAX_TEXT_BYTES : MAX_NUMBER_DIGITS + 20) ?? (mode === 'text' ? 'Hi' : input);
 		anyFrom = safeInt(p.from, 2, 36) ?? anyFrom;
 		anyTo = safeInt(p.to, 2, 36) ?? anyTo;
 		direction = safeOption(p.d, ['encode', 'decode'] as const) ?? direction;
@@ -67,6 +72,8 @@
 	$: alsoIn = [10, 16, 36, 2].filter((b) => b !== fromBase && b !== toBaseN && (b !== 2 || value < 1n << 64n));
 
 	const MAX_ROWS = 80;
+	/** A working table longer than this scrolls in its own box; a shorter one is shown whole. */
+	const LONG_TABLE = 30;
 
 	// Runs during prerendering too, so the served page shows a worked example.
 	let value = 0n;
@@ -117,6 +124,8 @@
 		} catch (e) {
 			error = e instanceof BaseNError ? e.message : 'That could not be converted.';
 			errorAt = e instanceof BaseNError ? e.position : undefined;
+			value = 0n;
+			textBytes = [];
 			result = '';
 			terms = [];
 			divisions = [];
@@ -145,6 +154,11 @@
 			} else if (next === 'text') {
 				input = 'Hi';
 				direction = 'encode';
+			} else if (next === 'any') {
+				// From text, the number the text made, in decimal.
+				input = value.toString();
+				anyFrom = 10;
+				anyTo = 36;
 			} else if (mode === 'text' || mode === 'any')
 				input = next === 'to36' ? value.toString() : toBase(value, 36, lower);
 		} else if (next === 'text') {
@@ -165,7 +179,7 @@
 		direction = next;
 	}
 
-	type Example = { label: string; v: string; m: Mode; from?: number; to?: number };
+	type Example = { label: string; v: string; m: Mode; from?: number; to?: number; d?: 'encode' | 'decode' };
 	const examples: Example[] = [
 		{ label: '1,000,000', v: '1000000', m: 'to36' },
 		{ label: '2³² − 1', v: '4294967295', m: 'to36' },
@@ -174,13 +188,29 @@
 		{ label: 'FF hex to binary', v: 'FF', m: 'any', from: 16, to: 2 },
 		{ label: 'DEADBEEF hex to base 36', v: 'DEADBEEF', m: 'any', from: 16, to: 36 }
 	];
+	// Text mode has its own: the examples above would each switch it off.
+	const textExamples: Example[] = [
+		{ label: 'Hi', v: 'Hi', m: 'text', d: 'encode' },
+		{ label: 'Hello', v: 'Hello', m: 'text', d: 'encode' },
+		{ label: 'café', v: 'café', m: 'text', d: 'encode' },
+		{ label: 'An emoji', v: '🙂', m: 'text', d: 'encode' },
+		{
+			label: `Decode ${bytesToBase36(textToBytes('Hello')).digits}`,
+			v: bytesToBase36(textToBytes('Hello')).digits,
+			m: 'text',
+			d: 'decode'
+		},
+		{ label: 'Decode ZZZZ', v: 'ZZZZ', m: 'text', d: 'decode' }
+	];
 	function tryExample(ex: Example) {
 		mode = ex.m;
 		input = ex.v;
 		if (ex.from) anyFrom = ex.from;
 		if (ex.to) anyTo = ex.to;
+		if (ex.d) direction = ex.d;
 		const field = document.getElementById('value');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		field?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
@@ -212,7 +242,9 @@
 	const u64 = widths[4];
 	const u128 = widths[5];
 	const rounded = parseInt(u64.b36, 36);
-	const roundedText = BigInt(rounded).toString();
+	// What a JavaScript console prints, and the exact value of that double (2^64).
+	const roundedText = String(rounded);
+	const roundedExact = BigInt(rounded);
 	const textHi = bytesToBase36(textToBytes('Hi'));
 
 	const faqs = [
@@ -232,7 +264,7 @@
 		},
 		{
 			q: 'How do I convert base 36 in JavaScript or Python?',
-			a: `In JavaScript, n.toString(36) writes a number in base 36 (in small letters) and parseInt(s, 36) reads one back; use BigInt for anything above 2^53, because parseInt rounds. In Python, int(s, 36) reads base 36, but there is no built-in to write it, so you divide by 36 in a loop as this page shows.`
+			a: `In JavaScript, n.toString(36) writes a number in base 36 (in small letters) and parseInt(s, 36) reads one back, but only exactly up to 2^53 − 1, because parseInt rounds. For bigger values, write with a BigInt's toString(36), and read by looping over the digits: total = total × 36n + BigInt(digit value). BigInt() itself does not accept base 36. In Python, int(s, 36) reads base 36 at any size, but there is no built-in to write it, so you divide by 36 in a loop as this page shows.`
 		},
 		{
 			q: 'Is base 36 case-sensitive?',
@@ -408,12 +440,11 @@
 				aria-invalid={error ? 'true' : 'false'}
 				aria-describedby="value-help"
 			/>
-			{#if error}
-				<ErrorAt message={error} {input} position={errorAt} />
-			{/if}
 			<p class="field-help" id="value-help">
 				{#if mode === 'text' && direction === 'encode'}
-					The text's UTF-8 bytes are read as one big number, which is then written in base 36.
+					The text's UTF-8 bytes, up to {MAX_TEXT_BYTES}, are read as one big number, which is then written in base 36.
+				{:else if mode === 'text'}
+					A base 36 number, up to {MAX_NUMBER_DIGITS} digits. Its bytes are read as UTF-8 text.
 				{:else if fromBase === 10}
 					A whole number of zero or more, up to {MAX_NUMBER_DIGITS} digits. Spaces and underscores are ignored.
 				{:else}
@@ -423,144 +454,150 @@
 			</p>
 
 			<div class="chips">
-				{#each examples as ex}
+				{#each mode === 'text' ? textExamples : examples as ex}
 					<button type="button" class="chip-btn" on:click={() => tryExample(ex)}>{ex.label}</button>
 				{/each}
 			</div>
 
-			<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
-				<div class="answer" role={error ? undefined : 'status'}>
-					<span class="answer-head">
-						<span class="answer-label"
-							>{mode === 'text' && direction === 'decode'
-								? notText
-									? 'Bytes, in hex'
-									: 'Text'
-								: toBaseN === 10
-								? 'Decimal'
-								: toBaseN === 36
-								? 'Base 36'
-								: baseName(toBaseN)}</span
-						>
-						<span class="copy-wrap">
-							<button type="button" class="copy" on:click={copyResult} disabled={!result || !!error}>Copy</button>
-							<span class="copied" aria-live="polite"
-								>{copied === 'copied' ? 'Copied' : copied === 'failed' ? 'Select it and copy' : ''}</span
+			{#if error}
+				<ErrorAt message={error} {input} position={errorAt} />
+			{:else}
+				<div class="results">
+					<div class="answer" role="status">
+						<span class="answer-head">
+							<span class="answer-label"
+								>{mode === 'text' && direction === 'decode'
+									? notText
+										? 'Bytes, in hex'
+										: 'Text'
+									: toBaseN === 10
+									? 'Decimal'
+									: toBaseN === 36
+									? 'Base 36'
+									: baseName(toBaseN)}</span
 							>
-						</span>
-					</span>
-					<span class="answer-value mono">{toBaseN === 10 ? grouped(value) : result || '–'}</span>
-					{#if mode === 'text' && direction === 'encode'}
-						<span class="answer-also"
-							>{textBytes.length} byte{textBytes.length === 1 ? '' : 's'}, {result.length} base 36 digit{result.length ===
-							1
-								? ''
-								: 's'}</span
-						>
-					{:else if mode === 'text'}
-						<span class="answer-also">From the bytes <span class="mono">{hexBytes(textBytes) || 'none'}</span></span>
-					{:else}
-						<span class="answer-also">
-							{#each alsoIn as b, i}{i ? ', ' : 'Also '}<span class="mono"
-									>{b === 10 ? grouped(value) : toBase(value, b, lower)}</span
+							<span class="copy-wrap">
+								<button type="button" class="copy" on:click={copyResult} disabled={!result}>Copy</button>
+								<span class="copied" aria-live="polite"
+									>{copied === 'copied' ? 'Copied' : copied === 'failed' ? 'Select it and copy' : ''}</span
 								>
-								in {baseName(b)}{/each}{alsoIn.length ? '.' : ''}
+							</span>
 						</span>
-					{/if}
-				</div>
-				{#if lostZeros}
-					<p class="note">
-						The text starts with {lostZeros} zero byte{lostZeros === 1 ? '' : 's'}, which a number cannot keep: decoding
-						gives the text without {lostZeros === 1 ? 'it' : 'them'}. <a href="/base58">Base58</a> solves this by writing
-						each one as a 1.
-					</p>
-				{/if}
-
-				{#if mode === 'text' && direction === 'encode' && !error}
-					<h2 class="working-title">Working: the bytes as one number</h2>
-					<p class="equation">
-						The UTF-8 bytes <span class="mono wrap">{hexBytes(textBytes)}</span> read as one hexadecimal number are
-						<span class="mono wrap">{big(value)}</span> in decimal. Then divide by 36:
-					</p>
-				{/if}
-
-				{#if terms.length}
-					<h2 class="working-title">
-						Working: each digit times its place value in {baseName(mode === 'text' ? 36 : fromBase)}
-					</h2>
-					<div class="table-wrap scroll-box">
-						<table class="data-table steps">
-							<thead>
-								<tr>
-									<th scope="col">Digit</th>
-									<th scope="col" class="num">Value</th>
-									<th scope="col">Place</th>
-									<th scope="col" class="num">Place value</th>
-									<th scope="col" class="num">Digit × place</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each terms.slice(0, MAX_ROWS) as term}
-									<tr>
-										<td class="mono strong">{show(term.digit)}</td>
-										<td class="mono num">{term.value}</td>
-										<td class="mono">{mode === 'text' ? 36 : fromBase}{superscript(term.power)}</td>
-										<td class="mono num">{big(term.place)}</td>
-										<td class="mono num">{big(term.product)}</td>
-									</tr>
-								{/each}
-								<tr class="total">
-									<th scope="row" colspan="4">Sum</th>
-									<td class="mono num strong">{big(value)}</td>
-								</tr>
-							</tbody>
-						</table>
+						<span class="answer-value mono">{toBaseN === 10 ? grouped(value) : result || '–'}</span>
+						{#if mode === 'text' && direction === 'encode'}
+							<span class="answer-also"
+								>{textBytes.length} byte{textBytes.length === 1 ? '' : 's'}, {result.length} base 36 digit{result.length ===
+								1
+									? ''
+									: 's'}</span
+							>
+						{:else if mode === 'text'}
+							<span class="answer-also">From the bytes <span class="mono">{hexBytes(textBytes) || 'none'}</span></span>
+						{:else}
+							<span class="answer-also">
+								{#each alsoIn as b, i}{i ? ', ' : 'Also '}<span class="mono"
+										>{b === 10 ? grouped(value) : toBase(value, b, lower)}</span
+									>
+									in {baseName(b)}{/each}{alsoIn.length ? '.' : ''}
+							</span>
+						{/if}
 					</div>
-					{#if terms.length > MAX_ROWS}
-						<p class="note">Showing the first {MAX_ROWS} of {terms.length} digits.</p>
-					{/if}
-					{#if mode === 'text' && !error}
-						<p class="equation">
-							{big(value)} written as bytes is <span class="mono wrap">{hexBytes(textBytes) || 'nothing'}</span>{notText
-								? ', which is not readable UTF-8 text, so it is shown in hex'
-								: `, which is the UTF-8 for "${result}"`}.
+					{#if lostZeros}
+						<p class="note">
+							The text starts with {lostZeros} zero byte{lostZeros === 1 ? '' : 's'}, which a number cannot keep:
+							decoding gives the text without {lostZeros === 1 ? 'it' : 'them'}. <a href="/base58">Base58</a> solves this
+							by writing each one as a 1.
 						</p>
 					{/if}
-				{/if}
 
-				{#if divisions.length}
-					<h2 class="working-title">Working: divide by {toBaseN}, keep the remainders</h2>
-					<div class="table-wrap scroll-box">
-						<table class="data-table steps">
-							<thead>
-								<tr>
-									<th scope="col" class="num">Number</th>
-									<th scope="col" class="num">÷ {toBaseN}</th>
-									<th scope="col" class="num">Remainder</th>
-									<th scope="col">Digit</th>
-								</tr>
-							</thead>
-							<tbody>
-								{#each divisions.slice(0, MAX_ROWS) as step}
-									<tr>
-										<td class="mono num">{big(step.dividend)}</td>
-										<td class="mono num">{big(step.quotient)}</td>
-										<td class="mono num">{step.remainder}</td>
-										<td class="mono strong">{show(step.digit)}</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-					</div>
-					{#if divisions.length > MAX_ROWS}
-						<p class="note">Showing the first {MAX_ROWS} of {divisions.length} divisions.</p>
+					{#if mode === 'text' && direction === 'encode'}
+						<h2 class="working-title">Working: the bytes as one number</h2>
+						<p class="equation">
+							The UTF-8 bytes <span class="mono wrap">{hexBytes(textBytes)}</span> read as one hexadecimal number are
+							<span class="mono wrap">{big(value)}</span> in decimal. Then divide by 36:
+						</p>
 					{/if}
-					<p class="equation">
-						Read the digits from the bottom up: <span class="mono strong wrap">{result}</span>. The first remainder is
-						the last digit, because it is what is left after taking out every whole {toBaseN}.
-					</p>
-				{/if}
-			</div>
+
+					{#if terms.length}
+						<h2 class="working-title">
+							Working: each digit times its place value in {baseName(mode === 'text' ? 36 : fromBase)}
+						</h2>
+						<div class="table-wrap" class:scroll-box={terms.length > LONG_TABLE}>
+							<table class="data-table steps">
+								<thead>
+									<tr>
+										<th scope="col">Digit</th>
+										<th scope="col" class="num">Value</th>
+										<th scope="col" class="wide-only">Place</th>
+										<th scope="col" class="num">Place value</th>
+										<th scope="col" class="num">Digit × place</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each terms.slice(0, MAX_ROWS) as term}
+										<tr>
+											<td class="mono strong">{show(term.digit)}</td>
+											<td class="mono num">{term.value}</td>
+											<td class="mono wide-only">{mode === 'text' ? 36 : fromBase}{superscript(term.power)}</td>
+											<td class="mono num"><Num value={term.place} {big} /></td>
+											<td class="mono num"><Num value={term.product} {big} /></td>
+										</tr>
+									{/each}
+									<tr class="total">
+										<th scope="row" colspan="3">Sum</th>
+										<td class="wide-only" />
+										<td class="mono num strong"><Num {value} {big} /></td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+						{#if terms.length > MAX_ROWS}
+							<p class="note">Showing the first {MAX_ROWS} of {terms.length} digits.</p>
+						{/if}
+						{#if mode === 'text'}
+							<p class="equation">
+								{big(value)} written as bytes is
+								<span class="mono wrap">{hexBytes(textBytes) || 'nothing'}</span>{notText
+									? ', which is not readable UTF-8 text, so it is shown in hex'
+									: `, which is the UTF-8 for "${result}"`}.
+							</p>
+						{/if}
+					{/if}
+
+					{#if divisions.length}
+						<h2 class="working-title">Working: divide by {toBaseN}, keep the remainders</h2>
+						<div class="table-wrap" class:scroll-box={divisions.length > LONG_TABLE}>
+							<table class="data-table steps">
+								<thead>
+									<tr>
+										<th scope="col" class="num">Number</th>
+										<th scope="col" class="num wide-only">÷ {toBaseN}</th>
+										<th scope="col" class="num">Remainder</th>
+										<th scope="col">Digit</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each divisions.slice(0, MAX_ROWS) as step}
+										<tr>
+											<td class="mono num"><Num value={step.dividend} {big} /></td>
+											<td class="mono num wide-only"><Num value={step.quotient} {big} /></td>
+											<td class="mono num">{step.remainder}</td>
+											<td class="mono strong">{show(step.digit)}</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						</div>
+						{#if divisions.length > MAX_ROWS}
+							<p class="note">Showing the first {MAX_ROWS} of {divisions.length} divisions.</p>
+						{/if}
+						<p class="equation">
+							Read the digits from the bottom up: <span class="mono strong wrap">{result}</span>. The first remainder is
+							the last digit, because it is what is left after taking out every whole {toBaseN}.
+						</p>
+					{/if}
+				</div>
+			{/if}
 
 			<div class="export">
 				<div class="opt" role="group" aria-label="Letter case">
@@ -700,8 +737,10 @@
 			</li>
 			<li>
 				<strong>Trusting parseInt with big numbers.</strong> JavaScript's numbers are exact only up to 2<sup>53</sup>.
-				parseInt('{u64.b36.toLowerCase()}', 36) gives {roundedText}, but the real value is {u64.max}. Read long values
-				digit by digit into a BigInt, as this converter does.
+				parseInt('{u64.b36.toLowerCase()}', 36) gives {roundedText}, which is exactly {roundedExact === 1n << 64n
+					? '2⁶⁴'
+					: roundedExact}, {roundedExact - u64.max === 1n ? 'one more than' : 'not'} the real value, {u64.max}. Read
+				long values digit by digit into a BigInt, as this converter does.
 			</li>
 			<li>
 				<strong>Mixing up the letter O and the digit 0.</strong> In base 36 both are digits, O worth 24 and 0 worth
@@ -846,7 +885,7 @@
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.8rem;
 		padding: 0.25rem 0.6rem;
 		cursor: pointer;
 	}
@@ -859,11 +898,6 @@
 	.results {
 		border-top: 1px solid rgba(255, 255, 255, 0.12);
 		padding-top: 1rem;
-	}
-
-	.results.stale {
-		opacity: 0.35;
-		pointer-events: none;
 	}
 
 	.answer {
@@ -915,6 +949,11 @@
 		font-size: 0.8rem;
 	}
 
+	.copy:disabled {
+		opacity: 0.45;
+		cursor: default;
+	}
+
 	.copy {
 		background: #0d0d0f;
 		border: 1px solid rgba(255, 255, 255, 0.4);
@@ -942,8 +981,8 @@
 		overflow: auto;
 	}
 
-	.steps td,
-	.steps th {
+	.data-table.steps td,
+	.data-table.steps th {
 		white-space: nowrap;
 	}
 
@@ -957,8 +996,8 @@
 		font-weight: 700;
 	}
 
-	.steps tr.total th,
-	.steps tr.total td {
+	.data-table.steps tr.total th,
+	.data-table.steps tr.total td {
 		border-top: 2px solid rgba(255, 255, 255, 0.4);
 		color: #fff;
 	}
@@ -1069,11 +1108,19 @@
 	}
 
 	@media (max-width: 560px) {
-		.steps td,
-		.steps th {
-			padding-left: 0.45rem;
-			padding-right: 0.45rem;
+		.data-table.steps td,
+		.data-table.steps th {
+			padding-left: 0.4rem;
+			padding-right: 0.4rem;
 			font-size: 0.85rem;
+		}
+	}
+
+	/* The power is already in the place value, and each quotient is the next row's
+	   number, so a phone can do without those columns. */
+	@media (max-width: 480px) {
+		.wide-only {
+			display: none;
 		}
 	}
 

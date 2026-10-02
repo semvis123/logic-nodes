@@ -148,7 +148,28 @@ export function base32Encode(bytes: number[], options: Base32Options = {}): { te
 export const base32Length = (bytes: number, pad = true) =>
 	pad ? 8 * Math.ceil(bytes / 5) : Math.ceil((bytes * 8) / 5);
 
-export type Base32Decoded = { bytes: number[]; groups: Base32Group[]; notes: string[] };
+export type Base32Decoded = {
+	bytes: number[];
+	groups: Base32Group[];
+	notes: string[];
+	/**
+	 * Crockford's scheme and ULIDs write a number, with the spare bits at the
+	 * front; when 26 Crockford characters hold a 128-bit number (a ULID's shape),
+	 * these are its 16 bytes read that way.
+	 */
+	asNumber?: number[];
+	/** A Crockford check symbol at the end, what it stands for, and whether it matches. */
+	check?: { symbol: string; value: number; expected: number; valid: boolean };
+};
+
+/** Crockford's five extra check symbols, for the values 32 to 36. */
+export const CROCKFORD_CHECK_SYMBOLS = '*~$=U';
+
+/** Only the ASCII letters are folded to capitals: toUpperCase would turn ı into I and ﬆ into ST. */
+const asciiUpper = (ch: string) => (ch >= 'a' && ch <= 'z' ? ch.toUpperCase() : ch);
+
+/** The 26 characters of a ULID: a 48-bit time and 80 random bits, one 128-bit number. */
+export const ULID_LENGTH = 26;
 
 const allowedBase32: Record<Base32Variant, string> = {
 	rfc4648: 'A–Z and 2–7',
@@ -160,8 +181,15 @@ const allowedBase32: Record<Base32Variant, string> = {
  * Decodes Base32 in the chosen alphabet. Spaces and line breaks are skipped
  * (TOTP secrets are often shown in blocks of four), and small letters are
  * read as capitals. Crockford's alphabet also skips hyphens and reads I and L
- * as 1 and O as 0, as his scheme says a decoder should. Anything else that
- * cannot be Base32 is refused with its position in what was typed.
+ * as 1 and O as 0, as his scheme says a decoder should, and checks one of his
+ * check symbols (* ~ $ = U) at the end. Anything else that cannot be Base32 is
+ * refused with its position in what was typed.
+ *
+ * The bytes are always cut the RFC 4648 way, from the left, with the spare
+ * bits at the end, which is what most Crockford libraries do with bytes.
+ * Crockford's own description, and ULIDs, write a number instead, with the
+ * spare bits at the front; for a ULID-shaped input that reading is returned as
+ * well, as `asNumber`.
  */
 export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'): Base32Decoded {
 	const notes: string[] = [];
@@ -171,6 +199,24 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 	if (/\S\s+\S/.test(input.trim())) notes.push('Spaces and line breaks were ignored.');
 	if (crockford && input.includes('-'))
 		notes.push('Hyphens were ignored: Crockford Base32 allows them for readability.');
+
+	// A Crockford check symbol is the last character; only the five extra ones
+	// can be told apart from data, since the other 32 are ordinary characters.
+	let checkSymbol: { ch: string; at: number } | undefined;
+	if (crockford && kept.length > 1 && CROCKFORD_CHECK_SYMBOLS.includes(asciiUpper(kept[kept.length - 1].ch)))
+		checkSymbol = kept.pop();
+	if (crockford) {
+		const misplaced = kept.find((k) => CROCKFORD_CHECK_SYMBOLS.includes(asciiUpper(k.ch)));
+		if (misplaced)
+			throw new BaseNError(
+				`${show(misplaced.ch)} (character ${
+					misplaced.at
+				}) is one of Crockford's check symbols (${CROCKFORD_CHECK_SYMBOLS.split('').join(
+					' '
+				)}), which can only come once, at the very end. Crockford Base32 has no = padding.`,
+				misplaced.at
+			);
+	}
 
 	// Split off the padding first, so an = in the middle is reported as such.
 	const firstPad = kept.findIndex((k) => k.ch === '=');
@@ -188,7 +234,7 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 	const indexes: number[] = [];
 	const chars: string[] = [];
 	for (const { ch, at } of body) {
-		let c = ch.toUpperCase();
+		let c = asciiUpper(ch);
 		if (c !== ch) lower = true;
 		if (crockford && (c === 'I' || c === 'L')) {
 			c = '1';
@@ -200,17 +246,17 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 		const index = alphabet.indexOf(c);
 		if (index < 0) {
 			const why =
-				crockford && c === 'U'
-					? ' Crockford leaves U out of the alphabet.'
-					: variant === 'rfc4648' && /[0189]/.test(c)
-					? ' RFC 4648 Base32 uses only the digits 2 to 7; a 0, 1 or 8 is probably the letter O, I or B.'
+				variant === 'rfc4648' && /[018]/.test(c)
+					? '; a 0, 1 or 8 is probably the letter O, I or B'
+					: variant === 'rfc4648' && c === '9'
+					? '; 9 is not used either'
 					: variant === 'hex' && /[W-Z]/.test(c)
-					? ' base32hex stops at V, the 32nd character.'
+					? '; base32hex stops at V, the 32nd character'
 					: '';
 			throw new BaseNError(
-				`${show(ch)} (character ${at}) is not in the ${BASE32_NAMES[variant]} alphabet, which uses ${
+				`${show(ch)} (character ${at}) is not in the ${BASE32_NAMES[variant]} alphabet (${
 					allowedBase32[variant]
-				}.${why}`,
+				})${why}.`,
 				at
 			);
 		}
@@ -228,8 +274,7 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 			`${body.length} characters leave ${leftover} over after the groups of eight, and a group can only end after 2, 4, 5 or 7 characters (1, 2, 3 or 4 bytes). A character is probably missing or extra.`
 		);
 	if (padding) {
-		if (crockford) notes.push('The = signs were ignored: Crockford Base32 has no padding.');
-		else if (padding !== needed)
+		if (padding !== needed)
 			throw new BaseNError(
 				needed === 0
 					? `The data is a whole number of 8-character groups, so it needs no padding, but ends with ${padding} = sign${
@@ -243,6 +288,36 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 		notes.push(`The padding was missing; the last group is read as if it ended in ${'='.repeat(needed)}.`);
 	}
 
+	// A ULID is one 128-bit number in 26 characters (130 bits), so its first
+	// two bits are zeros at the front, not filler at the end. Read that way when
+	// the input has a ULID's shape, and say so instead of warning about the end.
+	let asNumber: number[] | undefined;
+	if (crockford && chars.length === ULID_LENGTH) {
+		const value = indexes.reduce((n, i) => n * 32n + BigInt(i), 0n);
+		if (value < 1n << 128n) {
+			const raw = bigIntToBytes(value);
+			asNumber = [...Array(16 - raw.length).fill(0), ...raw];
+		}
+	}
+
+	let check: Base32Decoded['check'];
+	if (checkSymbol) {
+		const symbol = asciiUpper(checkSymbol.ch);
+		const value = 32 + CROCKFORD_CHECK_SYMBOLS.indexOf(symbol);
+		const expected = Number(indexes.reduce((n, i) => n * 32n + BigInt(i), 0n) % 37n);
+		check = { symbol, value, expected, valid: value === expected };
+		if (!check.valid)
+			throw new BaseNError(
+				`The last character, ${symbol}, is a Crockford check symbol for ${value}, but the number before it, taken mod 37, is ${expected}${
+					expected < 32 ? ` (${alphabet[expected]})` : ` (${CROCKFORD_CHECK_SYMBOLS[expected - 32]})`
+				}. A character is probably mistyped.`,
+				checkSymbol.at
+			);
+		notes.push(
+			`The last character, ${symbol}, is a Crockford check symbol: the number before it, taken mod 37, is ${value}, so it matches. It is not part of the data.`
+		);
+	}
+
 	const groups: Base32Group[] = [];
 	const bytes: number[] = [];
 	for (let i = 0; i < chars.length; i += 8) {
@@ -253,7 +328,7 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 		const byteCount = Math.floor(bits.length / 8);
 		const fillBits = bits.length - byteCount * 8;
 		const groupBytes = chunk(bits.slice(0, byteCount * 8), 8).map((b) => parseInt(b, 2));
-		if (fillBits && /1/.test(bits.slice(byteCount * 8)))
+		if (fillBits && !asNumber && /1/.test(bits.slice(byteCount * 8)))
 			notes.push(
 				`The last character, ${
 					groupChars[groupChars.length - 1]
@@ -272,7 +347,13 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 		});
 		bytes.push(...groupBytes);
 	}
-	return { bytes, groups, notes };
+	if (asNumber)
+		notes.push(
+			`26 characters is the length of a ULID, which is one 128-bit number with 2 zero bits at the front, not bytes cut from the left. Read as a number, these characters are the 16 bytes ${hexBytes(
+				asNumber
+			)}.`
+		);
+	return { bytes, groups, notes, asNumber, check };
 }
 
 // --- Base58 ----------------------------------------------------------------
@@ -549,7 +630,7 @@ export function parseInBase(input: string, base: number): { digits: string; valu
 	for (const ch of text) {
 		at++;
 		if (/[\s_]/.test(ch)) continue;
-		const v = DIGITS36.indexOf(ch.toUpperCase());
+		const v = DIGITS36.indexOf(asciiUpper(ch));
 		if (v < 0 || v >= base) {
 			const what =
 				ch === '.' || ch === ','
@@ -610,6 +691,9 @@ export function readingSteps(digits: string, base: number): HornerStep[] {
 	);
 }
 
+/** The most bytes text mode reads as one number: 2,000 bits, which is 387 base 36 digits, under MAX_NUMBER_DIGITS. */
+export const MAX_TEXT_BYTES = 250;
+
 export type TextAsNumber = { bytes: number[]; leadingZeros: number; value: bigint; digits: string };
 
 /**
@@ -618,6 +702,10 @@ export type TextAsNumber = { bytes: number[]; leadingZeros: number; value: bigin
  * the result reports how many, so the page can say so.
  */
 export function bytesToBase36(bytes: number[], lower = false): TextAsNumber {
+	if (bytes.length > MAX_TEXT_BYTES)
+		throw new BaseNError(
+			`That is ${bytes.length} bytes of UTF-8; text is read as one number here only up to ${MAX_TEXT_BYTES} bytes, so that the number can be read back.`
+		);
 	let leadingZeros = 0;
 	while (leadingZeros < bytes.length && bytes[leadingZeros] === 0) leadingZeros++;
 	const value = bytesToBigInt(bytes);
