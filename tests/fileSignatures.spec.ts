@@ -25,6 +25,8 @@ import {
 	javaRelease,
 	signatureTable,
 	byteOrders,
+	stripDumpColumns,
+	zipDirectoryStart,
 	shebangProgram,
 	withArticle,
 	formatHexLines,
@@ -162,6 +164,21 @@ const HAND: Record<string, { bytes: Uint8Array; id: string; name?: RegExp }> = {
 const frameHeader = 'FF FB 90 64';
 HAND['mp3-frames'] = { bytes: build(frameHeader, { pad: 417 }, frameHeader, { pad: 834 }), id: 'mp3' };
 HAND.aac = { bytes: build('FF F1 50 80 02 1F FC', { pad: 32 }), id: 'aac' };
+
+// Files with a PDF inside, made with real tools: GNU tar (tar --format=gnu -cf
+// doc.tar doc.pdf, cut to its first 600 bytes) and Python's zipfile with
+// ZIP_STORED, plus the start of an audio-only MP4 from ffmpeg (isom brand).
+const INSIDE: Record<string, { hex: string }> = {
+	'doc.tar': {
+		hex: '646f632e706466000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000303030303634340030303030303030003030303030303000303030303030303030363600313532363030313234343400303131303134002030000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007573746172202000726f6f7400000000000000000000000000000000000000000000000000000000726f6f7400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000255044462d312e340a25e2e3cfd30a312030206f626a0a3c3c3e3e0a656e646f626a0a747261696c65720a3c3c3e3e0a2525454f460a00000000000000000000000000000000000000000000000000000000000000000000'
+	},
+	'stored.zip': {
+		hex: '504b030414000000000034a4425dda361c71360000003600000007000000646f632e706466255044462d312e340a25e2e3cfd30a312030206f626a0a3c3c3e3e0a656e646f626a0a747261696c65720a3c3c3e3e0a2525454f460a504b0102140314000000000034a4425dda361c713600000036000000070000000000000000000000a48100000000646f632e706466504b05060000000001000100350000005b0000000000'
+	},
+	'voice.m4a': {
+		hex: '0000001c6674797069736f6d0000020069736f6d69736f326d7034310000000866726565000008166d646174de02004c'
+	}
+};
 
 // --- A ZIP writer, written independently of the reader -----------------------
 
@@ -405,9 +422,33 @@ test.describe('reading pasted hex', () => {
 			}
 			throw new Error('expected a HexError');
 		};
-		expect(message('89 50 4G')).toContain('“4G” contains "G"');
+		expect(message('89 50 4G')).toContain('“4G” contains “G”');
+		// xxd output whose text column cannot be told from bytes gets a hint about the columns.
+		expect(message('00000000: 8950 4e47 zz')).toContain('without the offset and text columns');
 		expect(message('0D A')).toContain('“A” has an odd number of digits');
 		expect(message('895')).toContain('odd number');
+	});
+
+	test('hex dumps from od, hexdump -C and xxd paste as their bytes, not their offsets', () => {
+		const want = '89 50 4E 47 0D 0A 1A 0A 00 00 00 0D 49 48 44 52 00 00 00 01 00';
+		const bytes = (text: string) => formatHexLines(parseHex(text), 64);
+		// Captured from od -A x -t x1 and xxd on the same 21 bytes; hexdump -C lays out as below.
+		const od = '000000 89 50 4e 47 0d 0a 1a 0a 00 00 00 0d 49 48 44 52\n000010 00 00 00 01 00\n000015\n';
+		const hexdumpC =
+			'00000000  89 50 4e 47 0d 0a 1a 0a  00 00 00 0d 49 48 44 52  |.PNG........IHDR|\n' +
+			'00000010  00 00 00 01 00                                    |.....|\n00000015\n';
+		const xxd =
+			'00000000: 8950 4e47 0d0a 1a0a 0000 000d 4948 4452  .PNG........IHDR\n' +
+			'00000010: 0000 0001 00                             .....\n';
+		for (const text of [od, hexdumpC, xxd]) expect(bytes(text), text).toBe(want);
+		// The checker's own copied dump pastes back too.
+		const v = fromBytes(parseHex(want));
+		expect(bytes(dumpText(hexDump(v, [])))).toBe(want);
+		// Run-together bytes and plain byte lists are left alone.
+		expect(stripDumpColumns('89504e470d0a1a0a 0000000d49484452')).toBe('89504e470d0a1a0a 0000000d49484452');
+		expect(stripDumpColumns('89 50 4E 47')).toBe('89 50 4E 47');
+		// 16-bit word dumps (plain hexdump) would come out byte-swapped, so they are not touched.
+		expect(stripDumpColumns('0000000 5089 474e')).toBe('0000000 5089 474e');
 	});
 
 	test('agrees with Buffer on random bytes, through the formatter', () => {
@@ -467,6 +508,8 @@ test.describe('detecting formats', () => {
 		const fat = top(real('fat.o'));
 		expect(fat.id).toBe('macho-universal');
 		expect(fat.facts[0]).toBe('2 architectures: x86-64, arm64');
+		// The same eight bytes read as a class file version, major first as Java writes it.
+		expect(fat.facts[1]).toBe('Read as a Java class, this would be version 2.0, which no Java release uses');
 		// Every count of architectures up to 20 reads as Mach-O; every Java major version as Java.
 		for (let n = 1; n <= 20; n++) expect(top(build('CA FE BA BE', u32be(n), u32be(7))).id).toBe('macho-universal');
 		for (let major = 45; major <= 70; major++) {
@@ -581,6 +624,31 @@ test.describe('detecting formats', () => {
 		expect(partial.facts.join(' ')).toContain('central directory at the end of the file was not available');
 	});
 
+	test('a central directory too big for the tail is found and read from where it starts', () => {
+		// 1,500 entries with long names: a directory of about 150 KB, more than the 64 KB tail.
+		const names: [string, string][] = [
+			['xl/media/image1.png', 'png'],
+			...Array.from(
+				{ length: 1500 },
+				(_, i) => [`xl/worksheets/a_reasonably_long_sheet_name_for_testing_${i}.xml`, '<x/>'] as [string, string]
+			),
+			['[Content_Types].xml', '<Types/>']
+		];
+		const bytes = zipWithDescriptors(names);
+		const read = asFile(bytes);
+		expect(read.complete).toBe(false);
+		// From the head and tail alone it is a plain ZIP, and it says what it could not see.
+		expect(detect(read)[0].id).toBe('zip');
+		const dirAt = zipDirectoryStart(read) as number;
+		expect(bytes.length - dirAt).toBeGreaterThan(TAIL_BYTES);
+		expect(Array.from(bytes.subarray(dirAt, dirAt + 4))).toEqual(u32le(0x02014b50));
+		// Reading from there to the end, as the page does, finds the workbook.
+		const again = new ByteView(bytes.subarray(0, HEAD_BYTES), bytes.length, bytes.subarray(dirAt));
+		expect(detect(again)[0].id).toBe('xlsx');
+		expect(zipDirectoryStart(again)).toBeNull();
+		expect(zipDirectoryStart(fromBytes(real('plain.zip')))).toBeNull();
+	});
+
 	test('the EPUB and OpenDocument mimetype entry is read from the stored first entry', () => {
 		expect(readZip(fromBytes(real('book.epub'))).mimetype).toBe('application/epub+zip');
 		expect(readZip(fromBytes(real('text.odt'))).mimetype).toBe('application/vnd.oasis.opendocument.text');
@@ -601,7 +669,10 @@ test.describe('detecting formats', () => {
 	test('text gets the honest certainty it deserves', () => {
 		expect(top(HAND.text.bytes).certainty).toBe('guess');
 		expect(top(real('dot.svg')).certainty).toBe('likely');
-		expect(top(real('hello.py')).certainty).toBe('certain');
+		// #! is two bytes of convention, so a script is likely, as the page's FAQ says, never certain.
+		expect(top(real('hello.py')).certainty).toBe('likely');
+		for (const d of [top(HAND.text.bytes), top(real('dot.svg')), top(real('hello.py'))]) expect(d.textHint).toBe(true);
+		expect(top(real('tiny.png')).textHint).toBe(false);
 		// Binary that is not valid UTF-8 is not called text.
 		expect(detect(fromBytes(build('C3 28 41 42')))).toEqual([]);
 		expect(detect(fromBytes(build('41 42 00 43')))).toEqual([]);
@@ -610,12 +681,131 @@ test.describe('detecting formats', () => {
 		expect(shebangProgram('#! /bin/sh -e')).toBe('sh');
 	});
 
-	test('PDF headers count anywhere in the first 1024 bytes', () => {
-		const late = build({ t: 'junk before the header\n' }, { t: '%PDF-2.0\n' });
+	test('PDF headers count anywhere in the first 1024 bytes, but only at 0 for certain', () => {
+		// A PDF with other bytes in front, with the usual binary comment line after the header.
+		const late = build({ t: 'junk before the header\n' }, { t: '%PDF-2.0\n%' }, 'E2 E3 CF D3 0A');
 		const d = top(late);
 		expect(d.id).toBe('pdf');
+		expect(d.certainty).toBe('likely');
 		expect(d.facts).toEqual(['PDF version 2.0', 'The header starts at byte 23, after other data']);
+		expect(top(real('tiny.pdf')).certainty).toBe('certain');
 		expect(top(build({ pad: 1030 }, { t: '%PDF-1.4' }))?.id).not.toBe('pdf');
+		// Text that mentions %PDF- is still text.
+		expect(top(build({ t: 'Every PDF starts with %PDF- and a version.\n' })).id).toBe('text');
+	});
+
+	test('a container at its own offset outranks a PDF stored inside it', () => {
+		const verdict = (name: string, bytes: Uint8Array) => checkExtension(name, detect(fromBytes(bytes)), bytes.length);
+		for (const [name, id] of [
+			['doc.tar', 'tar'],
+			['stored.zip', 'zip']
+		]) {
+			const bytes = Uint8Array.from(Buffer.from(INSIDE[name].hex, 'hex'));
+			const found = detect(fromBytes(bytes));
+			expect(
+				found.map((f) => f.id),
+				name
+			).toEqual([id, 'pdf']);
+			expect(found[1].certainty).toBe('likely');
+			expect(verdict(name, bytes)).toMatchObject({
+				status: 'match',
+				message: `The .${id} extension matches: it is a ${found[0].name}.`
+			});
+			// Named .pdf, it is not called a PDF outright, but the second reading is mentioned.
+			expect(verdict('doc.pdf', bytes).message).toContain('also match a PDF document');
+		}
+		// A script that mentions the PDF header is still a script.
+		const script = build({ t: '#!/usr/bin/env python3\n"""Checks PDF headers."""\nMAGIC = b"%PDF-"\n' });
+		expect(detect(fromBytes(script)).map((d) => d.id)).toEqual(['script']);
+		expect(verdict('parser.py', script).status).toBe('match');
+		const c = build({ t: '/* checks */\nstatic const char magic[] = "%PDF-1.7";\n' });
+		expect(verdict('pdfcheck.c', c).status).toBe('compatible');
+	});
+
+	test('ordinary text is not taken for a format that happens to share its first letters', () => {
+		const verdict = (name: string, text: string) => {
+			const bytes = build({ t: text });
+			return [detect(fromBytes(bytes)).map((d) => d.id), checkExtension(name, detect(fromBytes(bytes)), bytes.length)];
+		};
+		// moov, mdat, wide and free at byte 4 used to make a QuickTime movie of English.
+		for (const text of [
+			'For free and open source software, see the list below.\n',
+			"I'm free to go",
+			'Set wide margins.',
+			'The mdat box holds media.'
+		]) {
+			const [ids, v] = verdict('notes.txt', text);
+			expect(ids, text).toEqual(['text']);
+			expect((v as { status: string }).status).toBe('match');
+		}
+		// Short signatures that cannot be confirmed: text first, the format listed after it.
+		for (const [text, other] of [
+			['true\n', 'ttf'],
+			['MZ\n', 'mz'],
+			['BMW', 'bmp'],
+			['ID3 tags are metadata\n', 'mp3'],
+			['OTTO\n', 'otf'],
+			['MZ is a pair of initials, and this line of text runs on for more than sixty-four bytes.\n', 'mz']
+		]) {
+			const [ids, v] = verdict('flag.txt', text);
+			expect(ids, text).toEqual(['text', other]);
+			expect((v as { status: string }).status, text).toBe('match');
+		}
+		expect((verdict('flag.json', 'true\n')[1] as { status: string }).status).toBe('compatible');
+		// A real old QuickTime header still is one.
+		expect(top(HAND['mov-old'].bytes).id).toBe('mov-old');
+	});
+
+	test('header values that the format does not allow are called out, not described', () => {
+		const png = real('tiny.png');
+		png.fill(0xab, 16, 26); // width, height, bit depth and colour type all AB
+		const facts = top(png).facts;
+		expect(facts).toContain('Width 2,880,154,539 is not allowed in PNG (the most is 2,147,483,647)');
+		expect(facts).toContain('Colour type 171 is not a valid PNG colour type');
+		expect(facts.join(' ')).not.toContain('pixels');
+		const depth = real('tiny.png');
+		depth[24] = 3; // 3-bit greyscale does not exist
+		expect(top(depth).facts).toContain('Bit depth 3 is not valid for greyscale in PNG');
+		expect(top(real('tiny.png')).fields.find((f) => f.label === 'Width')?.value).toBe('1');
+	});
+
+	test('fields are numbered in file order, with the signature marked', () => {
+		const tar = top(real('ustar.tar'));
+		const starts = tar.fields.map((f) => f.start);
+		expect(starts).toEqual([...starts].sort((a, b) => a - b));
+		expect(tar.fields.filter((f) => f.sig).map((f) => f.start)).toEqual([257]);
+		expect(top(real('tiny.png')).fields[0]).toMatchObject({ start: 0, length: 8, sig: true });
+	});
+
+	test('older executables and position-independent ones are named for what they are', () => {
+		expect(top(real('libs.so')).name).toBe('ELF shared object or PIE executable');
+		const mz = (sig: string) => top(build({ t: 'MZ' }, { pad: 0x3c }, u32le(0x80), { pad: 0x80 }, { t: sig }, '00 00'));
+		expect(mz('NE').name).toBe('16-bit Windows or OS/2 executable (NE)');
+		expect(mz('LE').name).toBe('Linear executable (LE)');
+		expect(mz('LX').name).toBe('32-bit OS/2 executable (LX)');
+		// A whole paste whose PE pointer runs off the end says so, rather than blaming the read.
+		const short = top(build({ t: 'MZ' }, '90 00', { pad: 0x3c }, u32le(0x1000), '00 00 00 00 B8 00 00 00'));
+		expect(short.facts).toEqual(['The pointer at 0x3C says 0x1000, which is past the end of the file']);
+		const cut = new ByteView(build({ t: 'MZ' }, '90 00', { pad: 0x3c }, u32le(0x1000)), 100_000, new Uint8Array(0));
+		expect(detect(cut)[0].facts).toEqual(['The PE header would be at 0x1000, beyond the bytes read']);
+	});
+
+	test('text formats: the root element decides, and JSON is parsed whole', () => {
+		const svg =
+			'<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n<svg xmlns="http://www.w3.org/2000/svg"/>';
+		const doctype = top(build({ t: svg }));
+		expect(doctype.id).toBe('svg');
+		expect(doctype.fields[0].start).toBe(svg.indexOf('<svg'));
+		expect(top(build({ t: '<?xml version="1.0"?>\n<!-- drawn by hand -->\n<svg width="1"/>' })).id).toBe('svg');
+		// An svg element that is not the root does not make the file an SVG image.
+		const opf = top(build({ t: '<?xml version="1.0"?><package><manifest><svg/></manifest></package>' }));
+		expect(opf.id).toBe('xml');
+		expect(top(build({ t: '<!-- generated -->\n<html lang="en"><body></body></html>' })).id).toBe('html');
+		// JSON bigger than the 8 KB that is enough to judge text.
+		const big = JSON.stringify(Array.from({ length: 2000 }, (_, i) => ({ id: i, ok: true })));
+		expect(big.length).toBeGreaterThan(20_000);
+		expect(top(build({ t: big })).id).toBe('json');
+		expect(top(build({ t: big.slice(0, -1) })).id).toBe('text');
 	});
 
 	test('ISO 9660 needs 32 KB of bytes before its signature, and a file read gets them', () => {
@@ -631,6 +821,11 @@ test.describe('detecting formats', () => {
 			{ name: 'PNG image', have: 4, need: 8, hex: '89 50 4E 47 0D 0A 1A 0A' }
 		]);
 		expect(partialMatches(fromBytes([0x89])).map((p) => p.name)).toEqual(['PNG image']);
+		// RIFF is the start of a 12-byte pattern, not a whole 4-byte signature.
+		const riff = partialMatches(fromBytes(Array.from('RIFF', (c) => c.charCodeAt(0))));
+		expect(riff.map((p) => p.name)).toEqual(['WebP image', 'WAV audio', 'AVI video']);
+		expect(riff[0]).toMatchObject({ have: 4, need: 12, hex: '52 49 46 46 ?? ?? ?? ?? 57 45 42 50' });
+		expect(partialMatches(fromBytes([0x52, 0x49]))[0].need).toBe(12);
 		// A truncated ELF still says what it can.
 		expect(top(build('7F 45 4C 46')).certainty).toBe('likely');
 		// Every format with a signature at 0 survives being cut to any length without throwing.
@@ -725,7 +920,7 @@ test.describe('the reference table', () => {
 	});
 
 	test('the PNG signature explanation is the PNG signature', () => {
-		expect(PNG_SIGNATURE.map((b) => b.byte)).toEqual(Array.from(real('tiny.png').subarray(0, 8)));
+		expect(PNG_SIGNATURE.flatMap((b) => b.bytes)).toEqual(Array.from(real('tiny.png').subarray(0, 8)));
 	});
 
 	test('byte orders match DataView', () => {
@@ -762,7 +957,17 @@ test.describe('extensions', () => {
 		expect(lie.message).toBe('This .jpg file is actually a PNG image. Its usual extension is .png.');
 		expect(verdict('novel.zip', real('book.epub')).status).toBe('compatible');
 		expect(verdict('report.zip', real('doc.docx')).status).toBe('compatible');
-		expect(verdict('report.docx', real('plain.zip')).status).toBe('compatible');
+		// A ZIP whose whole directory was read and has no word/ folder is no DOCX...
+		expect(verdict('report.docx', real('plain.zip')).status).toBe('mismatch');
+		// ...but one whose directory was not seen might be, and a comic book ZIP is just a ZIP.
+		const zipStart = real('plain.zip').subarray(0, 40);
+		expect(checkExtension('report.docx', detect(new ByteView(zipStart, 5000, new Uint8Array(0))), 5000).status).toBe(
+			'compatible'
+		);
+		expect(verdict('comic.cbz', real('plain.zip')).status).toBe('compatible');
+		// An EXE is not a DLL, and a DLL is not an EXE: bit 13 of the characteristics says which.
+		expect(verdict('hello.dll', real('hello.exe')).status).toBe('mismatch');
+		expect(verdict('lib.exe', real('lib.dll')).status).toBe('mismatch');
 		expect(verdict('scan.dng', real('tiny.tif')).status).toBe('compatible');
 		expect(verdict('photo.xyz', real('tiny.png'))).toMatchObject({ status: 'unknown-ext' });
 		expect(verdict('hello', real('elf64'))).toMatchObject({
@@ -783,6 +988,32 @@ test.describe('extensions', () => {
 		expect(verdict('empty.txt', new Uint8Array(0)).status).toBe('empty');
 	});
 
+	test("ISO media siblings fit each other's extensions", () => {
+		// ffmpeg -f lavfi -i sine=d=0.2 -c:a aac -f mp4 voice.m4a writes the brands isom, iso2, mp41.
+		const voice = Uint8Array.from(Buffer.from(INSIDE['voice.m4a'].hex, 'hex'));
+		expect(top(voice).id).toBe('mp4');
+		expect(verdict('voice.m4a', voice).status).toBe('compatible');
+		expect(verdict('voice.mov', voice).status).toBe('compatible');
+		const m4v = build(u32be(20), { t: 'ftypM4V ' }, '00 00 00 01', { t: 'isom' });
+		expect(top(m4v).id).toBe('m4v');
+		expect(verdict('clip.mp4', m4v).status).toBe('compatible');
+		// A still image is not a movie, whatever the shared box structure.
+		expect(verdict('photo.mp4', HAND.heic.bytes).status).toBe('mismatch');
+		expect(verdict('photo.heif', HAND.heic.bytes).status).toBe('match');
+		// HEVC and AV1 are different codecs: a HEIC is a HEIF, but not an AVIF.
+		expect(verdict('photo.avif', HAND.heic.bytes).status).toBe('mismatch');
+		expect(verdict('song.mp4', real('tone.m4a')).status).toBe('compatible');
+	});
+
+	test('generic extensions are never called wrong, and suggest no signature', () => {
+		expect(verdict('notes.bin', HAND.text.bytes).status).toBe('compatible');
+		expect(verdict('Thumbs.db', HAND.cfb.bytes).status).toBe('compatible');
+		expect(verdict('app.db', real('db-head.sqlite')).status).toBe('match');
+		const unknown = verdict('photo.bin', build('00 11 22 33 44 55 66 77 88 99'));
+		expect(unknown.status).toBe('undetected');
+		expect(unknown.expected).toEqual([]);
+	});
+
 	test('an unrecognised file says what its extension should have started with', () => {
 		const v = verdict('photo.png', build('00 11 22 33 44 55 66 77 88 99'));
 		expect(v.status).toBe('undetected');
@@ -796,6 +1027,7 @@ test.describe('extensions', () => {
 		expect(withArticle('UTF-8 text')).toBe('a UTF-8 text');
 		expect(withArticle('SVG image')).toBe('an SVG image');
 		expect(withArticle('RAR archive')).toBe('a RAR archive');
+		expect(withArticle('MPEG-4 audio (M4A)')).toBe('an MPEG-4 audio file (M4A)');
 	});
 });
 
@@ -805,7 +1037,8 @@ test.describe('the hex dump', () => {
 		const d = detect(tar)[0];
 		const rows = hexDump(tar, d.fields);
 		const offsets = rows.map((r) => (r.kind === 'row' ? r.offset : `gap ${r.from}-${r.to}`));
-		expect(offsets).toEqual([0, 16, 32, 48, 'gap 64-144', 144, 'gap 160-256', 256]);
+		// The trailing gap says the dump stops before the file does.
+		expect(offsets).toEqual([0, 16, 32, 48, 'gap 64-144', 144, 'gap 160-256', 256, `gap 272-${tar.size}`]);
 		// Every byte shown is the byte at that offset, and every signature byte is marked.
 		for (const row of rows) {
 			if (row.kind !== 'row') continue;
@@ -822,7 +1055,17 @@ test.describe('the hex dump', () => {
 		expect(dumpText(rows).split('\n')[0]).toBe(
 			'00000000  89 50 4E 47 0D 0A 1A 0A 00 00 00 0D 49 48 44 52  |.PNG........IHDR|'
 		);
-		expect(rows.length).toBe(4);
+		// 64 bytes, then a marker for the 3 that are left, so the dump never ends silently.
+		expect(rows.map((r) => r.kind)).toEqual(['row', 'row', 'row', 'row', 'gap']);
+		expect(dumpText(rows).split('\n')[4]).toBe('... 3 bytes not shown');
+		// Narrow rows show the same 64 bytes, eight rows of eight.
+		expect(hexDump(fromBytes(real('tiny.png')), [], 8).filter((r) => r.kind === 'row').length).toBe(8);
+		// Shown in full when asked for, with no marker.
+		expect(hexDump(fromBytes(real('tiny.png')), [], 16, 256).map((r) => r.kind)).toEqual(Array(5).fill('row'));
+		// Spaces in the text column are bytes, and are kept; only missing bytes are left out.
+		expect(
+			dumpText(hexDump(fromBytes(build({ t: 'RIFF$' }, '00 00 00', { t: 'AVI LIST    ' })), [])).split('\n')[1]
+		).toBe(`00000010  20 20 20 20${'   '.repeat(12)}  |    |`);
 		expect(hexDump(fromBytes([]), [])).toEqual([]);
 	});
 
@@ -888,6 +1131,8 @@ test.describe('the file-signature-checker page', () => {
 		await expect(page.locator('[role=alert]')).toContainText('not a hex digit');
 		await page.getByRole('button', { name: 'Cut-off PNG' }).click();
 		await expect(page.locator('.answer')).toContainText('These 4 bytes are the start of the PNG image signature');
+		// The cut-off signature is marked in the dump too.
+		await expect(page.locator('.dump td.sig')).toHaveCount(4);
 	});
 
 	test('a chosen file is read in the browser, head and tail', async ({ page }) => {
@@ -907,9 +1152,70 @@ test.describe('the file-signature-checker page', () => {
 		await expect(page.locator('.answer-value')).toHaveText('Excel workbook (XLSX)');
 		await expect(page.locator('.verdict').first()).toContainText('Fits');
 		await expect(page.locator('.read-note')).toContainText('Read the first 36 KB and the last 64 KB');
-		await page.getByRole('button', { name: 'Put the first 64 bytes in the hex box' }).click();
+		await page.getByRole('button', { name: 'Put the first bytes in the hex box' }).click();
 		await expect(page.locator('#name')).toHaveValue('budget.zip');
 		await expect(page.locator('#hex')).toHaveValue(/^50 4B 03 04/);
+		// The start alone cannot show the workbook folder, and the page says so.
+		await expect(page.locator('.read-note')).toContainText('do not read as Excel workbook (XLSX)');
+	});
+
+	test('a big ZIP whose directory is more than the tail is read from where its directory starts', async ({ page }) => {
+		await page.goto('/file-signature-checker');
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'Check a file' }).click();
+		const big = zipWithDescriptors([
+			['xl/media/image1.png', 'png'],
+			...Array.from(
+				{ length: 1500 },
+				(_, i) => [`xl/worksheets/a_reasonably_long_sheet_name_for_testing_${i}.xml`, '<x/>'] as [string, string]
+			),
+			['[Content_Types].xml', '<Types/>']
+		]);
+		await page
+			.locator('#file')
+			.setInputFiles({ name: 'big.xlsx', mimeType: 'application/zip', buffer: Buffer.from(big) });
+		await expect(page.locator('.answer-value')).toHaveText('Excel workbook (XLSX)');
+		await expect(page.locator('.verdict').first()).toContainText('Matches');
+	});
+
+	test('a file dropped outside the file box is still checked', async ({ page }) => {
+		await page.goto('/file-signature-checker');
+		await page.waitForLoadState('networkidle');
+		const dataTransfer = await page.evaluateHandle(() => {
+			const dt = new DataTransfer();
+			dt.items.add(new File([new Uint8Array([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0])], 'tool', { type: '' }));
+			return dt;
+		});
+		await page.locator('#hex').dispatchEvent('drop', { dataTransfer });
+		await expect(page.locator('.answer-value')).toHaveText('ELF executable');
+		await expect(page.locator('.read-note')).toContainText('tool: 8 bytes');
+	});
+
+	test('example chips leave focus where it is, and an emptied box says what to do', async ({ page }) => {
+		await page.goto('/file-signature-checker');
+		await page.waitForLoadState('networkidle');
+		const chip = page.getByRole('button', { name: 'Linux ELF' });
+		await chip.click();
+		await expect(chip).toBeFocused();
+		await expect(page.locator('.answer-value')).toHaveText('ELF executable');
+		await page.locator('#hex').fill('');
+		await page.locator('#name').fill('');
+		await expect(page.locator('.empty-state')).toHaveText('Paste some bytes above, or pick one of the examples.');
+		// The empty state round trips through the link instead of turning back into the example.
+		await expect(page).toHaveURL(/e=1/);
+		await page.reload();
+		await expect(page.locator('#hex')).toHaveValue('');
+		await expect(page.locator('.empty-state')).toBeVisible();
+	});
+
+	test('bytes too many for a link say so instead of offering a link that loses them', async ({ page }) => {
+		await page.goto('/file-signature-checker');
+		await page.waitForLoadState('networkidle');
+		await page.locator('#hex').fill(formatHexLines(new Uint8Array(5000).fill(0x41)));
+		await expect(page.locator('.share-note')).toContainText('too many for a link');
+		await expect(page.getByRole('button', { name: 'Copy link' })).toHaveCount(0);
+		await page.locator('#hex').fill('7F 45 4C 46');
+		await expect(page.getByRole('button', { name: 'Copy link' })).toBeVisible();
 	});
 
 	test('pasted bytes and the name round trip through the address bar', async ({ page }) => {

@@ -26,9 +26,10 @@
 		CATEGORY_NAMES,
 		HEAD_BYTES,
 		TAIL_BYTES,
-		FORMAT_COUNT
+		FORMAT_COUNT,
+		zipDirectoryStart
 	} from '$lib/fileSignatures';
-	import type { Detection, ExtensionStatus, Category } from '$lib/fileSignatures';
+	import type { Detection, ExtensionStatus, Category, Field } from '$lib/fileSignatures';
 	import { readUrl, syncUrl, safeText } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import { onMount } from 'svelte';
@@ -38,6 +39,8 @@
 	const DEFAULT_HEX = exampleText(DEFAULT.hex);
 	/** Long pastes still work; they are just too long to be worth putting in a link. */
 	const MAX_LINK_HEX = 12000;
+	/** The most bytes handed from a chosen file to the hex box: what still fits in a link. */
+	const MAX_HANDOFF = Math.floor(MAX_LINK_HEX / 3);
 
 	let mode: 'hex' | 'file' = 'hex';
 	let hexText = DEFAULT_HEX;
@@ -52,7 +55,10 @@
 
 	onMount(() => {
 		const p = readUrl();
-		if (p.h !== undefined || p.n !== undefined) {
+		if (p.e === '1') {
+			hexText = '';
+			name = '';
+		} else if (p.h !== undefined || p.n !== undefined) {
 			hexText = safeText(p.h, MAX_LINK_HEX) ?? '';
 			name = safeText(p.n, 255) ?? '';
 		}
@@ -63,10 +69,14 @@
 		return () => narrowQuery.removeEventListener('change', onChange);
 	});
 	// The link holds pasted bytes and the name; a chosen file never goes into it.
+	// An emptied box is written as e=1, so that it reopens empty rather than as the example.
+	$: tooLongForLink = hexText.length > MAX_LINK_HEX;
 	$: syncUrl(
-		mode === 'hex' && !(hexText === DEFAULT_HEX && name === DEFAULT.name) && hexText.length <= MAX_LINK_HEX
-			? { h: hexText, n: name }
-			: {},
+		mode !== 'hex' || tooLongForLink || (hexText === DEFAULT_HEX && name === DEFAULT.name)
+			? {}
+			: hexText === '' && name === ''
+			? { e: 1 }
+			: { h: hexText, n: name },
 		{}
 	);
 
@@ -97,8 +107,21 @@
 	$: primary = detections[0] as Detection | undefined;
 	$: verdict = view ? checkExtension(checkedName, detections, view.size) : null;
 	$: partials = view ? partialMatches(view) : [];
-	$: fields = primary?.fields ?? [];
-	$: rows = view ? hexDump(view, fields, width) : [];
+	// With nothing detected, a cut-off signature is still worth pointing at in the dump.
+	$: fields =
+		primary?.fields ??
+		(partials.length
+			? [
+					{
+						start: 0,
+						length: partials[0].have,
+						label: `Start of the ${partials[0].name} signature (${partials[0].have} of ${partials[0].need} bytes)`,
+						sig: true
+					} as Field
+			  ]
+			: []);
+	// A short paste is shown whole; anything longer shows its first 64 bytes and the rows that matter.
+	$: rows = view ? hexDump(view, fields, width, view.complete && view.size <= 256 ? 256 : 64) : [];
 	$: shownFields = fields.filter((f) => view?.has(f.start, 1));
 
 	const statusWord: Record<ExtensionStatus, string> = {
@@ -115,16 +138,31 @@
 		likely: 'Likely: a short signature, or one checked only in part',
 		guess: 'A guess: text has no signature'
 	};
+	const certaintyLabel = (d: Detection) =>
+		d.textHint && d.certainty === 'likely'
+			? 'Likely: a telling start, though text has no real signature'
+			: certaintyText[d.certainty];
+
+	/** A ZIP's central directory is read in full up to this size; past it, the first entries have to do. */
+	const MAX_DIRECTORY = 16 << 20;
 
 	async function readFile(file: File) {
 		reading = true;
 		fileError = '';
+		handoff = null;
 		try {
 			const head = new Uint8Array(await file.slice(0, HEAD_BYTES).arrayBuffer());
 			const tailStart = Math.max(head.length, file.size - TAIL_BYTES);
 			const tail =
 				tailStart < file.size ? new Uint8Array(await file.slice(tailStart).arrayBuffer()) : new Uint8Array(0);
-			fileView = file.size <= head.length ? new ByteView(head, file.size) : new ByteView(head, file.size, tail);
+			let read = file.size <= head.length ? new ByteView(head, file.size) : new ByteView(head, file.size, tail);
+			// A big archive's directory starts further back than the tail: read from there to the end.
+			const dirAt = zipDirectoryStart(read);
+			if (dirAt !== null && file.size - dirAt <= MAX_DIRECTORY) {
+				const from = Math.max(head.length, dirAt);
+				read = new ByteView(head, file.size, new Uint8Array(await file.slice(from).arrayBuffer()));
+			}
+			fileView = read;
 			fileName = file.name;
 		} catch {
 			fileView = null;
@@ -139,7 +177,18 @@
 		if (file) readFile(file);
 	}
 
+	const carriesFiles = (event: DragEvent) => !!event.dataTransfer?.types.includes('Files');
+
+	function onDragOver(event: DragEvent) {
+		if (!carriesFiles(event)) return;
+		event.preventDefault();
+		dragging = true;
+	}
+
+	/** A file dropped anywhere on the page is checked, rather than opened by the browser in place of the page. */
 	function onDrop(event: DragEvent) {
+		if (!carriesFiles(event)) return;
+		event.preventDefault();
 		dragging = false;
 		const file = event.dataTransfer?.files?.[0];
 		if (file) {
@@ -148,21 +197,41 @@
 		}
 	}
 
-	/** Hands the start of a chosen file to the hex box, where it can be edited and shared. */
+	/** What the hex box was given from a file, so the page can say when those bytes alone read differently. */
+	let handoff: { text: string; bytes: number; id: string; name: string } | null = null;
+
+	/**
+	 * Hands the start of a chosen file to the hex box, where it can be edited
+	 * and shared: the whole file when it is small, otherwise enough to cover
+	 * every highlighted field (tar's ustar is at 257, DICOM's DICM at 128), up
+	 * to what a link can hold.
+	 */
 	function useBytes() {
-		if (!fileView) return;
-		hexText = formatHexLines(fileView.head.subarray(0, 64));
+		if (!fileView || !fileView.size) return;
+		const fieldsEnd = Math.max(64, ...(primary?.fields ?? []).map((f) => f.start + f.length));
+		const count = Math.min(fileView.head.length, MAX_HANDOFF, fileView.complete ? fileView.size : fieldsEnd);
+		const text = formatHexLines(fileView.head.subarray(0, Math.ceil(count / 16) * 16));
+		handoff = {
+			text,
+			bytes: Math.min(fileView.head.length, Math.ceil(count / 16) * 16),
+			id: primary?.id ?? '',
+			name: primary?.name ?? ''
+		};
+		hexText = text;
 		name = fileName;
 		mode = 'hex';
 	}
+	$: handoffChanged = !!handoff && mode === 'hex' && hexText === handoff.text && (primary?.id ?? '') !== handoff.id;
 
-	function tryExample(ex: typeof EXAMPLES[number]) {
+	/** Loads an example. Focus stays on the chip, so the next example is one Tab away. */
+	function tryExample(ex: typeof EXAMPLES[number], scroll = false) {
 		mode = 'hex';
 		hexText = exampleText(ex.hex);
 		name = ex.name;
-		const field = document.getElementById('hex');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		field?.focus({ preventScroll: true });
+		if (scroll) {
+			const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+			document.getElementById('checker')?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+		}
 	}
 
 	let copied = '';
@@ -186,7 +255,12 @@
 	let filter = '';
 	$: needle = filter.trim().toLowerCase();
 	$: shownRows = needle
-		? table.filter((r) => `${r.name} ${r.exts.join(' ')} ${r.hex} ${r.ascii}`.toLowerCase().includes(needle))
+		? table.filter(
+				(r) =>
+					`${r.name} ${r.exts.join(' ')} ${r.hex} ${r.ascii}`.toLowerCase().includes(needle) ||
+					// "504B" finds 50 4B too.
+					(/^[0-9a-f\s]+$/.test(needle) && r.hex.replace(/ /g, '').toLowerCase().includes(needle.replace(/\s/g, '')))
+		  )
 		: table;
 	const offsetOf = (id: string) => table.find((r) => r.id === id)?.offset ?? 0;
 
@@ -195,7 +269,7 @@
 	const fatBytes = bytesOf('fat');
 	const java = detect(fromBytes(javaBytes))[0];
 	const fat = detect(fromBytes(fatBytes))[0];
-	const machoLittle = byteOrders(0xfeedface).little;
+	const machoLittle = byteOrders(0xfeedfacf).little;
 	const famous = [
 		{
 			value: 0xcafebabe,
@@ -204,17 +278,28 @@
 		},
 		{
 			value: 0xfeedface,
-			where: `The magic number of a 32-bit Mach-O file, the executable format of macOS and iOS. It is stored in the processor's byte order, so on Intel and Apple silicon Macs the file starts ${machoLittle}.`
+			where: `The magic number of a 32-bit Mach-O file, the executable format of macOS and iOS, as used on PowerPC and older Intel Macs and on older iPhones. It is stored in the processor's byte order, so a 32-bit file from an Intel Mac starts ${
+				byteOrders(0xfeedface).little
+			}, and one from a PowerPC Mac FE ED FA CE.`
 		},
-		{ value: 0xfeedfacf, where: 'The 64-bit Mach-O magic number: FEEDFACE plus one.' },
+		{
+			value: 0xfeedfacf,
+			where: `The 64-bit Mach-O magic number, FEEDFACE plus one, and the one on every current Mac program: Intel and Apple silicon Macs are little-endian, so the file starts ${machoLittle}.`
+		},
 		{
 			value: 0xdeadbeef,
 			where:
-				'Not a file signature. It is a value written into memory on purpose, so that reading uninitialised or freed memory stands out in a debugger or a crash dump. It is the best known piece of hexspeak, words spelled with the letters A to F.'
+				'Not a file signature. It is a value written into memory on purpose, so that reading uninitialised or freed memory stands out in a debugger or a crash dump. It is a well known piece of hexspeak, words spelled with the letters A to F.'
 		}
 	].map((f) => ({ ...f, hex: f.value.toString(16).toUpperCase(), ...byteOrders(f.value) }));
 
 	const htmlExample = EXAMPLES.find((e) => e.id === 'html-as-png') ?? EXAMPLES[0];
+	let pngOffset = 0;
+	const pngGroups = PNG_SIGNATURE.map((g) => {
+		const from = pngOffset;
+		pngOffset += g.bytes.length;
+		return { ...g, from, to: pngOffset - 1 };
+	});
 	const pngExample = detect(fromBytes(parseHex(DEFAULT.hex)))[0];
 	const pngAsJpg = checkExtension(DEFAULT.name, [pngExample], 1);
 
@@ -231,7 +316,9 @@
 			q: 'Is my file uploaded anywhere?',
 			a: `No. The file is read in your browser with the File API: the first ${kb(HEAD_BYTES)} and the last ${kb(
 				TAIL_BYTES
-			)}, which is enough for every signature here, including ISO 9660 at byte 32,769 and a ZIP's directory at the end. Nothing is sent to a server, and a chosen file never goes into the page's link.`
+			)}, which reaches every signature here, including ISO 9660 at byte 32,769, and a ZIP's end record. When a big ZIP's central directory starts further back, it is read from there to the end, up to ${
+				MAX_DIRECTORY >> 20
+			} MB. Nothing is sent to a server, and a chosen file never goes into the page's link.`
 		},
 		{
 			q: 'Why does my DOCX show up as a ZIP file?',
@@ -309,6 +396,8 @@
 	{@html jsonLd}
 </svelte:head>
 
+<svelte:window on:dragover={onDragOver} on:drop={onDrop} on:dragend={() => (dragging = false)} />
+
 <ContentPage
 	related={[
 		{ href: '/hex-to-binary', label: 'Hex to binary converter' },
@@ -326,7 +415,12 @@
 			number is highlighted in a hex dump and checked against the extension.
 		</p>
 
-		<div class="card tool">
+		<div
+			class="card tool"
+			id="checker"
+			class:dragging
+			on:dragleave={(e) => e.target === e.currentTarget && (dragging = false)}
+		>
 			<div class="direction" role="group" aria-label="Input">
 				<button
 					type="button"
@@ -348,6 +442,8 @@
 					id="hex"
 					class="hex-input"
 					rows="5"
+					wrap="off"
+					placeholder="89 50 4E 47 0D 0A 1A 0A …"
 					bind:value={hexText}
 					spellcheck="false"
 					autocomplete="off"
@@ -373,16 +469,10 @@
 					autocapitalize="off"
 				/>
 			{:else}
-				<div
-					class="drop"
-					class:dragging
-					on:dragover|preventDefault={() => (dragging = true)}
-					on:dragleave={() => (dragging = false)}
-					on:drop|preventDefault={onDrop}
-				>
+				<div class="drop" class:dragging>
 					<input id="file" class="file-input" type="file" on:change={onPick} aria-describedby="file-help" />
 					<label class="file-btn" for="file">Choose a file</label>
-					<span class="drop-hint">or drop one here</span>
+					<span class="drop-hint">or drop one anywhere on the page</span>
 					<p class="field-help" id="file-help">
 						The file stays on your device. It is read in the browser with <span class="mono">Blob.slice</span>: the
 						first {kb(HEAD_BYTES)} and the last {kb(TAIL_BYTES)}, and nothing is uploaded.
@@ -404,6 +494,8 @@
 					<p class="empty-state" role="status">
 						{reading ? 'Reading the file…' : 'Choose a file to see its signature. Nothing is uploaded.'}
 					</p>
+				{:else if mode === 'hex' && view && view.size === 0}
+					<p class="empty-state" role="status">Paste some bytes above, or pick one of the examples.</p>
 				{:else if view && verdict}
 					<div
 						class="answer"
@@ -415,10 +507,11 @@
 						{#if primary}
 							<span class="answer-value">{primary.name}</span>
 							<span class="answer-also"
-								><span class="mono">{primary.mime}</span>{#if primary.exts.length}
-									· usually <span class="mono">.{primary.exts.join(', .')}</span>{/if}</span
+								><span class="mono">{primary.mime}</span>{#if primary.exts.length}{' · usually '}<span class="mono"
+										>.{primary.exts.join(', .')}</span
+									>{/if}</span
 							>
-							<span class="certainty certainty-{primary.certainty}">{certaintyText[primary.certainty]}</span>
+							<span class="certainty certainty-{primary.certainty}">{certaintyLabel(primary)}</span>
 						{:else if view.size === 0}
 							<span class="answer-value none">Nothing to check</span>
 						{:else}
@@ -440,9 +533,16 @@
 								{fileView.complete
 									? 'Read in full.'
 									: `Read the first ${kb(fileView.head.length)} and the last ${kb(fileView.tail.length)}.`}
-								<button type="button" class="link-btn" on:click={useBytes}>Put the first 64 bytes in the hex box</button
-								>
-								to edit or share them.
+								{#if fileView.size}
+									<button type="button" class="link-btn" on:click={useBytes}>Put the first bytes in the hex box</button>
+									to edit or share them.
+								{/if}
+							</p>
+						{/if}
+						{#if handoffChanged && handoff}
+							<p class="read-note">
+								Only the first {plural(handoff.bytes, 'byte')} of the file were copied, and on their own they do not read
+								as {handoff.name || 'what the file was'}: the rest of the file is what settled it.
 							</p>
 						{/if}
 					</div>
@@ -505,11 +605,11 @@
 														class:f1={cell.field % 4 === 1}
 														class:f2={cell.field % 4 === 2}
 														class:f3={cell.field % 4 === 3}
-														data-n={cell.field >= 0 && fields[cell.field].start === cell.offset
-															? cell.field + 1
-															: undefined}
 														title={cell.field >= 0 ? fields[cell.field].label : undefined}
-														>{cell.byte === null ? '' : hex2(cell.byte)}</td
+														>{#if cell.field >= 0 && fields[cell.field].start === cell.offset}<span
+																class="n"
+																aria-hidden="true">{cell.field + 1}</span
+															>{/if}{cell.byte === null ? '' : hex2(cell.byte)}</td
 													>
 												{/each}
 												<td class="ascii"
@@ -524,7 +624,8 @@
 						</div>
 						<p class="legend" class:hidden={!fields.length}>
 							Highlighted bytes are underlined, and a small number marks where each field starts; the table below
-							explains them. The Text column shows printable ASCII and a dot for anything else.
+							explains them, with the signature itself in bold. The Text column shows printable ASCII and a dot for
+							anything else.
 						</p>
 						{#if shownFields.length}
 							<div class="table-wrap">
@@ -539,7 +640,7 @@
 									<tbody>
 										{#each fields as f, i}
 											{#if view.has(f.start, 1)}
-												<tr>
+												<tr class:sig-row={f.sig}>
 													<td><span class="tag f{i % 4}">{i + 1}</span></td>
 													<td class="mono bytes"
 														><span class="at">{hexOffset(f.start)}</span>{formatBytes(
@@ -564,7 +665,14 @@
 			<p class="copied" aria-live="polite">{copied}</p>
 			{#if mode === 'hex'}
 				<p class="share-row">
-					<ShareLink what="these bytes and the file name" />
+					{#if tooLongForLink}
+						<span class="share-note"
+							>These bytes are too many for a link (over {MAX_LINK_HEX.toLocaleString('en-GB')} characters of hex), so the
+							address bar does not hold them. Paste fewer, or share the file itself.</span
+						>
+					{:else}
+						<ShareLink what="these bytes and the file name" />
+					{/if}
 				</p>
 			{/if}
 		</div>
@@ -594,7 +702,8 @@
 			</li>
 			<li>
 				<strong>Byte order shows.</strong> A magic number stored as a 32-bit integer appears reversed on little-endian
-				machines, which is why Mach-O files on a Mac start {machoLittle} rather than FE ED FA CE.
+				machines, which is why a 64-bit Mach-O program on an Intel or Apple silicon Mac starts {machoLittle} rather than
+				FE ED FA CF.
 			</li>
 			<li>
 				<strong>Text has none.</strong> CSV, JSON, Markdown and source code are just characters. A byte order mark or a
@@ -611,37 +720,27 @@
 	<section id="png">
 		<h2>Why PNG starts with 89 50 4E 47 0D 0A 1A 0A</h2>
 		<p class="section-intro">
-			PNG's eight bytes are the best designed signature there is. Each one catches a way that files used to get damaged
-			when they were copied between systems, so a broken PNG is spotted at the first byte instead of half way through
-			decoding.
+			PNG's eight bytes were chosen with care. Apart from the three letters of the name, each one catches a way that
+			files used to get damaged when they were copied between systems, so a broken PNG is spotted in its first eight
+			bytes instead of half way through decoding.
 		</p>
 		<div class="table-wrap">
 			<table class="data-table png">
 				<thead>
 					<tr>
-						<th scope="col">Byte</th>
-						<th scope="col">Hex</th>
-						<th scope="col">As text</th>
+						<th scope="col">Bytes</th>
+						<th scope="col">Hex and text</th>
 						<th scope="col">Why it is there</th>
 					</tr>
 				</thead>
 				<tbody>
-					{#each PNG_SIGNATURE as b, i}
+					{#each pngGroups as g}
 						<tr>
-							<td class="mono">{i}</td>
-							<td class="mono strong">{hex2(b.byte)}</td>
-							<td class="mono"
-								>{b.byte === 0x0d
-									? 'CR'
-									: b.byte === 0x0a
-									? 'LF'
-									: b.byte === 0x1a
-									? '^Z'
-									: b.byte > 0x7e
-									? '(none)'
-									: String.fromCharCode(b.byte)}</td
+							<td class="mono nowrap">{g.from === g.to ? g.from : `${g.from} to ${g.to}`}</td>
+							<td class="nowrap"
+								><span class="mono strong">{formatBytes(g.bytes)}</span><span class="mono as-text">{g.text}</span></td
 							>
-							<td>{b.why}</td>
+							<td>{g.why}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -657,19 +756,17 @@
 			ZIP archives underneath:
 		</p>
 		<div class="table-wrap">
-			<table class="data-table">
+			<table class="data-table zip-kinds">
 				<thead>
 					<tr>
 						<th scope="col">Format</th>
-						<th scope="col">Extensions</th>
 						<th scope="col">How the checker tells it apart</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each ZIP_KINDS as k}
 						<tr>
-							<td>{k.name}</td>
-							<td class="mono">.{k.exts.join(', .')}</td>
+							<td class="kind">{k.name}<span class="mono exts">.{k.exts.join(', .')}</span></td>
 							<td class="rule">{k.rule}</td>
 						</tr>
 					{/each}
@@ -702,7 +799,8 @@
 		</div>
 		<p class="reducer">
 			RIFF works the same way for WebP, WAV and AVI: <span class="mono">RIFF</span>, a 4-byte size, then the form type
-			<span class="mono">WEBP</span>, <span class="mono">WAVE</span> or <span class="mono">AVI </span>.
+			<span class="mono">WEBP</span>, <span class="mono">WAVE</span> or <span class="mono">AVI</span> followed by a space,
+			since a form type is always four characters.
 		</p>
 	</section>
 
@@ -765,8 +863,9 @@
 	<section id="reference">
 		<h2>File signature table</h2>
 		<p class="section-intro">
-			Every signature the checker knows, {table.length} patterns for {FORMAT_COUNT} formats counting the container kinds
-			above, generated from the same data the checker uses. <span class="mono">??</span> is a byte that can be anything.
+			Every signature the checker knows, {table.length} of them, generated from the same data the checker uses. With the
+			ZIP and ISO media kinds above and the text formats, it names {FORMAT_COUNT} formats in all.
+			<span class="mono">??</span> is a byte that can be anything.
 		</p>
 		<label class="field" for="filter">Filter by name, extension or bytes</label>
 		<input
@@ -783,9 +882,9 @@
 				<thead>
 					<tr>
 						<th scope="col">Format</th>
-						<th scope="col">Extensions</th>
-						<th scope="col">Offset</th>
 						<th scope="col">Bytes</th>
+						<th scope="col">Offset</th>
+						<th scope="col">Extensions</th>
 						<th scope="col">As text</th>
 					</tr>
 				</thead>
@@ -799,9 +898,9 @@
 									<td
 										>{r.name}{#if r.note}<span class="note">{r.note}</span>{/if}</td
 									>
-									<td class="mono">{r.exts.length ? '.' + r.exts.slice(0, 4).join(', .') : 'none'}</td>
-									<td class="mono">{r.offset < 1024 ? r.offset : hexOffset(r.offset)}</td>
 									<td class="mono strong sig-bytes">{r.hex}</td>
+									<td class="mono">{r.offset < 1024 ? r.offset : hexOffset(r.offset)}</td>
+									<td class="mono">{r.exts.length ? '.' + r.exts.slice(0, 4).join(', .') : 'none'}</td>
 									<td class="mono">{r.ascii}</td>
 								</tr>
 							{/each}
@@ -825,7 +924,8 @@
 			<li>
 				<strong>An error page saved as the file.</strong> A download link that fails often hands back an HTML error page
 				under the name you asked for, so "logo.png" turns out to be <span class="mono">&lt;!DOCTYPE html&gt;</span>. Try
-				the <button type="button" class="link-btn" on:click={() => tryExample(htmlExample)}>HTML named .png</button> example.
+				the
+				<button type="button" class="link-btn" on:click={() => tryExample(htmlExample, true)}>HTML named .png</button> example.
 			</li>
 			<li>
 				<strong>Reading a little-endian magic number backwards.</strong> Zstandard's magic number is FD2FB528 but its
@@ -909,6 +1009,8 @@
 	.hex-input {
 		resize: vertical;
 		line-height: 1.45;
+		overflow-x: auto;
+		white-space: pre;
 	}
 
 	.name-input {
@@ -1271,12 +1373,16 @@
 		background: rgba(190, 90, 200, 0.35);
 	}
 
-	.dump td[data-n]::before {
-		content: attr(data-n);
+	/* The field number sits in the cell's own top padding, clear of the row above. */
+	.dump td.hx {
+		padding-top: 0.6rem;
+	}
+
+	.dump .n {
 		position: absolute;
-		top: -0.25rem;
-		left: 0;
-		font-size: 0.55rem;
+		top: 0.05rem;
+		left: 0.1rem;
+		font-size: 0.65rem;
 		font-weight: 400;
 		color: #fff;
 		line-height: 1;
@@ -1357,13 +1463,32 @@
 	}
 
 	.rule {
-		min-width: 11em;
 		overflow-wrap: anywhere;
+	}
+
+	.nowrap {
+		white-space: nowrap;
+	}
+
+	.as-text,
+	.exts {
+		display: block;
+		color: #bbb;
+		font-size: 0.8rem;
+	}
+
+	.kind {
+		min-width: 8em;
+	}
+
+	/* On a phone the long heading wraps, so the rules column fits beside the names. */
+	.zip-kinds thead th {
+		white-space: normal;
 	}
 
 	.famous-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: 12px;
 	}
 
@@ -1451,6 +1576,27 @@
 		font-size: 0.85rem;
 	}
 
+	/* The column headings stay in view while the table scrolls inside its box. */
+	.sigs thead th {
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		background: #0d0d0f;
+	}
+
+	.fields tr.sig-row td {
+		font-weight: 700;
+	}
+
+	.share-note {
+		color: #bbb;
+		font-size: 0.8rem;
+	}
+
+	.card.tool.dragging {
+		border-color: #5db65d;
+	}
+
 	@media (max-width: 600px) {
 		.tool {
 			padding: 0.9rem 0.8rem 1rem;
@@ -1481,6 +1627,10 @@
 		.drop-hint {
 			display: block;
 			margin: 0.4rem 0 0;
+		}
+
+		.famous-grid {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>

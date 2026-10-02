@@ -125,6 +125,39 @@ export function formatHexLines(bytes: ArrayLike<number>, perLine = 16): string {
 	return lines.join('\n');
 }
 
+/**
+ * Takes the offset column (and the text column) off a pasted hex dump, so the
+ * output of od -A x -t x1, hexdump -C or xxd can be pasted as it is. Without
+ * this, od's "000000" offset would quietly become three zero bytes. It only
+ * acts when every line looks like a dump line: an offset of six or more
+ * digits, then byte groups, with the offsets going up. Dumps of 16-bit words
+ * (plain hexdump, od -x) are left alone, because their byte order is the
+ * machine's, not the file's.
+ */
+export function stripDumpColumns(input: string): string {
+	const lines = input.split(/\r?\n/).filter((l) => l.trim());
+	if (!lines.length) return input;
+	const out: string[] = [];
+	let last = -1;
+	for (let i = 0; i < lines.length; i++) {
+		const m = lines[i].match(/^\s*([0-9a-f]{6,16})(:?)(?:\s+(.*))?$/i);
+		if (!m) return input;
+		const offset = parseInt(m[1], 16);
+		if (offset <= last) return input;
+		last = offset;
+		let rest = m[3] ?? '';
+		// hexdump -C puts the text between bars; xxd puts it after two spaces.
+		rest = m[2] ? rest.split(/\s{2,}/)[0] : rest.replace(/\s*\|.*\|\s*$/, '');
+		const groups = rest.trim().split(/\s+/).filter(Boolean);
+		// od's last line is the length alone.
+		if (!groups.length && i === lines.length - 1 && i > 0) break;
+		const sizes = m[2] ? /^([0-9a-f]{2}|[0-9a-f]{4})$/i : /^[0-9a-f]{2}$/i;
+		if (!groups.length || !groups.every((g) => sizes.test(g))) return input;
+		out.push(groups.join(' '));
+	}
+	return out.join('\n');
+}
+
 /** The most hex the paste box accepts, in bytes. Plenty for any header. */
 export const MAX_PASTE_BYTES = 1 << 20;
 
@@ -135,7 +168,7 @@ export const MAX_PASTE_BYTES = 1 << 20;
  * with its neighbour, because "D A" could mean 0D 0A or DA.
  */
 export function parseHex(input: string): Uint8Array {
-	const groups = input
+	const groups = stripDumpColumns(input)
 		.trim()
 		.split(/[\s,;:]+/)
 		.filter(Boolean);
@@ -144,7 +177,13 @@ export function parseHex(input: string): Uint8Array {
 		const group = raw.replace(/^(0x|\\x)/i, '').replace(/\\x/gi, '');
 		const bad = group.match(/[^0-9a-f]/i);
 		if (bad) {
-			throw new HexError(`“${raw}” contains ${JSON.stringify(bad[0])}, which is not a hex digit (0 to 9, A to F)`);
+			throw new HexError(
+				`“${raw}” contains “${bad[0]}”, which is not a hex digit (0 to 9, A to F)${
+					/^[0-9a-f]{6,}:?$/i.test(groups[0] ?? '')
+						? '. If this is a hex dump, paste only the bytes, without the offset and text columns'
+						: ''
+				}`
+			);
 		}
 		if (group.length % 2) {
 			throw new HexError(
@@ -181,8 +220,8 @@ export const CATEGORY_NAMES: Record<Category, string> = {
 	text: 'Text'
 };
 
-/** A highlighted run of bytes and what it means. */
-export type Field = { start: number; length: number; label: string; value?: string };
+/** A highlighted run of bytes and what it means; sig marks the signature itself. */
+export type Field = { start: number; length: number; label: string; value?: string; sig?: boolean };
 
 /** One fixed run of bytes at a fixed offset. null in bytes matches anything. */
 type Sig = { at: number; bytes: (number | null)[]; label: string };
@@ -206,6 +245,8 @@ type Hit = {
 	fields?: Field[];
 	facts?: string[];
 	explain?: string;
+	/** Found by reading the bytes as text, not by a signature. */
+	textHint?: boolean;
 };
 
 type TypeDef = {
@@ -246,6 +287,8 @@ export type Detection = {
 	fields: Field[];
 	facts: string[];
 	explain: string;
+	/** True when the answer comes from reading the bytes as text, which has no signature. */
+	textHint: boolean;
 };
 
 const hexSig = (at: number, hex: string, label: string): Sig => ({
@@ -275,25 +318,38 @@ const PNG_COLOUR: Record<number, string> = {
 	6: 'RGB colour with alpha'
 };
 
-/** Byte by byte, why PNG's signature is what it is (PNG specification, section 12.12). */
-export const PNG_SIGNATURE = [
+/** Which bit depths each PNG colour type allows (PNG specification, table 11.1). */
+const PNG_DEPTHS: Record<number, number[]> = {
+	0: [1, 2, 4, 8, 16],
+	2: [8, 16],
+	3: [1, 2, 4, 8],
+	4: [8, 16],
+	6: [8, 16]
+};
+
+/** Why PNG's signature is what it is, a few bytes at a time (PNG specification, section 12.12). */
+export const PNG_SIGNATURE: { bytes: number[]; text: string; why: string }[] = [
 	{
-		byte: 0x89,
+		bytes: [0x89],
+		text: '(none)',
 		why: 'Has the top bit set, so a channel that only carries 7 bits damages it, and the file cannot be mistaken for text.'
 	},
-	{ byte: 0x50, why: 'P. The three letters let a person recognise the format in a text editor or hex dump.' },
-	{ byte: 0x4e, why: 'N.' },
-	{ byte: 0x47, why: 'G.' },
 	{
-		byte: 0x0d,
-		why: 'Carriage return. With the next byte, a DOS line ending: a transfer that turns CR LF into LF breaks the signature.'
+		bytes: [0x50, 0x4e, 0x47],
+		text: 'PNG',
+		why: 'The name in ASCII, so a person can recognise the format in a text editor or a hex dump. These three catch no damage.'
 	},
-	{ byte: 0x0a, why: 'Line feed, the second half of that DOS line ending.' },
 	{
-		byte: 0x1a,
+		bytes: [0x0d, 0x0a],
+		text: 'CR LF',
+		why: 'A DOS line ending: a transfer that turns CR LF into LF breaks the signature.'
+	},
+	{
+		bytes: [0x1a],
+		text: '^Z',
 		why: 'Ctrl+Z, the end-of-file marker for text under DOS: typing the file on a DOS console stops here instead of printing binary.'
 	},
-	{ byte: 0x0a, why: 'A lone line feed: a transfer that turns LF into CR LF breaks the signature.' }
+	{ bytes: [0x0a], text: 'LF', why: 'A lone line feed: a transfer that turns LF into CR LF breaks the signature.' }
 ];
 
 const ELF_MACHINE: Record<number, string> = {
@@ -374,97 +430,123 @@ export function javaRelease(major: number): string | null {
 export const ZIP_KINDS: {
 	id: string;
 	name: string;
+	/** The name in a sentence: "What makes it a Word document is inside". */
+	what: string;
 	exts: string[];
 	mime: string;
 	rule: string;
+	/** The rule as the end of a sentence about this file. */
+	inside: string;
 	test: (z: ZipInfo) => boolean;
 }[] = [
 	{
 		id: 'epub',
 		name: 'EPUB e-book',
+		what: 'an EPUB e-book',
 		exts: ['epub'],
 		mime: 'application/epub+zip',
 		rule: 'First entry is an uncompressed file called mimetype holding application/epub+zip',
+		inside: 'its first entry is an uncompressed file called mimetype holding application/epub+zip',
 		test: (z) => z.mimetype === 'application/epub+zip'
 	},
 	{
 		id: 'odt',
 		name: 'OpenDocument text (ODT)',
+		what: 'an OpenDocument text document',
 		exts: ['odt'],
 		mime: 'application/vnd.oasis.opendocument.text',
 		rule: 'Stored mimetype entry first: application/vnd.oasis.opendocument.text',
+		inside: 'its first entry is a stored mimetype file holding application/vnd.oasis.opendocument.text',
 		test: (z) => z.mimetype === 'application/vnd.oasis.opendocument.text'
 	},
 	{
 		id: 'ods',
 		name: 'OpenDocument spreadsheet (ODS)',
+		what: 'an OpenDocument spreadsheet',
 		exts: ['ods'],
 		mime: 'application/vnd.oasis.opendocument.spreadsheet',
 		rule: 'Stored mimetype entry first: application/vnd.oasis.opendocument.spreadsheet',
+		inside: 'its first entry is a stored mimetype file holding application/vnd.oasis.opendocument.spreadsheet',
 		test: (z) => z.mimetype === 'application/vnd.oasis.opendocument.spreadsheet'
 	},
 	{
 		id: 'odp',
 		name: 'OpenDocument presentation (ODP)',
+		what: 'an OpenDocument presentation',
 		exts: ['odp'],
 		mime: 'application/vnd.oasis.opendocument.presentation',
 		rule: 'Stored mimetype entry first: application/vnd.oasis.opendocument.presentation',
+		inside: 'its first entry is a stored mimetype file holding application/vnd.oasis.opendocument.presentation',
 		test: (z) => z.mimetype === 'application/vnd.oasis.opendocument.presentation'
 	},
 	{
 		id: 'odg',
 		name: 'OpenDocument drawing (ODG)',
+		what: 'an OpenDocument drawing',
 		exts: ['odg'],
 		mime: 'application/vnd.oasis.opendocument.graphics',
 		rule: 'Stored mimetype entry first: application/vnd.oasis.opendocument.graphics',
+		inside: 'its first entry is a stored mimetype file holding application/vnd.oasis.opendocument.graphics',
 		test: (z) => z.mimetype === 'application/vnd.oasis.opendocument.graphics'
 	},
 	{
 		id: 'apk',
 		name: 'Android app (APK)',
+		what: 'an Android app',
 		exts: ['apk'],
 		mime: 'application/vnd.android.package-archive',
 		rule: 'Has AndroidManifest.xml at the top level (and usually classes.dex)',
+		inside: 'it has AndroidManifest.xml at the top level',
 		test: (z) => z.names.includes('AndroidManifest.xml')
 	},
 	{
 		id: 'docx',
 		name: 'Word document (DOCX)',
+		what: 'a Word document',
 		exts: ['docx', 'docm', 'dotx'],
 		mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 		rule: 'Has [Content_Types].xml and a word/ folder',
+		inside: 'it has [Content_Types].xml and a word/ folder',
 		test: (z) => z.names.includes('[Content_Types].xml') && z.names.some((n) => n.startsWith('word/'))
 	},
 	{
 		id: 'xlsx',
 		name: 'Excel workbook (XLSX)',
+		what: 'an Excel workbook',
 		exts: ['xlsx', 'xlsm', 'xltx'],
 		mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 		rule: 'Has [Content_Types].xml and an xl/ folder',
+		inside: 'it has [Content_Types].xml and an xl/ folder',
 		test: (z) => z.names.includes('[Content_Types].xml') && z.names.some((n) => n.startsWith('xl/'))
 	},
 	{
 		id: 'pptx',
 		name: 'PowerPoint presentation (PPTX)',
+		what: 'a PowerPoint presentation',
 		exts: ['pptx', 'pptm', 'potx'],
 		mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 		rule: 'Has [Content_Types].xml and a ppt/ folder',
+		inside: 'it has [Content_Types].xml and a ppt/ folder',
 		test: (z) => z.names.includes('[Content_Types].xml') && z.names.some((n) => n.startsWith('ppt/'))
 	},
 	{
 		id: 'ooxml',
 		name: 'Office Open XML document (DOCX, XLSX or PPTX)',
+		what: 'an Office Open XML document',
 		exts: ['docx', 'xlsx', 'pptx'],
 		mime: 'application/zip',
 		rule: 'Has [Content_Types].xml, but the entries read so far do not show which Office format',
+		inside: 'it has [Content_Types].xml, though the entries read so far do not show which Office format',
 		test: (z) => z.names.includes('[Content_Types].xml')
 	},
 	{
 		id: 'jar',
 		name: 'Java archive (JAR)',
+		what: 'a Java archive',
 		exts: ['jar'],
 		mime: 'application/java-archive',
 		rule: 'Has META-INF/MANIFEST.MF (an APK has one too, so APK is checked first)',
+		inside: 'it has META-INF/MANIFEST.MF',
 		test: (z) => z.names.includes('META-INF/MANIFEST.MF')
 	}
 ];
@@ -511,9 +593,8 @@ export function readZip(v: ByteView): ZipInfo {
 	// record, the last thing in the file apart from an optional comment.
 	let fromDirectory = false;
 	let entries: number | null = null;
-	const eocdFloor = Math.max(0, v.size - TAIL_BYTES);
-	for (let end = v.size - 22; end >= eocdFloor; end--) {
-		if (v.at(end) !== 0x50 || v.u32(end, true) !== 0x06054b50) continue;
+	const end = zipEndRecord(v);
+	if (end >= 0) {
 		entries = v.u16(end + 10, true) as number;
 		const dirAt = v.u32(end + 16, true) as number;
 		let p = dirAt;
@@ -529,9 +610,32 @@ export function readZip(v: ByteView): ZipInfo {
 			read++;
 		}
 		fromDirectory = read === entries;
-		break;
 	}
 	return { names, mimetype, fromDirectory, entries };
+}
+
+/** The offset of a ZIP's end of central directory record, searched for backwards from the end, or -1. */
+function zipEndRecord(v: ByteView): number {
+	const floor = Math.max(0, v.size - TAIL_BYTES);
+	for (let end = v.size - 22; end >= floor; end--) {
+		if (v.at(end) === 0x50 && v.u32(end, true) === 0x06054b50) return end;
+	}
+	return -1;
+}
+
+/**
+ * Where a ZIP's central directory starts, when the end record was read but
+ * the directory itself lies further back than the bytes read. A big archive's
+ * directory can run to hundreds of kilobytes, so a page reading a file uses
+ * this to read from there to the end, instead of guessing from the first entries.
+ */
+export function zipDirectoryStart(v: ByteView): number | null {
+	if (v.u32(0, true) !== 0x04034b50) return null;
+	const end = zipEndRecord(v);
+	if (end < 0) return null;
+	const dirAt = v.u32(end + 16, true) as number;
+	if (dirAt >= end || v.has(dirAt, end - dirAt)) return null;
+	return dirAt;
 }
 
 // --- Containers: ISO base media (ftyp) --------------------------------------
@@ -574,7 +678,10 @@ export const FTYP_KINDS: { id: string; name: string; brands: string[]; exts: str
 	}
 ];
 
-const MP4_FAMILY = ['mp4', 'm4a', 'm4v', 'm4b', 'mov', '3gp', '3g2', 'f4v', 'heic', 'heif', 'avif'];
+/** ISO media files that play as movies or sound: one is often saved under another's extension, and players cope. */
+const MP4_FAMILY = ['mp4', 'm4a', 'm4v', 'm4b', 'm4p', 'mov', 'qt', '3gp', '3g2', 'f4v'];
+/** ISO media still images, which are HEIF underneath. */
+const HEIF_FAMILY = ['heic', 'heif', 'avif'];
 
 function readFtyp(v: ByteView) {
 	const boxSize = v.u32(0, false) ?? 0;
@@ -724,8 +831,16 @@ export function shebangProgram(line: string): string {
 
 type TextPos = { toByte: (index: number) => number; unit: number };
 
+/** Comments, processing instructions and a doctype: what may come before an XML document's root element. */
+const PROLOG = /^(?:\s*(?:<\?[\s\S]*?\?>|<!--[\s\S]*?-->|<!doctype[^>[]*(?:\[[\s\S]*?\])?\s*>))*\s*/;
+
 /** Classifies decoded text. Text formats have no fixed signature, so this is at best "likely". */
 function classifyText(text: string, pos: TextPos, complete: boolean): Hit {
+	const hit = classifyTextInner(text, pos, complete);
+	return { ...hit, textHint: true };
+}
+
+function classifyTextInner(text: string, pos: TextPos, complete: boolean): Hit {
 	const lead = text.length - text.trimStart().length;
 	const body = text.slice(lead);
 	const lower = body.slice(0, 4096).toLowerCase();
@@ -745,7 +860,8 @@ function classifyText(text: string, pos: TextPos, complete: boolean): Hit {
 			alsoOk: ['txt'],
 			noExtOk: true,
 			mime: 'text/plain',
-			certainty: 'certain',
+			// Two bytes of text are a convention, not a signature: likely, never certain.
+			certainty: 'likely',
 			fields: [
 				field(pos.toByte(0), 2 * pos.unit, 'Shebang: #! marks an interpreter line', '#!'),
 				field(
@@ -760,20 +876,16 @@ function classifyText(text: string, pos: TextPos, complete: boolean): Hit {
 				'On Unix-like systems a file that starts with #! is a script: when it is run as a program, the kernel reads the rest of the first line as the path of the interpreter and hands it the file. That is why scripts often have no extension at all.'
 		};
 	}
-	if (
-		lower.startsWith('<?xml') ||
-		lower.startsWith('<svg') ||
-		lower.startsWith('<!doctype html') ||
-		lower.startsWith('<html') ||
-		lower.startsWith('<!--')
-	) {
-		const svgAt = lower.indexOf('<svg');
-		const htmlAt = lower.startsWith('<!doctype html') ? 0 : lower.indexOf('<html');
+	if (/^<(?:\?xml|svg|!doctype (?:html|svg)|html|!--)/.test(lower)) {
+		// The root element decides, not a mention further in: an XML file that
+		// holds an svg element somewhere is still not an SVG image.
+		const rootAt = (lower.match(PROLOG) as RegExpMatchArray)[0].length;
+		const doctypeHtml = lower.startsWith('<!doctype html');
 		const declAt = lower.startsWith('<?xml') ? 0 : -1;
 		const fields: Field[] = [];
 		if (declAt === 0) fields.push(span(0, body.slice(0, 5), 'XML declaration'));
-		if (svgAt >= 0 && (htmlAt < 0 || svgAt < htmlAt)) {
-			fields.push(span(svgAt, body.slice(svgAt, svgAt + 4), 'The root svg element'));
+		if (/^<svg[\s>/]/.test(lower.slice(rootAt))) {
+			fields.push(span(rootAt, body.slice(rootAt, rootAt + 4), 'The root svg element'));
 			return {
 				id: 'svg',
 				name: 'SVG image',
@@ -784,12 +896,12 @@ function classifyText(text: string, pos: TextPos, complete: boolean): Hit {
 				certainty: 'likely',
 				fields,
 				explain:
-					'SVG is XML text, so it has no binary signature. An svg element near the start, usually after an optional XML declaration, is what marks it.'
+					'SVG is XML text, so it has no binary signature. An svg root element, usually after an optional XML declaration, is what marks it.'
 			};
 		}
-		if (htmlAt >= 0) {
-			const token = lower.startsWith('<!doctype html') ? body.slice(0, 14) : body.slice(htmlAt, htmlAt + 5);
-			fields.push(span(htmlAt, token, lower.startsWith('<!doctype html') ? 'HTML doctype' : 'The root html element'));
+		if (doctypeHtml || /^<html[\s>]/.test(lower.slice(rootAt))) {
+			const token = doctypeHtml ? body.slice(0, 14) : body.slice(rootAt, rootAt + 5);
+			fields.push(span(doctypeHtml ? 0 : rootAt, token, doctypeHtml ? 'HTML doctype' : 'The root html element'));
 			return {
 				id: 'html',
 				name: 'HTML document',
@@ -800,7 +912,7 @@ function classifyText(text: string, pos: TextPos, complete: boolean): Hit {
 				certainty: 'likely',
 				fields,
 				explain:
-					'HTML is text and has no signature; a doctype or an html element at the start is the strongest hint. A web server that answers a missing image with an HTML error page is a common way to end up with "image.png" that is really this.'
+					'HTML is text and has no signature; a doctype or an html element at the start is the strongest hint. A web server that answers a missing image with an HTML error page is a common way to end up with a "logo.png" that is really this.'
 			};
 		}
 		if (declAt === 0) {
@@ -824,6 +936,7 @@ function classifyText(text: string, pos: TextPos, complete: boolean): Hit {
 			return {
 				id: 'json',
 				name: 'JSON data',
+				what: 'JSON data',
 				exts: ['json'],
 				alsoOk: TEXT_EXTS,
 				mime: 'application/json',
@@ -859,9 +972,16 @@ const utf8Length = (s: string) => {
 	return n;
 };
 
-/** Decodes the head as UTF-8 when it is clean text: no NULs or stray control codes, no invalid sequences. */
-function readUtf8(v: ByteView, from: number): string | null {
-	let bytes = v.head.subarray(from, Math.min(v.head.length, 8192 + from));
+/** True when the head holds the whole file, so text decoded from it is all of the text. */
+const wholeHead = (v: ByteView) => v.head.length >= v.size;
+
+/**
+ * Decodes the head as UTF-8 when it is clean text: no NULs or stray control
+ * codes, no invalid sequences. 8 KB is plenty to judge; a whole file is read
+ * when it is all there, so that JSON can be parsed from start to end.
+ */
+function readUtf8(v: ByteView, from: number, max = wholeHead(v) ? v.size : 8192): string | null {
+	let bytes = v.head.subarray(from, Math.min(v.head.length, max + from));
 	// A multi-byte character can be cut off where the read stopped.
 	if (from + bytes.length < v.size) {
 		let cut = bytes.length;
@@ -885,7 +1005,7 @@ function readUtf8(v: ByteView, from: number): string | null {
 
 function readUtf16(v: ByteView, from: number, little: boolean): string {
 	let out = '';
-	for (let i = from; i + 1 < Math.min(v.head.length, from + 8192); i += 2)
+	for (let i = from; i + 1 < Math.min(v.head.length, from + (wholeHead(v) ? v.size : 8192)); i += 2)
 		out += String.fromCharCode(v.u16(i, little) as number);
 	return out;
 }
@@ -898,7 +1018,7 @@ function bomVerify(
 ) {
 	return (v: ByteView): Hit => {
 		const decoded = decode ? decode(v) : null;
-		const inner = decoded ? classifyText(decoded.text, decoded.pos, v.complete) : null;
+		const inner = decoded ? classifyText(decoded.text, decoded.pos, wholeHead(v)) : null;
 		const base: Hit = { facts: [`Text encoded as ${encoding}, announced by a byte order mark`] };
 		if (!inner || inner.id === 'text') return base;
 		return {
@@ -997,26 +1117,43 @@ const TYPES: TypeDef[] = [
 		variants: [one(hexSig(0, '89 50 4E 47 0D 0A 1A 0A', 'PNG signature'))],
 		verify: (v) => {
 			if (v.u32(8, false) !== 13 || v.text(12, 4) !== 'IHDR') return { certainty: 'certain' };
-			const w = v.u32(16, false) as number;
-			const h = v.u32(20, false) as number;
+			const w = v.u32(16, false);
+			const h = v.u32(20, false);
 			const depth = v.at(24);
 			const colour = v.at(25);
-			const facts = [`${w.toLocaleString('en-GB')} × ${h.toLocaleString('en-GB')} pixels`];
-			if (depth !== undefined && colour !== undefined)
-				facts.push(`${depth}-bit ${PNG_COLOUR[colour] ?? 'unknown colour type'}`);
+			const n = (x: number) => x.toLocaleString('en-GB');
+			const fields = [
+				field(8, 4, 'Length of the first chunk: 13 bytes', '13'),
+				field(12, 4, 'First chunk type: IHDR, the image header', 'IHDR')
+			];
+			const facts: string[] = [];
+			// The header is not trusted blindly: PNG allows 1 to 2^31 − 1 pixels a side
+			// and only a few bit depths for each colour type, so say when it breaks those.
+			const sizeOk = (x: number) => x >= 1 && x <= 0x7fffffff;
+			if (w !== undefined && h !== undefined) {
+				fields.push(field(16, 4, 'Width', n(w)), field(20, 4, 'Height', n(h)));
+				if (sizeOk(w) && sizeOk(h)) facts.push(`${n(w)} × ${n(h)} pixels`);
+				for (const [label, x] of [
+					['Width', w],
+					['Height', h]
+				] as [string, number][]) {
+					if (!sizeOk(x))
+						facts.push(
+							`${label} ${n(x)} is not allowed in PNG (${x < 1 ? 'the least is 1' : 'the most is 2,147,483,647'})`
+						);
+				}
+			}
+			if (depth !== undefined && colour !== undefined) {
+				if (!PNG_DEPTHS[colour]) facts.push(`Colour type ${colour} is not a valid PNG colour type`);
+				else if (!PNG_DEPTHS[colour].includes(depth))
+					facts.push(`Bit depth ${depth} is not valid for ${PNG_COLOUR[colour]} in PNG`);
+				else facts.push(`${depth}-bit ${PNG_COLOUR[colour]}`);
+			}
 			if (v.at(28) === 1) facts.push('Interlaced (Adam7)');
-			return {
-				fields: [
-					field(8, 4, 'Length of the first chunk: 13 bytes', '13'),
-					field(12, 4, 'First chunk type: IHDR, the image header', 'IHDR'),
-					field(16, 4, 'Width', String(w)),
-					field(20, 4, 'Height', String(h))
-				],
-				facts
-			};
+			return { fields, facts };
 		},
 		explain:
-			'Every PNG starts with the same eight bytes, and each was chosen to catch a way files used to be damaged in transit: the high bit of 89 for 7-bit channels, CR LF and LF for line-ending conversion, and 1A to stop DOS from typing it to the screen. Chunks follow, the first always IHDR with the width and height.'
+			'Every PNG starts with the same eight bytes, and most of them were chosen to catch a way files used to be damaged in transit: the high bit of 89 for 7-bit channels, CR LF and LF for line-ending conversion, and 1A to stop DOS from typing it to the screen. Chunks follow, the first always IHDR with the width and height.'
 	},
 	{
 		id: 'jpeg',
@@ -1239,8 +1376,15 @@ const TYPES: TypeDef[] = [
 		probe: (v) => {
 			const at = v.find(latin1Bytes('%PDF-'), 0, 1024);
 			if (at < 0) return null;
+			// Readers accept a header after other bytes, but %PDF- further in is
+			// just as likely to be a PDF stored inside a tar or ZIP, or a source
+			// file that mentions it. Clean text is never called a PDF for that,
+			// and a late header is only likely, so a container at its own fixed
+			// offset outranks it.
+			if (at > 0 && readUtf8(v, 0) !== null) return null;
 			const version = (v.text(at + 5, 3) ?? '').replace(/[^0-9.]/g, '');
 			return {
+				certainty: at > 0 ? 'likely' : 'certain',
 				fields: [
 					field(at, 5, 'PDF header', '%PDF-'),
 					...(version ? [field(at + 5, version.length, 'Version', version)] : [])
@@ -1292,8 +1436,13 @@ const TYPES: TypeDef[] = [
 				fields.push(field(at, z.mimetype.length, 'Stored mimetype entry', z.mimetype));
 			}
 			if (!kind) {
-				if (z.mimetype) return { fields, facts: [...facts, `Declares itself as ${z.mimetype}`] };
-				return { fields, facts };
+				// With the whole directory read, the formats told apart by their
+				// entries are ruled out: a ZIP with no word/ folder is no DOCX. The
+				// rest (CBZ, KMZ, wheels and so on) have nothing the checker tests for.
+				const ruledOut = z.fromDirectory ? ZIP_KINDS.flatMap((k) => (k.id === 'jar' ? [] : k.exts)) : [];
+				const alsoOk = ZIP_FAMILY.filter((e) => !ruledOut.includes(e));
+				if (z.mimetype) return { fields, facts: [...facts, `Declares itself as ${z.mimetype}`], alsoOk };
+				return { fields, facts, alsoOk };
 			}
 			return {
 				id: kind.id,
@@ -1303,10 +1452,7 @@ const TYPES: TypeDef[] = [
 				mime: kind.mime,
 				fields,
 				facts,
-				explain: `It is a ZIP archive: PK 03 04 is the header of its first stored file. What makes it ${kind.name.replace(
-					/ \(.*\)$/,
-					''
-				)} is inside: ${kind.rule.charAt(0).toLowerCase() + kind.rule.slice(1)}.`
+				explain: `It is a ZIP archive: PK 03 04 is the header of its first stored file. What makes it ${kind.what} is inside: ${kind.inside}.`
 			};
 		},
 		explain:
@@ -1540,7 +1686,7 @@ const TYPES: TypeDef[] = [
 		name: 'ELF executable',
 		what: 'an ELF executable',
 		category: 'executable',
-		exts: ['elf', 'so', 'o', 'ko', 'axf', 'bin'],
+		exts: ['elf', 'so', 'o', 'ko', 'axf'],
 		noExtOk: true,
 		mime: 'application/x-elf',
 		variants: [one(hexSig(0, '7F 45 4C 46', 'DEL, then ELF'))],
@@ -1564,10 +1710,12 @@ const TYPES: TypeDef[] = [
 				fields.push(field(18, 2, 'Machine (instruction set)', ELF_MACHINE[machine] ?? hexOffset(machine)));
 				facts.push(`For ${ELF_MACHINE[machine] ?? `machine ${hexOffset(machine)}`}`);
 			}
+			// Type 3 is a library or, as most Linux programs now are, a
+			// position-independent executable; the header alone does not say which.
 			const so = type === 3;
 			return {
-				name: type === 1 ? 'ELF object file' : so ? 'ELF shared object' : 'ELF executable',
-				what: type === 1 ? 'an ELF object file' : so ? 'an ELF shared object' : 'an ELF executable',
+				name: type === 1 ? 'ELF object file' : so ? 'ELF shared object or PIE executable' : 'ELF executable',
+				what: type === 1 ? 'an ELF object file' : so ? 'an ELF shared object or PIE executable' : 'an ELF executable',
 				fields,
 				facts
 			};
@@ -1580,7 +1728,7 @@ const TYPES: TypeDef[] = [
 		name: 'Windows executable (PE)',
 		category: 'executable',
 		exts: ['exe'],
-		alsoOk: ['dll', 'sys', 'scr', 'cpl', 'ocx', 'efi', 'mui', 'drv', 'com'],
+		alsoOk: ['sys', 'scr', 'cpl', 'ocx', 'efi', 'mui', 'drv', 'com'],
 		mime: 'application/vnd.microsoft.portable-executable',
 		variants: [one(textSig(0, 'MZ', 'MZ: the DOS executable header'))],
 		verify: (v) => {
@@ -1601,15 +1749,28 @@ const TYPES: TypeDef[] = [
 					name: 'DOS or Windows executable (MZ)',
 					certainty: 'likely',
 					fields: base,
-					facts: [`The PE header would be at ${hexOffset(peAt)}, beyond the bytes read`]
+					facts: [
+						v.complete
+							? `The pointer at 0x3C says ${hexOffset(peAt)}, which is past the end of the file`
+							: `The PE header would be at ${hexOffset(peAt)}, beyond the bytes read`
+					]
 				};
 			}
-			if (sig.startsWith('NE') || sig.startsWith('LE') || sig.startsWith('LX')) {
+			const older: Record<string, [string, string]> = {
+				NE: ['16-bit Windows or OS/2 executable (NE)', 'The New Executable format of Windows 3.x and 16-bit OS/2'],
+				LE: [
+					'Linear executable (LE)',
+					'Used for Windows 3.x and 9x device drivers (VxD) and by DOS extenders such as DOS/4GW'
+				],
+				LX: ['32-bit OS/2 executable (LX)', 'The 32-bit executable format of OS/2 2.0 and later']
+			};
+			const kind = older[sig.slice(0, 2)];
+			if (kind) {
 				return {
 					id: 'ne',
-					name: `16-bit Windows or OS/2 executable (${sig.slice(0, 2)})`,
-					fields: [...base, field(peAt, 2, 'New executable header', sig.slice(0, 2))],
-					facts: ['A pre-PE format from Windows 3.x and OS/2']
+					name: kind[0],
+					fields: [...base, field(peAt, 2, 'Header of the newer format', sig.slice(0, 2))],
+					facts: [kind[1]]
 				};
 			}
 			if (sig !== 'PE\0\0') {
@@ -1655,7 +1816,7 @@ const TYPES: TypeDef[] = [
 					id: 'dll',
 					name: 'Windows DLL (PE)',
 					exts: ['dll'],
-					alsoOk: ['exe', 'sys', 'ocx', 'cpl', 'mui', 'drv'],
+					alsoOk: ['sys', 'ocx', 'cpl', 'mui', 'drv'],
 					fields,
 					facts
 				};
@@ -1704,7 +1865,7 @@ const TYPES: TypeDef[] = [
 			return { fields, facts };
 		},
 		explain:
-			'Mach-O is the executable format of macOS and iOS. Its magic number is FEEDFACE (FEEDFACF for 64-bit), written in the byte order of the processor, so on Intel and Apple silicon Macs the file starts CE FA ED FE or CF FA ED FE.'
+			'Mach-O is the executable format of macOS and iOS. Its magic number is FEEDFACE (FEEDFACF for 64-bit), written in the byte order of the processor. Intel and Apple silicon Macs are little-endian, so a 64-bit file starts CF FA ED FE; a 32-bit one, from an older Intel Mac or iPhone, starts CE FA ED FE, and PowerPC Macs wrote it big-endian.'
 	},
 	{
 		id: 'cafebabe',
@@ -2073,7 +2234,7 @@ const TYPES: TypeDef[] = [
 		name: 'MP4 video',
 		category: 'video',
 		exts: ['mp4'],
-		alsoOk: MP4_FAMILY,
+		alsoOk: [...MP4_FAMILY, ...HEIF_FAMILY],
 		mime: 'video/mp4',
 		variants: [one(textSig(4, 'ftyp', 'ftyp: the file type box'))],
 		tableNote: 'Bytes 0 to 3 are the box size; the brand at 8 decides MP4, MOV, M4A, HEIC or AVIF',
@@ -2087,10 +2248,23 @@ const TYPES: TypeDef[] = [
 			if (!f.kind)
 				return { name: `ISO media file (brand ${f.major.trim()})`, what: 'an ISO media file', fields, facts };
 			const k = f.kind;
+			// An MP4 with only sound in it is commonly named .m4a, and a phone's
+			// video may carry a 3GP or QuickTime brand: the brand narrows, the
+			// extension can still be any of the family.
+			// HEIC and AVIF are both HEIF, so .heif fits either, but their codecs differ.
+			const family =
+				k.id === 'heif'
+					? HEIF_FAMILY
+					: k.id === 'heic' || k.id === 'avif'
+					? ['heif']
+					: k.id === 'cr3'
+					? []
+					: MP4_FAMILY;
 			return {
 				id: k.id,
 				name: k.name,
 				exts: k.exts,
+				alsoOk: family.filter((e) => !k.exts.includes(e)),
 				mime: k.mime,
 				category: ['heic', 'avif', 'heif', 'cr3'].includes(k.id) ? 'image' : k.id === 'm4a' ? 'audio' : 'video',
 				fields,
@@ -2114,7 +2288,12 @@ const TYPES: TypeDef[] = [
 			one(textSig(4, 'free', 'free box'))
 		],
 		tableNote: 'Older QuickTime files open with another box instead of ftyp',
-		verify: (v) => ((v.u32(0, false) ?? 8) >= 8 ? { certainty: 'likely', fields: [field(0, 4, 'Box size')] } : null),
+		// moov, mdat, wide and free are English words, and any four letters
+		// before them make a "box size" of at least 8. Text is not a movie.
+		verify: (v) =>
+			(v.u32(0, false) ?? 8) >= 8 && readUtf8(v, 0) === null
+				? { certainty: 'likely', fields: [field(0, 4, 'Box size')] }
+				: null,
 		explain:
 			'Files from before the ftyp box became usual start straight with a movie (moov), media data (mdat) or padding (wide, free) box.'
 	},
@@ -2370,7 +2549,7 @@ function cafebabe(v: ByteView, wide: boolean): Hit | null {
 				`${plural(count, 'architecture')}${archs.length ? `: ${archs.join(', ')}` : ''}${
 					archs.length && archs.length < Math.min(count, 16) ? ' (the rest are past the bytes read)' : ''
 				}`,
-				'Read as a Java class, this would be version ' + `${minor}.${major}, which no Java release uses`
+				`Read as a Java class, this would be version ${major}.${minor}, which no Java release uses`
 			],
 			explain:
 				'CAFEBABE is shared by Java class files and Mach-O universal (fat) binaries, which bundle the same program for several processors. Here the next four bytes are a small count of architectures, which settles it: a Java class would have a major version of 45 or more there.'
@@ -2421,7 +2600,7 @@ function sigMatches(v: ByteView, sig: Sig): boolean {
  * spoken, so a few consonants count as vowels. Audio formats read better as files.
  */
 export function withArticle(name: string): string {
-	const noun = / audio$/.test(name) ? `${name} file` : name;
+	const noun = name.replace(/ audio( \(.*\))?$/, ' audio file$1');
 	const an =
 		/^(?:[aeio]|u(?!tf|ni|s))/i.test(noun) ||
 		/^(?:MP\d|MPEG|M4[AVB]|MS-|XZ|LZ4|SVG|HTML|XML|SQL|RTF|NE|LE|LX|MKV|F4V|SVGZ)\b/.test(noun);
@@ -2441,13 +2620,29 @@ function build(def: TypeDef, hit: Hit, sigFields: Field[]): Detection {
 		noExtOk: hit.noExtOk ?? def.noExtOk ?? false,
 		mime: hit.mime ?? def.mime,
 		certainty: hit.certainty ?? 'certain',
-		fields: [...sigFields, ...(hit.fields ?? [])].filter((f) => f.length > 0),
+		// In file order, so the numbers in the dump read from top to bottom.
+		fields: [...sigFields, ...(hit.fields ?? [])].filter((f) => f.length > 0).sort((a, b) => a.start - b.start),
 		facts: hit.facts ?? [],
-		explain: hit.explain ?? def.explain
+		explain: hit.explain ?? def.explain,
+		textHint: hit.textHint ?? false
 	};
 }
 
-/** Every format the bytes match, the surest first. Empty when nothing matched. */
+const TEXT_DEF: TypeDef = {
+	id: 'text',
+	name: 'Plain text',
+	category: 'text',
+	exts: ['txt'],
+	mime: 'text/plain',
+	variants: [],
+	explain: ''
+};
+
+/**
+ * Every format the bytes match, the surest first, except that clean text
+ * whose only matches are unconfirmed short signatures reads as text first.
+ * Empty when nothing matched.
+ */
 export function detect(v: ByteView): Detection[] {
 	if (v.size === 0) return [];
 	const found: Detection[] = [];
@@ -2464,7 +2659,7 @@ export function detect(v: ByteView): Detection[] {
 				if (!variant.sigs.every((s) => sigMatches(v, s))) continue;
 				const hit = def.verify ? def.verify(v, i) : {};
 				if (hit === null) continue;
-				const sigFields = variant.sigs.map((s) => field(s.at, s.bytes.length, s.label));
+				const sigFields = variant.sigs.map((s) => ({ ...field(s.at, s.bytes.length, s.label), sig: true }));
 				found.push(build(def, hit, sigFields));
 				break;
 			}
@@ -2472,23 +2667,19 @@ export function detect(v: ByteView): Detection[] {
 	};
 	run(false);
 	if (!found.length) run(true);
-	if (!found.length) {
+	// Short signatures that could not be confirmed (true, OTTO, BM, MZ, ID3)
+	// are also ordinary words. When nothing matched in full and every byte
+	// is clean text, the text reading goes first and the others are listed
+	// after it. A byte order mark is text already and needs no second reading.
+	found.sort((a, b) => certaintyRank[a.certainty] - certaintyRank[b.certainty]);
+	if (found.every((d) => d.certainty !== 'certain' && d.category !== 'text')) {
 		const text = readUtf8(v, 0);
 		if (text !== null && text.length) {
-			const hit = classifyText(text, { toByte: (i) => utf8Length(text.slice(0, i)), unit: 1 }, v.complete);
-			const def: TypeDef = {
-				id: 'text',
-				name: 'Plain text',
-				category: 'text',
-				exts: ['txt'],
-				mime: 'text/plain',
-				variants: [],
-				explain: ''
-			};
-			found.push(build(def, hit, []));
+			const hit = classifyText(text, { toByte: (i) => utf8Length(text.slice(0, i)), unit: 1 }, wholeHead(v));
+			found.unshift(build(TEXT_DEF, hit, []));
 		}
 	}
-	return found.sort((a, b) => certaintyRank[a.certainty] - certaintyRank[b.certainty]);
+	return found;
 }
 
 /** When the bytes stop partway through a signature: "the first 4 of PNG's 8 bytes". */
@@ -2499,15 +2690,12 @@ export function partialMatches(v: ByteView): Partial[] {
 	const out: Partial[] = [];
 	for (const def of TYPES) {
 		for (const variant of def.variants) {
-			const sig = variant.sigs[0];
-			if (sig.at !== 0 || sig.bytes.length <= v.size) continue;
-			if (sig.bytes.slice(0, v.size).every((b, k) => b === null || b === v.at(k))) {
-				out.push({
-					name: def.name,
-					have: v.size,
-					need: sig.bytes.length,
-					hex: sig.bytes.map((b) => (b === null ? '??' : hex2(b))).join(' ')
-				});
+			// The whole pattern, so RIFF is the start of WebP's 12 bytes, not all 4 of them.
+			const p = signaturePattern(variant);
+			const cells = p.text.split(' ');
+			if (p.offset !== 0 || p.text.includes(' at ') || cells.length <= v.size) continue;
+			if (cells.slice(0, v.size).every((h, k) => h === '??' || parseInt(h, 16) === v.at(k))) {
+				out.push({ name: def.name, have: v.size, need: cells.length, hex: p.text });
 				break;
 			}
 		}
@@ -2561,8 +2749,16 @@ export const KNOWN_EXTS: ReadonlySet<string> = new Set([
 	'epub'
 ]);
 
+/**
+ * Extensions that say nothing about the format: .bin and .dat hold anything,
+ * and .db is SQLite, Windows' Thumbs.db (a compound file) and much else. They
+ * are never called wrong, and no signature is suggested for them.
+ */
+export const GENERIC_EXTS: ReadonlySet<string> = new Set(['bin', 'dat', 'data', 'db', 'raw', 'tmp', 'out']);
+
 /** The signatures a file with this extension would normally start with. */
 export function expectedFor(ext: string): { name: string; hex: string }[] {
+	if (GENERIC_EXTS.has(ext)) return [];
 	return TYPES.filter((t) => t.exts[0] === ext || (t.exts.includes(ext) && !TYPES.some((u) => u.exts[0] === ext)))
 		.filter((t) => t.variants.length)
 		.map((t) => ({ name: t.name, hex: signaturePattern(t.variants[0]).text }));
@@ -2572,7 +2768,8 @@ export function checkExtension(fileName: string, detections: Detection[], size: 
 	const ext = extensionOf(fileName);
 	const dotted = ext ? `.${ext}` : '';
 	const top = detections[0];
-	const expected = ext && (!top || !(top.exts.includes(ext) || top.alsoOk.includes(ext))) ? expectedFor(ext) : [];
+	const expected =
+		ext && (!top || !detections.some((d) => d.exts.includes(ext) || d.alsoOk.includes(ext))) ? expectedFor(ext) : [];
 	if (size === 0)
 		return { status: 'empty', ext, message: 'The file is empty, so there are no bytes to check.', expected: [] };
 	if (!top) {
@@ -2597,13 +2794,29 @@ export function checkExtension(fileName: string, detections: Detection[], size: 
 			expected
 		};
 	}
-	if (detections.some((d) => d.exts.includes(ext)))
+	if (top.exts.includes(ext))
 		return { status: 'match', ext, message: `The ${dotted} extension matches: it is ${top.what}.`, expected: [] };
-	if (detections.some((d) => d.alsoOk.includes(ext)))
+	if (top.alsoOk.includes(ext))
 		return {
 			status: 'compatible',
 			ext,
 			message: `${dotted} fits: it is ${top.what}, which is usually named ${usual} but is a valid ${dotted} too.`,
+			expected: []
+		};
+	// A weaker reading of the same bytes may fit the name; say so without claiming it is the answer.
+	const other = detections.slice(1).find((d) => d.exts.includes(ext) || d.alsoOk.includes(ext));
+	if (other)
+		return {
+			status: 'compatible',
+			ext,
+			message: `${dotted} fits another reading of these bytes: they are most likely ${top.what}, but also match ${other.what}.`,
+			expected: []
+		};
+	if (GENERIC_EXTS.has(ext))
+		return {
+			status: 'compatible',
+			ext,
+			message: `${dotted} is a generic extension that any kind of data can have, so it is not wrong. The content is ${top.what}, usually named ${usual}.`,
 			expected: []
 		};
 	if (top.certainty === 'guess' && !KNOWN_EXTS.has(ext)) {
@@ -2639,10 +2852,12 @@ export type DumpRow = { kind: 'row'; offset: number; cells: DumpCell[] } | { kin
  * holding each highlighted field, with gaps marked between them. Signatures at
  * 257 (tar) or 0x8001 (ISO 9660) get their own rows without dumping 32 KB.
  */
-export function hexDump(v: ByteView, fields: Field[], width = 16, leadRows = 4, maxRows = 40): DumpRow[] {
+export function hexDump(v: ByteView, fields: Field[], width = 16, leadBytes = 64, maxRows = 40): DumpRow[] {
 	if (v.size === 0) return [];
 	const rows = new Set<number>();
 	const lastRow = Math.floor((v.size - 1) / width);
+	// The same bytes at any width: 64 bytes are four rows of 16 or eight of 8.
+	const leadRows = Math.ceil(leadBytes / width);
 	for (let r = 0; r < leadRows && r <= lastRow; r++) rows.add(r);
 	for (const f of fields) {
 		const first = Math.floor(f.start / width);
@@ -2668,6 +2883,8 @@ export function hexDump(v: ByteView, fields: Field[], width = 16, leadRows = 4, 
 		out.push({ kind: 'row', offset: r * width, cells });
 		previous = r;
 	}
+	// Say so when the dump stops before the file does, rather than ending silently.
+	if (previous >= 0 && previous < lastRow) out.push({ kind: 'gap', from: (previous + 1) * width, to: v.size });
 	return out;
 }
 
@@ -2675,16 +2892,18 @@ export function hexDump(v: ByteView, fields: Field[], width = 16, leadRows = 4, 
 export const asciiChar = (b: number | null) =>
 	b === null ? ' ' : b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : '.';
 
-/** The hex dump as plain text, the way xxd or hexdump -C lay it out. */
+/** The hex dump as plain text, laid out like hexdump -C. */
 export function dumpText(rows: DumpRow[]): string {
 	return rows
 		.map((row) => {
-			if (row.kind === 'gap') return '*';
+			// Not hexdump's *, which means "the same as the line above".
+			if (row.kind === 'gap') return `... ${plural(row.to - row.from, 'byte')} not shown`;
 			const hex = row.cells.map((c) => (c.byte === null ? '  ' : hex2(c.byte))).join(' ');
-			return `${row.offset.toString(16).padStart(8, '0')}  ${hex}  |${row.cells
+			const text = row.cells
+				.filter((c) => c.byte !== null)
 				.map((c) => asciiChar(c.byte))
-				.join('')
-				.trimEnd()}|`;
+				.join('');
+			return `${row.offset.toString(16).padStart(8, '0')}  ${hex}  |${text}|`;
 		})
 		.join('\n');
 }
