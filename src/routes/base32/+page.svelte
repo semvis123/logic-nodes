@@ -25,12 +25,14 @@
 	type Source = 'text' | 'hex';
 	const VARIANTS = ['rfc4648', 'hex', 'crockford'] as const;
 
-	// Every setting lives in the query string, so a link reopens this exactly.
+	// Every setting lives in the query string, so a link reopens this exactly; the
+	// input is capped at the length a link carries, so anything typed round-trips.
+	const URL_MAX = 4000;
 	const DEFAULTS = { m: 'encode', t: 'Hello', a: 'rfc4648', pad: 'on', in: 'text', r: 'number' };
 	onMount(() => {
 		const p = readUrl();
 		mode = safeOption(p.m, ['encode', 'decode'] as const) ?? mode;
-		input = safeText(p.t, 4000) ?? input;
+		input = safeText(p.t, URL_MAX) ?? input;
 		variant = safeOption(p.a, VARIANTS) ?? variant;
 		pad = safeOption(p.pad, ['on', 'off'] as const) ?? pad;
 		source = safeOption(p.in, ['text', 'hex'] as const) ?? source;
@@ -402,6 +404,7 @@
 				class="expression-input"
 				rows="2"
 				bind:value={input}
+				maxlength={URL_MAX}
 				spellcheck="false"
 				autocomplete="off"
 				autocapitalize="off"

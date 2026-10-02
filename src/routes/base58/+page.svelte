@@ -30,13 +30,15 @@
 	type Mode = 'encode' | 'decode' | 'check';
 	type Source = 'text' | 'hex';
 
-	// Every setting lives in the query string, so a link reopens this exactly.
+	// Every setting lives in the query string, so a link reopens this exactly; the
+	// input is capped at the length a link carries, so anything typed round-trips.
+	const URL_MAX = 2000;
 	const DEFAULTS = { m: 'encode', t: 'Hello World!', in: 'text' };
 	onMount(() => {
 		const p = readUrl();
 		mode = safeOption(p.m, ['encode', 'decode', 'check'] as const) ?? mode;
 		// Check mode starts from the example address when a link names the mode but not the string.
-		input = safeText(p.t, 2000) ?? (mode === 'check' ? data.example.address : input);
+		input = safeText(p.t, URL_MAX) ?? (mode === 'check' ? data.example.address : input);
 		source = safeOption(p.in, ['text', 'hex'] as const) ?? source;
 	});
 
@@ -381,6 +383,7 @@
 				class="expression-input"
 				rows="2"
 				bind:value={input}
+				maxlength={URL_MAX}
 				spellcheck="false"
 				autocomplete="off"
 				autocapitalize="off"
@@ -1118,6 +1121,13 @@
 	@media (max-width: 600px) {
 		.quotient {
 			display: none;
+		}
+
+		/* Three short columns fit a phone once the cells are a little tighter. */
+		.data-table.sizes th,
+		.data-table.sizes td {
+			padding-left: 0.4rem;
+			padding-right: 0.4rem;
 		}
 	}
 

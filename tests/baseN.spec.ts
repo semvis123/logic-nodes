@@ -747,6 +747,14 @@ test.describe('the base36 page', () => {
 			await expect(page.locator('#value')).toHaveValue('x'.repeat(n));
 			await expect(page.locator('.error')).toContainText('up to 250 bytes');
 		}
+		// The field takes no more than a link carries, so even a huge paste round trips.
+		await page.locator('#value').fill('x'.repeat(5000));
+		await expect(page.locator('#value')).toHaveValue('x'.repeat(4000));
+		await expect(page).toHaveURL(/v=x{4000}(&|$)/);
+		await page.goto(page.url());
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#value')).toHaveValue('x'.repeat(4000));
+		await expect(page.locator('.error')).toContainText('up to 250 bytes');
 		// So does a number past the digit limit.
 		await page.goto('/base36?v=' + '9'.repeat(450));
 		await page.waitForLoadState('networkidle');

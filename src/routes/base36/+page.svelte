@@ -38,6 +38,7 @@
 		// Text mode's own starting example, when a link names the mode but not the text.
 		// The cap is well above what any mode accepts, so a link to a too-long number or
 		// text opens on its error, not on another example; the engine refuses those cheaply.
+		// The field takes no more than the cap, so nothing typed can fall outside it.
 		input = safeText(p.v, URL_MAX) ?? (mode === 'text' ? 'Hi' : input);
 		anyFrom = safeInt(p.from, 2, 36) ?? anyFrom;
 		anyTo = safeInt(p.to, 2, 36) ?? anyTo;
@@ -433,6 +434,7 @@
 				class="value-input"
 				type="text"
 				bind:value={input}
+				maxlength={URL_MAX}
 				spellcheck="false"
 				autocomplete="off"
 				autocapitalize="off"
