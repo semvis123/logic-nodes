@@ -16,9 +16,11 @@
 		BitTrickError,
 		MAX_INPUT,
 		WIDTHS,
+		cType,
 		type Width,
 		type Trick,
 		type Trace as TraceT,
+		type Example,
 		type Inputs
 	} from '$lib/bitTricks';
 	import { readUrl, syncUrl, safeText, safeInt, safeOption } from '$lib/urlState';
@@ -42,6 +44,13 @@
 	let y = '';
 	let n: number | null = 0;
 
+	function writeUrl(tr: Trick, values: { t: string; w: Width; x: string; y: string; n: number | null }) {
+		syncUrl(
+			{ ...values, y: tr.y ? values.y : undefined, n: tr.n ? values.n ?? '' : undefined },
+			{ t: DEFAULT_T, w: 8, ...defaultsFor(tr) }
+		);
+	}
+
 	onMount(() => {
 		const p = readUrl();
 		// A link to a trick's anchor opens that trick in the tool as well.
@@ -52,14 +61,13 @@
 		x = safeText(p.x, MAX_INPUT) ?? d.x;
 		y = safeText(p.y, MAX_INPUT) ?? d.y;
 		n = safeInt(p.n, 0, 32) ?? d.n;
+		// The reactive write below only runs when a value changes, so a link
+		// with a bad value that falls back to the default would keep it.
+		writeUrl(getTrick(t), { t, w, x, y, n });
 	});
 
 	$: trick = trickById(t) ?? tricks[0];
-	$: urlDefaults = defaultsFor(trick);
-	$: syncUrl(
-		{ t, w, x, y: trick.y ? y : undefined, n: trick.n ? n ?? '' : undefined },
-		{ t: DEFAULT_T, w: 8, ...urlDefaults }
-	);
+	$: writeUrl(trick, { t, w, x, y, n });
 
 	// Runs at build time too, so the page ships with a real trace. On bad input
 	// the last good trace stays, dimmed, rather than the layout collapsing.
@@ -80,19 +88,40 @@
 		}
 	}
 
+	// Tricks that read x as something other than a plain number: a character
+	// code, or a k-bit field. Moving to or from one of them starts from its own
+	// example rather than carrying a value across that means something else.
+	const ownInput = ['ascii-case-toggle', 'sign-extension'];
+
+	/**
+	 * Opens another trick. A value the person typed for x carries over, so they
+	 * can step through the tricks with their own number; y and n carry over
+	 * only when they mean the same thing in both tricks.
+	 */
 	function selectTrick(id: string) {
 		const next = trickById(id);
 		if (!next) return;
-		t = id;
+		const prev = trick;
 		const d = defaultsFor(next);
-		x = d.x;
-		y = d.y;
-		n = d.n;
+		const typed = x !== defaultsFor(prev).x && !ownInput.includes(prev.id) && !ownInput.includes(next.id);
+		let fits = true;
+		try {
+			parseOperand(x, w);
+		} catch {
+			fits = false;
+		}
+		const sameY = !!prev.y && prev.y === next.y && y !== defaultsFor(prev).y;
+		const sameN = !!prev.n && prev.n === next.n && n !== defaultsFor(prev).n;
+		t = id;
+		if (!(typed && fits)) x = d.x;
+		if (!sameY) y = d.y;
+		if (!sameN) n = d.n;
 	}
 
 	$: index = tricks.indexOf(trick);
 
-	function tryExample(e: { x: string; y?: string; n?: number }) {
+	function tryExample(e: Example) {
+		if (e.w) w = e.w;
 		x = e.x;
 		if (e.y !== undefined) y = e.y;
 		if (e.n !== undefined) n = e.n;
@@ -102,7 +131,8 @@
 		selectTrick(id);
 		await tick();
 		const tool = document.getElementById('tool');
-		tool?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		tool?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
 		document.getElementById('trick')?.focus({ preventScroll: true });
 	}
 
@@ -151,6 +181,49 @@
 		return parts.join(', ');
 	}
 
+	/** What the variables in a trick's C are declared as. */
+	function typesNote(tr: Trick, width: Width): string {
+		const ty = cType(tr, width);
+		if (tr.y) return `x and ${tr.y} are ${ty} values.`;
+		return `${tr.id === 'ascii-case-toggle' ? 'c' : 'x'} is ${ty.startsWith('u') ? 'a' : 'an'} ${ty}.`;
+	}
+
+	/** Lets keyboard users scroll a code block that is wider than its box, and only then. */
+	function scrollFocus(node: HTMLElement) {
+		const update = () => {
+			if (node.scrollWidth > node.clientWidth + 1) {
+				node.tabIndex = 0;
+				node.setAttribute('role', 'region');
+				node.setAttribute('aria-label', node.dataset.label ?? 'Code');
+			} else {
+				node.removeAttribute('tabindex');
+				node.removeAttribute('role');
+				node.removeAttribute('aria-label');
+			}
+		};
+		// Re-checked when the box resizes and when the code in it changes.
+		const ro = new ResizeObserver(update);
+		ro.observe(node);
+		const mo = new MutationObserver(update);
+		mo.observe(node, { subtree: true, childList: true, characterData: true });
+		update();
+		return {
+			destroy: () => {
+				ro.disconnect();
+				mo.disconnect();
+			}
+		};
+	}
+
+	/** The cheat sheet's C: the first line of code, with any comment lines left out. */
+	function shortCode(tr: Trick): string {
+		const lines = tr
+			.code(8)
+			.split('\n')
+			.filter((l) => !l.startsWith('/*'));
+		return lines[0] + (lines.length > 1 ? ' …' : '');
+	}
+
 	function outputText(wk: typeof worked[number]): string {
 		const r = wk.trace.result;
 		if (r.kind === 'bits') return `${groupedBits(r.value, 8)} (${valueText(r.value, 8, wk.trick.signedView)})`;
@@ -186,7 +259,7 @@
 				`5.7 | 0          // ${js.trunc}`
 			],
 			text:
-				'Numbers are 64-bit floats, but every bitwise operator first converts its operands to 32-bit signed integers and returns one. Bits above 31 are dropped, fractions are cut off, and a result with the top bit set comes out negative. For wider values use BigInt, where 1n << 32n is ' +
+				'Numbers are 64-bit floats, but every bitwise operator except >>> converts its operands to 32-bit signed integers and returns one. Bits above 31 are dropped, fractions are cut off, and a result with the top bit set comes out negative. For wider values use BigInt, where 1n << 32n is ' +
 				js.big +
 				'.'
 		},
@@ -200,26 +273,27 @@
 				`-1 >>> 0   // ${js.minusOneUnsigned}`,
 				`1 << 32    // ${js.shl32}`
 			],
-			text: '>> copies the sign bit in from the left; >>> shifts in zeros and is the only operator that returns an unsigned 32-bit result, so x >>> 0 is the usual way to read a result as unsigned. Only the low 5 bits of the shift count are used, so shifting by 32 is a shift by 0.'
+			text: '>> copies the sign bit in from the left; >>> reads its left operand as an unsigned 32-bit integer, shifts in zeros and returns an unsigned result, so x >>> 0 is the usual way to read a result as unsigned. Only the low 5 bits of the shift count are used, so shifting by 32 is a shift by 0.'
 		},
 		{
 			id: 'gotcha-python-unbounded',
 			lang: 'Python',
 			title: 'Integers are unbounded, so ~x == -x - 1',
 			code: [
-				'~5          # -6',
-				'1 << 100    # 1267650600228229401496703205376',
-				'-1 >> 1     # -1',
-				'~5 & 0xFF   # 250',
-				'-7 % 8      # 1'
+				'~5         # -6',
+				'-1 >> 1    # -1',
+				'~5 & 0xFF  # 250',
+				'-7 % 8     # 1',
+				'1 << 100',
+				'# 1267650600228229401496703205376'
 			],
-			text: 'A Python int has no width, so there is no top bit to fill: ~x is defined as −x − 1, as if the number had infinitely many sign bits, and >> on a negative number never reaches 0. To get the C result at a fixed width, mask it: & 0xFF for 8 bits, & 0xFFFFFFFF for 32. Python’s % rounds towards minus infinity, so for a power of two it agrees with x & (n − 1) even for negative x.'
+			text: 'A Python int has no width, so there is no top bit to fill: ~x is defined as −x − 1, as if the number had infinitely many sign bits, and >> on a negative number never reaches 0. To get the C result at a fixed width, mask it: & 0xFF for 8 bits, & 0xFFFFFFFF for 32. Python’s // rounds towards minus infinity, so % takes the sign of the divisor, and for a power of two it agrees with x & (n − 1) even for negative x.'
 		},
 		{
 			id: 'gotcha-c-precedence',
 			lang: 'C',
 			title: 'x & 1 == 0 is not an even test',
-			code: ['if (x & 1 == 0)    /* x & (1 == 0): never true */', 'if ((x & 1) == 0)  /* what was meant */'],
+			code: ['/* x & (1 == 0): never true */', 'if (x & 1 == 0)', '/* what was meant */', 'if ((x & 1) == 0)'],
 			text: 'In C, and in the languages that copied its table (C++, Java, JavaScript), == binds more tightly than &, ^ and |. So x & 1 == 0 compares 1 with 0 first and then ANDs x with the result, 0. GCC and Clang warn about it with -Wall (-Wparentheses). Shifts bind more tightly than comparisons but more loosely than + and −, so 1 << n - 1 is 1 << (n − 1). When in doubt, add brackets.'
 		},
 		{
@@ -227,11 +301,14 @@
 			lang: 'C',
 			title: 'Shifting by the width or more is undefined',
 			code: [
-				'uint32_t a = 1u << 32;  /* undefined */',
-				'int b = 1 << 31;        /* overflow: use 1u */',
-				'int c = -8 >> 1;        /* -4 on GCC, Clang */'
+				'/* undefined */',
+				'uint32_t a = 1u << 32;',
+				'/* overflow: use 1u */',
+				'int b = 1 << 31;',
+				'/* -4 on GCC and Clang */',
+				'int c = -8 >> 1;'
 			],
-			text: 'A shift count must be less than the width of the (promoted) left operand. The compiler may assume it never is, so the result is not reliably 0: on x86 the shift instruction uses only the low 5 bits of the count, and 1u << n with n = 32 at run time gave 1 when we ran it. Shifting a 1 into the sign bit of a signed int overflows it, which C99 to C17 also make undefined, so build masks from unsigned constants. Right-shifting a negative value is implementation-defined; GCC and Clang shift arithmetically.'
+			text: 'A shift count must be less than the width of the (promoted) left operand. The compiler may assume it never is, so the result is not reliably 0: on x86 the shift instruction uses only the low 5 bits of the count, and 1u << n with n = 32 at run time gave 1 when we ran it. Shifting a 1 into the sign bit of a signed int overflows it, which C also makes undefined (from C99 on, C23 included), so build masks from unsigned constants. Right-shifting a negative value is implementation-defined; GCC and Clang shift arithmetically.'
 		},
 		{
 			id: 'gotcha-java-promotion',
@@ -239,9 +316,9 @@
 			title: 'byte is promoted to int before >>>',
 			code: [
 				'byte b = (byte) 0xF0;',
-				'b >>> 4            // 268435455, not 15',
-				'(byte) (b >>> 4)   // -1',
-				'(b & 0xFF) >>> 4   // 15'
+				'b >>> 4           // 268435455',
+				'(byte) (b >>> 4)  // -1',
+				'(b & 0xFF) >>> 4  // 15'
 			],
 			text: 'Java has >>> like JavaScript, but byte and short operands are promoted to int first, with sign extension. 0xF0 as a byte is −16, which becomes 0xFFFFFFF0 as an int, so the unsigned shift moves 28 ones down instead of four. Mask with & 0xFF first to get the unsigned byte. Java defines over-long shifts: an int shift uses the low 5 bits of the count, so 1 << 32 is 1, and a long shift the low 6.'
 		}
@@ -288,10 +365,14 @@
 		},
 		{
 			q: 'Why does the branchless absolute value give a negative number for −128?',
-			a: `Because +128 does not fit in 8 signed bits: the range is −128 to 127. The trick computes ~(x − 1), which for −128 is the same bit pattern, ${groupedBits(
+			a: `Because +128 does not fit in 8 signed bits: the range is −128 to 127. C works out (x + m) ^ m in int, where it is 128, and stored back in an int8_t that is the bit pattern ${groupedBits(
 				Number(absMin.result.value),
 				8
-			)}, read as −128 again. abs(INT_MIN) in C has the same problem at 32 bits, and there it is undefined behaviour.`
+			)}, which reads as ${valueText(
+				Number(absMin.result.value),
+				8,
+				true
+			)} again. At 32 bits there is no wider type to work in: for INT_MIN the x + m step overflows, which is undefined behaviour in C, as abs(INT_MIN) is.`
 		}
 	];
 
@@ -385,25 +466,26 @@
 						{#each byCategory as c}
 							<optgroup label={c.name}>
 								{#each c.tricks as tr}
-									<option value={tr.id}>{tr.name}</option>
+									<option value={tr.id} selected={tr.id === t}>{tr.name}</option>
 								{/each}
 							</optgroup>
 						{/each}
 					</select>
 				</div>
 				<div class="step-btns">
+					<!-- aria-disabled rather than disabled, so the button keeps focus at the end of the list. -->
 					<button
 						type="button"
 						class="nav-btn"
-						disabled={index === 0}
-						on:click={() => selectTrick(tricks[index - 1].id)}
+						aria-disabled={index === 0 ? 'true' : 'false'}
+						on:click={() => index > 0 && selectTrick(tricks[index - 1].id)}
 						aria-label="Previous trick">‹ Prev</button
 					>
 					<button
 						type="button"
 						class="nav-btn"
-						disabled={index === tricks.length - 1}
-						on:click={() => selectTrick(tricks[index + 1].id)}
+						aria-disabled={index === tricks.length - 1 ? 'true' : 'false'}
+						on:click={() => index < tricks.length - 1 && selectTrick(tricks[index + 1].id)}
 						aria-label="Next trick">Next ›</button
 					>
 				</div>
@@ -466,13 +548,16 @@
 					</div>
 				{/if}
 			</div>
-			{#if error}
-				<p class="error" role="alert">{error}</p>
-			{/if}
-			<p class="field-help" id="x-help">
-				Decimal such as 88 or −42, hex such as 0x58, binary such as 0b0101_1000, or a character in quotes such as 'a'.
-				Negative numbers are stored in two's complement.
-			</p>
+			<!-- The error takes the help text's place, in the same grid cell, so the tool does not move as you type. -->
+			<div class="message-slot">
+				<p class="field-help" class:hidden={!!error} id="x-help">
+					Decimal such as 88 or −42, hex such as 0x58, binary such as 0b0101_1000, or a character in quotes such as 'a'.
+					Negative numbers are stored in two's complement.
+				</p>
+				{#if error}
+					<p class="error" role="alert">{error}</p>
+				{/if}
+			</div>
 
 			<div class="chips" aria-label="Examples">
 				{#each trick.examples as e}
@@ -484,7 +569,7 @@
 				<h2 class="trick-name">{trick.name}</h2>
 				<p class="trick-what">{trick.what}</p>
 				<div class="code-row">
-					<pre class="code"><code>{trick.code(w)}</code></pre>
+					<pre class="code" use:scrollFocus data-label="C code"><code>{trick.code(w)}</code></pre>
 					<button type="button" class="copy" on:click={copyCode}>
 						{copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy C'}
 					</button>
@@ -496,6 +581,7 @@
 							: ''}</span
 					>
 				</div>
+				<p class="code-types">In this C, {typesNote(trick, w)}</p>
 			</div>
 
 			<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
@@ -507,13 +593,18 @@
 					label="Trace of {trick.name}"
 				/>
 				<p class="legend">
-					Each row is one value. <span class="key-chg" aria-hidden="true">1</span> Boxed, underlined bits differ from the
-					row named under the step. 1s are green and bold, 0s grey.
+					Each row is one value, kept at {inputs.w} bits as if stored back in a variable of that width.
+					{#if trace.rows.some((r) => r.base !== undefined)}
+						<span class="key-chg" aria-hidden="true">1</span> Boxed, underlined bits differ from the row named under the
+						step.
+					{/if}
+					1s are green and bold, 0s grey.
 				</p>
 
 				<div class="answer" role={error ? undefined : 'status'}>
 					<span class="answer-label">Result</span>
-					<span class="answer-value mono">{resultText(trace.result, inputs.w, !!trick.signedView)}</span>
+					<span class="answer-value mono">{trace.answer ?? resultText(trace.result, inputs.w, !!trick.signedView)}</span
+					>
 					{#if answerDetail(trace, inputs.w)}
 						<span class="answer-also mono">{answerDetail(trace, inputs.w)}</span>
 					{/if}
@@ -525,6 +616,10 @@
 
 				{#if trace.aside}
 					<h3 class="aside-title">{trace.aside.title}</h3>
+					{#if trace.aside.code}
+						<pre class="code aside-code" use:scrollFocus data-label="The swap function"><code>{trace.aside.code}</code
+							></pre>
+					{/if}
 					<p class="aside-text">{trace.aside.text}</p>
 					<Trace rows={trace.aside.rows} w={inputs.w} signedView={!!trick.signedView} label={trace.aside.title} />
 				{/if}
@@ -559,11 +654,9 @@
 					{#each worked as wk}
 						<tr>
 							<th scope="row"><a href="#{wk.trick.id}">{wk.trick.name}</a></th>
-							<td class="mono code-cell"
-								>{wk.trick.code(32).split('\n')[0]}{wk.trick.code(32).includes('\n') ? ' …' : ''}</td
-							>
-							<td class="mono ex-cell">{shortInput(wk)}</td>
-							<td class="mono ex-cell">{outputText(wk)}</td>
+							<td class="mono code-cell" data-label="C">{shortCode(wk.trick)}</td>
+							<td class="mono ex-cell" data-label="Example">{shortInput(wk)}</td>
+							<td class="mono ex-cell" data-label="Result">{outputText(wk)}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -578,7 +671,8 @@
 				{@const wk = workedById[tr.id]}
 				<article class="card entry" id={tr.id}>
 					<h3><a class="anchor" href="#{tr.id}">{tr.name}</a></h3>
-					<pre class="code"><code>{tr.code(32)}</code></pre>
+					<pre class="code" use:scrollFocus data-label="{tr.name} in C"><code>{tr.code(8)}</code></pre>
+					<p class="code-types">In this C, {typesNote(tr, 8)}</p>
 					<p class="entry-what">{tr.what}</p>
 					{#each tr.why as para}
 						<p class="entry-why">{para}</p>
@@ -607,7 +701,7 @@
 				<article class="card gotcha" id={g.id}>
 					<p class="lang">{g.lang}</p>
 					<h3>{g.title}</h3>
-					<pre class="code"><code>{g.code.join('\n')}</code></pre>
+					<pre class="code" use:scrollFocus data-label="{g.lang} example"><code>{g.code.join('\n')}</code></pre>
 					<p>{g.text}</p>
 				</article>
 			{/each}
@@ -679,8 +773,9 @@
 		margin-bottom: 0.9rem;
 	}
 
+	/* Only as wide as the select, so Prev and Next sit right next to it. */
 	.pick {
-		flex: 1 1 260px;
+		flex: 0 1 26rem;
 		min-width: 0;
 	}
 
@@ -712,14 +807,14 @@
 		cursor: pointer;
 	}
 
-	.nav-btn:hover:not(:disabled),
+	.nav-btn:hover:not([aria-disabled='true']),
 	.widths button:hover,
 	.copy:hover {
 		border-color: #5db65d;
 		color: #fff;
 	}
 
-	.nav-btn:disabled {
+	.nav-btn[aria-disabled='true'] {
 		color: #8a8a8a;
 		cursor: default;
 		border-color: rgba(255, 255, 255, 0.2);
@@ -791,16 +886,30 @@
 		border-color: #f66;
 	}
 
+	/* Help and error share one grid cell: the slot is as tall as the taller of
+	   the two, so neither appearing moves the tool. */
+	.message-slot {
+		display: grid;
+		margin: 0.45rem 0 0.7rem;
+	}
+
+	.message-slot > p {
+		grid-area: 1 / 1;
+		margin: 0;
+	}
+
 	.field-help {
 		color: #999;
 		font-size: 0.8rem;
-		margin: 0.45rem 0 0.7rem;
+	}
+
+	.field-help.hidden {
+		visibility: hidden;
 	}
 
 	.error {
 		color: #f66;
 		font-size: 0.9rem;
-		margin: 0.4rem 0 0;
 	}
 
 	.chips {
@@ -868,6 +977,16 @@
 	.code-row .code {
 		flex: 0 1 auto;
 		min-width: 0;
+	}
+
+	.code-types {
+		color: #aaa;
+		font-size: 0.8rem;
+		margin: 0.35rem 0 0;
+	}
+
+	.aside-code {
+		margin-bottom: 0.6rem;
 	}
 
 	.results.stale {
@@ -976,12 +1095,43 @@
 
 	.code-cell {
 		font-size: 0.85rem;
-		min-width: 12rem;
 	}
 
 	.ex-cell {
 		font-size: 0.82rem;
-		white-space: nowrap;
+	}
+
+	/* On a phone each trick stacks: its name, the C, then the example and result,
+	   each labelled, instead of a table wider than the screen. */
+	@media (max-width: 640px) {
+		.cheat thead {
+			display: none;
+		}
+
+		.cheat,
+		.cheat tbody,
+		.cheat tr,
+		.cheat th,
+		.cheat td {
+			display: block;
+		}
+
+		.cheat tr {
+			padding: 0.5rem 0;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+		}
+
+		.cheat th,
+		.cheat td {
+			border: none !important;
+			padding: 0.1rem 0.6rem !important;
+		}
+
+		.cheat td::before {
+			content: attr(data-label) ': ';
+			color: #999;
+			font-family: system-ui, sans-serif;
+		}
 	}
 
 	.entry {

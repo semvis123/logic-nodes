@@ -4,6 +4,10 @@
 // and for random 16 and 32-bit values.
 
 import { expect, test } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
 	tricks,
 	trickById,
@@ -14,6 +18,7 @@ import {
 	changedBits,
 	alternatingMask,
 	BitTrickError,
+	cType,
 	type Width,
 	type Trick,
 	type Result
@@ -128,7 +133,130 @@ function check(t: Trick, x: number, y: number, n: number, w: Width): string | nu
 	return null;
 }
 
-const random = (w: number) => Math.floor(Math.random() * 2 ** w);
+// A seeded generator (mulberry32), so a failure found on one run is found on every run.
+let seed = 0x5eed;
+function rand(): number {
+	seed = (seed + 0x6d2b79f5) | 0;
+	let t = seed;
+	t = Math.imul(t ^ (t >>> 15), t | 1);
+	t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+	return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+const random = (w: number) => Math.floor(rand() * 2 ** w);
+
+// --- every row of every trace, worked out again with BigInt ------------------
+
+const B = BigInt;
+const all = (w: number) => (1n << B(w)) - 1n;
+const u = (v: bigint, w: number) => ((v % (1n << B(w))) + (1n << B(w))) % (1n << B(w));
+const sgn = (v: bigint, w: number) => (v >= 1n << B(w - 1) ? v - (1n << B(w)) : v);
+function fieldMask(s: number, w: number): bigint {
+	let m = 0n;
+	for (let i = 0; i < w; i++) if (Math.floor(i / s) % 2 === 0) m += 1n << B(i);
+	return m;
+}
+const steps = (w: number) => [1, 2, 4, 8, 16].filter((s) => s < w);
+
+/** The value of every row a trick's trace should show, in order. */
+function expectedRows(id: string, xn: number, yn: number, n: number, w: number): bigint[] {
+	const [x, y, m] = [B(xn), B(yn), all(w)];
+	const bit = 1n << B(n);
+	switch (id) {
+		case 'test-a-bit':
+			return [x, bit, x & bit];
+		case 'set-a-bit':
+			return [x, bit, x | bit];
+		case 'clear-a-bit':
+			return [x, bit, m ^ bit, x & (m ^ bit)];
+		case 'toggle-a-bit':
+			return [x, bit, x ^ bit];
+		case 'clear-lowest-set-bit':
+		case 'is-power-of-two':
+			return [x, u(x - 1n, w), x & u(x - 1n, w)];
+		case 'isolate-lowest-set-bit':
+			return [x, m ^ x, u(-x, w), x & u(-x, w)];
+		case 'count-trailing-zeros':
+			return [x, x & u(-x, w), u((x & u(-x, w)) - 1n, w)];
+		case 'count-set-bits-kernighan': {
+			const r = [x];
+			for (let v = x; v; ) r.push((v = v & u(v - 1n, w)));
+			return r;
+		}
+		case 'count-set-bits-swar': {
+			const [m55, m33, m0f] = [fieldMask(1, w), fieldMask(2, w), fieldMask(4, w)];
+			const half = (x >> 1n) & m55;
+			const a = u(x - half, w);
+			const b = (a & m33) + ((a >> 2n) & m33);
+			const c = (b + (b >> 4n)) & m0f;
+			const r = [x, half, a, b, c];
+			if (w > 8) {
+				const p = u(c * (w === 16 ? 0x0101n : 0x01010101n), w);
+				r.push(p, p >> B(w - 8));
+			}
+			return r;
+		}
+		case 'parity': {
+			const r = [x];
+			let v = x;
+			for (const s of steps(w).reverse()) r.push((v = v ^ (v >> B(s))));
+			return [...r, v & 1n];
+		}
+		case 'xor-swap':
+			return [x, y, x ^ y, x, y];
+		case 'opposite-signs':
+			return [x, y, x ^ y];
+		case 'branchless-abs': {
+			const mask = sgn(x, w) < 0n ? m : 0n;
+			return [x, mask, u(x + mask, w), u(x + mask, w) ^ mask];
+		}
+		case 'branchless-min-max': {
+			const lt = sgn(x, w) < sgn(y, w);
+			const sel = lt ? x ^ y : 0n;
+			return [x, y, lt ? m : 0n, x ^ y, sel, lt ? x : y, lt ? y : x];
+		}
+		case 'average-without-overflow':
+			return [x, y, x & y, x ^ y, (x ^ y) >> 1n, (x + y) / 2n];
+		case 'modulo-power-of-two':
+			return [x, y, u(y - 1n, w), x & u(y - 1n, w)];
+		case 'round-up-to-power-of-two': {
+			let v = u(x - 1n, w);
+			const r = [x, v];
+			for (const s of steps(w)) r.push((v = v | (v >> B(s))));
+			return [...r, u(v + 1n, w)];
+		}
+		case 'reverse-bits': {
+			const r = [x];
+			let v = x;
+			for (const s of steps(w)) {
+				const k = fieldMask(s, w);
+				r.push((v = ((v >> B(s)) & k) | u((v & k) << B(s), w)));
+			}
+			return r;
+		}
+		case 'binary-to-gray-code':
+			return [x, x >> 1n, x ^ (x >> 1n)];
+		case 'sign-extension': {
+			const field = n >= w ? x : x & ((1n << B(n)) - 1n);
+			const sign = 1n << B(n - 1);
+			const tail = [sign, field ^ sign, u((field ^ sign) - sign, w)];
+			return field === x ? [x, ...tail] : [x, field, ...tail];
+		}
+		case 'ascii-case-toggle':
+			return [x, 0x20n, x ^ 0x20n];
+	}
+	throw new Error(`no row reference for ${id}`);
+}
+
+function checkRows(t: Trick, x: number, y: number, n: number, w: Width): string | null {
+	const { rows } = t.trace({ x, y, n, w });
+	const got = rows.map((r) => B(r.value));
+	const want = expectedRows(t.id, x, y, n, w);
+	if (got.length !== want.length || got.some((g, i) => g !== want[i]))
+		return `${t.id} x=${x} y=${y} n=${n} w=${w}: rows ${got.join(',')}, want ${want.join(',')}`;
+	for (const r of rows)
+		if (r.base !== undefined && (r.base < 0 || r.base >= rows.indexOf(r))) return `${t.id}: bad base`;
+	return null;
+}
 
 test.describe('bit tricks', () => {
 	test('every trick has a reference, unique id and sane metadata', () => {
@@ -163,9 +291,9 @@ test.describe('bit tricks', () => {
 			for (const t of tricks) {
 				for (let i = 0; i < 400; i++) {
 					const ns = nValues(t, w);
-					const n = ns[Math.floor(Math.random() * ns.length)];
+					const n = ns[Math.floor(rand() * ns.length)];
 					const ys = yValues(t, w, false);
-					const y = t.y ? (ys.length ? ys[Math.floor(Math.random() * ys.length)] : random(w)) : 0;
+					const y = t.y ? (ys.length ? ys[Math.floor(rand() * ys.length)] : random(w)) : 0;
 					const x = random(w);
 					const err = check(t, x, y, n, w);
 					if (err) bad.push(err);
@@ -206,19 +334,34 @@ test.describe('bit tricks', () => {
 		expect(run('branchless-min-max', '-42', 8, '88').result.value).toEqual([214, 88]);
 	});
 
-	test("Kernighan's loop shows one pass per set bit, each clearing the lowest", () => {
+	test('every row of every trace is right: all 8-bit values and pairs, random 16 and 32-bit ones', () => {
+		const bad: string[] = [];
+		for (const t of tricks)
+			for (const w of [8, 16, 32] as Width[]) {
+				const xs =
+					w === 8 ? Array.from({ length: 256 }, (_, i) => i) : [0, 1, 2 ** w - 1, 2 ** (w - 1), 2 ** (w - 1) - 1];
+				if (w > 8) for (let i = 0; i < 300; i++) xs.push(random(w));
+				const ys = !t.y ? [0] : t.id === 'modulo-power-of-two' ? yValues(t, w, false) : w === 8 ? xs : xs.slice(0, 40);
+				for (const n of nValues(t, w))
+					for (const y of ys)
+						for (const x of xs) {
+							const err = checkRows(t, x, y, n, w);
+							if (err && bad.length < 10) bad.push(err);
+						}
+			}
+		expect(bad).toEqual([]);
+	});
+
+	test("Kernighan's loop shows one row per pass, each clearing exactly the lowest set bit", () => {
 		const t = getTrick('count-set-bits-kernighan');
 		for (let x = 0; x < 256; x++) {
 			const { rows } = t.trace({ x, y: 0, n: 0, w: 8 });
-			expect(rows.length).toBe(1 + 2 * ones(x, 8));
-			const after = rows.filter((r) => r.expr === 'x &= x - 1').map((r) => r.value);
-			let v = x;
-			for (const a of after) {
-				expect(ones(a, 8)).toBe(ones(v, 8) - 1);
-				expect(a < v).toBe(true);
-				v = a;
+			expect(rows.length).toBe(1 + ones(x, 8));
+			for (let i = 1; i < rows.length; i++) {
+				expect(rows[i].base).toBe(i - 1);
+				expect(changedBits(rows[i].value, rows[i - 1].value, 8).filter(Boolean).length).toBe(1);
+				expect(trailingZeros(rows[i].value, 8)).toBeGreaterThan(trailingZeros(rows[i - 1].value, 8));
 			}
-			if (x) expect(v).toBe(0);
 		}
 	});
 
@@ -280,6 +423,131 @@ test.describe('bit tricks', () => {
 	});
 });
 
+// --- the C each trick shows, compiled and run --------------------------------
+//
+// The page shows C and offers to copy it, so the C itself is checked: every
+// trick's code(w) is compiled with GCC, with x (and y) declared as the type the
+// page names, and run on every 8-bit value (and pair) and on random 16 and
+// 32-bit values. This catches what the engine cannot, such as C promoting a
+// uint16_t to int before a multiply. UBSan stops the run on undefined
+// behaviour; the one known case, the branchless abs of INT_MIN, is left out
+// because the page says it is undefined.
+
+/** The variable each statement-form trick leaves its result in. */
+const cResult: Record<string, string[]> = {
+	'count-set-bits-kernighan': ['c'],
+	'count-set-bits-swar': ['x'],
+	parity: ['parity'],
+	'xor-swap': ['x', 'y'],
+	'branchless-min-max': ['min', 'max'],
+	'round-up-to-power-of-two': ['x'],
+	'reverse-bits': ['x'],
+	'sign-extension': ['r']
+};
+
+let gcc = true;
+try {
+	execFileSync('gcc', ['--version'], { stdio: 'ignore' });
+} catch {
+	gcc = false;
+}
+
+function cCases(t: Trick, w: Width): { x: number; y: number; n: number }[] {
+	const xs =
+		w === 8
+			? Array.from({ length: 256 }, (_, i) => i)
+			: [0, 1, 2 ** w - 1, 2 ** (w - 1), 2 ** (w - 1) - 1, ...Array.from({ length: 400 }, () => random(w))];
+	const ys = !t.y ? [0] : t.id === 'modulo-power-of-two' ? yValues(t, w, false) : w === 8 ? xs : xs.slice(0, 30);
+	const out: { x: number; y: number; n: number }[] = [];
+	for (const n of nValues(t, w))
+		for (const y of ys)
+			for (let x of xs) {
+				// The C takes x as the k-bit field itself.
+				if (t.id === 'sign-extension') x = n >= w ? x : x % 2 ** n;
+				if (t.id === 'branchless-abs' && w === 32 && x === 2 ** 31) continue;
+				out.push({ x, y, n });
+			}
+	return out;
+}
+
+function cFunction(t: Trick, w: Width, name: string): string {
+	const T = cType(t, w);
+	const lines = t
+		.code(w)
+		.split('\n')
+		.filter((l) => !l.startsWith('/*'));
+	const last = lines[lines.length - 1].trim();
+	const isExpr = !last.endsWith(';');
+	const body = isExpr ? [...lines.slice(0, -1), `r = (${last});`] : lines;
+	const results = isExpr ? ['r'] : cResult[t.id];
+	if (!results) throw new Error(`${t.id}: say which variable holds the result`);
+	return `static void ${name}(${T} x, ${T} y, unsigned n) {
+	unsigned k = n; ${T} c = x, r = 0, min = 0, max = 0, parity = 0; uint${w}_t m = 0;
+	(void)k; (void)c; (void)min; (void)max; (void)parity; (void)m; (void)y;
+	{
+		${t.y === 'n' ? `${T} n = y;` : ''}
+		${body.join('\n\t\t')}
+	}
+	printf("${results.map(() => '%llu').join(' ')}\\n", ${results
+		.map((v) => `(unsigned long long)(uint${w}_t)${v}`)
+		.join(', ')});
+}`;
+}
+
+test.describe('the C code for every trick', () => {
+	test('compiles and gives the reference result at every width', () => {
+		test.skip(!gcc, 'GCC is not installed');
+		const dir = mkdtempSync(join(tmpdir(), 'bit-tricks-c-'));
+		try {
+			const fns: string[] = [];
+			const calls: string[] = [];
+			const expected: string[] = [];
+			const labels: string[] = [];
+			const pattern = (v: number | boolean) => String(Number(v));
+			tricks.forEach((t, i) => {
+				for (const w of [8, 16, 32] as Width[]) {
+					const name = `trick_${i}_${w}`;
+					const T = cType(t, w);
+					fns.push(cFunction(t, w, name));
+					const cases = cCases(t, w);
+					calls.push(
+						`{ static const unsigned long long cs[][3] = {${cases
+							.map((c) => `{${c.x}u,${c.y}u,${c.n}u}`)
+							.join(
+								','
+							)}};\n\tfor (unsigned i = 0; i < sizeof cs / sizeof cs[0]; i++) ${name}((${T})cs[i][0], (${T})cs[i][1], (unsigned)cs[i][2]); }`
+					);
+					for (const c of cases) {
+						const want = reference[t.id](c.x, c.y, c.n, w);
+						expected.push(Array.isArray(want) ? want.map(pattern).join(' ') : pattern(want));
+						labels.push(`${t.id} at ${w} bits, x=${c.x} y=${c.y} n=${c.n}`);
+					}
+				}
+			});
+			const src = `#include <stdio.h>\n#include <stdint.h>\n${fns.join('\n')}\nint main(void) {\n\t${calls.join(
+				'\n\t'
+			)}\n\treturn 0;\n}\n`;
+			writeFileSync(join(dir, 'tricks.c'), src);
+			execFileSync(
+				'gcc',
+				['-std=c11', '-O1', '-fsanitize=undefined', '-fno-sanitize-recover=all', '-o', 'tricks', 'tricks.c'],
+				{ cwd: dir }
+			);
+			const got = execFileSync(join(dir, 'tricks'), { maxBuffer: 1 << 26 })
+				.toString()
+				.trim()
+				.split('\n');
+			expect(got.length).toBe(expected.length);
+			const bad: string[] = [];
+			for (let i = 0; i < got.length && bad.length < 10; i++)
+				if (got[i] !== expected[i]) bad.push(`${labels[i]}: C gave ${got[i]}, want ${expected[i]}`);
+			expect(bad).toEqual([]);
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+});
+
 test.describe('reading what was typed', () => {
 	test('decimal, signed decimal, hex, binary and characters', () => {
 		expect(parseOperand('88', 8)).toBe(88);
@@ -311,6 +579,8 @@ test.describe('reading what was typed', () => {
 		expect(() => parseOperand('', 8)).toThrow(BitTrickError);
 		expect(() => parseOperand('0x', 8)).toThrow(/missing/);
 		expect(() => parseOperand("'€'", 8)).toThrow(/more than 8 bits/);
+		expect(() => parseOperand("'ab'", 8)).toThrow(/exactly one character/);
+		expect(() => parseOperand('"e\u0301"', 8)).toThrow(/exactly one character/);
 		expect(() => parseOperand('1'.repeat(100), 32)).toThrow(/characters/);
 	});
 
@@ -338,6 +608,10 @@ test.describe('the bit-manipulation-tricks page', () => {
 		expect(html).toContain('0x50');
 		expect(html).toContain('The lowest set bit, bit 3, is cleared.');
 		for (const t of tricks) expect(html, t.id).toContain(`id="${t.id}"`);
+		// The select shows the traced trick before any script runs.
+		expect(html).toMatch(/<option value="clear-lowest-set-bit"[^>]*selected/);
+		expect(html.match(/<option[^>]*selected/g)?.length).toBe(1);
+		expect(html).toContain('1 bit differs from x');
 	});
 
 	test('changing the inputs re-traces, and bad input says why', async ({ page }) => {
@@ -346,9 +620,10 @@ test.describe('the bit-manipulation-tricks page', () => {
 		const answer = page.locator('.answer .answer-value');
 		await page.locator('#x-input').fill('0xF0');
 		await expect(answer).toHaveText('224');
+		// A typed x carries over to the next trick.
 		await page.locator('#trick').selectOption('count-set-bits-kernighan');
-		await expect(page.locator('#x-input')).toHaveValue('0b01011000');
-		await expect(answer).toHaveText('3');
+		await expect(page.locator('#x-input')).toHaveValue('0xF0');
+		await expect(answer).toHaveText('4');
 		await page.getByRole('button', { name: '32 bits' }).click();
 		await page.locator('#x-input').fill('0xFFFFFFFF');
 		await expect(answer).toHaveText('32');
@@ -403,6 +678,38 @@ test.describe('the bit-manipulation-tricks page', () => {
 		expect(webPage.mainEntity.map((q: { name: string }) => q.name)).toEqual(questions);
 		expect(webPage.mainEntity.map((q: { acceptedAnswer: { text: string } }) => q.acceptedAnswer.text)).toEqual(answers);
 	});
+
+	test('Prev and Next keep focus at the ends of the list', async ({ page }) => {
+		await page.goto('/bit-manipulation-tricks?t=set-a-bit');
+		await page.waitForLoadState('networkidle');
+		const prev = page.getByRole('button', { name: 'Previous trick' });
+		await prev.focus();
+		await page.keyboard.press('Enter');
+		await expect(page.locator('#trick')).toHaveValue('test-a-bit');
+		await expect(prev).toBeFocused();
+		await expect(prev).toHaveAttribute('aria-disabled', 'true');
+		await page.keyboard.press('Enter');
+		await expect(page.locator('#trick')).toHaveValue('test-a-bit');
+	});
+
+	for (const width of [390, 1280])
+		test(`every bit column lines up from row to row at ${width}px`, async ({ page }) => {
+			await page.setViewportSize({ width, height: 900 });
+			for (const q of ['t=reverse-bits&w=16', 't=count-set-bits-swar&w=32&x=0xDEADBEEF', 't=parity&w=32']) {
+				await page.goto(`/bit-manipulation-tricks?${q}`);
+				await page.waitForLoadState('networkidle');
+				const xs = await page.locator('#tool .trace').evaluate((t) =>
+					[...t.querySelectorAll('.bit-row, .index-row')].map((row) => {
+						const cells = [...row.querySelectorAll('span:not(.brk)')];
+						return Math.round(cells[cells.length - 1].getBoundingClientRect().x);
+					})
+				);
+				expect(new Set(xs).size, `${q}: ${xs.join(',')}`).toBe(1);
+				// And the 32-bit trace fits its box without scrolling sideways.
+				const fits = await page.locator('#tool .trace-scroll').evaluate((el) => el.scrollWidth <= el.clientWidth);
+				expect(fits, q).toBe(true);
+			}
+		});
 
 	test('no sideways scroll on a phone, even at 32 bits', async ({ page }) => {
 		await page.setViewportSize({ width: 390, height: 844 });

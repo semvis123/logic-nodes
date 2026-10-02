@@ -100,6 +100,7 @@ export function parseOperand(text: string, w: Width): number {
 			throw new BitTrickError(`'${quoted[2]}' is U+${code.toString(16).toUpperCase()}, more than ${w} bits.`);
 		return code;
 	}
+	if (/^['"‘’“”]/u.test(raw)) throw new BitTrickError("Put exactly one character between the quotes, such as 'a'.");
 	let s = raw.replace(/[\s_]/g, '');
 	let negative = false;
 	if (s[0] === '-' || s[0] === '+' || s[0] === '−') {
@@ -162,7 +163,11 @@ export interface Row {
 	role: RowRole;
 	/** Index of the row this one is compared with: its differing bits are marked. */
 	base?: number;
-	/** Field size for the gaps in the bit row (4, a nibble, unless a trick works in other fields). */
+	/**
+	 * The size of the fields a trick works on, when it is not a nibble. The bit
+	 * columns keep their nibble spacing whatever this is, so a bit can be
+	 * followed straight down; the fields are shown by shading alone.
+	 */
 	group?: number;
 }
 
@@ -177,8 +182,10 @@ export interface Trace {
 	result: Result;
 	/** One sentence saying what came out, for the answer box. */
 	summary: string;
+	/** The result as the answer box should show it, when that is not just the number. */
+	answer?: string;
 	/** A case where the trick goes wrong or a naive version for comparison. */
-	aside?: { title: string; text: string; rows: Row[] };
+	aside?: { title: string; text: string; code?: string; rows: Row[] };
 	/** The inputs are outside what the trick is for; the trace still runs. */
 	warning?: string;
 }
@@ -205,13 +212,19 @@ export interface Example {
 	x: string;
 	y?: string;
 	n?: number;
+	/** The width the example is about, when it only makes its point at one width. */
+	w?: Width;
 }
 
 export interface Trick {
 	id: string;
 	name: string;
 	category: Category;
-	/** The trick as C, for the given width. */
+	/**
+	 * The trick as C for the given width, with x (and y) held in a uintN_t, or
+	 * an intN_t for a signed trick. C does arithmetic on 8 and 16-bit values in
+	 * int, so the code casts back to the width wherever that changes the result.
+	 */
 	code: (w: Width) => string;
 	/** One line: what it computes. */
 	what: string;
@@ -228,6 +241,10 @@ export interface Trick {
 }
 
 const intT = (w: Width) => `int${w}_t`;
+const uintT = (w: Width) => `uint${w}_t`;
+
+/** The C type a trick's x (and y) is held in at a width. */
+export const cType = (trick: Trick, w: Width): string => (trick.signedView ? intT(w) : uintT(w));
 const hx = hexOf;
 const dec = (v: number) => (v < 0 ? `−${-v}` : String(v));
 const plural = (n: number, one: string, many = one + 's') => `${n} ${n === 1 ? one : many}`;
@@ -250,6 +267,9 @@ export function alternatingMask(s: number, w: Width): number {
 	return m;
 }
 
+/** The SWAR popcount's multiply, cut back to the width where C would not. */
+const swarProduct = (w: Width) => (w === 16 ? '(uint16_t)(x * 0x0101)' : '(x * 0x01010101)');
+
 /** The shift amounts 1, 2, 4 … below the width. */
 const halvings = (w: Width) => [1, 2, 4, 8, 16].filter((s) => s < w);
 
@@ -258,11 +278,11 @@ function singleBit(kind: 'test' | 'set' | 'clear' | 'toggle'): Trick['trace'] {
 		const m = bitMask(n, w);
 		const rows: Row[] = [
 			{ expr: 'x', value: x, role: 'input' },
-			{ expr: `1 << ${n}`, note: `only bit ${n} is 1`, value: m, role: 'mask' }
+			{ expr: `1u << ${n}`, note: `only bit ${n} is 1`, value: m, role: 'mask' }
 		];
 		if (kind === 'test') {
 			const r = and(x, m, w);
-			rows.push({ expr: `x & (1 << ${n})`, note: 'AND keeps bit n and clears the rest', value: r, role: 'result' });
+			rows.push({ expr: `x & (1u << ${n})`, note: 'AND keeps bit n and clears the rest', value: r, role: 'result' });
 			return {
 				rows,
 				result: { kind: 'bool', value: r !== 0 },
@@ -271,7 +291,7 @@ function singleBit(kind: 'test' | 'set' | 'clear' | 'toggle'): Trick['trace'] {
 		}
 		if (kind === 'set') {
 			const r = or(x, m, w);
-			rows.push({ expr: `x | (1 << ${n})`, note: 'OR with 1 forces the bit on', value: r, role: 'result', base: 0 });
+			rows.push({ expr: `x | (1u << ${n})`, note: 'OR with 1 forces the bit on', value: r, role: 'result', base: 0 });
 			return {
 				rows,
 				result: { kind: 'bits', value: r },
@@ -282,8 +302,14 @@ function singleBit(kind: 'test' | 'set' | 'clear' | 'toggle'): Trick['trace'] {
 		if (kind === 'clear') {
 			const inv = not(m, w);
 			const r = and(x, inv, w);
-			rows.push({ expr: `~(1 << ${n})`, note: `every bit 1 except bit ${n}`, value: inv, role: 'mask', base: 1 });
-			rows.push({ expr: `x & ~(1 << ${n})`, note: 'AND with 0 forces the bit off', value: r, role: 'result', base: 0 });
+			rows.push({ expr: `~(1u << ${n})`, note: `every bit 1 except bit ${n}`, value: inv, role: 'mask', base: 1 });
+			rows.push({
+				expr: `x & ~(1u << ${n})`,
+				note: 'AND with 0 forces the bit off',
+				value: r,
+				role: 'result',
+				base: 0
+			});
 			return {
 				rows,
 				result: { kind: 'bits', value: r },
@@ -292,7 +318,7 @@ function singleBit(kind: 'test' | 'set' | 'clear' | 'toggle'): Trick['trace'] {
 			};
 		}
 		const r = xor(x, m, w);
-		rows.push({ expr: `x ^ (1 << ${n})`, note: 'XOR with 1 flips the bit', value: r, role: 'result', base: 0 });
+		rows.push({ expr: `x ^ (1u << ${n})`, note: 'XOR with 1 flips the bit', value: r, role: 'result', base: 0 });
 		return {
 			rows,
 			result: { kind: 'bits', value: r },
@@ -311,7 +337,7 @@ export const tricks: Trick[] = [
 		code: () => '(x & (1u << n)) != 0',
 		what: 'Is bit n of x a 1?',
 		why: [
-			'1 << n is a mask with a single 1 at position n. AND keeps a bit only where both inputs are 1, so every other position becomes 0 and the result is non-zero exactly when x has a 1 at position n.',
+			'1u << n is a mask with a single 1 at position n. AND keeps a bit only where both inputs are 1, so every other position becomes 0 and the result is non-zero exactly when x has a 1 at position n.',
 			'(x >> n) & 1 gives the same answer as 0 or 1 instead of zero or non-zero.'
 		],
 		n: bitN,
@@ -382,9 +408,9 @@ export const tricks: Trick[] = [
 		],
 		examples: [
 			{ label: '88', x: '0b01011000' },
-			{ label: '0b10100000', x: '0b10100000' },
-			{ label: '1', x: '1' },
-			{ label: '0', x: '0' }
+			{ label: '160: five 0s below', x: '0b10100000' },
+			{ label: '1: only bit 0', x: '1' },
+			{ label: '0: no set bit', x: '0' }
 		],
 		trace: ({ x, w }) => {
 			const m1 = sub(x, 1, w);
@@ -419,8 +445,8 @@ export const tricks: Trick[] = [
 		],
 		examples: [
 			{ label: '88', x: '0b01011000' },
-			{ label: '0b10100000', x: '0b10100000' },
-			{ label: '255', x: '255' }
+			{ label: '160: five 0s below', x: '0b10100000' },
+			{ label: '255: bit 0 is set', x: '255' }
 		],
 		trace: ({ x, w }) => {
 			const inv = not(x, w);
@@ -452,10 +478,10 @@ export const tricks: Trick[] = [
 			'0 also gives 0 from x & (x − 1), which is why the x != 0 test is needed.'
 		],
 		examples: [
-			{ label: '64', x: '64' },
-			{ label: '88', x: '88' },
-			{ label: '0', x: '0' },
-			{ label: '128', x: '0x80' }
+			{ label: '64: yes', x: '64' },
+			{ label: '88: three bits set', x: '88' },
+			{ label: '0: the special case', x: '0' },
+			{ label: '0x80: the top bit', x: '0x80' }
 		],
 		trace: ({ x, w }) => {
 			const m1 = sub(x, 1, w);
@@ -486,17 +512,17 @@ export const tricks: Trick[] = [
 		id: 'count-trailing-zeros',
 		name: 'Count trailing zeros',
 		category: 'lowest',
-		code: () => 'popcount((x & -x) - 1)',
+		code: (w) => (w === 32 ? '__builtin_popcount((x & -x) - 1)' : `__builtin_popcount((${uintT(w)})((x & -x) - 1))`),
 		what: 'How many 0s sit below the lowest 1, which is also the index of the lowest set bit.',
 		why: [
 			'x & −x isolates the lowest set bit. Subtracting 1 turns that single 1 into 0 and every 0 below it into a 1, so the result has exactly as many 1s as x has trailing zeros. Counting them gives the answer.',
-			'For x = 0 this gives the width, because 0 − 1 is all ones. GCC and Clang have __builtin_ctz, which compiles to one instruction on most processors, but its result for 0 is undefined; C23 adds stdc_trailing_zeros, which returns the width for 0.'
+			'For x = 0 this gives the width, because 0 − 1 is all ones at the width. At 8 and 16 bits C needs the cast back to the width for that: x & −x is worked out in int, so without the cast 0 − 1 is a 32-bit −1 and the count comes out as 32. GCC and Clang have __builtin_ctz, which compiles to a hardware instruction where the processor has one, but its result for 0 is undefined; C23 adds stdc_trailing_zeros, which returns the width for 0.'
 		],
 		examples: [
 			{ label: '88', x: '0b01011000' },
-			{ label: '1', x: '1' },
-			{ label: '0x80', x: '0x80' },
-			{ label: '0', x: '0' }
+			{ label: '1: none', x: '1' },
+			{ label: '0x80: the top bit', x: '0x80' },
+			{ label: '0: all zeros', x: '0' }
 		],
 		trace: ({ x, w }) => {
 			const iso = and(x, neg(x, w), w);
@@ -533,26 +559,27 @@ export const tricks: Trick[] = [
 		],
 		examples: [
 			{ label: '88', x: '0b01011000' },
-			{ label: '255', x: '255' },
-			{ label: '0x81', x: '0x81' },
-			{ label: '0', x: '0' }
+			{ label: '255: eight passes', x: '255' },
+			{ label: '0x81: two passes', x: '0x81' },
+			{ label: '0: no passes', x: '0' }
 		],
 		trace: ({ x, w }) => {
+			// One row per pass, compared with the pass before, so the single bit each
+			// pass clears is the one marked. The x - 1 inside a pass is the clear the
+			// lowest set bit trick, traced on its own above.
 			const rows: Row[] = [{ expr: 'x', value: x, role: 'input' }];
 			let v = x;
 			let c = 0;
 			while (v) {
-				const m1 = sub(v, 1, w);
-				rows.push({ expr: 'x - 1', note: `pass ${c + 1}`, value: m1, role: 'step', base: rows.length - 1 });
-				const prev = rows.length - 2;
-				v = and(v, m1, w);
+				const cleared = lowestSet(v);
+				v = and(v, sub(v, 1, w), w);
 				c++;
 				rows.push({
 					expr: 'x &= x - 1',
-					note: `clears bit ${lowestSet(rows[prev].value)}; c = ${c}`,
+					note: `pass ${c} clears bit ${cleared}; c = ${c}`,
 					value: v,
 					role: v ? 'step' : 'result',
-					base: prev
+					base: rows.length - 1
 				});
 			}
 			if (!c) rows[0] = { ...rows[0], note: 'already 0: the loop never runs' };
@@ -567,17 +594,20 @@ export const tricks: Trick[] = [
 		id: 'count-set-bits-swar',
 		name: 'Count set bits (SWAR)',
 		category: 'count',
-		code: (w) =>
-			[
-				'x = x - ((x >> 1) & 0x55…);',
-				'x = (x & 0x33…) + ((x >> 2) & 0x33…);',
-				'x = (x + (x >> 4)) & 0x0F…;',
-				w === 8 ? '// 8 bits: x is the count' : `x = (x * 0x01…01) >> ${w - 8};`
-			].join('\n'),
+		code: (w) => {
+			const [m55, m33, m0f] = [1, 2, 4].map((s) => hx(alternatingMask(s, w), w));
+			return [
+				`x = x - ((x >> 1) & ${m55});`,
+				`x = (x & ${m33}) + ((x >> 2) & ${m33});`,
+				`x = (x + (x >> 4)) & ${m0f};`,
+				w === 8 ? '/* x is now the count */' : `x = ${swarProduct(w)} >> ${w - 8};`
+			].join('\n');
+		},
 		what: 'Count the 1 bits in a fixed number of steps, adding neighbouring fields in parallel.',
 		why: [
 			'SWAR means SIMD within a register: the number is treated as many small fields, and one subtraction or addition works on all of them at once. After the first line each 2-bit field holds the number of 1s that were in it (a pair ab is worth 2a + b, and subtracting a leaves a + b). The second line adds neighbouring pairs into 4-bit counts, the third adds nibbles into byte counts.',
-			'The multiply by 0x01…01 adds every byte into the top byte, and the shift brings that sum down. Nothing carries between fields because no count can outgrow its field: a 4-bit field holds at most 4, a byte at most 8.'
+			'At 16 and 32 bits one more line adds the bytes together: the multiply by 0x0101 (0x01010101 at 32 bits) adds every byte into the top byte, and the shift brings that sum down. Nothing carries between fields because no count can outgrow its field: a 4-bit field holds at most 4, a byte at most 8.',
+			'At 16 bits the product has to be cut back to 16 bits before the shift. C multiplies a uint16_t as an int, so without the (uint16_t) cast the byte that lands above bit 15 survives and the shift brings it down as well: 0xFFFF would count as 2064 instead of 16.'
 		],
 		examples: [
 			{ label: '88', x: '0b01011000' },
@@ -591,6 +621,7 @@ export const tricks: Trick[] = [
 			const a = sub(x, and(shr(x, 1), m55, w), w);
 			const b = add(and(a, m33, w), and(shr(a, 2), m33, w), w);
 			const c = and(add(b, shr(b, 4), w), m0f, w);
+			// Each step's x is the row before it, as in the C, where x is reassigned.
 			const rows: Row[] = [
 				{ expr: 'x', value: x, role: 'input', group: 2 },
 				{
@@ -600,12 +631,20 @@ export const tricks: Trick[] = [
 					role: 'mask',
 					group: 2
 				},
-				{ expr: 'x - that', note: 'each 2-bit field now counts its own 1s', value: a, role: 'step', group: 2 },
+				{
+					expr: `x - ((x >> 1) & ${hx(m55, w)})`,
+					note: 'each 2-bit field now counts its own 1s',
+					value: a,
+					role: 'step',
+					base: 0,
+					group: 2
+				},
 				{
 					expr: `(x & ${hx(m33, w)}) + ((x >> 2) & ${hx(m33, w)})`,
 					note: 'add neighbouring pairs: 4-bit counts',
 					value: b,
 					role: 'step',
+					base: 2,
 					group: 4
 				},
 				{
@@ -613,22 +652,30 @@ export const tricks: Trick[] = [
 					note: 'add neighbouring nibbles: one count per byte',
 					value: c,
 					role: w === 8 ? 'result' : 'step',
+					base: 3,
 					group: 8
 				}
 			];
 			let r = c;
 			if (w > 8) {
-				const k = w === 16 ? 0x0101 : 0x01010101;
-				const p = mul(c, k, w);
+				const p = mul(c, w === 16 ? 0x0101 : 0x01010101, w);
 				rows.push({
-					expr: `x * ${hx(k, w)}`,
+					expr: swarProduct(w),
 					note: 'the top byte is now the sum of every byte',
 					value: p,
 					role: 'step',
+					base: 4,
 					group: 8
 				});
 				r = shr(p, w - 8);
-				rows.push({ expr: `>> ${w - 8}`, note: 'bring the top byte down', value: r, role: 'result', group: 8 });
+				rows.push({
+					expr: `${swarProduct(w)} >> ${w - 8}`,
+					note: 'bring the top byte down',
+					value: r,
+					role: 'result',
+					base: 5,
+					group: 8
+				});
 			}
 			return {
 				rows,
@@ -716,7 +763,8 @@ export const tricks: Trick[] = [
 				summary: `Swapped: x is now ${x2} and y is ${y1}.`,
 				aside: {
 					title: 'The aliasing trap: swapping a variable with itself',
-					text: `A swap function written as void swap(int *a, int *b) { *a ^= *b; *b ^= *a; *a ^= *b; } breaks when a and b point at the same variable, which a sort can do when it swaps an element with itself. The first line computes x ^ x, which is 0, and from then on every line is 0 ^ 0. The value is lost. Equal values in two different variables are fine; the problem is one variable under two names. A temporary variable has no such trap.`,
+					text: `A swap function written like this breaks when a and b point at the same variable, which a sort can do when it swaps an element with itself. The first line computes x ^ x, which is 0, and from then on every line is 0 ^ 0. The value is lost. Equal values in two different variables are fine; the problem is one variable under two names. A temporary variable has no such trap.`,
+					code: 'void swap(int *a, int *b) {\n    *a ^= *b;\n    *b ^= *a;\n    *a ^= *b;\n}',
 					rows: [
 						{ expr: '*a (and *b)', value: x, role: 'input' },
 						{ expr: '*a ^= *b', note: 'x ^ x is 0, and *b is the same variable', value: a1, role: 'step', base: 0 },
@@ -774,7 +822,7 @@ export const tricks: Trick[] = [
 		what: '|x| using a shift, an add and an XOR, with no if.',
 		why: [
 			'Shifting a signed value right by width − 1 copies the sign bit into every position: m is all ones (−1) for a negative x and 0 otherwise. For x ≥ 0, (x + 0) ^ 0 is x. For x < 0, x + m is x − 1, and XOR with all ones inverts it, and ~(x − 1) = −x.',
-			'It relies on the right shift being arithmetic, which C leaves to the implementation for negative values (GCC and Clang do shift arithmetically). The most negative value has no positive partner: at 8 bits, −128 comes back as −128, just as abs(INT_MIN) overflows in C.'
+			'It relies on the right shift being arithmetic, which C leaves to the implementation for negative values (GCC and Clang do shift arithmetically). The most negative value has no positive partner. At 8 bits C works out (x + m) ^ m in int, where −128 gives 128; stored back in an int8_t that is the pattern 1000 0000, which reads as −128 again. At 32 bits it is worse: for INT_MIN the x + m itself overflows, which is undefined behaviour, just as abs(INT_MIN) is.'
 		],
 		signedView: true,
 		examples: [
@@ -808,9 +856,15 @@ export const tricks: Trick[] = [
 				],
 				result: { kind: 'bits', value: r },
 				summary:
-					sx === -(2 ** (w - 1))
-						? `|${dec(sx)}| does not fit in ${w} signed bits, so the result wraps round to ${dec(signed(r, w))} again.`
-						: `|${dec(sx)}| = ${signed(r, w)}.`
+					sx !== -(2 ** (w - 1))
+						? `|${dec(sx)}| = ${signed(r, w)}.`
+						: w === 32
+						? `|${dec(sx)}| does not fit in 32 signed bits. The pattern comes back as ${dec(
+								signed(r, w)
+						  )}, but in C the x + m step overflows here, which is undefined behaviour.`
+						: `|${dec(sx)}| does not fit in ${w} signed bits: (x + m) ^ m is ${-sx}, which stored back in an ${intT(
+								w
+						  )} reads as ${dec(signed(r, w))} again.`
 			};
 		}
 	},
@@ -856,8 +910,20 @@ export const tricks: Trick[] = [
 						role: 'step',
 						base: 3
 					},
-					{ expr: 'min = y ^ that', note: lt ? 'y ^ (x ^ y) is x' : 'y ^ 0 is y', value: mn, role: 'result', base: 1 },
-					{ expr: 'max = x ^ that', note: lt ? 'x ^ (x ^ y) is y' : 'x ^ 0 is x', value: mx, role: 'result', base: 0 }
+					{
+						expr: 'min = y ^ ((x ^ y) & -(x < y))',
+						note: lt ? 'y ^ (x ^ y) is x' : 'y ^ 0 is y',
+						value: mn,
+						role: 'result',
+						base: 1
+					},
+					{
+						expr: 'max = x ^ ((x ^ y) & -(x < y))',
+						note: lt ? 'x ^ (x ^ y) is y' : 'x ^ 0 is x',
+						value: mx,
+						role: 'result',
+						base: 0
+					}
 				],
 				result: { kind: 'pair', value: [mn, mx], names: ['min', 'max'] },
 				summary: `min is ${dec(signed(mn, w))} and max is ${dec(signed(mx, w))}.`
@@ -925,7 +991,7 @@ export const tricks: Trick[] = [
 		id: 'modulo-power-of-two',
 		name: 'Modulo a power of two',
 		category: 'arith',
-		code: () => 'x & (n - 1)   /* x % n, for n a power of two */',
+		code: () => '/* x % n, for n a power of two */\nx & (n - 1)',
 		what: 'The remainder of x divided by n, for an unsigned x and a power of two n, with an AND instead of a division.',
 		why: [
 			'Dividing by 2^k shifts the bits right by k places, and the remainder is the k bits that fall off the end. n − 1 is a mask of exactly those k low bits (8 − 1 = 0b111), so AND keeps the remainder and drops the quotient.',
@@ -933,7 +999,7 @@ export const tricks: Trick[] = [
 		],
 		y: 'n',
 		examples: [
-			{ label: '88 mod 8', x: '88', y: '8' },
+			{ label: '93 mod 8', x: '93', y: '8' },
 			{ label: '200 mod 64', x: '200', y: '64' },
 			{ label: '88 mod 6 (not a power)', x: '88', y: '6' }
 		],
@@ -980,13 +1046,13 @@ export const tricks: Trick[] = [
 		what: 'The smallest power of two that is greater than or equal to x.',
 		why: [
 			'After x−−, OR-ing x with itself shifted right by 1, 2, 4 and so on copies its highest 1 into every position below it: each step doubles the length of the run of 1s, so log2(width) steps fill them all. The result is 2^k − 1, and adding 1 carries all the way up to 2^k.',
-			'The decrement first is what makes an exact power of two come back unchanged: 64 − 1 = 63 fills to 63 and rounds up to 64. Two edge cases come from wrapping: x = 0 gives 0 (0 − 1 is all ones, and +1 wraps back to 0), and a value above the largest power of two that fits also wraps to 0.'
+			'The decrement first is what makes an exact power of two come back unchanged: 64 − 1 = 63 fills to 63 and rounds up to 64. Two edge cases come from wrapping: x = 0 gives 0 rather than 1 (0 − 1 is all ones, and +1 wraps back to 0), and a value above the largest power of two that fits also wraps to 0.'
 		],
 		examples: [
 			{ label: '88', x: '88' },
 			{ label: '64', x: '64' },
 			{ label: '5', x: '5' },
-			{ label: '200 (too big)', x: '200' }
+			{ label: '200 at 8 bits: too big', x: '200', w: 8 }
 		],
 		trace: ({ x, w }) => {
 			let v = sub(x, 1, w);
@@ -1025,7 +1091,7 @@ export const tricks: Trick[] = [
 				result: { kind: 'bits', value: r },
 				summary:
 					x === 0
-						? 'x is 0, and the trick gives 0: there is no smaller power of two to round to, and the wrap brings it back to 0.'
+						? 'x is 0. The true answer is 1 (2⁰), but the trick gives 0: 0 − 1 wraps round to all ones, and + 1 wraps back to 0.'
 						: x > top
 						? `${x} is above ${top}, the largest power of two in ${w} bits, so the result wraps round to 0.`
 						: r === x
@@ -1056,7 +1122,7 @@ export const tricks: Trick[] = [
 			{ label: '0xF0', x: '0xF0' }
 		],
 		trace: ({ x, w }) => {
-			const rows: Row[] = [{ expr: 'x', value: x, role: 'input', group: 1 }];
+			const rows: Row[] = [{ expr: 'x', value: x, role: 'input' }];
 			let v = x;
 			for (const s of halvings(w)) {
 				const m = alternatingMask(s, w);
@@ -1066,6 +1132,7 @@ export const tricks: Trick[] = [
 					note: `((x >> ${s}) & ${hx(m, w)}) | ((x & ${hx(m, w)}) << ${s})`,
 					value: v,
 					role: s * 2 === w ? 'result' : 'step',
+					base: rows.length - 1,
 					group: s * 2
 				});
 			}
@@ -1084,7 +1151,7 @@ export const tricks: Trick[] = [
 		what: 'The reflected binary Gray code of x, where counting up changes one bit at a time.',
 		why: [
 			'Each Gray code bit is the XOR of a binary bit and the bit above it, so it is 1 exactly where the binary number changes from one bit to the next. Shifting right by one lines every bit up with its upper neighbour, and one XOR does all the positions at once. The top bit is XORed with the 0 shifted in, so it stays as it is.',
-			'Going back is not one step: each binary bit is the XOR of all the Gray bits above it, which takes a loop or a shift-and-XOR cascade like the parity trick.'
+			'Going back is not one step: each binary bit is the XOR of the Gray bit in the same position and every Gray bit above it, which takes a loop or a shift-and-XOR cascade like the parity trick.'
 		],
 		examples: [
 			{ label: '88', x: '88' },
@@ -1115,7 +1182,7 @@ export const tricks: Trick[] = [
 		id: 'sign-extension',
 		name: 'Sign-extend a k-bit value',
 		category: 'shuffle',
-		code: () => 'm = 1u << (k - 1);\nr = (x ^ m) - m;   /* x holds k bits */',
+		code: () => '/* x holds a k-bit field */\nm = 1u << (k - 1);\nr = (x ^ m) - m;',
 		what: "Widen a k-bit two's complement number to the full width, keeping its value.",
 		why: [
 			'A k-bit field from a packet or a register is negative when its bit k − 1 is set, but in a wider variable that bit is just a positive weight of 2^(k−1). XOR with m flips that bit, which is the same as adding 2^(k−1) when it was 0 and subtracting it when it was 1; subtracting m then takes 2^(k−1) away. A positive field comes back unchanged and a negative one ends up 2^k lower, which is its signed value, with the sign copied into every bit above.',
@@ -1144,7 +1211,7 @@ export const tricks: Trick[] = [
 					base: 0
 				});
 			rows.push(
-				{ expr: `m = 1 << ${n - 1}`, note: `the field's sign bit`, value: m, role: 'mask' },
+				{ expr: `m = 1u << ${n - 1}`, note: `the field's sign bit`, value: m, role: 'mask' },
 				{ expr: 'x ^ m', note: 'the sign bit flipped', value: t, role: 'step', base: rows.length - 1 },
 				{
 					expr: '(x ^ m) - m',
@@ -1189,6 +1256,7 @@ export const tricks: Trick[] = [
 				],
 				result: { kind: 'bits', value: r },
 				summary: from && to ? `'${from}' becomes '${to}'.` : `${x} becomes ${r}.`,
+				answer: to ? `'${to}' (${hx(r, w)}, ${r})` : undefined,
 				warning: isLetter(x)
 					? undefined
 					: `${from ? `'${from}'` : x} is not an ASCII letter, so it has no other case; the flip ${
