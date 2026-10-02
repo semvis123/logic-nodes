@@ -42,7 +42,11 @@
 			<dt>Unicode</dt>
 			<dd>
 				<code class="mono">{unicodeLabel(selected)}</code>
-				<button type="button" class="copy" on:click={() => copy(unicodeLabel(selected), 'code point')}>Copy</button>
+				<button type="button" class="copy" on:click={() => copy(unicodeLabel(selected), 'code point')}
+					><span aria-hidden="true">Copy</span><span class="visually-hidden"
+						>Copy the code point {unicodeLabel(selected)}</span
+					></button
+				>
 			</dd>
 		</div>
 		<div>
@@ -50,18 +54,26 @@
 			<dd>
 				<span class="code-line">
 					<code class="mono">{html}</code>
-					<button type="button" class="copy" on:click={() => copy(html, 'HTML')}>Copy</button>
+					<button type="button" class="copy" on:click={() => copy(html, 'HTML')}
+						><span aria-hidden="true">Copy</span><span class="visually-hidden">Copy the HTML {html}</span></button
+					>
 				</span>
 				{#if hex !== html}
 					<span class="code-line">
 						<code class="mono small">{hex}</code>
-						<button type="button" class="copy" on:click={() => copy(hex, 'hex reference')}>Copy</button>
+						<button type="button" class="copy" on:click={() => copy(hex, 'hex reference')}
+							><span aria-hidden="true">Copy</span><span class="visually-hidden">Copy the hex reference {hex}</span
+							></button
+						>
 					</span>
 				{/if}
 				{#if dec !== html}
 					<span class="code-line">
 						<code class="mono small">{dec}</code>
-						<button type="button" class="copy" on:click={() => copy(dec, 'decimal reference')}>Copy</button>
+						<button type="button" class="copy" on:click={() => copy(dec, 'decimal reference')}
+							><span aria-hidden="true">Copy</span><span class="visually-hidden">Copy the decimal reference {dec}</span
+							></button
+						>
 					</span>
 				{/if}
 				{#if !selected.entity}<span class="sub">HTML has no named entity for it.</span>{/if}
@@ -72,7 +84,11 @@
 			<dd>
 				{#if selected.latex}
 					<code class="mono">{selected.latex}</code>
-					<button type="button" class="copy" on:click={() => copy(selected.latex ?? '', 'LaTeX')}>Copy</button>
+					<button type="button" class="copy" on:click={() => copy(selected.latex ?? '', 'LaTeX')}
+						><span aria-hidden="true">Copy</span><span class="visually-hidden"
+							>Copy the LaTeX command {selected.latex}</span
+						></button
+					>
 					{#if selected.amssymb}<span class="sub">Needs <span class="mono">\usepackage{'{'}amssymb{'}'}</span></span
 						>{/if}
 				{:else}
@@ -208,6 +224,15 @@
 	.copy:hover {
 		border-color: #5db65d;
 		color: #fff;
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 
 	.copy-main {

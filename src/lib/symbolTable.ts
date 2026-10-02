@@ -1117,6 +1117,12 @@ export function matchesQuery(s: SymbolEntry, query: string): boolean {
 	if (allCodes.has(trimmed)) return (codes.get(s.id) ?? []).includes(trimmed);
 	// The LaTeX for + = < > and the prime is typed as it is: ' finds the prime.
 	if (s.latex === trimmed) return true;
+	// A lone \ or & is the first key of a LaTeX command or an HTML code, not a
+	// pasted character, so it keeps every symbol that has such a code rather
+	// than flashing "no symbol matches" while the rest is typed. Every symbol
+	// has a numeric reference, so & keeps them all.
+	if (trimmed === '&') return true;
+	if (trimmed === '\\') return matchesWord(s, trimmed);
 	if (Array.from(decoded).length === 1 && !/[a-z0-9]/i.test(decoded)) return s.glyph.includes(decoded);
 	if (decoded !== trimmed) return false;
 	const parts = trimmed.split(/\s+/);

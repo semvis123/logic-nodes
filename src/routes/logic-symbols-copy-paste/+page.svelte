@@ -61,6 +61,12 @@
 	$: selected = symbolById(selectedId) as SymbolEntry;
 	$: matchCount = new Set(groups.flatMap((g) => g.symbols.map((s) => s.id))).size;
 	$: lookAlike = lookAlikeOf(query);
+	/** Shown under the box and read out with the match count, so a pasted twin is explained either way. */
+	$: lookAlikeText = lookAlike
+		? `${lookAlike.char} (${u(lookAlike.char.codePointAt(0) ?? 0)}) is a look-alike of ${
+				lookAlike.symbol.glyph
+		  } (${unicodeLabel(lookAlike.symbol)}), ${lookAlike.symbol.names[0]}. They are different characters.`
+		: '';
 
 	/** The tile that holds the selection: the group last used if it shows it, else the first that does. */
 	$: currentGroup = (
@@ -89,6 +95,9 @@
 		selectedId = s.id;
 		selectedGroup = groupId;
 		placed = true;
+		// A clipboard failure names the symbol to copy by hand; once another tile
+		// is in use it is out of date, and on a phone it covers part of the panel.
+		if (statusKind === 'fail') dismiss();
 		await tick();
 		const after = document.getElementById(id)?.getBoundingClientRect().top;
 		if (before !== undefined && after !== undefined && after !== before) window.scrollBy(0, after - before);
@@ -103,8 +112,14 @@
 		status = message;
 		statusKind = kind;
 		clearTimeout(statusTimer);
-		// A failure stays up until the next copy, so there is time to copy by hand.
+		// A failure stays up until it is dismissed or another symbol is used, so
+		// there is time to copy by hand.
 		if (kind !== 'fail') statusTimer = setTimeout(() => (status = ''), 4000);
+	}
+
+	function dismiss() {
+		clearTimeout(statusTimer);
+		status = '';
 	}
 
 	async function writeClipboard(text: string): Promise<boolean> {
@@ -397,15 +412,12 @@
 						and Enter copies one.
 					</p>
 					{#if lookAlike}
-						<p class="field-help look-hint">
-							{lookAlike.char} ({u(lookAlike.char.codePointAt(0) ?? 0)}) is a look-alike of {lookAlike.symbol.glyph}
-							({unicodeLabel(lookAlike.symbol)}), {lookAlike.symbol.names[0]}. They are different characters.
-						</p>
+						<p class="field-help look-hint">{lookAlikeText}</p>
 					{/if}
 					<p class="visually-hidden" role="status">
 						{#if query.trim()}{matchCount
 								? `${matchCount} ${matchCount === 1 ? 'symbol matches' : 'symbols match'}`
-								: `No symbol matches “${query.trim()}”`}{/if}
+								: `No symbol matches “${query.trim()}”`}{#if lookAlike}. {lookAlikeText}{/if}{/if}
 					</p>
 				</div>
 				<div class="format">
@@ -482,9 +494,12 @@
 	</section>
 
 	<div class="toast-wrap">
-		<p class="toast {statusKind}" class:visible={!!status} id="copy-status" role="status" aria-live="polite">
-			{status}
-		</p>
+		<div class="toast {statusKind}" class:visible={!!status}>
+			<p id="copy-status" role="status" aria-live="polite">{status}</p>
+			{#if status && statusKind === 'fail'}
+				<button type="button" class="toast-close" on:click={dismiss}>Dismiss</button>
+			{/if}
+		</div>
 	</div>
 
 	<section id="how-to-type">
@@ -923,6 +938,36 @@
 	.toast.visible {
 		opacity: 1;
 		transform: none;
+	}
+
+	.toast p {
+		margin: 0;
+	}
+
+	/* Only a failure, which stays up, takes clicks; a passing message never
+	   blocks a tap on what is under it. */
+	.toast.fail.visible {
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+		pointer-events: auto;
+	}
+
+	.toast-close {
+		flex: none;
+		background: #161618;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		border-radius: 3px;
+		color: #ddd;
+		font-size: 0.8rem;
+		min-height: 36px;
+		padding: 0.25rem 0.7rem;
+		cursor: pointer;
+	}
+
+	.toast-close:hover {
+		border-color: #5db65d;
+		color: #fff;
 	}
 
 	.toast.warn {

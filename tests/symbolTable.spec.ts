@@ -536,6 +536,12 @@ test.describe('the derived codes', () => {
 		expect(ids('\\sub')).toEqual(['subset', 'subseteq', 'subsetneq']);
 		expect(ids('&#x22')).toContain('nand');
 		expect(ids('&#x22')).not.toContain('not');
+		// The first key of a code keeps every symbol that has such a code.
+		expect(ids('&')).toEqual(SYMBOLS.map((s) => s.id));
+		const withCommand = SYMBOLS.filter((s) => [s.latex, ...(s.aliases ?? [])].some((c) => c?.startsWith('\\')));
+		expect(ids('\\')).toEqual(withCommand.map((s) => s.id));
+		expect(ids('\\')).toContain('prime');
+		expect(ids('\\').length).toBeGreaterThan(50);
 	});
 
 	test('aliases, numeric references, brace commands and look-alikes all find their symbol', () => {
@@ -683,6 +689,41 @@ test.describe('the logic-symbols-copy-paste page', () => {
 		await expect(page).toHaveURL(/s=nor/);
 	});
 
+	test('every copy button in the panel says what it copies', async ({ page }) => {
+		await page.goto(path);
+		await page.waitForLoadState('networkidle');
+		const names = await page
+			.locator('#detail button')
+			.evaluateAll((els) => els.map((b) => (b.textContent ?? '').replace(/^Copy(?=Copy)/, '').trim()));
+		expect(names).toEqual([
+			'Copy symbol',
+			'Copy the code point U+2227',
+			'Copy the HTML &and;',
+			'Copy the hex reference &#x2227;',
+			'Copy the decimal reference &#8743;',
+			'Copy the LaTeX command \\land'
+		]);
+		await expect(page.getByRole('button', { name: 'Copy the hex reference &#x2227;' })).toHaveCount(1);
+	});
+
+	test('a clipboard failure can be dismissed and clears when another symbol is used', async ({ page }) => {
+		await page.goto(path);
+		await page.waitForLoadState('networkidle');
+		await page.evaluate(() => {
+			navigator.clipboard.writeText = () => Promise.reject(new Error('denied'));
+		});
+		await page.locator('#sym-forall').click();
+		await expect(page.locator('#copy-status')).toContainText('Could not reach the clipboard');
+		await page.getByRole('button', { name: 'Dismiss' }).click();
+		await expect(page.locator('#copy-status')).toHaveText('');
+		await expect(page.getByRole('button', { name: 'Dismiss' })).toHaveCount(0);
+		await page.locator('#sym-exists').click();
+		await expect(page.locator('#copy-status')).toContainText('Select ∃');
+		// Moving to another symbol makes the message out of date, so it goes.
+		await page.locator('#sym-exists').press('ArrowRight');
+		await expect(page.locator('#copy-status')).toHaveText('');
+	});
+
 	test('the keyboard can reach, move through and copy the grid', async ({ page, context }) => {
 		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 		await page.goto(path);
@@ -734,6 +775,13 @@ test.describe('the logic-symbols-copy-paste page', () => {
 		await page.locator('#filter').fill('∆');
 		await expect(page.locator('#sym-symdiff')).toBeVisible();
 		await expect(page.locator('.look-hint')).toContainText('different characters');
+		// The reason is read out with the match count, not only shown.
+		await expect(page.getByRole('status').filter({ hasText: 'symbol matches' })).toContainText('look-alike of Δ');
+		// The first key of a LaTeX command or HTML code does not empty the grid.
+		await page.locator('#filter').fill('\\');
+		await expect(page.locator('#sym-and')).toBeVisible();
+		await page.locator('#filter').fill('&');
+		await expect(page.locator('#sym-and')).toBeVisible();
 		// The box takes no more than a shared link keeps.
 		await expect(page.locator('#filter')).toHaveAttribute('maxlength', '60');
 	});
