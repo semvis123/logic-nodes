@@ -102,11 +102,7 @@ test.describe('the page finds your number', () => {
 			const limit = questionsNeeded(n);
 			let worst = 0;
 			const bad: string[] = [];
-			const step = range.hi > 10_000 ? 997 : 1;
-			const secrets: number[] = [];
-			for (let s = range.lo; s <= range.hi; s += step) secrets.push(s);
-			secrets.push(range.lo, range.hi, range.lo + 1, range.hi - 1);
-			for (const secret of secrets) {
+			for (let secret = range.lo; secret <= range.hi; secret++) {
 				const answers = answersFor(range, secret);
 				const state = playFind(range, answers);
 				// Plain checks in the hot loop: expect() per number is slow over a thousand of them.
@@ -251,6 +247,21 @@ test.describe('liar mode', () => {
 		expect(many).toBe(2048 - 128 * 12);
 	});
 
+	test('known codewords, from the parity equations written out by hand', () => {
+		// 42 = 0101010: data at positions 3,5,6,7,9,10,11 = 0,1,0,1,0,1,0.
+		// p1 = d3^d5^d7^d9^d11 = 0^1^1^0^0 = 0, p2 = d3^d6^d7^d10^d11 = 0^0^1^1^0 = 0,
+		// p4 = d5^d6^d7 = 1^0^1 = 0, p8 = d9^d10^d11 = 0^1^0 = 1.
+		const bits = (n: number) =>
+			liarEncode(n)
+				.map((b) => (b ? 1 : 0))
+				.join('');
+		expect(bits(42)).toBe('00001011010');
+		expect(bits(0)).toBe('00000000000');
+		// 127: every data bit 1, and every check covers an odd number of data bits (5, 5, 3 and 3).
+		expect(bits(127)).toBe('11111111111');
+		expect(bits(64)).toBe('11100000000');
+	});
+
 	test('the worked example: 42 with a lie on question 6', () => {
 		const answers = liarEncode(42);
 		answers[5] = !answers[5];
@@ -391,8 +402,12 @@ test.describe('the guess-my-number page', () => {
 		}
 		await expect(page.locator('.question')).toContainText('Your number is 77.');
 		await expect(page).toHaveURL(new RegExp(`a=${answersToText(truth)}`));
-		await page.getByRole('button', { name: 'That is my number' }).click();
+		// The Yes/No buttons are gone; focus stays in the game.
+		await expect(page.getByRole('button', { name: 'That is my number' })).toBeFocused();
+		await expect(page.locator('#game')).toContainText('2⁷ = 128 numbers, 6 only 64');
+		await page.keyboard.press('Enter');
 		await expect(page.locator('.result-text')).toHaveText(`Found 77 in ${truth.length} questions (1 to 100).`);
+		await expect(page.getByRole('button', { name: 'Play again' })).toBeFocused();
 	});
 
 	test('a wrong answer is pointed out once the real number is given', async ({ page }) => {
@@ -405,6 +420,15 @@ test.describe('the guess-my-number page', () => {
 		await expect(page.locator('.slip-text')).toContainText('question 3');
 		await page.fill('#actual', '500');
 		await expect(page.locator('#slip-out [role="alert"]')).toBeVisible();
+		await expect(page.locator('#actual')).toHaveAttribute('aria-invalid', 'true');
+		// Thousands separators are fine, as in the guess box.
+		await page.goto(`/guess-my-number?r=1000000&a=${answersToText(answersFor(rangeOf('1000000'), 5))}`);
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'It is not' }).click();
+		await expect(page.locator('#actual')).toBeFocused();
+		await page.fill('#actual', '777,777');
+		await expect(page.locator('#actual')).toHaveAttribute('aria-invalid', 'false');
+		await expect(page.locator('.slip-text')).toContainText('For 777,777, question 1');
 	});
 
 	test('a shared link round trips', async ({ page }) => {
@@ -433,14 +457,66 @@ test.describe('the guess-my-number page', () => {
 		await expect(page.locator('.question')).toContainText('Your number is 93.');
 		await expect(page.locator('.question')).toContainText('You lied on question 9');
 		await expect(page).toHaveURL(new RegExp(`mode=liar&a=${answersToText(lied)}`));
-		// A pattern no single lie can produce.
+		// Lies on 4 and 8 break checks 4 and 8, a syndrome of 12: no such question, so two lies.
 		const twice = liarEncode(5);
-		twice[0] = !twice[0];
-		twice[11 - 1] = !twice[11 - 1];
-		const d = liarDecode(twice);
+		twice[4 - 1] = !twice[4 - 1];
+		twice[8 - 1] = !twice[8 - 1];
+		expect(liarDecode(twice)).toMatchObject({ syndrome: 12, verdict: { kind: 'many' } });
 		await page.goto(`/guess-my-number?mode=liar&a=${answersToText(twice)}`);
-		if (d.verdict.kind === 'many') await expect(page.locator('.question')).toContainText('More than one lie');
-		else await expect(page.locator('.question')).toContainText(`Your number is ${d.verdict.number}.`);
+		await expect(page.locator('.question')).toContainText('More than one lie');
+		await expect(page.locator('.question')).toContainText('add up to 12');
+		await expect(page.locator('.result-text')).toHaveCount(0);
+		// The two-lies chip shows the same flag rather than a confident wrong number.
+		await page.getByRole('button', { name: 'Liar: two lies' }).click();
+		await expect(page.locator('.question')).toContainText('More than one lie');
+	});
+
+	test('a link with an answer past the end of the search keeps only the answers used', async ({ page }) => {
+		await page.goto('/guess-my-number?a=yyyyyyy');
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.question')).toContainText('Your number is 100.');
+		await expect(page).toHaveURL(/a=yyyyyy$/);
+		await page.getByRole('button', { name: 'Undo last answer' }).click();
+		await expect(page).toHaveURL(/a=yyyyy$/);
+		await expect(page.locator('.question')).toContainText('Question 6');
+	});
+
+	test('a guess-mode link with a big range plays on that range', async ({ page }) => {
+		await page.goto('/guess-my-number?mode=guess&r=1000000&evil=1');
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#range')).toHaveValue('1000000');
+		let lo = 1;
+		let hi = 1_000_000;
+		let count = 0;
+		for (;;) {
+			const g = Math.floor((lo + hi) / 2);
+			await page.fill('#guess', String(g));
+			await page.press('#guess', 'Enter');
+			count++;
+			const text = (await page.locator('.question .q-text').textContent()) ?? '';
+			// 500,000 leaves 499,999 below and 500,000 above, so the bigger side is higher.
+			if (count === 1) expect(text).toBe('Higher than 500,000.');
+			if (text.startsWith('Correct')) break;
+			if (text.startsWith('Higher')) lo = g + 1;
+			else hi = g - 1;
+			expect(lo).toBeLessThanOrEqual(hi);
+		}
+		expect(count).toBe(20);
+		await expect(page.locator('.result-text')).toContainText('Cornered evil mode in 20 guesses (1 to 1,000,000)');
+		// Focus moves to New game, not back to the top of the page.
+		await expect(page.locator('#new-game')).toBeFocused();
+		// The honest game on the same link picks its secret from the whole range, not from 1 to 100:
+		// a guess of 500 is "lower" only for a secret below 500, 1 in 2,000 per game.
+		await page.goto('/guess-my-number?mode=guess&r=1000000');
+		await page.waitForLoadState('networkidle');
+		const replies: string[] = [];
+		for (let game = 0; game < 3; game++) {
+			if (game) await page.getByRole('button', { name: 'New game' }).click();
+			await page.fill('#guess', '500');
+			await page.press('#guess', 'Enter');
+			replies.push((await page.locator('.question .q-text').textContent()) ?? '');
+		}
+		expect(replies.some((r) => r.startsWith('Higher'))).toBe(true);
 	});
 
 	test('you guess mine: the hints are consistent and lead to the number', async ({ page }) => {
