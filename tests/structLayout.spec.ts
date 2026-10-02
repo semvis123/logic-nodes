@@ -16,6 +16,7 @@ import {
 	compareTargets,
 	explainSteps,
 	layoutRecord,
+	paddingMask,
 	parseStructs,
 	recordCode,
 	reorder,
@@ -725,7 +726,7 @@ test.describe('struct layout engine', () => {
 				expect(layout.align).toBe(Math.max(...layout.members.map((m) => m.align)));
 				const data = layout.members.reduce((s, m) => s + m.size, 0);
 				expect(layout.wasted).toBe(layout.size - data);
-				expect(layout.padMask.filter(Boolean)).toHaveLength(layout.wasted);
+				expect(paddingMask(layout.gaps, layout.size).filter(Boolean)).toHaveLength(layout.wasted);
 
 				// Sorting by alignment leaves no gaps between members, and the
 				// reordered code parses back to that same layout.
@@ -832,10 +833,21 @@ struct d { char c; int i; struct a x; struct b y; struct c z; };`;
 
 	test('the static asserts and the comparison table', () => {
 		const a = analyse(FIXTURES[0].src, 'x64');
-		expect(staticAsserts(a.layout)).toContain('_Static_assert(offsetof(struct packet, value) == 8, "value");');
-		expect(staticAsserts(a.layout)).toContain('_Static_assert(sizeof(struct packet) == 32, "size");');
+		const x64 = targetById('x64');
+		expect(staticAsserts(a.layout, x64)).toContain('_Static_assert(offsetof(struct packet, value) == 8, "value");');
+		expect(staticAsserts(a.layout, x64)).toContain('_Static_assert(sizeof(struct packet) == 32, "size");');
+		// The checks say which target they hold for.
+		expect(staticAsserts(a.layout, x64).split('\n')[0]).toBe(
+			'/* Layout on x86-64 Linux and macOS (x86_64-linux-gnu) */'
+		);
 		const t = analyse('typedef struct { char c; double d; } pair;', 'i386');
-		expect(staticAsserts(t.layout)).toContain('sizeof(pair) == 12');
+		expect(staticAsserts(t.layout, targetById('i386'))).toContain('sizeof(pair) == 12');
+		// An untagged struct is named by its variable; with nothing to name it, no checks.
+		const v = analyse('struct { char c; double d; } x;', 'x64');
+		expect(staticAsserts(v.layout, x64)).toContain('_Static_assert(sizeof(x) == 16, "size");');
+		expect(staticAsserts(v.layout, x64)).toContain('_Static_assert(offsetof(__typeof__(x), d) == 8, "d");');
+		expect(staticAsserts(v.layout, x64)).not.toContain('…');
+		expect(staticAsserts(analyse('struct { char c; double d; } *p;', 'x64').layout, x64)).toBe('');
 		const rows = compareTargets(FIXTURES[0].src);
 		expect(rows.map((r) => r.layout?.size)).toEqual(ids.map((id) => FIXTURES[0][id]?.[0]));
 		const mixed = compareTargets('struct s { char c; _Alignas(4) double d; };');
@@ -866,7 +878,20 @@ struct d { char c; int i; struct a x; struct b y; struct c z; };`;
 			['struct s { int a; };\nstruct s { int b; };', /defined twice/, 2, 1],
 			['struct s { int a[0]; };', /zero-length array/, 1, 18],
 			['int x;', /Expected a struct, union or typedef/, 1, 1],
-			['', /Paste a struct or union definition/, 0, 0]
+			['', /Paste a struct or union definition/, 0, 0],
+			['#if 0\nstruct a { int x; };\n#endif\nstruct s { int a; };', /Conditional compilation \(#if\)/, 1, 1],
+			[
+				'#ifdef _WIN32\nstruct s { int a; };\n#else\nstruct s { long a; };\n#endif',
+				/\(#ifdef\) is not evaluated/,
+				1,
+				1
+			],
+			['#ifndef S_H\n#define S_H\nstruct s { int a; };', /no matching #endif/, 1, 1],
+			['struct s { int a; };\n#endif', /#endif without a matching #ifndef/, 2, 1],
+			['struct s { int a; struct { int a; }; };', /Duplicate member "a": the anonymous struct has one too/, 1, 19],
+			['struct s { union { int a; struct { char b; }; }; int b; };', /Duplicate member "b"/, 1, 54],
+			['struct s { char c[08]; };', /"08" is not a valid octal number/, 1, 19],
+			['struct s { int \u{1F600}; };', /Unexpected character "\u{1F600}"/u, 1, 16]
 		];
 		for (const [src, message, line, column] of cases) {
 			const e = errorOf(src);
@@ -879,6 +904,97 @@ struct d { char c; int i; struct a x; struct b y; struct c z; };`;
 		expect(errorOf('struct s { char c; _Alignas(4) double d; };', 'x64')?.message).toMatch(/asks for less than/);
 		expect(errorOf('struct s { char c; _Alignas(4) double d; };', 'i386')).toBeNull();
 		expect(errorOf('x'.repeat(5000))?.message).toMatch(/more than 4000 characters/);
+		// A record the main struct does not use is still checked, as a compiler would.
+		expect(errorOf('struct a { _Alignas(1) int x; };\nstruct b { char c; };')?.message).toMatch(
+			/^Line 1, column 28: _Alignas\(1\) asks for less/
+		);
+		expect(compareTargets('struct a { _Alignas(1) int x; };\nstruct b { char c; };').every((r) => r.error)).toBe(true);
+		// An include guard is read straight through.
+		expect(errorOf('#ifndef S_H\n#define S_H\nstruct s { int a; };\n#endif')).toBeNull();
+		expect(errorOf('struct s { char c[010]; };')).toBeNull();
+	});
+
+	test('padding is counted exactly however large the struct is', () => {
+		// Gaps far apart and big arrays: the totals come from arithmetic, not from a
+		// byte map, so they hold beyond any drawing limit.
+		const cases: [string, number, number, number][] = [
+			// source, size, padding at this level, padding inside members
+			['struct s { char c; double d; char big[70000]; };', 70016, 7, 0],
+			['struct s { char big[65536]; char c; double d; };', 65552, 7, 0],
+			['struct h { char c; double d[100000]; };', 800008, 7, 0],
+			['struct a { char c; int i; };\nstruct s { struct a x[100000]; char z; };', 800004, 3, 300000]
+		];
+		for (const [src, size, padding, inner] of cases) {
+			const { layout } = analyse(src, 'x64');
+			expect([layout.size, layout.padding, layout.innerPadding, layout.wasted], src).toEqual([
+				size,
+				padding,
+				inner,
+				padding + inner
+			]);
+			expect(layout.wastedPercent).toBe(Math.round(((padding + inner) / size) * 1000) / 10);
+		}
+		// The drawing still knows where the first gaps are.
+		const big = analyse('struct a { char c; int i; };\nstruct s { struct a x[100000]; char z; };', 'x64').layout;
+		expect(paddingMask(big.gaps, 16)).toEqual([0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0].map(Boolean));
+		// A union counts the bytes no member uses.
+		const u = analyse('struct a { char c; int i; };\nunion u { struct a x[2]; char z[3]; };', 'x64').layout;
+		expect([u.size, u.wasted]).toEqual([16, 4]);
+		expect(paddingMask(u.gaps, 16)).toEqual([0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0].map(Boolean));
+	});
+
+	test('hostile input stays quick', () => {
+		const src = `struct b { ${Array.from({ length: 240 }, (_, i) => `char m${i}[65536];`).join('')} };`;
+		expect(src.length).toBeLessThanOrEqual(4000);
+		const start = Date.now();
+		analyse(src, 'x64');
+		compareTargets(src);
+		expect(Date.now() - start).toBeLessThan(500);
+	});
+
+	test('the reordered code keeps what it needs and lays out the same again', () => {
+		// Each source is reordered on every target, then the reordered whole input
+		// is parsed and laid out again: it must give the promised layout. The
+		// outputs were also compiled with clang 18 for x86_64 and i386, which
+		// accepted every one and agreed on the sizes.
+		const sources = [
+			'struct point { short x, y; };\nstruct s { char a; double d; struct point p; char b; };',
+			'typedef unsigned char u8;\nstruct s { u8 a; double d; u8 b; };',
+			'struct outer { char c; struct p { double d; } x, y; char z; };',
+			'struct outer { struct inner { int v; }; char c; struct inner more; char e; double d; };',
+			'struct outer { char c; struct inner { long double v; } *ptr; struct inner val; };',
+			'struct o { char c; struct { char q; struct t { double z; } tt; } anon; double d; };',
+			'#pragma pack(push, 2)\nstruct o { char c; struct t { char a; double d; } x; int i; };\n#pragma pack(pop)',
+			'struct o { char c; const _Alignas(16) struct __attribute__((packed)) t { char a; double d; } x; int i; union { char u; long l; }; };',
+			'typedef struct node { char c; struct node *next; struct kid { short k; } *kids, one; } node_t;\nstruct after { int z; };'
+		];
+		for (const src of sources)
+			for (const target of TARGETS) {
+				const a = analyse(src, target.id);
+				const r = a.reordered;
+				expect(r, src).not.toBeNull();
+				if (!r) continue;
+				const again = analyse(r.source, target.id);
+				expect([again.layout.size, again.layout.members.map((m) => m.offset)], `${target.id}: ${r.source}`).toEqual([
+					r.layout.size,
+					r.layout.members.map((m) => m.offset)
+				]);
+				// A tag is defined once, ahead of any member that uses it.
+				for (const tag of src.match(/struct \w+ \{/g) ?? []) expect(r.source.split(tag).length - 1, r.source).toBe(1);
+			}
+		const nested = analyse(sources[2], 'x64').reordered;
+		expect(nested?.code).toBe(
+			'struct p {\n    double d;\n};\n\nstruct outer {\n    struct p x;\n    struct p y;\n    char c;\n    char z;\n};'
+		);
+		// Only the main definition is swapped; the rest of the input stays as written.
+		const multi = analyse(sources[0], 'x64').reordered;
+		expect(multi?.source).toBe(
+			'struct point { short x, y; };\nstruct s {\n    double d;\n    struct point p;\n    char a;\n    char b;\n};'
+		);
+		// The copy carries the pragma it needs; the swapped source already has it.
+		const packed = analyse(sources[6], 'x64').reordered;
+		expect(packed?.code.startsWith('#pragma pack(push, 2)\n')).toBe(true);
+		expect(packed?.source.match(/#pragma/g)).toHaveLength(2);
 	});
 
 	test('comments, includes and C spellings are accepted', () => {
@@ -937,9 +1053,14 @@ test.describe('the struct-padding-calculator page', () => {
 		await expect(page.locator('[role="alert"]')).toContainText('Line 2, column 13: Bit-fields are not supported');
 		await expect(page.locator('#struct-source')).toHaveAttribute('aria-invalid', 'true');
 
+		// The results stay on screen, dimmed, and out of reach of the keyboard.
+		await expect(page.locator('.results')).toHaveAttribute('inert', '');
+
 		await page.getByRole('button', { name: 'Tagged union' }).click();
 		await expect(page.locator('[role="alert"]')).toHaveCount(0);
-		// Still on Windows, where the union holds a 12-byte array and an 8-byte double.
+		await expect(page.locator('.results')).not.toHaveAttribute('inert', '');
+		// Every chip sets its own target: back on x86-64 Linux.
+		await expect(page.locator('#target')).toHaveValue('x64');
 		await expect(answer(page)).toHaveText('24 bytes');
 		// The comparison table switches target too.
 		await page.getByRole('button', { name: '32-bit x86 Linux' }).click();
@@ -953,6 +1074,36 @@ test.describe('the struct-padding-calculator page', () => {
 		await page.getByRole('button', { name: 'Lay out this version' }).click();
 		await expect(answer(page)).toHaveText('16 bytes');
 		await expect(page.locator('#struct-source')).toHaveValue(/double value;\n {4}int count;/);
+	});
+
+	test('laying out the reordered version keeps the structs it uses', async ({ page }) => {
+		await page.goto('/struct-padding-calculator');
+		await page.waitForLoadState('networkidle');
+		await page.fill(
+			'#struct-source',
+			'typedef unsigned char u8;\nstruct point { short x, y; };\nstruct s { u8 a; double d; struct point p; u8 b; };'
+		);
+		await expect(answer(page)).toHaveText('24 bytes');
+		await page.getByRole('button', { name: 'Lay out this version' }).click();
+		await expect(answer(page)).toHaveText('16 bytes');
+		await expect(page.locator('[role="alert"]')).toHaveCount(0);
+		await expect(page.locator('#struct-source')).toHaveValue(
+			'typedef unsigned char u8;\nstruct point { short x, y; };\nstruct s {\n    double d;\n    struct point p;\n    u8 a;\n    u8 b;\n};'
+		);
+	});
+
+	test('a link to an invalid struct shows the error, not the default layout', async ({ page }) => {
+		await page.goto('/struct-padding-calculator?c=' + encodeURIComponent('struct s { int a : 3; };'));
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#source-error')).toContainText('Bit-fields are not supported');
+		await expect(page.locator('.results')).toHaveCount(0);
+		await expect(page.locator('.empty-state')).toBeVisible();
+		// An empty field is kept in the link too.
+		await page.fill('#struct-source', '');
+		await expect(page).toHaveURL(/\?c=\+$/);
+		await page.reload();
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#source-error')).toContainText('Paste a struct or union definition');
 	});
 
 	test('a shared link round trips exactly', async ({ page }) => {

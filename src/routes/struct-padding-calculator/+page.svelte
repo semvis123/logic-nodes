@@ -8,7 +8,10 @@
 		byteGrid,
 		explainSteps,
 		staticAsserts,
+		sizeofOperand,
 		plural,
+		formatCount,
+		formatPercent,
 		layoutRecord,
 		parseStructs,
 		targetById,
@@ -33,8 +36,10 @@
     char flag;
 };`;
 
-	const examples: { label: string; source: string; target?: TargetId }[] = [
-		{ label: 'Badly ordered', source: DEFAULT_SOURCE },
+	// Every example names its target, so a chip always gives the answer the
+	// teaching text quotes for it, whatever the previous chip chose.
+	const examples: { label: string; source: string; target: TargetId }[] = [
+		{ label: 'Badly ordered', source: DEFAULT_SOURCE, target: 'x64' },
 		{
 			label: 'Nested struct',
 			source: `struct point {
@@ -48,7 +53,8 @@ struct sprite {
         double scale;
         char layer;
     } style;
-};`
+};`,
+			target: 'x64'
 		},
 		{
 			label: 'Tagged union',
@@ -59,7 +65,8 @@ struct sprite {
         double d;
         char s[12];
     } as;
-};`
+};`,
+			target: 'x64'
 		},
 		{
 			label: 'BMP header, packed',
@@ -73,7 +80,8 @@ struct bmp_file_header {
     uint16_t reserved2;
     uint32_t pixel_offset;
 };
-#pragma pack(pop)`
+#pragma pack(pop)`,
+			target: 'x64'
 		},
 		{
 			label: '__attribute__((packed))',
@@ -83,14 +91,18 @@ struct __attribute__((packed)) frame {
     uint8_t type;
     uint32_t length;
     uint16_t port;
-};`
+};`,
+			target: 'x64'
 		},
 		{
 			label: 'alignas(64)',
-			source: `struct counters {
+			source: `#include <stdalign.h>
+
+struct counters {
     alignas(64) long hits;
     alignas(64) long misses;
-};`
+};`,
+			target: 'x64'
 		},
 		{
 			label: 'Linked list, 32-bit',
@@ -105,11 +117,12 @@ struct __attribute__((packed)) frame {
 			label: 'Flexible array',
 			source: `#include <stdint.h>
 
-struct message {
-    uint32_t length;
-    uint8_t type;
-    char data[];
-};`
+struct samples {
+    uint16_t count;
+    uint8_t channels;
+    int32_t data[];
+};`,
+			target: 'x64'
 		},
 		{
 			label: 'long on Windows',
@@ -128,19 +141,30 @@ struct message {
 
 	onMount(() => {
 		const p = readUrl();
-		source = safeText(p.c, MAX_SOURCE) ?? source;
+		const linked = safeText(p.c, MAX_SOURCE);
+		if (linked !== undefined) {
+			source = linked;
+			// Until this source lays out, there is no earlier result of its own
+			// to show dimmed: struct packet would only confuse.
+			everValid = false;
+		}
 		target = safeOption(p.t, TARGET_IDS) ?? target;
 	});
-	$: syncUrl({ c: source, t: target }, DEFAULTS);
+	// An empty field is a state too; a lone space keeps it in the link.
+	$: syncUrl({ c: source === '' ? ' ' : source, t: target }, DEFAULTS);
 
 	// Runs at build time too, so the page ships with a real layout. A failed
 	// parse keeps the last good result on screen, dimmed, so nothing jumps.
 	let result: Analysis = analyse(DEFAULT_SOURCE, 'x64');
+	let goodSource = DEFAULT_SOURCE;
 	let error = '';
+	let everValid = true;
 	$: {
 		try {
 			result = analyse(source, target);
+			goodSource = source;
 			error = '';
+			everValid = true;
 		} catch (e) {
 			error = e instanceof StructError ? e.message : 'That could not be read as a C struct';
 		}
@@ -148,19 +172,50 @@ struct message {
 	$: layout = result.layout;
 	$: grid = byteGrid(layout, 8, GRID_LIMIT);
 	$: steps = explainSteps(layout);
-	$: asserts = staticAsserts(layout);
-	$: comparison = compareTargets(source);
-	$: anyTarget = comparison.some((c) => c.layout);
+	$: asserts = staticAsserts(layout, result.target);
+	$: operand = sizeofOperand(layout) ?? layout.name;
+	// The current source on every target, when it parses at all; a struct
+	// that only fails on this target still lists the targets it works on.
+	$: current = compareTargets(source);
+	$: anyTarget = current.some((c) => c.layout);
+	$: comparison = anyTarget ? current : compareTargets(goodSource);
 	$: rows = Math.min(18, Math.max(7, source.split('\n').length + 1));
 	$: dataBytes = layout.size - layout.wasted;
 
+	// The alert waits for a pause in typing, so a screen reader is not
+	// interrupted on every keystroke while a line is half written.
+	let alertText = '';
+	let alertTimer: ReturnType<typeof setTimeout>;
+	$: scheduleAlert(error);
+	function scheduleAlert(message: string) {
+		clearTimeout(alertTimer);
+		if (!message) alertText = '';
+		else alertTimer = setTimeout(() => (alertText = message), 500);
+	}
+
+	/** Takes a block out of the tab order and the accessibility tree while it is stale. */
+	function inert(node: HTMLElement, on: boolean) {
+		const set = (value: boolean) => (value ? node.setAttribute('inert', '') : node.removeAttribute('inert'));
+		set(on);
+		return { update: set };
+	}
+
+	/**
+	 * Lets a keyboard user focus a scrolling table to scroll it. Set from code,
+	 * because Svelte 3's a11y check wrongly flags tabindex on a role="region".
+	 */
+	function focusable(node: HTMLElement) {
+		node.tabIndex = 0;
+	}
+
 	const GRID_LIMIT = 512;
-	const PALETTE = 6;
+	const PALETTE = 8;
 
 	let copied = '';
 	let copyFailed = false;
 	let copyTimer: ReturnType<typeof setTimeout>;
 	async function copy(what: string, text: string) {
+		if (error) return;
 		try {
 			await navigator.clipboard.writeText(text);
 			copied = what;
@@ -173,18 +228,24 @@ struct message {
 		copyTimer = setTimeout(() => (copied = ''), 2500);
 	}
 
-	function tryExample(example: { source: string; target?: TargetId }) {
+	function tryExample(example: { source: string; target: TargetId }) {
 		source = example.source;
-		if (example.target) target = example.target;
+		target = example.target;
 		const field = document.getElementById('struct-source');
 		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
+	// Swaps just the definition in the field, keeping the typedefs, structs and
+	// pragmas around it that the reordered version still needs.
 	function useReordered() {
-		if (!result.reordered) return;
-		source = result.reordered.code;
+		if (error || !result.reordered) return;
+		source = result.reordered.source;
 	}
+
+	/** A 1-byte cell is too narrow on a phone for more than a few letters. */
+	const tight = (seg: { length: number; member: number }, l: RecordLayout) =>
+		seg.length === 1 && seg.member >= 0 && l.members[seg.member].label.length > 3;
 
 	const segmentTitle = (l: RecordLayout, s: { member: number; innerPad: boolean; start: number; length: number }) => {
 		const range = s.length === 1 ? `byte ${s.start}` : `bytes ${s.start} to ${s.start + s.length - 1}`;
@@ -197,7 +258,12 @@ struct message {
 	const worked = analyse(DEFAULT_SOURCE, 'x64');
 	const workedSteps = explainSteps(worked.layout);
 	// The default struct is a struct, so it always has a reordering.
-	const workedReordered = worked.reordered ?? { layout: worked.layout, code: DEFAULT_SOURCE, saved: 0 };
+	const workedReordered = worked.reordered ?? {
+		layout: worked.layout,
+		code: DEFAULT_SOURCE,
+		source: DEFAULT_SOURCE,
+		saved: 0
+	};
 	const packedHeader = analyse(examples[3].source, 'x64').layout;
 	const unpackedHeader = layoutRecord(parseStructs(examples[3].source.replace(/#pragma[^\n]*\n?/g, '')).main, x64);
 	const counters = analyse(examples[5].source, 'x64').layout;
@@ -208,6 +274,8 @@ struct message {
 		linux: analyse(examples[8].source, 'x64').layout
 	};
 	const flexible = analyse(examples[7].source, 'x64').layout;
+	const flexMember = flexible.members[flexible.members.length - 1];
+	const flexOthers = flexible.members.filter((m) => !m.flexible).reduce((s, m) => s + m.size, 0);
 	const i386Packet = analyse(DEFAULT_SOURCE, 'i386').layout;
 
 	const faqs = [
@@ -229,7 +297,7 @@ struct message {
 		},
 		{
 			q: 'What does #pragma pack(1) do?',
-			a: `It caps every member's alignment at 1 byte, so the compiler adds no padding at all. The file header at the start of a BMP image, written as a struct, is ${packedHeader.size} bytes packed, matching the file, and ${unpackedHeader.size} bytes without the pragma. #pragma pack(n) with n of 2, 4, 8 or 16 caps alignment at n instead, and #pragma pack(push, n) and #pragma pack(pop) save and restore the previous setting.`
+			a: `It caps every member's alignment at 1 byte, so the compiler adds no padding at all, unless a member has _Alignas, which MSVC keeps even under the pragma. The file header at the start of a BMP image, written as a struct, is ${packedHeader.size} bytes packed, matching the file, and ${unpackedHeader.size} bytes without the pragma. #pragma pack(n) with n of 2, 4, 8 or 16 caps alignment at n instead, and #pragma pack(push, n) and #pragma pack(pop) save and restore the previous setting.`
 		},
 		{
 			q: 'Is the struct layout the same on every platform?',
@@ -342,8 +410,9 @@ struct message {
 				aria-invalid={error ? 'true' : 'false'}
 				aria-describedby="source-help{error ? ' source-error' : ''}"
 			/>
-			{#if error}
-				<p class="error" id="source-error" role="alert">{error}</p>
+			<p class="error" id="source-error">{error}</p>
+			{#if alertText}
+				<p class="visually-hidden" role="alert">{alertText}</p>
 			{/if}
 			<p class="field-help" id="source-help">
 				The last struct or union is laid out; earlier ones can be used as member types. Understands the basic types,
@@ -357,200 +426,240 @@ struct message {
 				{/each}
 			</div>
 
-			<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
-				<div class="answer" role={error ? undefined : 'status'}>
-					<span class="answer-label"
-						><span class="mono label-code">sizeof({layout.name})</span> on {result.target.label}</span
-					>
-					<span class="answer-value mono">{plural(layout.size, 'byte')}</span>
-					<span class="answer-also">
-						Alignment {layout.align}. {plural(dataBytes, 'byte')} of data and
-						<strong class:waste={layout.wasted > 0}>{plural(layout.wasted, 'byte')} of padding</strong>
-						({layout.wastedPercent}%){#if layout.trailing}, {layout.trailing} of them at the end{/if}{#if layout.innerPadding},
-							{layout.innerPadding} inside nested members{/if}.
-					</span>
-					{#if result.reordered}
+			<p class="visually-hidden" role="status">
+				{error
+					? ''
+					: `sizeof(${operand}) is ${plural(layout.size, 'byte')} on ${result.target.label}, ${formatCount(
+							layout.wasted
+					  )} of them padding.`}
+			</p>
+
+			{#if error && !everValid}
+				<p class="empty-state">Fix the struct above to see its layout.</p>
+			{:else}
+				<div class="results" class:stale={!!error} use:inert={!!error}>
+					<div class="answer">
+						<span class="answer-label"
+							><span class="mono label-code">sizeof({operand})</span> on {result.target.label}</span
+						>
+						<span class="answer-value mono">{plural(layout.size, 'byte')}</span>
 						<span class="answer-also">
-							{#if result.reordered.saved > 0}
-								Sorted by alignment it would be <strong class="good"
-									>{plural(result.reordered.layout.size, 'byte')}</strong
-								>, saving {result.reordered.saved}.
-							{:else if result.reordered.saved === 0}
-								Sorting the members by alignment would not make it smaller.
-							{:else}
-								Sorting by alignment would make it bigger here ({result.reordered.layout.size} bytes), so keep this order.
-							{/if}
+							Alignment {layout.align}. {plural(dataBytes, 'byte')} of data and
+							<strong class:waste={layout.wasted > 0}>{plural(layout.wasted, 'byte')} of padding</strong>
+							({formatPercent(layout.wastedPercent, layout.wasted)}){#if layout.trailing}, {formatCount(
+									layout.trailing
+								)} of them at the end{/if}{#if layout.innerPadding},
+								{formatCount(layout.innerPadding)} inside nested members{/if}.
 						</span>
+						{#if result.reordered}
+							<span class="answer-also">
+								{#if result.reordered.saved > 0}
+									Sorted by alignment it would be <strong class="good"
+										>{plural(result.reordered.layout.size, 'byte')}</strong
+									>, saving {formatCount(result.reordered.saved)}.
+								{:else if result.reordered.saved === 0}
+									Sorting the members by alignment would not make it smaller.
+								{:else}
+									Sorting by alignment would make it bigger here ({plural(result.reordered.layout.size, 'byte')}), so
+									keep this order.
+								{/if}
+							</span>
+						{/if}
+					</div>
+
+					<h2 class="working-title">Byte by byte</h2>
+					<p class="legend">
+						Each row is 8 bytes. Members are labelled in their colour, with their number from the table where a name
+						does not fit; <span class="legend-pad" aria-hidden="true" /> hatched cells are padding, and hatching in a
+						member's colour is padding inside that member.
+						{#if layout.kind === 'union'}All members of a union start at byte 0 and overlap; each byte is labelled with
+							the largest member that covers it.{/if}
+					</p>
+					<div
+						class="grid-wrap"
+						role="img"
+						aria-label="Byte map of {layout.name}: {plural(layout.size, 'byte')}, {formatCount(
+							layout.wasted
+						)} of them padding. The table below lists each member."
+					>
+						<div class="byte-grid">
+							<span class="corner" />
+							{#each Array(8) as _, i}
+								<span class="col-head mono">+{i}</span>
+							{/each}
+							{#each grid as row}
+								<span class="row-head mono">{row.offset}</span>
+								{#each row.segments as seg}
+									<span
+										class="seg mono {seg.member < 0 ? 'pad' : `c${seg.member % PALETTE}`}"
+										class:inner-pad={seg.innerPad}
+										class:tight={seg.first && !seg.innerPad && tight(seg, layout)}
+										style="grid-column: span {seg.length}"
+										title={segmentTitle(layout, seg)}
+										>{#if seg.member < 0}pad{:else if seg.innerPad}pad{:else if seg.first}<span class="full"
+												>{layout.members[seg.member].label}</span
+											><span class="short">{seg.member + 1}</span>{:else}<span class="cont">…</span>{/if}</span
+									>
+								{/each}
+							{/each}
+						</div>
+					</div>
+					{#if layout.size > GRID_LIMIT}
+						<p class="legend">
+							Showing the first {GRID_LIMIT} of {formatCount(layout.size)} bytes; the table has every member.
+						</p>
 					{/if}
-				</div>
+					{#if layout.size === 0}
+						<p class="legend">This struct has no bytes to draw.</p>
+					{/if}
 
-				<h2 class="working-title">Byte by byte</h2>
-				<p class="legend">
-					Each row is 8 bytes. Members are labelled in their colour;
-					<span class="legend-pad" aria-hidden="true" /> hatched cells are padding.
-					{#if layout.kind === 'union'}All members of a union start at byte 0 and overlap; each byte is labelled with
-						the largest member that covers it.{/if}
-				</p>
-				<div
-					class="grid-wrap"
-					role="img"
-					aria-label="Byte map of {layout.name}: {plural(
-						layout.size,
-						'byte'
-					)}, {layout.wasted} of them padding. The table below lists each member."
-				>
-					<div class="byte-grid">
-						<span class="corner" />
-						{#each Array(8) as _, i}
-							<span class="col-head mono">+{i}</span>
-						{/each}
-						{#each grid as row}
-							<span class="row-head mono">{row.offset}</span>
-							{#each row.segments as seg}
-								<span
-									class="seg mono {seg.member < 0 ? 'pad' : `c${seg.member % PALETTE}`}"
-									class:inner-pad={seg.innerPad}
-									style="grid-column: span {seg.length}"
-									title={segmentTitle(layout, seg)}
-									>{#if seg.member < 0}pad{:else if seg.first}{layout.members[seg.member]
-											.label}{:else if seg.innerPad}pad{:else}<span class="cont">…</span>{/if}</span
-								>
-							{/each}
-						{/each}
-					</div>
-				</div>
-				{#if layout.size > GRID_LIMIT}
-					<p class="legend">Showing the first {GRID_LIMIT} of {layout.size} bytes; the table has every member.</p>
-				{/if}
-				{#if layout.size === 0}
-					<p class="legend">This struct has no bytes to draw.</p>
-				{/if}
-
-				<h2 class="working-title">Members</h2>
-				<div class="table-wrap scroll-box">
-					<table class="data-table members">
-						<thead>
-							<tr>
-								<th scope="col">Member</th>
-								<th scope="col">Type</th>
-								<th scope="col" class="num">Offset</th>
-								<th scope="col" class="num">Size</th>
-								<th scope="col" class="num">Align</th>
-								<th scope="col" class="num">Padding before</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each layout.members as m, i}
+					<h2 class="working-title">Members</h2>
+					<div class="table-wrap scroll-box" use:focusable role="region" aria-label="Members of {layout.name}">
+						<table class="data-table members">
+							<thead>
 								<tr>
-									<th scope="row" class="mono member-name"
-										><span class="swatch c{i % PALETTE}" aria-hidden="true" />{m.label}</th
-									>
-									<td class="mono type">{m.type}</td>
-									<td class="mono num">{m.offset}</td>
-									<td class="mono num"
-										>{m.flexible ? '0 (flexible)' : m.size}{#if m.innerPadding}<span class="inner-note"
-												>, {m.innerPadding} padding inside</span
-											>{/if}</td
-									>
-									<td class="mono num"
-										>{m.align}{#if m.align !== m.naturalAlign}<span class="inner-note">
-												(type: {m.naturalAlign})</span
-											>{/if}</td
-									>
-									<td class="mono num" class:waste={m.paddingBefore > 0}>{m.paddingBefore}</td>
+									<th scope="col">Member</th>
+									<th scope="col" class="type-col">Type</th>
+									<th scope="col" class="num">Offset</th>
+									<th scope="col" class="num">Size</th>
+									<th scope="col" class="num">Align</th>
+									<th scope="col" class="num">Pad<span class="wide-only">ding</span> before</th>
 								</tr>
-							{/each}
-							<tr class="total">
-								<th scope="row" colspan="5">Trailing padding, to a multiple of {layout.align}</th>
-								<td class="mono num" class:waste={layout.trailing > 0}>{layout.trailing}</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-
-				<details class="steps">
-					<summary>Why each member is where it is</summary>
-					<ol>
-						{#each steps as step}
-							<li>{step}</li>
-						{/each}
-					</ol>
-				</details>
-
-				{#if result.reordered && result.reordered.saved > 0}
-					<h2 class="working-title">Reordered: {plural(result.reordered.layout.size, 'byte')}</h2>
-					<p class="legend">
-						The same members sorted by alignment, largest first ({layout.size} to {result.reordered.layout.size}
-						bytes, {result.reordered.layout.wasted} of padding). Reordering changes the binary layout, so only do it where
-						nothing depends on the old one.
-					</p>
-					<div class="code-head">
-						<span class="code-label">Reordered code</span>
-						<span class="code-actions">
-							<button type="button" class="copy" on:click={() => copy('reorder', result.reordered?.code ?? '')}
-								>Copy</button
-							>
-							<button type="button" class="copy" on:click={useReordered}>Lay out this version</button>
-						</span>
-					</div>
-					<pre class="code mono">{result.reordered.code}</pre>
-				{/if}
-
-				<details class="steps">
-					<summary>offsetof checks to paste into your code</summary>
-					<p class="legend">
-						These fail the build if the layout ever changes, for example after someone adds a member or a compiler flag
-						changes packing.
-					</p>
-					<div class="code-head">
-						<span class="code-label">_Static_assert lines</span>
-						<button type="button" class="copy" on:click={() => copy('asserts', asserts)}>Copy</button>
-					</div>
-					<pre class="code mono">{asserts}</pre>
-				</details>
-				<p class="copy-status" aria-live="polite">
-					{#if copied}{copyFailed
-							? 'Copying was blocked; select the text and press ctrl+C.'
-							: copied === 'reorder'
-							? 'Reordered code copied.'
-							: 'Checks copied.'}{/if}
-				</p>
-			</div>
-
-			{#if anyTarget}
-				<h2 class="working-title">On every target</h2>
-				<div class="table-wrap">
-					<table class="data-table compare">
-						<thead>
-							<tr>
-								<th scope="col">Target</th>
-								<th scope="col" class="num">sizeof</th>
-								<th scope="col" class="num">Align</th>
-								<th scope="col" class="num">Padding</th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each comparison as row}
-								<tr class:current={row.target.id === target}>
-									<th scope="row">
-										<button
-											type="button"
-											class="target-btn"
-											aria-pressed={row.target.id === target}
-											on:click={() => (target = row.target.id)}>{row.target.label}</button
+							</thead>
+							<tbody>
+								{#each layout.members as m, i}
+									<tr>
+										<th scope="row" class="mono member-name"
+											><span class="swatch c{i % PALETTE}" aria-hidden="true">{i + 1}</span>{m.label}<span
+												class="type-sub">{m.type}</span
+											></th
 										>
-									</th>
-									{#if row.layout}
-										<td class="mono num">{row.layout.size}</td>
-										<td class="mono num">{row.layout.align}</td>
-										<td class="mono num">{row.layout.wasted}</td>
-									{:else}
-										<td colspan="3" class="target-error">Does not compile here</td>
-									{/if}
+										<td class="mono type type-col">{m.type}</td>
+										<td class="mono num">{formatCount(m.offset)}</td>
+										<td class="mono num"
+											>{m.flexible ? '0 (flexible)' : formatCount(m.size)}{#if m.innerPadding}<span class="inner-note"
+													>{' '}({formatCount(m.innerPadding)} padding inside)</span
+												>{/if}</td
+										>
+										<td class="mono num"
+											>{m.align}{#if m.align !== m.naturalAlign}{' '}<span class="inner-note"
+													>(type: {m.naturalAlign})</span
+												>{/if}</td
+										>
+										<td class="mono num" class:waste={m.paddingBefore > 0}>{m.paddingBefore}</td>
+									</tr>
+								{/each}
+								<tr class="total">
+									<th scope="row" colspan="5" class="total-label">Trailing padding, to a multiple of {layout.align}</th>
+									<td class="mono num" class:waste={layout.trailing > 0}>{layout.trailing}</td>
 								</tr>
+							</tbody>
+						</table>
+					</div>
+
+					<details class="steps">
+						<summary>Why each member is where it is</summary>
+						<ol>
+							{#each steps as step}
+								<li>{step}</li>
 							{/each}
-						</tbody>
-					</table>
+						</ol>
+					</details>
+
+					{#if result.reordered && result.reordered.saved > 0}
+						<h2 class="working-title">Reordered: {plural(result.reordered.layout.size, 'byte')}</h2>
+						<p class="legend">
+							The same members sorted by alignment, largest first ({formatCount(layout.size)} to {plural(
+								result.reordered.layout.size,
+								'byte'
+							)}, {formatCount(result.reordered.layout.wasted)} of padding). Any struct defined inside it is written out
+							first. Reordering changes the binary layout, so only do it where nothing depends on the old one.
+						</p>
+						<div class="code-head">
+							<span class="code-label">Reordered code</span>
+							<span class="code-actions">
+								<button type="button" class="copy" on:click={() => copy('reorder', result.reordered?.code ?? '')}
+									>{copied === 'reorder' && !copyFailed ? 'Copied' : 'Copy'}</button
+								>
+								<button type="button" class="copy" on:click={useReordered}>Lay out this version</button>
+							</span>
+						</div>
+						<pre class="code mono">{result.reordered.code}</pre>
+					{/if}
+
+					<details class="steps">
+						<summary>offsetof checks to paste into your code</summary>
+						{#if asserts}
+							<p class="legend">
+								These fail the build if the layout ever changes, for example after someone adds a member or a compiler
+								flag changes packing. They hold for {result.target.label} only.
+							</p>
+							<div class="code-head">
+								<span class="code-label">_Static_assert lines</span>
+								<button type="button" class="copy" on:click={() => copy('asserts', asserts)}
+									>{copied === 'asserts' && !copyFailed ? 'Copied' : 'Copy'}</button
+								>
+							</div>
+							<pre class="code mono">{asserts}</pre>
+						{:else}
+							<p class="legend">
+								This struct has no tag, typedef name or variable to refer to it by, so there is nothing to write in
+								sizeof. Give it a tag to get the checks.
+							</p>
+						{/if}
+					</details>
+					<!-- The pressed button says Copied; this line tells a screen reader, and shows only a failure. -->
+					<p class="copy-status" class:visually-hidden={!copyFailed} aria-live="polite">
+						{#if copied}{copyFailed
+								? 'Copying was blocked; select the text and press ctrl+C.'
+								: copied === 'reorder'
+								? 'Reordered code copied.'
+								: 'Checks copied.'}{/if}
+					</p>
+				</div>
+			{/if}
+
+			{#if everValid || anyTarget}
+				<!-- Stays usable when the struct only fails on this target, to switch to one where it works. -->
+				<div class="compare-block" class:stale={!anyTarget} use:inert={!anyTarget}>
+					<h2 class="working-title">On every target</h2>
+					<div class="table-wrap" use:focusable role="region" aria-label="sizeof on every target">
+						<table class="data-table compare">
+							<thead>
+								<tr>
+									<th scope="col">Target</th>
+									<th scope="col" class="num">sizeof</th>
+									<th scope="col" class="num">Align</th>
+									<th scope="col" class="num">Padding</th>
+								</tr>
+							</thead>
+							<tbody>
+								{#each comparison as row}
+									<tr class:current={row.target.id === target}>
+										<th scope="row">
+											<button
+												type="button"
+												class="target-btn"
+												aria-pressed={row.target.id === target}
+												aria-label={row.target.label}
+												on:click={() => (target = row.target.id)}
+												><span class="long-label">{row.target.label}</span><span class="short-label"
+													>{row.target.short}</span
+												></button
+											>
+										</th>
+										{#if row.layout}
+											<td class="mono num">{formatCount(row.layout.size)}</td>
+											<td class="mono num">{row.layout.align}</td>
+											<td class="mono num">{formatCount(row.layout.wasted)}</td>
+										{:else}
+											<td colspan="3" class="target-error">Does not compile here</td>
+										{/if}
+									</tr>
+								{/each}
+							</tbody>
+						</table>
+					</div>
 				</div>
 			{/if}
 			<p class="share-row"><ShareLink what="this struct and target" /></p>
@@ -560,8 +669,10 @@ struct message {
 	<section id="rules">
 		<h2>How a compiler lays out a struct</h2>
 		<p class="section-intro">
-			Every type has an alignment: the number its address has to be a multiple of. On x86-64, char has alignment 1,
-			short 2, int and float 4, and double, long and pointers 8. Two rules then decide the whole layout.
+			Every type has an alignment: the number its address has to be a multiple of. On x86-64 Linux and macOS,
+			<code class="mono">char</code> has alignment 1, <code class="mono">short</code> 2, <code class="mono">int</code>
+			and <code class="mono">float</code> 4, and <code class="mono">double</code>, <code class="mono">long</code> and pointers
+			8. Two rules then decide the whole layout.
 		</p>
 		<ol class="points">
 			<li>
@@ -616,8 +727,9 @@ struct message {
 			That is {workedReordered.layout.size} bytes instead of {worked.layout.size}, with
 			{plural(workedReordered.layout.wasted, 'byte')} of padding. For one struct the saving hardly matters; for a million
 			of them in an array it is {worked.layout.size - workedReordered.layout.size} MB, and more of them fit in each cache
-			line. The one case the rule does not cover is a member with a raised _Alignas, which can be larger than its size; the
-			calculator still computes the result exactly.
+			line. The one case the rule does not cover is a member with a raised <code class="mono">_Alignas</code>, which can
+			be larger than its size; the calculator still computes the result exactly. A struct defined inside another with a
+			tag is written out ahead of it, since C gives that tag file scope anyway.
 		</p>
 	</section>
 
@@ -629,28 +741,33 @@ struct message {
 		</p>
 		<ul class="points">
 			<li>
-				<strong>#pragma pack(n)</strong> caps every member's alignment at n (1, 2, 4, 8 or 16) for the structs defined after
-				it. #pragma pack(push, n) and #pragma pack(pop) save and restore the previous value; #pragma pack() goes back to
-				the default. GCC, clang and MSVC all accept it.
+				<strong><code class="mono">#pragma pack(n)</code></strong> caps every member's alignment at n (1, 2, 4, 8 or 16)
+				for the structs defined after it. <code class="mono">#pragma pack(push, n)</code> and
+				<code class="mono">#pragma pack(pop)</code> save and restore the previous value;
+				<code class="mono">#pragma pack()</code> goes back to the default. GCC, clang and MSVC all accept it.
 			</li>
 			<li>
-				<strong>__attribute__((packed))</strong> is the GCC and clang spelling for alignment 1 on one struct. MSVC does not
-				have it, so code that must build there uses #pragma pack.
+				<strong><code class="mono">__attribute__((packed))</code></strong> is the GCC and clang spelling for alignment 1
+				on one struct. MSVC does not have it, so code that must build there uses
+				<code class="mono">#pragma pack</code>.
 			</li>
 		</ul>
 		<p>
-			The file header of a BMP image is {packedHeader.size} bytes on disk. As a struct it needs #pragma pack(1) to match:
-			without it, the compiler pads the 2-byte magic number so the 4-byte size starts at offset 4, and the struct is {unpackedHeader.size}
+			The file header of a BMP image is {packedHeader.size} bytes on disk. As a struct it needs
+			<code class="mono">#pragma pack(1)</code> to match: without it, the compiler pads the 2-byte magic number so the
+			4-byte size starts at offset 4, and the struct is {unpackedHeader.size}
 			bytes. The cost is that members end up misaligned. x86-64 and AArch64 load misaligned values in hardware, sometimes
 			more slowly; on processors that cannot, such as the Cortex-M0, the compiler has to read packed members a byte at a
 			time. A pointer to a packed member may itself be misaligned, which is why GCC 9 and later and clang warn about taking
-			one (-Waddress-of-packed-member).
+			one (<code class="mono">-Waddress-of-packed-member</code>).
 		</p>
 		<p>
-			_Alignas goes the other way and raises a member's alignment. The usual reason is to keep two counters that
-			different threads update on separate 64-byte cache lines, so they do not keep invalidating each other: struct
-			counters with alignas(64) on both members is {counters.size} bytes, not 16. GCC and clang let #pragma pack lower an
-			_Alignas as well; MSVC keeps the _Alignas. The calculator follows each.
+			<code class="mono">_Alignas</code> goes the other way and raises a member's alignment. The usual reason is to keep
+			two counters that different threads update on separate 64-byte cache lines, so they do not keep invalidating each
+			other: <code class="mono">struct counters</code> with <code class="mono">alignas(64)</code> on both members is
+			{counters.size} bytes, not 16. GCC and clang let <code class="mono">#pragma pack</code> lower an
+			<code class="mono">_Alignas</code> as well; MSVC keeps the <code class="mono">_Alignas</code>. The calculator
+			follows each.
 		</p>
 	</section>
 
@@ -660,14 +777,14 @@ struct message {
 			Size / alignment in bytes, as members of a struct. Every value was checked against clang for the target named in
 			each column.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:focusable role="region" aria-label="Type sizes and alignments on each target">
 			<table class="data-table type-table">
 				<thead>
 					<tr>
 						<th scope="col">Type</th>
 						{#each TARGETS as t}
 							<th scope="col" class="num"
-								><span class="t-label">{t.label}</span><span class="t-model">{t.model}</span></th
+								><span class="t-label">{t.short}</span><span class="t-model">{t.model}</span></th
 							>
 						{/each}
 					</tr>
@@ -686,15 +803,23 @@ struct message {
 			</table>
 		</div>
 		<p class="reducer">
-			Values that differ from x86-64 Linux are highlighted. The Windows column is clang's x86_64-pc-windows-msvc target,
-			which follows MSVC's layout rules. For the range each integer width can hold, see the
+			The columns are {#each TARGETS as t, i}{t.short}: {t.label} ({t.triple}){i < TARGETS.length - 1
+					? '; '
+					: '.'}{' '}{/each}Values that differ from x86-64 Linux are highlighted. The MSVC column is clang's Windows
+			target, which follows MSVC's layout rules. For the range each integer width can hold, see the
 			<a href="/integer-limits">integer limits</a> tables.
 		</p>
+		<p>The <code class="mono">struct node</code> example shows how much pointer size matters:</p>
+		<ul class="points node-sizes">
+			{#each nodeSizes as n}
+				<li>{n.target.label}: {plural(n.layout.size, 'byte')}</li>
+			{/each}
+		</ul>
 		<p>
-			The struct node example shows how much pointer size matters:
-			{#each nodeSizes as n, i}{n.target.label}: {n.layout.size} bytes{i < nodeSizes.length - 1 ? '; ' : '.'}{/each}
-			And struct record, with a long between a char and a long long, is {windowsLong.win.size} bytes on Windows and
-			{windowsLong.linux.size} on x86-64 Linux, because long is 4 bytes on one and 8 on the other.
+			And <code class="mono">struct record</code>, with a <code class="mono">long</code> between a
+			<code class="mono">char</code> and a <code class="mono">long long</code>, is {windowsLong.win.size} bytes on Windows
+			and {windowsLong.linux.size} on x86-64 Linux, because <code class="mono">long</code> is 4 bytes on one and 8 on the
+			other.
 		</p>
 	</section>
 
@@ -707,18 +832,21 @@ struct message {
 				pack the struct and use fixed-width types and a fixed byte order.
 			</li>
 			<li>
-				<strong>Comparing structs with memcmp.</strong> The C standard leaves the value of padding bytes unspecified, so
-				two structs with equal members can still differ byte for byte. Compare member by member.
+				<strong>Comparing structs with <code class="mono">memcmp</code>.</strong> The C standard leaves the value of padding
+				bytes unspecified, so two structs with equal members can still differ byte for byte. Compare member by member.
 			</li>
 			<li>
 				<strong>Leaking memory through padding.</strong> Copying a struct out of a program, for example from a kernel to
-				a user, copies its padding too, along with whatever was in memory there. Zero the struct with memset first.
+				a user, copies its padding too, along with whatever was in memory there. Zero the struct with
+				<code class="mono">memset</code> first.
 			</li>
 			<li>
-				<strong>Assuming a flexible array adds nothing.</strong> A member written data[] has no size of its own, but its
-				alignment still counts: struct message is {flexible.size} bytes, and data starts at offset
-				{flexible.members[flexible.members.length - 1].offset}. Allocate sizeof plus the array, not the sum of the other
-				members.
+				<strong>Allocating the sum of the members for a flexible array.</strong> A member written
+				<code class="mono">data[]</code> has no size of its own, but its alignment still counts. In
+				<code class="mono">struct samples</code> the other members take {flexOthers} bytes, yet
+				<code class="mono">data</code> starts at offset {flexMember.offset}, after
+				{plural(flexMember.paddingBefore, 'byte')} of padding, and sizeof is {flexible.size}. Allocate
+				<code class="mono">offsetof(struct samples, data)</code> or sizeof plus the array, never the sum of the other members.
 			</li>
 			<li>
 				<strong>Packing everything.</strong> A packed struct saves bytes but turns ordinary loads into misaligned ones. Reorder
@@ -812,10 +940,36 @@ struct message {
 		margin: 0.45rem 0 0.7rem;
 	}
 
+	/* Always there, one line high, so an error appearing does not push the page down. */
 	.error {
 		color: #f66;
 		font-size: 0.9rem;
 		margin: 0.4rem 0 0;
+		min-height: 1.35em;
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+		border: 0;
+	}
+
+	.empty-state {
+		border-top: 1px solid rgba(255, 255, 255, 0.12);
+		color: #bbb;
+		font-size: 0.9rem;
+		margin: 0;
+		padding-top: 1rem;
+	}
+
+	code.mono {
+		font-size: 0.92em;
 	}
 
 	.chips {
@@ -845,7 +999,8 @@ struct message {
 		padding-top: 1rem;
 	}
 
-	.results.stale {
+	.results.stale,
+	.compare-block.stale {
 		opacity: 0.35;
 		pointer-events: none;
 	}
@@ -974,8 +1129,12 @@ struct message {
 		background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0 3px, rgba(0, 0, 0, 0) 3px 8px);
 	}
 
+	/* Padding inside a member: hatched in the member's colour, with a thin left
+	   edge so it does not read as a new member starting. */
 	.seg.inner-pad {
 		border-style: dashed;
+		border-left-width: 1px;
+		text-align: center;
 		color: #ddd;
 		background-image: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0 3px, rgba(0, 0, 0, 0) 3px 8px);
 	}
@@ -1014,6 +1173,19 @@ struct message {
 		border-color: #e07aa8;
 		background-color: rgba(224, 122, 168, 0.16);
 	}
+	.c6 {
+		border-color: #e8945a;
+		background-color: rgba(232, 148, 90, 0.16);
+	}
+	.c7 {
+		border-color: #aab4be;
+		background-color: rgba(170, 180, 190, 0.16);
+	}
+
+	/* The member number stands in for a name only where the name cannot fit. */
+	.seg .short {
+		display: none;
+	}
 
 	/* --- tables --- */
 
@@ -1035,13 +1207,21 @@ struct message {
 
 	.swatch {
 		display: inline-block;
-		width: 0.7em;
-		height: 0.7em;
+		box-sizing: border-box;
+		min-width: 1.5em;
 		margin-right: 0.45em;
-		border-width: 2px;
+		padding: 0 0.2em;
+		border-width: 1px 1px 1px 3px;
 		border-style: solid;
 		border-radius: 2px;
-		vertical-align: -0.05em;
+		color: #ddd;
+		font-size: 0.75em;
+		line-height: 1.35;
+		text-align: center;
+	}
+
+	.type-sub {
+		display: none;
 	}
 
 	.type {
@@ -1176,6 +1356,10 @@ struct message {
 		text-decoration: none;
 	}
 
+	.short-label {
+		display: none;
+	}
+
 	.target-error {
 		color: #f99 !important;
 		font-size: 0.85rem;
@@ -1212,14 +1396,20 @@ struct message {
 		white-space: nowrap;
 	}
 
+	.node-sizes {
+		margin-top: -0.4rem;
+	}
+
+	.node-sizes li {
+		margin-bottom: 0.2rem;
+	}
+
 	.type-table thead th {
 		vertical-align: bottom;
 	}
 
 	.t-label {
 		display: block;
-		white-space: normal;
-		min-width: 6.5rem;
 	}
 
 	.t-model {
@@ -1248,6 +1438,77 @@ struct message {
 		.seg {
 			padding: 0 0.2rem;
 			border-left-width: 3px;
+		}
+
+		.seg.inner-pad {
+			border-left-width: 1px;
+		}
+
+		.seg.tight {
+			text-align: center;
+		}
+
+		.seg.tight .full {
+			display: none;
+		}
+
+		.seg.tight .short {
+			display: inline;
+		}
+
+		/* The type names stay in view while the target columns scroll. */
+		.type-table th:first-child {
+			position: sticky;
+			left: 0;
+			background-color: #0f0f11;
+		}
+
+		/* The type moves under the member name, so the padding column stays in view. */
+		.members .type-col,
+		.wide-only {
+			display: none;
+		}
+
+		.type-sub {
+			display: block;
+			color: #bbb;
+			font-size: 0.8rem;
+			margin-left: 1.9em;
+			white-space: normal;
+		}
+
+		.members thead th {
+			white-space: normal;
+		}
+
+		.members .inner-note {
+			display: block;
+			font-size: 0.8rem;
+		}
+
+		/* Notes wrap under the number rather than widening the table. */
+		.members td.num {
+			white-space: normal;
+		}
+
+		.members th,
+		.members td,
+		.compare th,
+		.compare td {
+			padding-left: 0.4rem !important;
+			padding-right: 0.4rem !important;
+		}
+
+		.long-label {
+			display: none;
+		}
+
+		.short-label {
+			display: inline !important;
+		}
+
+		.total-label {
+			white-space: normal !important;
 		}
 	}
 </style>
