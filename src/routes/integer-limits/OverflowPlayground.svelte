@@ -82,8 +82,7 @@
 	$: exactBits = result && showExact ? binaryOf(result.exact, result.to.bits + 1) : '';
 	$: cast = result?.castKind;
 	$: droppedBits = result && cast === 'truncate' ? result.from.bits - result.to.bits : 0;
-	$: addedBits =
-		result && (cast === 'sign-extend' || cast === 'zero-extend') ? result.to.bits - result.from.bits : 0;
+	$: addedBits = result && (cast === 'sign-extend' || cast === 'zero-extend') ? result.to.bits - result.from.bits : 0;
 </script>
 
 <div class="playground">

@@ -258,8 +258,8 @@
 			In {t.bits} bits, {@html breakable(formatDecimal(t.max))} + 1 wraps to
 			<strong class="mono">{@html breakable(formatDecimal(wrapped))}</strong>, and
 			{@html breakable(formatDecimal(t.min))} − 1 wraps to
-			<strong class="mono">{@html breakable(formatDecimal(wrappedLow))}</strong>. The processor keeps
-			the low {t.bits} bits of the answer, which is the same as working modulo {f.count}{t.signed
+			<strong class="mono">{@html breakable(formatDecimal(wrappedLow))}</strong>. The processor keeps the low {t.bits} bits
+			of the answer, which is the same as working modulo {f.count}{t.signed
 				? ', and the top bit then decides the sign'
 				: ''}. You can see it in JavaScript:
 		</p>
@@ -279,7 +279,7 @@
 				{t.slug === 'uint16'
 					? `The promotion has a catch: it is to signed int, so uint16_t × uint16_t is a signed multiplication, and ${formatDecimal(
 							t.max
-						)} × ${formatDecimal(t.max)} overflows it.`
+					  )} × ${formatDecimal(t.max)} overflows it.`
 					: ''}
 			</p>
 		{/if}

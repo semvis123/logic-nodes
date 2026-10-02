@@ -219,6 +219,7 @@
 		{ href: '/hex-to-decimal', label: 'Hex to decimal converter' },
 		{ href: '/fp16-bf16-fp8-converter', label: 'FP16, BF16 and FP8 converter' },
 		{ href: '/bit-manipulation-tricks', label: 'Bit manipulation tricks' },
+		{ href: '/struct-padding-calculator', label: 'Struct padding calculator' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
@@ -290,8 +291,7 @@
 						>
 					</div>
 					<span class="answer-also">
-						It needs {plural(found.bits.signed, 'bit')} as a signed two’s complement number{found.bits.unsigned ===
-						null
+						It needs {plural(found.bits.signed, 'bit')} as a signed two’s complement number{found.bits.unsigned === null
 							? ''
 							: ` and ${plural(found.bits.unsigned, 'bit')} as an unsigned one`}.
 						{#if !js.exact}
@@ -308,13 +308,7 @@
 					{#each found.all as row}
 						<li class:fits={row.fits}>
 							<span class="mono">{row.type.slug}</span>
-							<span
-								>{row.fits
-									? 'holds it'
-									: !row.type.signed && found.value < 0n
-									? 'no negatives'
-									: 'too small'}</span
-							>
+							<span>{row.fits ? 'holds it' : !row.type.signed && found.value < 0n ? 'no negatives' : 'too small'}</span>
 						</li>
 					{/each}
 				</ul>

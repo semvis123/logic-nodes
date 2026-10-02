@@ -335,7 +335,7 @@
 	];
 
 	const page = {
-		title: 'File Signature Checker: Find a File’s Real Type by Magic Bytes',
+		title: 'File Signature Checker: Find a File’s Type by Magic Bytes',
 		description:
 			'Check what a file really is from its first bytes: the magic number highlighted in a hex dump, the detected format, and whether the extension tells the truth.',
 		url: `${SITE}/file-signature-checker`,
@@ -405,6 +405,7 @@
 		{ href: '/ascii-table', label: 'ASCII table' },
 		{ href: '/binary-translator', label: 'Binary translator' },
 		{ href: '/base64', label: 'Base64 encoder and decoder' },
+		{ href: '/struct-padding-calculator', label: 'Struct padding calculator' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
