@@ -8,7 +8,14 @@
 // suite checks all of this against a BigInt implementation written the long
 // way round, and against brute-force enumeration for small subnets.
 
-export class IpError extends Error {}
+export class IpError extends Error {
+	/** For a requirement list, the row (from 0) the problem is in, so a page can mark that field. */
+	row?: number;
+	constructor(message: string, row?: number) {
+		super(message);
+		this.row = row;
+	}
+}
 
 /** 2^32, the number of IPv4 addresses. Fits a double exactly. */
 export const ADDRESS_SPACE = 4294967296;
@@ -54,6 +61,13 @@ export function parseAddress(text: string, what = 'address'): number {
 		throw new IpError(`${ch} cannot appear in an IPv4 ${what}: use four numbers from 0 to 255 separated by dots`);
 	}
 	const parts = s.split('.');
+	// Empty parts first: "1.2.3.4." has five parts, but the problem is the
+	// stray dot, not a fifth octet.
+	const empty = parts.indexOf('');
+	if (empty !== -1) {
+		if (empty >= 4) throw new IpError(`${s} ends with a dot: an IPv4 ${what} is four numbers separated by dots`);
+		throw new IpError(`${label} ${empty + 1} is empty: there are two dots in a row, or one at an end`);
+	}
 	if (parts.length !== 4) {
 		throw new IpError(
 			`An IPv4 ${what} has 4 octets separated by dots; ${s} has ${parts.length} octet${parts.length === 1 ? '' : 's'}`
@@ -62,7 +76,6 @@ export function parseAddress(text: string, what = 'address'): number {
 	let value = 0;
 	parts.forEach((part, i) => {
 		const n = i + 1;
-		if (part === '') throw new IpError(`${label} ${n} is empty: there are two dots in a row, or one at an end`);
 		if (part.length > 1 && part[0] === '0') {
 			throw new IpError(
 				`${label} ${n} is written ${part}: leading zeros are ambiguous (some software reads them as octal), so write ${Number(
@@ -142,6 +155,7 @@ export function parseCidr(text: string): Cidr {
 		addressText = s.slice(0, slash).trim();
 		maskText = s.slice(slash + 1).trim();
 		if (!maskText) throw new IpError('Add the prefix length after the slash, such as /24');
+		if (maskText.startsWith('/')) throw new IpError('There are two slashes; write one, such as 192.168.1.10/24');
 	} else {
 		const space = s.search(/\s/);
 		if (space === -1) {
@@ -221,11 +235,13 @@ export type SpecialRange = {
 	name: string;
 	rfc: string;
 	note: string;
+	/** For ranges that are not ordinary host subnets: why a host range here means little. */
+	hostNote?: string;
 };
 
-const special = (cidr: string, name: string, rfc: string, note: string): SpecialRange => {
+const special = (cidr: string, name: string, rfc: string, note: string, hostNote?: string): SpecialRange => {
 	const [a, p] = cidr.split('/');
-	return { network: parseAddress(a), prefix: Number(p), cidr, name, rfc, note };
+	return { network: parseAddress(a), prefix: Number(p), cidr, name, rfc, note, hostNote };
 };
 
 /**
@@ -234,7 +250,12 @@ const special = (cidr: string, name: string, rfc: string, note: string): Special
  * specific range that holds it.
  */
 export const SPECIAL_RANGES: SpecialRange[] = [
-	special('0.0.0.0/8', '"This network"', 'RFC 1122', 'Only valid as a source while a host learns its address.'),
+	special(
+		'0.0.0.0/8',
+		'"This network"',
+		'RFC 791, RFC 1122',
+		'Only valid as a source while a host learns its address.'
+	),
 	special('10.0.0.0/8', 'Private', 'RFC 1918', 'For use inside an organisation; not routed on the internet.'),
 	special(
 		'100.64.0.0/10',
@@ -242,7 +263,13 @@ export const SPECIAL_RANGES: SpecialRange[] = [
 		'RFC 6598',
 		'Between a carrier-grade NAT and its customers.'
 	),
-	special('127.0.0.0/8', 'Loopback', 'RFC 1122', 'Never leaves the host; 127.0.0.1 is the usual one.'),
+	special(
+		'127.0.0.0/8',
+		'Loopback',
+		'RFC 1122',
+		'Never leaves the host; 127.0.0.1 is the usual one.',
+		'Loopback addresses never leave the host they are used on, so this is not a network that hosts share; the host range above is only the arithmetic.'
+	),
 	special(
 		'169.254.0.0/16',
 		'Link-local',
@@ -271,9 +298,27 @@ export const SPECIAL_RANGES: SpecialRange[] = [
 		'RFC 5737',
 		'For examples in documents; never on a real network.'
 	),
-	special('224.0.0.0/4', 'Multicast', 'RFC 5771', 'One sender, many receivers; the old class D.'),
-	special('240.0.0.0/4', 'Reserved', 'RFC 1112', 'The old class E, set aside for future use.'),
-	special('255.255.255.255/32', 'Limited broadcast', 'RFC 919', 'Every host on the local link; never forwarded.')
+	special(
+		'224.0.0.0/4',
+		'Multicast',
+		'RFC 5771',
+		'One sender, many receivers; the old class D.',
+		'Multicast addresses name groups of receivers, not hosts, so this range is not divided into host subnets; the host range above is only the arithmetic.'
+	),
+	special(
+		'240.0.0.0/4',
+		'Reserved',
+		'RFC 1112',
+		'The old class E, set aside for future use.',
+		'This range is reserved and not assigned to hosts, so the host range above is only the arithmetic.'
+	),
+	special(
+		'255.255.255.255/32',
+		'Limited broadcast',
+		'RFC 919',
+		'Every host on the local link; never forwarded.',
+		'255.255.255.255 means every host on the local link, so it is never the address of one host.'
+	)
 ];
 
 /** The most specific special-use range holding the address, if any. */
@@ -411,27 +456,59 @@ export type Requirement = { name: string; hosts: number };
 
 export const MAX_REQUIREMENTS = 64;
 
+/** A host count: plain digits, or digits grouped in thousands by commas (12,500). */
+const COUNT = '\\d{1,3}(?:,\\d{3})+|\\d+';
+const SEPARATORS = '[\\s:,=\\-\u2013\u2014]';
+
+/**
+ * Reads a host count as typed in a row: whole digits, optionally grouped in
+ * thousands with commas. Anything else (1e3, 0x20, 2.5, -5, +50) is refused
+ * with a reason rather than read the way Number() would, so a row, the text
+ * form and a shared link all read the same count.
+ */
+export function parseHostCount(text: string, who: string, row?: number): number {
+	const s = text.trim();
+	if (new RegExp(`^(?:${COUNT})$`).test(s)) return Number(s.replace(/,/g, ''));
+	if (!s) throw new IpError(`${who} needs a host count of 1 or more`, row);
+	if (/^[-\u2212]\s*\d/.test(s)) throw new IpError(`${who}: a host count cannot be negative`, row);
+	if (/^\d*[.,]\d*$/.test(s) && /\d/.test(s)) {
+		throw new IpError(`${who}: the host count must be a whole number, such as 50 or 12,500`, row);
+	}
+	throw new IpError(`${who}: write the host count in plain digits, such as 50`, row);
+}
+
 /**
  * Reads one requirement per line: a name and a host count, in either order,
  * separated by spaces, a colon or a comma ("Sales 50", "HR: 20", "Link A, 2").
  * The last whole number on the line is the count, so names may contain digits.
+ * A count may group its thousands with commas ("Campus 12,500"); decimals,
+ * exponents, hex and minus signs are refused rather than half read, since
+ * taking just the trailing digits of "12.5" or "1e3" would plan the wrong size.
  */
 export function parseRequirements(text: string): Requirement[] {
 	const out: Requirement[] = [];
+	const lastRe = new RegExp(`^(.*?)(${COUNT})(?:\\s*hosts?)?$`, 'i');
+	const firstRe = new RegExp(`^(${COUNT})(?:\\s*hosts?)?${SEPARATORS}+(.+)$`, 'i');
 	text.split(/\r?\n|;/).forEach((raw, i) => {
 		const line = raw.trim();
 		if (!line) return;
+		const where = `Line ${i + 1} ("${line.length > 30 ? line.slice(0, 30) + '…' : line}")`;
 		// The count at the end ("Sales 50"), or failing that at the start ("50 Sales").
-		const last = line.match(/^(.*?)(\d+)(?:\s*hosts?)?$/i);
-		const first = line.match(/^(\d+)(?:\s*hosts?)?[\s:,=-]+(.+)$/i);
+		const last = line.match(lastRe);
+		const first = line.match(firstRe);
 		const [name0, count0] = last ? [last[1], last[2]] : first ? [first[2], first[1]] : ['', ''];
-		if (!count0) {
-			throw new IpError(
-				`Line ${i + 1} ("${line.slice(0, 30)}") has no host count: write a name and a number, such as Sales 50`
-			);
+		if (!count0) throw new IpError(`${where} has no host count: write a name and a number, such as Sales 50`);
+		// What sits right before the digits says whether they are the whole count.
+		if (last) {
+			if (/\d[.,]$/.test(name0)) {
+				throw new IpError(`${where}: the host count must be a whole number, such as 50 or 12,500`);
+			}
+			if (/\d[a-z]$/i.test(name0) || /(?:^|[\s:,=])\+$/.test(name0))
+				throw new IpError(`${where}: write the host count in plain digits, such as 50`);
+			if (/(?:^|[\s:,=])[-\u2212]$/.test(name0)) throw new IpError(`${where}: a host count cannot be negative`);
 		}
-		const name = name0.trim().replace(/[\s:,=-]+$/, '');
-		const hosts = Number(count0);
+		const name = name0.trim().replace(new RegExp(`${SEPARATORS}+$`), '');
+		const hosts = Number(count0.replace(/,/g, ''));
 		out.push({ name: name || `Subnet ${out.length + 1}`, hosts });
 	});
 	checkRequirements(out);
@@ -441,16 +518,20 @@ export function parseRequirements(text: string): Requirement[] {
 /** The largest host count a single block can hold: a /0 less its network and broadcast. */
 export const MAX_HOSTS = ADDRESS_SPACE - 2;
 
+/** How errors name a requirement: "Sales (row 2)", or "Row 2" when it has no name. */
+export const requirementLabel = (name: string, index: number) =>
+	name ? `${name} (row ${index + 1})` : `Row ${index + 1}`;
+
 /** Throws a specific error for a list the planner cannot work with. */
 export function checkRequirements(list: Requirement[]) {
 	if (list.length > MAX_REQUIREMENTS) {
 		throw new IpError(`That is ${list.length} subnets; the limit here is ${MAX_REQUIREMENTS}`);
 	}
 	list.forEach((r, i) => {
-		const who = r.name ? `${r.name} (row ${i + 1})` : `Row ${i + 1}`;
-		if (!Number.isInteger(r.hosts) || r.hosts < 1) throw new IpError(`${who} needs a host count of 1 or more`);
+		const who = requirementLabel(r.name, i);
+		if (!Number.isInteger(r.hosts) || r.hosts < 1) throw new IpError(`${who} needs a host count of 1 or more`, i);
 		if (r.hosts > MAX_HOSTS) {
-			throw new IpError(`${who} asks for ${r.hosts} hosts; the most one IPv4 block can hold is ${MAX_HOSTS}`);
+			throw new IpError(`${who} asks for ${r.hosts} hosts; the most one IPv4 block can hold is ${MAX_HOSTS}`, i);
 		}
 	});
 }

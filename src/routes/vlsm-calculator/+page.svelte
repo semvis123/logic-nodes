@@ -8,6 +8,8 @@
 		subnetInfo,
 		formatAddress,
 		parseRequirements,
+		parseHostCount,
+		requirementLabel,
 		formatRequirements,
 		checkRequirements,
 		prefixForHosts,
@@ -17,6 +19,7 @@
 		spanInOrder,
 		hostRangeTable,
 		blockSize,
+		usableHosts,
 		maskFromPrefix,
 		IpError,
 		type Requirement,
@@ -25,7 +28,7 @@
 	} from '$lib/ipv4';
 	import { readUrl, syncUrl, safeText, safeOption, safeInt, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	type Row = { name: string; hosts: string };
 	const DEFAULT_REQS: Requirement[] = [
@@ -55,18 +58,27 @@
 	let splitCount = DEFAULTS.n;
 	let splitTo = Number(DEFAULTS.to);
 
-	onMount(() => {
+	// Whether the visitor has seen a valid plan and base network in this visit.
+	// Until then a failing shared link shows its error alone, not the default
+	// plan dimmed as if it were theirs.
+	let hadFit = true;
+	let hadNet = true;
+
+	onMount(async () => {
 		const p = readUrl();
 		base = safeText(p.net, 60) ?? base;
 		const req = safeText(p.req, 4000);
 		if (req !== undefined) {
-			try {
-				rows = parseRequirements(req).map((r) => ({ name: r.name, hosts: String(r.hosts) }));
-				text = req;
-			} catch {
-				// Keep what was shared so the reader can see and fix it.
-				text = req;
+			text = req;
+			if (p.edit === 'text') {
 				editAsText = true;
+			} else {
+				try {
+					rows = parseRequirements(req).map((r) => ({ name: r.name, hosts: String(r.hosts) }));
+				} catch {
+					// Keep what was shared so the reader can see and fix it.
+					editAsText = true;
+				}
 			}
 		}
 		allowP2P = p.p31 === '1';
@@ -74,21 +86,29 @@
 		splitBy = safeOption(p.by, ['count', 'prefix'] as const) ?? splitBy;
 		splitCount = safeText(p.n, 12) ?? splitCount;
 		splitTo = safeInt(p.to, 0, 32) ?? splitTo;
+		await tick();
+		hadFit = plan.ok && !vlsmError;
+		hadNet = !baseError;
+		// Rewrite once even if nothing changed, so values that were refused leave the address bar.
+		syncUrl(params, DEFAULTS);
 	});
 
-	$: rowsText = rows.map((r) => `${r.name.replace(/\s*[;\r\n]+\s*/g, ' ').trim()} ${r.hosts.trim()}`).join('\n');
-	$: syncUrl(
-		{
-			net: base,
-			req: editAsText ? text : rowsText,
-			p31: allowP2P ? '1' : '0',
-			mode,
-			by: splitBy,
-			n: splitCount,
-			to: splitTo
-		},
-		DEFAULTS
-	);
+	// A count grouped as 12,500 goes into the link as 12500, which is what the
+	// row shows when the link is opened, so the link stays the same after a reload.
+	const plainCount = (h: string) => (/^\d{1,3}(?:,\d{3})+$/.test(h.trim()) ? h.trim().replace(/,/g, '') : h.trim());
+	$: rowsText = rows.map((r) => `${r.name.replace(/\s*[;\r\n]+\s*/g, ' ').trim()} ${plainCount(r.hosts)}`).join('\n');
+	$: params = {
+		net: base,
+		req: editAsText ? text : rowsText,
+		edit: editAsText ? 'text' : undefined,
+		p31: allowP2P ? '1' : '0',
+		mode,
+		by: splitBy,
+		// Only the control in use is kept; the other one is derived from it.
+		n: splitBy === 'count' ? splitCount : undefined,
+		to: splitBy === 'prefix' ? splitTo : undefined
+	};
+	$: syncUrl(params, DEFAULTS);
 
 	const message = (e: unknown, fallback: string) => (e instanceof IpError ? e.message : fallback);
 
@@ -112,24 +132,32 @@
 			baseError = message(e, 'That is not a network such as 192.168.10.0/24');
 		}
 	}
+	$: if (!baseError) hadNet = true;
 
 	let list: Requirement[] = DEFAULT_REQS;
 	let reqError = '';
+	/** The row whose host count is wrong, to mark that field; -1 for none. */
+	let reqErrorRow = -1;
 	$: {
 		try {
 			if (editAsText) {
 				list = parseRequirements(text);
 			} else {
-				const fromRows = rows.map((r, i) => ({
-					name: r.name.trim() || `Subnet ${i + 1}`,
-					hosts: r.hosts.trim() === '' ? 0 : Number(r.hosts)
-				}));
+				// The same strict count rule as the text form, so a row reads back
+				// identically from a shared link.
+				const fromRows = rows.map((r, i) => {
+					const name = r.name.trim() || `Subnet ${i + 1}`;
+					const hosts = r.hosts.trim() === '' ? 0 : parseHostCount(r.hosts, requirementLabel(name, i), i);
+					return { name, hosts };
+				});
 				checkRequirements(fromRows);
 				list = fromRows;
 			}
 			reqError = list.length ? '' : 'Add at least one subnet to plan.';
+			reqErrorRow = -1;
 		} catch (e) {
 			reqError = message(e, 'Those requirements could not be read');
+			reqErrorRow = !editAsText && e instanceof IpError && e.row !== undefined ? e.row : -1;
 		}
 	}
 
@@ -143,6 +171,7 @@
 	$: if (plan.ok && !vlsmError) {
 		shown = plan;
 		shownNet = net;
+		hadFit = true;
 	}
 	// What /31 links would change, for the note under the plan.
 	$: linkCount = list.filter((r) => r.hosts <= 2).length;
@@ -164,9 +193,16 @@
 			p.total
 		)}, so it is ${count(p.needed - p.total)} addresses short.`;
 		if (p.fitsIn !== null) out += ` The smallest base network that holds it is a /${p.fitsIn}.`;
-		if (p31Plan && p31Plan.ok) out += ' Using /31 for the two-host links would make it fit.';
+		if (p31Plan && p31Plan.ok) out += ' Using /31 for the subnets of 1 or 2 hosts would make it fit.';
 		return out;
 	}
+	// The base the plan would fit in, keeping the network typed but with the shorter prefix.
+	function fittingBase(p: VlsmPlan, n: SubnetInfo): string {
+		if (p.ok) return '';
+		const fitsIn = (p as Extract<VlsmPlan, { ok: false }>).fitsIn;
+		return fitsIn === null ? '' : `${formatAddress((n.network & maskFromPrefix(fitsIn)) >>> 0)}/${fitsIn}`;
+	}
+	$: biggerBase = vlsmError ? '' : fittingBase(plan, net);
 
 	function switchToText() {
 		text = rowsText;
@@ -196,7 +232,9 @@
 		});
 	}
 
-	// Equal split.
+	// Equal split. Choosing a prefix shows the count it gives in the count field,
+	// so the two controls never disagree.
+	$: if (splitBy === 'prefix' && splitTo >= net.prefix) splitCount = String(2 ** (splitTo - net.prefix));
 	$: countValue = Number(splitCount);
 	$: countError =
 		splitBy === 'count' && (!Number.isInteger(countValue) || countValue < 1)
@@ -240,6 +278,59 @@
 	const cidr = (s: { network: number; prefix: number }) => `${fmt(s.network)}/${s.prefix}`;
 	const pct = (part: number, whole: number) => `${(part / whole) * 100}%`;
 
+	// Copy the plan or the split as tab-separated rows, which paste into a
+	// spreadsheet as columns and read fine in a ticket.
+	function planText(): string {
+		const lines = [
+			['Name', 'Hosts needed', 'Usable', 'Network', 'Mask', 'First host', 'Last host', 'Broadcast', 'Unused'],
+			...shown.allocations.map((a) => [
+				a.name,
+				String(a.hosts),
+				String(a.info.usable),
+				cidr(a.info),
+				fmt(a.info.mask),
+				fmt(a.info.firstHost),
+				fmt(a.info.lastHost),
+				a.info.broadcast === null ? 'none' : fmt(a.info.broadcast),
+				String(a.spare)
+			]),
+			...shown.free.map((f) => ['Free', '', '', cidr(f), fmt(f.mask), fmt(f.network), fmt(f.last), '', ''])
+		];
+		return lines.map((l) => l.join('\t')).join('\n');
+	}
+
+	function splitText(): string {
+		if (!split) return '';
+		const lines = [
+			['#', 'Network', 'Mask', 'First host', 'Last host', 'Broadcast'],
+			...split.subnets.map((s, i) => [
+				String(i + 1),
+				cidr(s),
+				fmt(s.mask),
+				fmt(s.firstHost),
+				fmt(s.lastHost),
+				s.broadcast === null ? 'none' : fmt(s.broadcast)
+			])
+		];
+		const rest =
+			split.count > split.subnets.length ? `\nThe first ${split.subnets.length} of ${split.count} subnets.` : '';
+		return lines.map((l) => l.join('\t')).join('\n') + rest;
+	}
+
+	let copyState: 'idle' | 'copied' | 'failed' = 'idle';
+	let copyTimer: ReturnType<typeof setTimeout>;
+	async function copyResult() {
+		try {
+			await navigator.clipboard.writeText(mode === 'vlsm' ? planText() : splitText());
+			copyState = 'copied';
+		} catch {
+			copyState = 'failed';
+		}
+		clearTimeout(copyTimer);
+		copyTimer = setTimeout(() => (copyState = 'idle'), 2500);
+	}
+	$: canCopy = mode === 'vlsm' ? plan.ok && !vlsmError : !!split && !baseError;
+
 	function tryPlan(netText: string, reqs: string, p31 = false) {
 		mode = 'vlsm';
 		base = netText;
@@ -274,6 +365,15 @@
 	const for50 = prefixForHosts(50);
 	const for62 = prefixForHosts(62);
 	const for63 = prefixForHosts(63);
+	// The equal split section: 192.168.10.0/24 into 4, and the /24 split table.
+	const splitDemoCount = 4;
+	const splitDemo = splitEqual(parseAddress('192.168.10.0'), 24, 24 + bitsForCount(splitDemoCount));
+	const oddCount = 5;
+	const oddBits = bitsForCount(oddCount);
+	const splitTable = [2, 4, 8, 16, 32, 64].map((n) => {
+		const prefix = 24 + bitsForCount(n);
+		return { n, bits: bitsForCount(n), prefix, size: blockSize(prefix), usable: usableHosts(prefix) };
+	});
 
 	const faqs = [
 		{
@@ -422,11 +522,10 @@
 			{#if mode === 'vlsm'}
 				<div class="req-head">
 					<h2 class="sub-title" id="req-title">Subnets and the hosts each needs</h2>
-					{#if editAsText}
-						<button type="button" class="small-btn" on:click={switchToRows}>Edit as rows</button>
-					{:else}
-						<button type="button" class="small-btn" on:click={switchToText}>Edit as text</button>
-					{/if}
+					<!-- One button whose label changes, so focus stays on it when the editor switches. -->
+					<button type="button" class="small-btn" on:click={editAsText ? switchToRows : switchToText}
+						>{editAsText ? 'Edit as rows' : 'Edit as text'}</button
+					>
 				</div>
 				{#if editAsText}
 					<label class="field" for="req-text">One subnet per line: a name and a host count</label>
@@ -437,6 +536,7 @@
 						bind:value={text}
 						spellcheck="false"
 						aria-invalid={reqError ? 'true' : 'false'}
+						aria-describedby={reqError ? 'req-error' : undefined}
 					/>
 					<p class="field-help">Pasted lists work too: "Sales 50", "HR: 20" and "Link A, 2" are all read.</p>
 				{:else}
@@ -461,6 +561,8 @@
 									placeholder="hosts"
 									bind:value={row.hosts}
 									autocomplete="off"
+									aria-invalid={reqErrorRow === i ? 'true' : 'false'}
+									aria-describedby={reqErrorRow === i ? 'req-error' : undefined}
 								/>
 								<span class="row-unit" aria-hidden="true">hosts</span>
 								<button
@@ -475,7 +577,7 @@
 					<button type="button" class="small-btn add" id="add-row" on:click={addRow}>Add a subnet</button>
 				{/if}
 				{#if reqError}
-					<p class="error" role="alert">{reqError}</p>
+					<p class="error" id="req-error" role="alert">{reqError}</p>
 				{/if}
 
 				<label class="check">
@@ -491,14 +593,16 @@
 
 				{#if shortError}
 					<p class="error short" role="alert">{shortError}</p>
+					{#if biggerBase}
+						<p class="fix-row">
+							<button type="button" class="small-btn" on:click={() => (base = biggerBase)}>Use {biggerBase}</button>
+						</p>
+					{/if}
 				{/if}
 
-				<div
-					class="results"
-					class:stale={!!vlsmError || !plan.ok}
-					aria-hidden={vlsmError || !plan.ok ? 'true' : 'false'}
-				>
-					{#if shown}
+				{#if shown && (hadFit || (plan.ok && !vlsmError))}
+					<!-- inert, not just aria-hidden: the dimmed last plan must not be reachable by keyboard either. -->
+					<div class="results" class:stale={!!vlsmError || !plan.ok} inert={vlsmError || !plan.ok ? true : undefined}>
 						<div class="answer" role={vlsmError || shortError ? undefined : 'status'}>
 							<span class="answer-label"
 								>{plan.ok && !vlsmError ? 'Plan for' : 'Last plan that fitted,'} {cidr(shownNet)}</span
@@ -512,9 +616,9 @@
 								>{count(shown.total - shown.used)} addresses left free{shown.free.length
 									? `, starting at ${fmt(shown.free[0].network)}`
 									: ''}.{p31Saving
-									? ` /31 links for the ${linkCount} two-host subnet${
-											linkCount === 1 ? '' : 's'
-									  } would save ${p31Saving} more.`
+									? ` /31 links for ${
+											linkCount === 1 ? 'the subnet' : `the ${linkCount} subnets`
+									  } of 1 or 2 hosts would save ${p31Saving} more.`
 									: ''}</span
 							>
 						</div>
@@ -543,9 +647,9 @@
 									<tr>
 										<th scope="col">#</th>
 										<th scope="col">Name</th>
+										<th scope="col">Network and mask</th>
 										<th scope="col" class="num">Needs</th>
 										<th scope="col" class="num">Usable</th>
-										<th scope="col">Network and mask</th>
 										<th scope="col">First host</th>
 										<th scope="col">Last host</th>
 										<th scope="col">Broadcast</th>
@@ -557,11 +661,12 @@
 										<tr>
 											<td class="mono">{i + 1}</td>
 											<th scope="row" class="name-cell">{a.name}</th>
+											<td class="mono"
+												><a class="strong" href={toolLink('/subnet-calculator', { ip: cidr(a.info) })}>{cidr(a.info)}</a
+												><span class="mask">{fmt(a.info.mask)}</span></td
+											>
 											<td class="mono num">{count(a.hosts)}</td>
 											<td class="mono num">{count(a.info.usable)}</td>
-											<td class="mono"
-												><span class="strong">{cidr(a.info)}</span><span class="mask">{fmt(a.info.mask)}</span></td
-											>
 											<td class="mono">{fmt(a.info.firstHost)}</td>
 											<td class="mono">{fmt(a.info.lastHost)}</td>
 											<td class="mono">{a.info.broadcast === null ? 'none (/31)' : fmt(a.info.broadcast)}</td>
@@ -572,9 +677,13 @@
 										<tr class="free-row">
 											<td />
 											<th scope="row" class="name-cell">Free ({count(f.total)})</th>
+											<td class="mono"
+												><a href={toolLink('/subnet-calculator', { ip: cidr(f) })}>{cidr(f)}</a><span class="mask"
+													>{fmt(f.mask)}</span
+												></td
+											>
 											<td />
 											<td />
-											<td class="mono">{cidr(f)}<span class="mask">{fmt(f.mask)}</span></td>
 											<td class="mono" colspan="3">{fmt(f.network)} to {fmt(f.last)}</td>
 											<td />
 										</tr>
@@ -583,15 +692,11 @@
 							</table>
 						</div>
 						<p class="reducer">
-							Unused counts usable addresses a subnet has beyond what it asked for. Any row can be opened in the
-							<a
-								href={toolLink('/subnet-calculator', {
-									ip: shown.allocations[0] ? cidr(shown.allocations[0].info) : ''
-								})}>subnet calculator</a
-							> to see its bits.
+							Unused counts usable addresses a subnet has beyond what it asked for. Select a network to see its bits in
+							the subnet calculator.
 						</p>
-					{/if}
-				</div>
+					</div>
+				{/if}
 			{:else}
 				<div class="split-controls">
 					<div class="split-field">
@@ -617,8 +722,12 @@
 								splitBy = 'prefix';
 							}}
 						>
+							{#if splitBy === 'prefix' && splitTo < net.prefix}
+								<!-- Kept as an option so the control does not go blank when the base grows past it. -->
+								<option value={splitTo} disabled>/{splitTo} (larger than the network)</option>
+							{/if}
 							{#each prefixOptions as p}
-								<option value={p}>/{p} ({count(blockSize(p))} addresses)</option>
+								<option value={p}>/{p} ({count(blockSize(p))} address{blockSize(p) === 1 ? '' : 'es'})</option>
 							{/each}
 						</select>
 					</div>
@@ -626,7 +735,12 @@
 				{#if splitError && !baseError}
 					<p class="error" role="alert">{splitError}</p>
 				{/if}
-				<div class="results" class:stale={!!baseError || !split} aria-hidden={baseError || !split ? 'true' : 'false'}>
+				<div
+					class="results"
+					class:stale={!!baseError || !split}
+					inert={baseError || !split ? true : undefined}
+					hidden={!!baseError && !hadNet}
+				>
 					{#if split}
 						<div class="answer" role="status">
 							<span class="answer-label">{cidr(net)} split</span>
@@ -634,7 +748,8 @@
 							<span class="answer-also"
 								>{split.borrowed} bit{split.borrowed === 1 ? '' : 's'} borrowed from the host part. Each subnet has {count(
 									split.size
-								)} addresses, {count(split.subnets[0].usable)} usable.{splitBy === 'count' && countValue !== split.count
+								)} address{split.size === 1 ? '' : 'es'}, {count(split.subnets[0].usable)} usable.{splitBy ===
+									'count' && countValue !== split.count
 									? ` ${count(countValue)} is not a power of two, so it rounds up to ${count(split.count)}; the spare ${
 											split.count - countValue === 1 ? 'one is' : `${count(split.count - countValue)} are`
 									  } free for later.`
@@ -688,6 +803,18 @@
 					{/if}
 				</div>
 			{/if}
+			<p class="copy-row">
+				<button type="button" class="small-btn" on:click={copyResult} disabled={!canCopy}
+					>{mode === 'vlsm' ? 'Copy plan' : 'Copy subnets'}</button
+				>
+				<span class="copy-status" aria-live="polite"
+					>{copyState === 'copied'
+						? 'Copied to the clipboard, as tab-separated columns.'
+						: copyState === 'failed'
+						? 'Copying was blocked; select the table instead.'
+						: ''}</span
+				>
+			</p>
 			<p class="share-row"><ShareLink what="this plan" /></p>
 		</div>
 	</section>
@@ -784,6 +911,72 @@
 		</p>
 	</section>
 
+	<section id="equal">
+		<h2>Splitting a network into equal subnets</h2>
+		<p>
+			The equal split mode is fixed length subnet masking: every subnet gets the same prefix. It works by borrowing bits
+			from the host part. Each borrowed bit doubles the number of subnets and halves their size, so borrowing n bits
+			gives 2<sup>n</sup> subnets. A count that is not a power of two rounds up: {oddCount} subnets need {oddBits} bits,
+			which gives {2 ** oddBits}.
+		</p>
+		<p>
+			192.168.10.0/24 into {splitDemoCount}: borrow {splitDemo.borrowed} bits, so the prefix becomes /{24 +
+				splitDemo.borrowed} and each of the {splitDemo.count} subnets has {splitDemo.size} addresses, {splitDemo
+				.subnets[0].usable} of them usable.
+		</p>
+		<div class="table-wrap">
+			<table class="data-table">
+				<thead>
+					<tr>
+						<th scope="col">Subnet</th>
+						<th scope="col">Network</th>
+						<th scope="col">First host</th>
+						<th scope="col">Last host</th>
+						<th scope="col">Broadcast</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each splitDemo.subnets as s, i}
+						<tr>
+							<th scope="row">{i + 1}</th>
+							<td class="mono">{cidr(s)}</td>
+							<td class="mono">{fmt(s.firstHost)}</td>
+							<td class="mono">{fmt(s.lastHost)}</td>
+							<td class="mono">{s.broadcast === null ? 'none' : fmt(s.broadcast)}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+		<h3>Splitting a /24</h3>
+		<div class="table-wrap">
+			<table class="data-table">
+				<thead>
+					<tr>
+						<th scope="col" class="num">Subnets</th>
+						<th scope="col" class="num">Bits borrowed</th>
+						<th scope="col">New prefix</th>
+						<th scope="col">Mask</th>
+						<th scope="col" class="num">Addresses each</th>
+						<th scope="col" class="num">Usable each</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each splitTable as r}
+						<tr>
+							<th scope="row" class="mono num">{r.n}</th>
+							<td class="mono num">{r.bits}</td>
+							<td class="mono">/{r.prefix}</td>
+							<td class="mono">{fmt(maskFromPrefix(r.prefix))}</td>
+							<td class="mono num">{r.size}</td>
+							<td class="mono num">{r.usable}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	</section>
+
 	<section id="mistakes">
 		<h2>Common mistakes</h2>
 		<ul class="points">
@@ -800,8 +993,8 @@
 				first.
 			</li>
 			<li>
-				<strong>Overlapping subnets.</strong> Two subnets that share addresses make routing ambiguous. Every plan here is
-				checked to tile the base network exactly, with no overlap.
+				<strong>Overlapping subnets.</strong> Two subnets that share addresses make routing ambiguous. Plans here are built
+				to tile the base network exactly, with no overlap, and the test suite checks that on thousands of random plans.
 			</li>
 		</ul>
 	</section>
@@ -1118,7 +1311,43 @@
 	.data-table.plan td,
 	.data-table.plan th {
 		padding: 0.35rem 0.55rem;
+	}
+
+	/* Only the body: the headers stay the size of every other table's. */
+	.data-table.plan tbody td,
+	.data-table.plan tbody th {
 		font-size: 0.88rem;
+	}
+
+	#equal h3 {
+		color: #fff;
+		margin-top: 1.4rem;
+	}
+
+	.answer + .table-wrap {
+		margin-top: 1rem;
+	}
+
+	.fix-row {
+		margin: 0 0 0.8rem;
+	}
+
+	.copy-row {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+		margin: 1rem 0 0;
+	}
+
+	.copy-status {
+		color: #8ede8e;
+		font-size: 0.8rem;
+	}
+
+	.small-btn:disabled {
+		opacity: 0.5;
+		cursor: default;
 	}
 
 	.plan td,
@@ -1216,6 +1445,16 @@
 
 		.row-input.hosts {
 			width: 4.8rem;
+		}
+
+		.split-controls {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0.4rem;
+		}
+
+		.or {
+			padding: 0;
 		}
 	}
 </style>

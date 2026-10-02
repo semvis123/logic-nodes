@@ -183,7 +183,7 @@
 	   which then get the full width. */
 	@media (max-width: 640px) {
 		.bits-figure {
-			--c: 8.5px;
+			--c: 9px;
 			--d: 5px;
 			padding: 0.5rem 0.5rem 0.6rem;
 		}

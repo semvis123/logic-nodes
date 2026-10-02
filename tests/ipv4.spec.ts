@@ -19,6 +19,7 @@ import {
 	prefixTable,
 	rangeToCidrs,
 	parseRequirements,
+	parseHostCount,
 	formatRequirements,
 	checkRequirements,
 	prefixForHosts,
@@ -111,6 +112,12 @@ test.describe('ipv4 parsing', () => {
 		);
 		expect(errorOf(() => parseAddress('1.2.3.4.5'))).toMatch(/has 5 octets/);
 		expect(errorOf(() => parseAddress('192..1.1'))).toMatch(/^Octet 2 is empty/);
+		// A stray dot is named as one, even when it makes five parts.
+		expect(errorOf(() => parseAddress('1.2.3.4.'))).toBe(
+			'1.2.3.4. ends with a dot: an IPv4 address is four numbers separated by dots'
+		);
+		expect(errorOf(() => parseAddress('192.168.1..10'))).toMatch(/^Octet 4 is empty: there are two dots in a row/);
+		expect(errorOf(() => parseAddress('.1.2.3'))).toMatch(/^Octet 1 is empty/);
 		expect(errorOf(() => parseAddress('192.168.01.1'))).toMatch(/^Octet 3 is written 01: leading zeros.*write 1$/);
 		expect(errorOf(() => parseAddress('10.0.0.x'))).toMatch(/^"x" cannot appear/);
 		expect(errorOf(() => parseAddress('-1.0.0.0'))).toMatch(/^"-" cannot appear/);
@@ -137,7 +144,19 @@ test.describe('ipv4 parsing', () => {
 		expect(errorOf(() => parseMask('0.0.0.255'))).toBe(
 			'0.0.0.255 looks like a wildcard mask (zeros then ones); the netmask with the same meaning is 255.255.255.0, which is /24'
 		);
-		// Every non-contiguous mask is refused; checked over every mask with a single stray bit pattern.
+		// Every valid mask with any one bit flipped is refused, unless the flip
+		// lands on the edge of the run of ones and makes another valid mask.
+		for (let p = 0; p <= 32; p++) {
+			for (let bit = 0; bit < 32; bit++) {
+				const bits = [...toBits(maskFromPrefix(p))];
+				bits[bit] = bits[bit] === '1' ? '0' : '1';
+				const m = parseInt(bits.join(''), 2);
+				const valid = /^1*0*$/.test(bits.join(''));
+				if (valid) expect(prefixFromMask(m)).toBe(bits.indexOf('0') === -1 ? 32 : bits.indexOf('0'));
+				else expect(() => prefixFromMask(m), `/${p} with bit ${bit} flipped`).toThrow(IpError);
+			}
+		}
+		// And random 32 bit values, almost none of which are masks.
 		for (let i = 0; i < 2000; i++) {
 			const m = randomAddress();
 			const bits = toBits(m);
@@ -166,6 +185,8 @@ test.describe('ipv4 parsing', () => {
 		expect(errorOf(() => parseCidr('192.168.1.10/'))).toMatch(/after the slash/);
 		expect(errorOf(() => parseCidr('192.168.1.300/24'))).toMatch(/^Octet 4 is 300/);
 		expect(errorOf(() => parseCidr('192.168.1.1/40'))).toMatch(/too long/);
+		expect(errorOf(() => parseCidr('1.2.3.4//24'))).toMatch(/^There are two slashes/);
+		expect(errorOf(() => parseCidr('1.2.3.4./24'))).toMatch(/ends with a dot/);
 		expect(dottedBits(0xc0a8010a)).toBe('11000000.10101000.00000001.00001010');
 	});
 });
@@ -340,6 +361,31 @@ test.describe('ipv4 subnets', () => {
 			{ network: parseAddress('192.168.10.128'), prefix: 25 }
 		]);
 		expect(rangeToCidrs(0, ADDRESS_SPACE)).toEqual([{ network: 0, prefix: 0 }]);
+		// Against a BigInt greedy reference over the whole address space,
+		// including starts at and above 2^31, where 32 bit operators turn signed.
+		const refBlocks = (start: bigint, end: bigint) => {
+			const out: { network: number; prefix: number }[] = [];
+			let at = start;
+			while (at < end) {
+				let size = 1n;
+				while (size < 2n ** 32n && at % (size * 2n) === 0n && at + size * 2n <= end) size *= 2n;
+				out.push({ network: Number(at), prefix: 32 - size.toString(2).length + 1 });
+				at += size;
+			}
+			return out;
+		};
+		const edges = [0, 1, 2 ** 31 - 1, 2 ** 31, 2 ** 31 + 1, 2 ** 32 - 2, 2 ** 32 - 1, ADDRESS_SPACE];
+		for (const a of edges) {
+			for (const b of edges) {
+				if (a <= b) expect(rangeToCidrs(a, b), `${a} to ${b}`).toEqual(refBlocks(BigInt(a), BigInt(b)));
+			}
+		}
+		for (let i = 0; i < 1000; i++) {
+			const x = randomAddress();
+			const y = random() < 0.2 ? ADDRESS_SPACE : randomAddress();
+			const [start, end] = x <= y ? [x, y] : [y, x];
+			expect(rangeToCidrs(start, end)).toEqual(refBlocks(BigInt(start), BigInt(end)));
+		}
 		for (let i = 0; i < 300; i++) {
 			const start = Math.floor(random() * 5000);
 			const end = start + Math.floor(random() * 5000);
@@ -370,6 +416,48 @@ test.describe('ipv4 vlsm', () => {
 		expect(errorOf(() => parseRequirements('Sales 0'))).toBe('Sales (row 1) needs a host count of 1 or more');
 		expect(errorOf(() => parseRequirements('Huge 5000000000'))).toMatch(/the most one IPv4 block can hold/);
 		expect(() => checkRequirements([{ name: '', hosts: 1.5 }])).toThrow(/Row 1 needs/);
+		// Pasted from a spreadsheet: thousands separators are read, other
+		// number formats are refused rather than half read.
+		expect(parseRequirements('Campus 12,500\nHead office 8,000\n1,500 Staff\nSales — 50\nLink-5')).toEqual([
+			{ name: 'Campus', hosts: 12500 },
+			{ name: 'Head office', hosts: 8000 },
+			{ name: 'Staff', hosts: 1500 },
+			{ name: 'Sales', hosts: 50 },
+			{ name: 'Link', hosts: 5 }
+		]);
+		expect(errorOf(() => parseRequirements('Sales -5'))).toBe('Line 1 ("Sales -5"): a host count cannot be negative');
+		for (const bad of ['Sales 2.5', 'Sales 50.0', 'Sales 1,20']) {
+			expect(errorOf(() => parseRequirements(bad))).toBe(
+				`Line 1 ("${bad}"): the host count must be a whole number, such as 50 or 12,500`
+			);
+		}
+		for (const bad of ['Sales 1e3', 'Sales 0x20', 'Sales +50']) {
+			expect(errorOf(() => parseRequirements(bad))).toBe(
+				`Line 1 ("${bad}"): write the host count in plain digits, such as 50`
+			);
+		}
+		// Rows read their counts by the same rule, and say which row is wrong.
+		expect(parseHostCount(' 12,500 ', 'X')).toBe(12500);
+		expect(parseHostCount('7', 'X')).toBe(7);
+		const rowError = (text: string) => {
+			try {
+				parseHostCount(text, 'Sales (row 3)', 2);
+			} catch (e) {
+				return [(e as IpError).message, (e as IpError).row];
+			}
+			return null;
+		};
+		expect(rowError('1e3')).toEqual(['Sales (row 3): write the host count in plain digits, such as 50', 2]);
+		expect(rowError('0x20')).toEqual(['Sales (row 3): write the host count in plain digits, such as 50', 2]);
+		expect(rowError('+50')).toEqual(['Sales (row 3): write the host count in plain digits, such as 50', 2]);
+		expect(rowError('50.0')).toEqual(['Sales (row 3): the host count must be a whole number, such as 50 or 12,500', 2]);
+		expect(rowError('-5')).toEqual(['Sales (row 3): a host count cannot be negative', 2]);
+		expect(rowError('')).toEqual(['Sales (row 3) needs a host count of 1 or more', 2]);
+		// Every count a row accepts reads back the same through the text form.
+		for (const hosts of ['1', '50', '12,500', '1,000,000']) {
+			const n = parseHostCount(hosts, 'X');
+			expect(parseRequirements(`Lab 2 ${hosts}`)).toEqual([{ name: 'Lab 2', hosts: n }]);
+		}
 		const list: Requirement[] = [
 			{ name: 'Link 2', hosts: 2 },
 			{ name: '2024', hosts: 9 },
@@ -594,6 +682,27 @@ test.describe('the subnet-calculator page', () => {
 		await expect(page.locator('.verdict')).toContainText('is in');
 	});
 
+	test('an empty check field, refused values and a bad input', async ({ page }) => {
+		await page.goto('/subnet-calculator?ip=192.168.1.0%2F24');
+		await page.waitForLoadState('networkidle');
+		await page.fill('#test-address', '');
+		await expect(page).toHaveURL(/test=-/);
+		const shared = page.url();
+		await page.goto('about:blank');
+		await page.goto(shared);
+		await expect(page.locator('#test-address')).toHaveValue('');
+		await expect(page).toHaveURL(shared);
+		// A refused value leaves the address bar instead of lingering there.
+		await page.goto(`/subnet-calculator?ip=${'x'.repeat(81)}`);
+		await expect(page).toHaveURL(/\/subnet-calculator$/);
+		// The dimmed last result cannot be reached while the input is wrong.
+		await page.fill('#cidr', '192.168.1.256/24');
+		await expect(page.locator('.results')).toHaveAttribute('inert', /.*/);
+		await page.fill('#cidr', '224.0.0.1/4');
+		await expect(page.locator('.results')).not.toHaveAttribute('inert', /.*/);
+		await expect(page.locator('.notes')).toContainText('Multicast addresses name groups of receivers, not hosts');
+	});
+
 	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {
 		await page.goto('/subnet-calculator');
 		await faqMatches(page, 'subnet-calculator');
@@ -645,6 +754,63 @@ test.describe('the vlsm-calculator page', () => {
 		await page.fill('#split-count', '3');
 		await expect(page.locator('.split tbody tr')).toHaveCount(4);
 		await expect(page.locator('.split tbody tr').last()).toContainText('10.0.3.0/24');
+	});
+
+	test('host counts are read strictly, the bad row is marked, and grouped counts round trip', async ({ page }) => {
+		await page.goto('/vlsm-calculator');
+		await page.waitForLoadState('networkidle');
+		await page.locator('#req-hosts-2').fill('1e2');
+		await expect(page.locator('#req-error')).toHaveText('IT (row 3): write the host count in plain digits, such as 50');
+		await expect(page.locator('#req-hosts-2')).toHaveAttribute('aria-invalid', 'true');
+		await expect(page.locator('#req-hosts-0')).toHaveAttribute('aria-invalid', 'false');
+		await page.fill('#base', '10.0.0.0/16');
+		await page.locator('#req-hosts-2').fill('12,500');
+		await expect(page.locator('#req-error')).toHaveCount(0);
+		await expect(page.locator('.plan tbody tr').first()).toContainText('10.0.0.0/18');
+		const shared = page.url();
+		await page.goto('about:blank');
+		await page.goto(shared);
+		await expect(page).toHaveURL(/IT\+12500/);
+		await expect(page.locator('#req-hosts-2')).toHaveValue('12500');
+		await expect(page.locator('.plan tbody tr').first()).toContainText('IT');
+		await expect(page).toHaveURL(shared);
+	});
+
+	test('every network links to the subnet calculator, and the plan copies', async ({ page, context }) => {
+		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+		await page.goto('/vlsm-calculator');
+		await page.waitForLoadState('networkidle');
+		const links = page.locator('.plan tbody a');
+		await expect(links).toHaveCount(7);
+		await expect(links.nth(1)).toHaveAttribute('href', '/subnet-calculator?ip=192.168.10.64%2F27');
+		await page.getByRole('button', { name: 'Copy plan' }).click();
+		await expect(page.locator('.copy-status')).toContainText('Copied');
+		const copied = await page.evaluate(() => navigator.clipboard.readText());
+		expect(copied.split('\n')[1]).toBe(
+			'Sales\t50\t62\t192.168.10.0/26\t255.255.255.192\t192.168.10.1\t192.168.10.62\t192.168.10.63\t12'
+		);
+	});
+
+	test('a shared plan that does not fit shows no stale plan, and offers a base that fits', async ({ page }) => {
+		await page.goto('/vlsm-calculator?net=192.168.50.0%2F25&req=Floor+1+60%0AFloor+2+60%0AGuests+10');
+		await expect(page.locator('.error.short')).toContainText('addresses short');
+		await expect(page.locator('.results')).toHaveCount(0);
+		await page.getByRole('button', { name: 'Use 192.168.50.0/24' }).click();
+		await expect(page.locator('#base')).toHaveValue('192.168.50.0/24');
+		await expect(page.locator('.plan tbody tr').first()).toContainText('Floor 1');
+	});
+
+	test('the editor toggle keeps focus, and the split controls agree', async ({ page }) => {
+		await page.goto('/vlsm-calculator');
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'Edit as text' }).click();
+		await expect(page.getByRole('button', { name: 'Edit as rows' })).toBeFocused();
+		await page.getByRole('button', { name: 'Equal split' }).click();
+		await page.selectOption('#split-prefix', '30');
+		await expect(page.locator('#split-count')).toHaveValue('64');
+		await expect(page.locator('.answer-value')).toHaveText('64 × /30');
+		await page.fill('#base', '192.168.10.0/31');
+		await expect(page.locator('#split-prefix option:checked')).toHaveText('/30 (larger than the network)');
 	});
 
 	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {

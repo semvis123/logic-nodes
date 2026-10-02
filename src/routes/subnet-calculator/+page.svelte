@@ -26,12 +26,17 @@
 	import { onMount } from 'svelte';
 
 	const DEFAULTS = { ip: '192.168.1.10/24', test: '192.168.2.10' };
+	// An empty check field is written as test=-, since an empty value would be
+	// left out of the link and the default would come back on reload.
+	const testParam = (t: string) => (t.trim() === '' ? '-' : t);
 	onMount(() => {
 		const p = readUrl();
 		input = safeText(p.ip, 80) ?? input;
-		testInput = safeText(p.test, 40) ?? testInput;
+		testInput = p.test === '-' ? '' : safeText(p.test, 40) ?? testInput;
+		// Rewrite once even if nothing changed, so values that were refused leave the address bar.
+		syncUrl({ ip: input, test: testParam(testInput) }, DEFAULTS);
 	});
-	$: syncUrl({ ip: input, test: testInput }, DEFAULTS);
+	$: syncUrl({ ip: input, test: testParam(testInput) }, DEFAULTS);
 
 	let input = DEFAULTS.ip;
 	let testInput = DEFAULTS.test;
@@ -112,6 +117,7 @@
 	];
 
 	$: notes = [
+		info.special?.hostNote ?? '',
 		info.kind === 'point-to-point'
 			? `A /31 has only two addresses, so there is no room for a network and a broadcast address. RFC 3021 lets both be hosts on a point-to-point link between two routers: ${fmt(
 					info.network
@@ -225,7 +231,7 @@
 				(same2 & maskFromPrefix(24)) >>> 0
 			)}, the same, so they are on one subnet; 192.168.2.10 gives ${fmt(
 				(other & maskFromPrefix(24)) >>> 0
-			)} and is not. The check below the calculator does exactly this.`
+			)} and is not. The check in the calculator above does exactly this.`
 		},
 		{
 			q: 'What is a wildcard mask?',
@@ -356,7 +362,8 @@
 				{/each}
 			</div>
 
-			<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
+			<!-- inert, not just aria-hidden: the dimmed last result must not be reachable by keyboard either. -->
+			<div class="results" class:stale={!!error} inert={error ? true : undefined}>
 				<div class="answer" role={error ? undefined : 'status'}>
 					<span class="answer-label">Network</span>
 					<span class="answer-value mono">{cidr(info)}</span>
@@ -373,7 +380,7 @@
 
 				<dl class="fields">
 					{#each fields as f}
-						<div class="field-row" class:wide={f.id === 'binary' || f.id === 'type'}>
+						<div class="field-row" class:wide={f.id === 'binary' || f.id === 'class' || f.id === 'type'}>
 							<dt>{f.label}</dt>
 							<dd class="mono" data-field={f.id}>{f.value}</dd>
 						</div>
@@ -431,8 +438,8 @@
 					]}
 				/>
 				<p class="legend">
-					<span class="key net">Solid bracket</span>: network bits.
-					<span class="key host">Dashed bracket, tinted</span>: host bits. Bold digits are 1s.
+					<span class="key net" aria-hidden="true" />Solid bracket: network bits.
+					<span class="key host" aria-hidden="true" />Dashed bracket, tinted: host bits. Bold digits are 1s.
 					<a
 						href={toolLink('/binary-calculator', {
 							a: toBits(info.address),
@@ -478,7 +485,7 @@
 							{ label: 'Check', value: testAddress, text: fmt(testAddress) },
 							{ label: 'Mask', op: 'AND', value: info.mask, text: fmt(info.mask) },
 							{ label: 'Result', op: '=', value: testAnd, text: fmt(testAnd), result: true },
-							{ label: 'Network', op: testIn ? '==' : '≠', value: info.network, text: fmt(info.network) }
+							{ label: 'Network', op: testIn ? '=' : '≠', value: info.network, text: fmt(info.network) }
 						]}
 					/>
 				{:else}
@@ -584,7 +591,7 @@
 		<p class="section-intro">
 			Every prefix length with its netmask, wildcard mask and size. Each step down the table halves the block.
 		</p>
-		<div class="table-wrap scroll-box">
+		<div class="table-wrap">
 			<table class="data-table prefix-table">
 				<thead>
 					<tr>
@@ -628,17 +635,17 @@
 					<tr>
 						<th scope="col">Range</th>
 						<th scope="col">Use</th>
-						<th scope="col">Defined in</th>
-						<th scope="col">Notes</th>
+						<th scope="col" class="wide-only">Defined in</th>
+						<th scope="col" class="wide-only">Notes</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each SPECIAL_RANGES as r}
 						<tr>
 							<td class="mono">{r.cidr}</td>
-							<td>{r.name}</td>
-							<td class="nowrap">{r.rfc}</td>
-							<td>{r.note}</td>
+							<td>{r.name}<span class="stacked">{r.rfc}. {r.note}</span></td>
+							<td class="nowrap wide-only">{r.rfc}</td>
+							<td class="wide-only">{r.note}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -949,13 +956,23 @@
 		margin: 0.5rem 0 0;
 	}
 
+	/* Small samples of the brackets drawn above the bits, so the legend keys do
+	   not look like links. */
+	.key {
+		display: inline-block;
+		width: 1.4rem;
+		height: 0.7rem;
+		margin-right: 0.35rem;
+		vertical-align: middle;
+	}
+
 	.key.net {
-		color: #8ede8e;
 		border-bottom: 2px solid #5db65d;
 	}
 
 	.key.host {
-		color: #d8b45a;
+		margin-left: 0.4rem;
+		background-color: rgba(216, 180, 90, 0.13);
 		border-bottom: 2px dashed #d8b45a;
 	}
 
@@ -1032,11 +1049,6 @@
 		color: #8ede8e;
 	}
 
-	.scroll-box {
-		max-height: 460px;
-		overflow: auto;
-	}
-
 	.prefix-table td,
 	.prefix-table th {
 		white-space: nowrap;
@@ -1068,9 +1080,44 @@
 		white-space: nowrap;
 	}
 
+	.stacked {
+		display: none;
+	}
+
 	@media (min-width: 760px) {
 		.special-table td:nth-child(2) {
 			white-space: nowrap;
+		}
+	}
+
+	/* On a phone the RFC and the note go under the use, instead of in columns
+	   that would sit off screen. */
+	@media (max-width: 560px) {
+		.special-table .wide-only {
+			display: none;
+		}
+
+		/* Each range becomes a stacked block: the range, then its use and notes at full width. */
+		.special-table thead {
+			display: none;
+		}
+
+		.special-table tr,
+		.special-table td {
+			display: block;
+		}
+
+		.special-table td:first-child {
+			border-bottom: none;
+			padding-bottom: 0;
+			color: #fff;
+		}
+
+		.stacked {
+			display: block;
+			color: #aaa;
+			font-size: 0.82rem;
+			margin-top: 0.15rem;
 		}
 	}
 
