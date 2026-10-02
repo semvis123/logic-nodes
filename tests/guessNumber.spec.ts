@@ -408,6 +408,27 @@ test.describe('the guess-my-number page', () => {
 		await page.keyboard.press('Enter');
 		await expect(page.locator('.result-text')).toHaveText(`Found 77 in ${truth.length} questions (1 to 100).`);
 		await expect(page.getByRole('button', { name: 'Play again' })).toBeFocused();
+		// Restarting removes that button; focus moves to the next question's Yes, not <body>.
+		await page.keyboard.press('Enter');
+		await expect(page.locator('#answer-yes')).toBeFocused();
+		await expect(page.locator('.question')).toContainText('Is your number greater than 50?');
+	});
+
+	test('undo and start again keep focus in the game', async ({ page }) => {
+		await page.goto(`/guess-my-number?mode=liar&a=${'y'.repeat(11)}`);
+		await page.waitForLoadState('networkidle');
+		// Undoing the last answer brings the question back and removes the result's buttons.
+		await page.getByRole('button', { name: 'Undo last answer' }).click();
+		await expect(page.locator('#answer-yes')).toBeFocused();
+		// The set's members are inside the status region, so they are announced with the question.
+		await expect(page.locator('.question[role="status"] .visually-hidden')).toContainText('The set: ');
+		await page.getByRole('button', { name: 'Start again' }).click();
+		await expect(page.locator('#answer-yes')).toBeFocused();
+		await expect(page.locator('.question')).toContainText('Question 1 of 11');
+		// Undoing the only answer disables the Undo button.
+		await page.keyboard.press('n');
+		await page.getByRole('button', { name: 'Undo last answer' }).click();
+		await expect(page.locator('#answer-yes')).toBeFocused();
 	});
 
 	test('a wrong answer is pointed out once the real number is given', async ({ page }) => {

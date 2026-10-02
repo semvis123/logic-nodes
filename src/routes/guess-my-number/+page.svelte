@@ -123,17 +123,27 @@
 		document.getElementById(id)?.focus();
 	}
 
-	function undo() {
+	async function undo() {
 		answers = answers.slice(0, -1);
 		verdict = 'ask';
 		actualText = '';
+		// Undoing the last answer of a game swaps the controls out, and undoing the first one
+		// disables this button; either way focus would fall to <body>, so hand it to Yes.
+		await tick();
+		if (!document.activeElement || document.activeElement === document.body || isDisabled(document.activeElement))
+			focusId('answer-yes');
 	}
 
-	function restart() {
+	async function restart() {
 		answers = [];
 		verdict = 'ask';
 		actualText = '';
+		// Every restart button is removed or disabled by the restart itself.
+		await tick();
+		focusId('answer-yes');
 	}
+
+	const isDisabled = (el: Element) => el instanceof HTMLButtonElement && el.disabled;
 
 	// --- mode 3: you guess the page's number --------------------------------
 	let secret: number | null = null;
@@ -538,7 +548,7 @@
 
 					{#if !find.done}
 						<div class="yes-no">
-							<button type="button" class="big yes" aria-keyshortcuts="y" on:click={() => answer(true)}
+							<button type="button" class="big yes" id="answer-yes" aria-keyshortcuts="y" on:click={() => answer(true)}
 								>Yes <kbd aria-hidden="true">Y</kbd></button
 							>
 							<button type="button" class="big no" aria-keyshortcuts="n" on:click={() => answer(false)}
@@ -593,6 +603,13 @@
 							<span class="bar-in" style="left: {pct(find.lo)}%; width: {(findLeft / rangeSize) * 100}%" />
 						</div>
 						<div class="bar-ends"><span>{fmt(range.lo)}</span><span>{fmt(range.hi)}</span></div>
+						<!-- On 1 to 1,000,000 the bar is a sliver after a few answers; this row keeps showing progress. -->
+						<div class="bits-row">
+							{#each Array.from({ length: findLimit }, (_, i) => i) as i}
+								<span class="cell" class:got={i < find.steps.length} />
+							{/each}
+							<span class="bits-label">{find.steps.length} of at most {findLimit} answers</span>
+						</div>
 					</div>
 					<p class="left-text">
 						{#if find.done}
@@ -637,7 +654,7 @@
 											><span class="wide">{yn(s.answer)}</span><span class="narrow">{s.answer ? 'Y' : 'N'}</span
 											>{slips.includes(i + 1) ? ' (wrong)' : ''}</td
 										>
-										<td class="mono">{fmt(after.lo)}{after.lo === after.hi ? '' : ` to ${fmt(after.hi)}`}</td>
+										<td class="mono left">{fmt(after.lo)}{after.lo === after.hi ? '' : ` to ${fmt(after.hi)}`}</td>
 										{#if rangeKey === '128'}<td class="mono">{bitsSoFar.slice(0, i + 1)}{'·'.repeat(6 - i)}</td>{/if}
 									</tr>
 								{/each}
@@ -661,15 +678,15 @@
 						<span class="q-count">Question {liarQuestion.position} of {LIAR_QUESTIONS}</span>
 						<span class="q-text">Is your number in this set?</span>
 						<span class="q-also">The {liarQuestion.members.length} numbers in the set are boxed and bold.</span>
+						<span class="visually-hidden">The set: {liarQuestion.members.join(', ')}.</span>
 					</div>
-					<p class="visually-hidden">The set: {liarQuestion.members.join(', ')}.</p>
 					<div class="num-grid" aria-hidden="true">
 						{#each Array.from({ length: 128 }, (_, n) => n) as n}
 							<span class:in={liarQuestion.members.includes(n)}>{n}</span>
 						{/each}
 					</div>
 					<div class="yes-no">
-						<button type="button" class="big yes" aria-keyshortcuts="y" on:click={() => answer(true)}
+						<button type="button" class="big yes" id="answer-yes" aria-keyshortcuts="y" on:click={() => answer(true)}
 							>Yes <kbd aria-hidden="true">Y</kbd></button
 						>
 						<button type="button" class="big no" aria-keyshortcuts="n" on:click={() => answer(false)}
@@ -934,10 +951,10 @@
 				<thead>
 					<tr>
 						<th scope="col">#</th>
-						<th scope="col">Possible before</th>
+						<th scope="col"><span class="wide">Possible before</span><span class="narrow">Before</span></th>
 						<th scope="col">Question</th>
-						<th scope="col">Answer</th>
-						<th scope="col">Possible after</th>
+						<th scope="col"><span class="wide">Answer</span><span class="narrow">Ans.</span></th>
+						<th scope="col"><span class="wide">Possible after</span><span class="narrow">After</span></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -945,11 +962,15 @@
 						{@const after = i + 1 < worked.steps.length ? worked.steps[i + 1] : worked}
 						<tr>
 							<td class="mono">{i + 1}</td>
-							<td class="mono">{s.lo} to {s.hi} ({sizeOf(s.lo, s.hi)})</td>
-							<td>Greater than {s.threshold}?</td>
-							<td class="mono strong">{yn(s.answer)}</td>
+							<td class="mono">{s.lo} to {s.hi}<span class="wide">{` (${sizeOf(s.lo, s.hi)})`}</span></td>
+							<td><span class="wide">Greater than</span><span class="narrow">&gt;</span> {s.threshold}?</td>
+							<td class="mono strong"
+								><span class="wide">{yn(s.answer)}</span><span class="narrow">{s.answer ? 'Y' : 'N'}</span></td
+							>
 							<td class="mono"
-								>{after.lo}{after.lo === after.hi ? '' : ` to ${after.hi} (${sizeOf(after.lo, after.hi)})`}</td
+								>{after.lo}{#if after.lo !== after.hi}{` to ${after.hi}`}<span class="wide"
+										>{` (${sizeOf(after.lo, after.hi)})`}</span
+									>{/if}</td
 							>
 						</tr>
 					{/each}
@@ -1165,7 +1186,7 @@
 				<thead>
 					<tr>
 						<th scope="col">Range</th>
-						<th scope="col" class="num">Numbers</th>
+						<th scope="col" class="num wide-col">Numbers</th>
 						<th scope="col" class="num">Bits<span class="wide">{' '}(log₂ n)</span></th>
 						<th scope="col" class="num">Yes/no<span class="wide">{' '}questions</span></th>
 						<th scope="col" class="num"
@@ -1180,7 +1201,7 @@
 					{#each facts as f}
 						<tr>
 							<td>{f.range.label}</td>
-							<td class="mono num">{fmt(f.size)}</td>
+							<td class="mono num wide-col">{fmt(f.size)}</td>
 							<td class="mono num">{f.bits}</td>
 							<td class="mono num strong">{f.questions}</td>
 							<td class="mono num">{f.guesses}</td>
@@ -1464,6 +1485,34 @@
 		min-width: 3px;
 		background: #5db65d;
 		transition: left 0.25s ease, width 0.25s ease;
+	}
+
+	.bits-row {
+		display: flex;
+		align-items: center;
+		gap: 3px;
+		margin-top: 0.4rem;
+	}
+
+	.bits-row .cell {
+		flex: 1 1 0;
+		max-width: 1.6rem;
+		height: 8px;
+		border: 1px solid rgba(255, 255, 255, 0.35);
+		border-radius: 2px;
+	}
+
+	/* Filled, not just recoloured, so an answered question reads without colour. */
+	.bits-row .cell.got {
+		background: #5db65d;
+		border-color: #5db65d;
+	}
+
+	.bits-label {
+		color: #999;
+		font: 0.72rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		margin-left: 0.4rem;
+		white-space: nowrap;
 	}
 
 	.bar-ends {
@@ -1775,6 +1824,16 @@
 		.trail td:nth-child(2) {
 			min-width: 0;
 			white-space: nowrap;
+		}
+
+		/* "500,001 to 1,000,000" is the widest cell; it may break after "to". */
+		.trail td.left {
+			white-space: normal;
+		}
+
+		/* The count is the range written another way, and the table needs the room. */
+		.wide-col {
+			display: none;
 		}
 
 		.liar-answers :is(th, td) {
