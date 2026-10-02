@@ -793,6 +793,17 @@ test.describe('the vlsm-calculator page', () => {
 		await expect(page.locator('#req-hosts-2')).toHaveValue('12500');
 		await expect(page.locator('.plan tbody tr').first()).toContainText('IT');
 		await expect(page).toHaveURL(shared);
+		// A link holding a bad row reopens as rows, with that row marked.
+		await page.locator('#req-hosts-1').fill('abc');
+		await expect(page.locator('#req-error')).toHaveText('HR (row 2): write the host count in plain digits, such as 50');
+		const bad = page.url();
+		await page.goto('about:blank');
+		await page.goto(bad);
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#req-hosts-1')).toHaveValue('abc');
+		await expect(page.locator('#req-hosts-1')).toHaveAttribute('aria-invalid', 'true');
+		await expect(page.locator('#req-error')).toHaveText('HR (row 2): write the host count in plain digits, such as 50');
+		await expect(page).toHaveURL(bad);
 	});
 
 	test('every network links to the subnet calculator, and the plan copies', async ({ page, context }) => {
@@ -842,6 +853,13 @@ test.describe('the vlsm-calculator page', () => {
 		await page.locator('#split-count').type('5');
 		await expect(page.locator('#split-count')).toHaveValue('5');
 		await expect(page.locator('.answer-value')).toHaveText('8 × /27');
+		// With no valid count, the prefix select shows no prefix rather than a stale one.
+		await page.fill('#split-count', 'abc');
+		await expect(page.locator('#split-prefix option:checked')).toHaveText('Choose a prefix');
+		await page.selectOption('#split-prefix', '29');
+		await expect(page.locator('#split-count')).toHaveValue('32');
+		await expect(page.locator('#split-prefix option:checked')).not.toHaveText('Choose a prefix');
+		await expect(page.locator('.answer-value')).toHaveText('32 × /29');
 		// A prefix longer than the base leaves no count to show.
 		await page.selectOption('#split-prefix', '30');
 		await page.fill('#base', '192.168.10.0/31');

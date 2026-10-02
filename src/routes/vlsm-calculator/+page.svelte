@@ -76,8 +76,12 @@
 				try {
 					rows = parseRequirements(req).map((r) => ({ name: r.name, hosts: String(r.hosts) }));
 				} catch {
-					// Keep what was shared so the reader can see and fix it.
-					editAsText = true;
+					// A link made from rows with a bad count ("Sales abc") reopens as those
+					// rows, with the bad one marked. Anything else is kept as text so the
+					// reader can see and fix it.
+					const shared = sharedRows(req);
+					if (shared) rows = shared;
+					else editAsText = true;
 				}
 			}
 		}
@@ -96,7 +100,23 @@
 	// A count grouped as 12,500 goes into the link as 12500, which is what the
 	// row shows when the link is opened, so the link stays the same after a reload.
 	const plainCount = (h: string) => (/^\d{1,3}(?:,\d{3})+$/.test(h.trim()) ? h.trim().replace(/,/g, '') : h.trim());
-	$: rowsText = rows.map((r) => `${r.name.replace(/\s*[;\r\n]+\s*/g, ' ').trim()} ${plainCount(r.hosts)}`).join('\n');
+	const rowLine = (r: Row) => `${r.name.replace(/\s*[;\r\n]+\s*/g, ' ').trim()} ${plainCount(r.hosts)}`;
+	$: rowsText = rows.map(rowLine).join('\n');
+
+	/**
+	 * Reads a link's list back as the rows that wrote it: each line is the name,
+	 * a space, then the count field as typed. Only accepted when writing those
+	 * rows gives back exactly the same text, so the link still round trips.
+	 */
+	function sharedRows(req: string): Row[] | null {
+		const out: Row[] = [];
+		for (const line of req.split('\n')) {
+			const k = line.lastIndexOf(' ');
+			if (k < 0) return null;
+			out.push({ name: line.slice(0, k), hosts: line.slice(k + 1) });
+		}
+		return out.map(rowLine).join('\n') === req ? out : null;
+	}
 	$: params = {
 		net: base,
 		req: editAsText ? text : rowsText,
@@ -243,6 +263,10 @@
 			? 'Type a whole number of subnets, 1 or more.'
 			: '';
 	$: newPrefix = splitBy === 'count' && !countError ? net.prefix + bitsForCount(countValue) : splitTo;
+	// With no valid count, no prefix follows from it, so the select shows none. A
+	// plain variable, not an expression, in the select's value: Svelte then reselects
+	// on every update, which keeps the choice when the options under it are rebuilt.
+	$: prefixShown = countError ? '' : newPrefix;
 	let split: ReturnType<typeof splitEqual> | null = null;
 	let splitError = '';
 	$: {
@@ -721,13 +745,16 @@
 						<label class="field" for="split-prefix">New prefix</label>
 						<select
 							id="split-prefix"
-							value={newPrefix}
+							value={prefixShown}
 							on:change={(e) => {
 								splitTo = Number(e.currentTarget.value);
 								splitBy = 'prefix';
 							}}
 						>
-							{#if splitBy === 'prefix' && splitTo < net.prefix}
+							{#if countError}
+								<!-- No count to go by, so no prefix follows from it either. -->
+								<option value="" disabled>Choose a prefix</option>
+							{:else if splitBy === 'prefix' && splitTo < net.prefix}
 								<!-- Kept as an option so the control does not go blank when the base grows past it. -->
 								<option value={splitTo} disabled>/{splitTo} (larger than the network)</option>
 							{/if}
