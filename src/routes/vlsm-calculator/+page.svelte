@@ -233,8 +233,10 @@
 	}
 
 	// Equal split. Choosing a prefix shows the count it gives in the count field,
-	// so the two controls never disagree.
-	$: if (splitBy === 'prefix' && splitTo >= net.prefix) splitCount = String(2 ** (splitTo - net.prefix));
+	// so the two controls never disagree. The count shown is derived, never written
+	// back into splitCount: a reactive write would race the field's own input event
+	// and overwrite the first number typed after a prefix was chosen.
+	$: countShown = splitBy === 'count' ? splitCount : splitTo >= net.prefix ? String(2 ** (splitTo - net.prefix)) : '';
 	$: countValue = Number(splitCount);
 	$: countError =
 		splitBy === 'count' && (!Number.isInteger(countValue) || countValue < 1)
@@ -706,8 +708,11 @@
 							class="row-input"
 							type="text"
 							inputmode="numeric"
-							bind:value={splitCount}
-							on:input={() => (splitBy = 'count')}
+							value={countShown}
+							on:input={(e) => {
+								splitCount = e.currentTarget.value;
+								splitBy = 'count';
+							}}
 							aria-invalid={splitBy === 'count' && splitError ? 'true' : 'false'}
 						/>
 					</div>

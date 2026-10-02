@@ -426,7 +426,22 @@ test.describe('ipv4 vlsm', () => {
 			{ name: 'Link', hosts: 5 }
 		]);
 		expect(errorOf(() => parseRequirements('Sales -5'))).toBe('Line 1 ("Sales -5"): a host count cannot be negative');
-		for (const bad of ['Sales 2.5', 'Sales 50.0', 'Sales 1,20']) {
+		// Commas only group thousands; anything else is refused, naming the digits.
+		for (const [bad, digits] of [
+			['Sales 1,20', '1,20'],
+			['Room 101,50', '101,50'],
+			['Lab 2,1,000', '2,1,000']
+		]) {
+			expect(errorOf(() => parseRequirements(bad))).toBe(
+				`Line 1 ("${bad}"): "${digits}" is not a host count, as commas group thousands (12,500); write it in plain digits, or put a space before the count`
+			);
+		}
+		expect(parseRequirements('Room 101 50; Link A,2; Sales \u2212 5')).toEqual([
+			{ name: 'Room 101', hosts: 50 },
+			{ name: 'Link A', hosts: 2 },
+			{ name: 'Sales', hosts: 5 }
+		]);
+		for (const bad of ['Sales 2.5', 'Sales 50.0']) {
 			expect(errorOf(() => parseRequirements(bad))).toBe(
 				`Line 1 ("${bad}"): the host count must be a whole number, such as 50 or 12,500`
 			);
@@ -451,6 +466,10 @@ test.describe('ipv4 vlsm', () => {
 		expect(rowError('0x20')).toEqual(['Sales (row 3): write the host count in plain digits, such as 50', 2]);
 		expect(rowError('+50')).toEqual(['Sales (row 3): write the host count in plain digits, such as 50', 2]);
 		expect(rowError('50.0')).toEqual(['Sales (row 3): the host count must be a whole number, such as 50 or 12,500', 2]);
+		expect(rowError('1,20')).toEqual([
+			'Sales (row 3): "1,20" is not a host count, as commas group thousands (12,500); write it in plain digits',
+			2
+		]);
 		expect(rowError('-5')).toEqual(['Sales (row 3): a host count cannot be negative', 2]);
 		expect(rowError('')).toEqual(['Sales (row 3) needs a host count of 1 or more', 2]);
 		// Every count a row accepts reads back the same through the text form.
@@ -809,8 +828,25 @@ test.describe('the vlsm-calculator page', () => {
 		await page.selectOption('#split-prefix', '30');
 		await expect(page.locator('#split-count')).toHaveValue('64');
 		await expect(page.locator('.answer-value')).toHaveText('64 × /30');
+		// Typing a count after choosing a prefix splits by the count typed.
+		await page.fill('#split-count', '3');
+		await expect(page.locator('#split-count')).toHaveValue('3');
+		await expect(page.locator('.answer-value')).toHaveText('4 × /26');
+		await expect.poll(() => new URL(page.url()).searchParams.get('n')).toBe('3');
+		await page.selectOption('#split-prefix', '28');
+		await expect(page.locator('#split-count')).toHaveValue('16');
+		await page.locator('#split-count').press('End');
+		await page.locator('#split-count').press('Backspace');
+		await page.locator('#split-count').press('Backspace');
+		await expect(page.locator('#split-count')).toHaveValue('');
+		await page.locator('#split-count').type('5');
+		await expect(page.locator('#split-count')).toHaveValue('5');
+		await expect(page.locator('.answer-value')).toHaveText('8 × /27');
+		// A prefix longer than the base leaves no count to show.
+		await page.selectOption('#split-prefix', '30');
 		await page.fill('#base', '192.168.10.0/31');
 		await expect(page.locator('#split-prefix option:checked')).toHaveText('/30 (larger than the network)');
+		await expect(page.locator('#split-count')).toHaveValue('');
 	});
 
 	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {

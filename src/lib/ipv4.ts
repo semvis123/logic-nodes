@@ -458,7 +458,14 @@ export const MAX_REQUIREMENTS = 64;
 
 /** A host count: plain digits, or digits grouped in thousands by commas (12,500). */
 const COUNT = '\\d{1,3}(?:,\\d{3})+|\\d+';
-const SEPARATORS = '[\\s:,=\\-\u2013\u2014]';
+const SEPARATORS = '[\\s:,=\\-\u2013\u2014\u2212]';
+
+// Commas only group thousands, so "101,50" is a typo or a name running into
+// its count; guessing which would plan the wrong size, so it is refused.
+const misgrouped = (who: string, digits: string, inLine: boolean) =>
+	`${who}: "${digits}" is not a host count, as commas group thousands (12,500); write it in plain digits${
+		inLine ? ', or put a space before the count' : ''
+	}`;
 
 /**
  * Reads a host count as typed in a row: whole digits, optionally grouped in
@@ -471,6 +478,7 @@ export function parseHostCount(text: string, who: string, row?: number): number 
 	if (new RegExp(`^(?:${COUNT})$`).test(s)) return Number(s.replace(/,/g, ''));
 	if (!s) throw new IpError(`${who} needs a host count of 1 or more`, row);
 	if (/^[-\u2212]\s*\d/.test(s)) throw new IpError(`${who}: a host count cannot be negative`, row);
+	if (/^\d+(?:,\d+)+$/.test(s)) throw new IpError(misgrouped(who, s, false), row);
 	if (/^\d*[.,]\d*$/.test(s) && /\d/.test(s)) {
 		throw new IpError(`${who}: the host count must be a whole number, such as 50 or 12,500`, row);
 	}
@@ -500,7 +508,9 @@ export function parseRequirements(text: string): Requirement[] {
 		if (!count0) throw new IpError(`${where} has no host count: write a name and a number, such as Sales 50`);
 		// What sits right before the digits says whether they are the whole count.
 		if (last) {
-			if (/\d[.,]$/.test(name0)) {
+			const grouped = /(\d+(?:,\d+)*),$/.exec(name0);
+			if (grouped) throw new IpError(misgrouped(where, `${grouped[1]},${count0}`, true));
+			if (/\d\.$/.test(name0)) {
 				throw new IpError(`${where}: the host count must be a whole number, such as 50 or 12,500`);
 			}
 			if (/\d[a-z]$/i.test(name0) || /(?:^|[\s:,=])\+$/.test(name0))
