@@ -321,6 +321,16 @@ test('detection names each kind of ID and explains near misses', () => {
 	// Digit-group separators are accepted here as on the snowflake page.
 	expect(detectId('175,928,847,299,117,063').canonical).toBe('175928847299117063');
 	expect(detectId('175_928_847_299_117_063').kind).toBe('snowflake');
+	expect(detectId('175 928 847 299 117 063').kind).toBe('snowflake');
+	// Separators only between groups of three, and only one kind of them.
+	expect(errorOf(() => detectId('1 2 3'))).toContain('Not a recognised ID');
+	expect(errorOf(() => decodeSnowflake('1 2 3'))).toContain('groups of three');
+	expect(errorOf(() => decodeSnowflake('175,928_847'))).toContain('groups of three');
+	// A broken ObjectId(...) wrapper gets the ObjectId message.
+	expect(errorOf(() => detectId(`ObjectId('507f1f77bcf86cd799439011")`))).toContain('An ObjectId is 24 hex digits');
+	expect(detectId(`ObjectId("507f1f77bcf86cd799439011")`).kind).toBe('objectid');
+	// The RFC 9562 v1 example has a random (multicast) node, so the title does not promise a MAC address.
+	expect(decodeUuid('C232AB00-9414-11EC-B3C8-9F6BDECED846').title).toBe('UUID version 1: time and node');
 });
 
 test('generated v4 and v7 UUIDs always have the right version and variant', () => {

@@ -658,12 +658,13 @@
 			Crockford dropped to avoid accidental obscenities; a decoder reads I and L as 1 and O as 0. The ULID
 			<span class="mono">{ulidExample.canonical}</span> starts with
 			<span class="mono">{ulidExample.canonical.slice(0, 10)}</span>, which is {ulidExample.fields[0].value} ms,
-			{ulidExample.time?.iso}.
+			<span class="mono nowrap">{ulidExample.time?.iso}</span>.
 		</p>
 		<p>
 			A <strong>MongoDB ObjectId</strong> is 12 bytes: 4 bytes of Unix seconds, 5 random bytes chosen once per process,
 			and a 3-byte counter. In <span class="mono">{oid.canonical}</span> the first 8 hex digits,
-			<span class="mono">{oid.canonical.slice(0, 8)}</span>, are {oid.fields[0].value} seconds, {oid.time?.iso}.
+			<span class="mono">{oid.canonical.slice(0, 8)}</span>, are {oid.fields[0].value} seconds,
+			<span class="mono nowrap">{oid.time?.iso}</span>.
 			<strong>Snowflakes</strong> are 64-bit numbers used by Discord and Twitter/X, with their own epoch; the
 			<a href="/snowflake-id-decoder">snowflake ID decoder</a> covers them. A <strong>NanoID</strong> is 21 random characters
 			and nothing else, so it has nothing to decode.
