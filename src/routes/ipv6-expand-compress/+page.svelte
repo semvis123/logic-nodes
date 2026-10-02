@@ -2,13 +2,14 @@
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
-	import { groupDecimal, superscript } from '$lib/radix';
+	import { groupDecimal } from '$lib/radix';
 	import {
 		parseIPv6,
 		expand,
 		compress,
 		compressText,
 		explain,
+		summarise,
 		prefixInfo,
 		describe,
 		parseMac,
@@ -16,8 +17,8 @@
 		hex4,
 		bits16,
 		bin8,
-		groupRange,
 		ADDRESS_TYPES,
+		MAPPED_RANGE,
 		IPv6Error,
 		MAX_INPUT,
 		UL_BIT,
@@ -106,7 +107,8 @@
 	function tryAddress(value: string) {
 		input = value;
 		const field = document.getElementById('address');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+		field?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
@@ -124,9 +126,25 @@
 	];
 
 	const dec = (n: bigint) => groupDecimal(n.toString());
-	/** Long addresses and numbers may wrap after a colon or comma, never inside a group. */
-	const pieces = (text: string) => text.split(/(?<=[:,])/);
-	const pow2 = (n: number) => `2${superscript(n)}`;
+	/**
+	 * Long addresses and numbers may wrap after a single colon or a comma, never
+	 * inside a group and never at a ::, so that a line never ends in what looks
+	 * like a complete, shorter address. (A loop rather than a lookbehind regex,
+	 * which older Safari cannot parse.)
+	 */
+	function pieces(text: string): string[] {
+		const out: string[] = [];
+		let start = 0;
+		for (let i = 0; i < text.length; i++) {
+			const ch = text[i];
+			if (ch === ',' || (ch === ':' && text[i - 1] !== ':' && text[i + 1] !== ':')) {
+				out.push(text.slice(start, i + 1));
+				start = i + 1;
+			}
+		}
+		if (start < text.length) out.push(text.slice(start));
+		return out;
+	}
 
 	// --- teaching content, all from the engine ---
 	const ruleExamples = [
@@ -140,16 +158,7 @@
 	].map((v) => {
 		const p = parseIPv6(v);
 		const r = compress(p.hextets);
-		let why: string;
-		if (r.tiedWith) why = `Two runs of ${r.chosen?.length} zero groups: the first becomes ::`;
-		else if (r.chosen && r.runs.some((x) => x !== r.chosen && x.length >= 2))
-			why = `The longer run, ${groupRange(r.chosen)}, becomes ::`;
-		else if (r.chosen) why = `${groupRange(r.chosen)} become ::`;
-		else if (r.runs.length) why = 'A single zero group stays 0';
-		else why = 'Leading zeros dropped';
-		if (/[A-F]/.test(v)) why += '; letters in lower case';
-		if (r.mapped) why += '; the IPv4-mapped tail is written in dotted form';
-		return { v, canonical: r.text, why: why[0].toUpperCase() + why.slice(1) };
+		return { v, canonical: r.text, why: summarise(p) };
 	});
 
 	const typeRows = ADDRESS_TYPES.map((t) => ({ ...t, canonical: compressText(parseIPv6(t.example).hextets) }));
@@ -201,7 +210,7 @@
 		},
 		{
 			q: 'What is an IPv4-mapped IPv6 address?',
-			a: `An IPv4 address written inside ::ffff:0:0/96, such as ::ffff:192.0.2.1 (${mappedFull} in full). Programs that use one IPv6 socket for both protocols see IPv4 clients this way. RFC 5952 says to keep the IPv4 part in dotted decimal, as it is easier to read.`
+			a: `An IPv4 address written inside ${MAPPED_RANGE} (the IANA registry writes it ::ffff:0:0/96), such as ::ffff:192.0.2.1 (${mappedFull} in full). Programs that use one IPv6 socket for both protocols see IPv4 clients this way. RFC 5952 recommends keeping the IPv4 part in dotted decimal.`
 		},
 		{
 			q: 'Should IPv6 addresses be upper or lower case?',
@@ -295,6 +304,7 @@
 				class="value-input"
 				type="text"
 				bind:value={input}
+				maxlength={MAX_INPUT + 10}
 				spellcheck="false"
 				autocomplete="off"
 				autocapitalize="off"
@@ -324,7 +334,11 @@
 						<span class="answer-value mono" id="compressed"
 							>{#each pieces(c.text) as p}{p}<wbr />{/each}<span class="extra">{suffix}</span></span
 						>
-						<button type="button" class="copy" on:click={() => copy(c.text + suffix, 'compressed form')}
+						<button
+							type="button"
+							class="copy"
+							disabled={!!error}
+							on:click={() => copy(c.text + suffix, 'compressed form')}
 							>Copy<span class="visually-hidden"> compressed form</span></button
 						>
 					</div>
@@ -333,7 +347,7 @@
 						<span class="answer-value full mono" id="expanded"
 							>{#each pieces(full) as p}{p}<wbr />{/each}<span class="extra">{suffix}</span></span
 						>
-						<button type="button" class="copy" on:click={() => copy(full + suffix, 'expanded form')}
+						<button type="button" class="copy" disabled={!!error} on:click={() => copy(full + suffix, 'expanded form')}
 							>Copy<span class="visually-hidden"> expanded form</span></button
 						>
 					</div>
@@ -357,15 +371,26 @@
 				<p class="small-intro">Each group as typed, written in full, then as it appears in the short form.</p>
 				<ol class="groups">
 					{#each parsed.hextets as h, i}
+						{#if i % 4 === 0}
+							<!-- Row captions; each tile also names its rows for screen readers. -->
+							<li class="group legend" class:second={i === 4} aria-hidden="true">
+								<span class="g-num">&nbsp;</span>
+								<span class="g-typed"><span class="legend-label">Typed</span></span>
+								<span class="g-full"><span class="legend-label">Full</span></span>
+								<span class="g-short"><span class="legend-label">Short</span></span>
+							</li>
+						{/if}
 						<li class="group" class:in-run={inRun(i)} class:tail={c.mapped && i >= 6} class:zero={h === 0 && !inRun(i)}>
 							<span class="g-num">Group {i + 1}</span>
 							<span class="g-typed mono">
+								<span class="visually-hidden">typed:</span>
 								{#if parsed.source[i] === 'gap'}<span class="g-note">from ::</span>
 								{:else if parsed.source[i] === 'ipv4'}<span class="g-note">IPv4 tail</span>
 								{:else}{parsed.typed[i]}{/if}
 							</span>
-							<span class="g-full mono">{hex4(h)}</span>
+							<span class="g-full mono"><span class="visually-hidden">in full:</span> {hex4(h)}</span>
 							<span class="g-short mono">
+								<span class="visually-hidden">short form:</span>
 								{#if c.mapped && i >= 6}{(h >> 8) + '.' + (h & 0xff)}
 								{:else if inRun(i)}<span class="g-note">in ::</span>
 								{:else}{h.toString(16)}{/if}
@@ -384,9 +409,14 @@
 
 				<h2 class="working-title">All 128 bits</h2>
 				<p class="small-intro">
-					{#if pre}
-						The first {pre.prefix} bits are the network prefix (bold, solid underline); the other {pre.hostBits} identify
-						the address inside it (dotted underline).
+					{#if pre && pre.prefix === 0}
+						With /0 there is no network part: all 128 bits are free (dotted underline).
+					{:else if pre && pre.prefix === 128}
+						All 128 bits are the network prefix (bold, solid underline): a /128 names exactly one address.
+					{:else if pre}
+						The first {pre.prefix} bits are the network prefix (bold, solid underline); {pre.hostBits === 1
+							? 'the last bit identifies'
+							: `the other ${pre.hostBits} identify`} the address inside it (dotted underline).
 					{:else}
 						Eight groups of 16 bits, each hex digit standing for four. Add a prefix length such as /64 to mark the
 						network part.
@@ -432,7 +462,7 @@
 						</dd>
 						<dt>Addresses</dt>
 						<dd>
-							<span class="mono">{pow2(pre.hostBits)}</span> =
+							<span class="mono">2<span class="visually-hidden"> to the power </span><sup>{pre.hostBits}</sup></span> =
 							<span class="mono"
 								>{#each pieces(dec(pre.count)) as p}{p}<wbr />{/each}</span
 							>
@@ -440,11 +470,17 @@
 						<dt>/64 networks</dt>
 						<dd>
 							{#if pre.subnets64 !== null}
-								<span class="mono">{pow2(64 - pre.prefix)}</span> = <span class="mono">{dec(pre.subnets64)}</span>
+								<span class="mono"
+									>2<span class="visually-hidden"> to the power </span><sup>{64 - pre.prefix}</sup></span
+								>
+								= <span class="mono">{dec(pre.subnets64)}</span>
+							{:else if pre.prefix === 128}
+								Smaller than one /64: a single address
 							{:else}
-								Smaller than one /64: this is {pre.prefix === 128
-									? 'one address'
-									: `1/${dec(1n << BigInt(pre.prefix - 64))} of a /64`}
+								Smaller than one /64: <span class="mono"
+									>2<span class="visually-hidden"> to the power </span><sup>{pre.hostBits}</sup></span
+								>
+								of its <span class="mono">2<span class="visually-hidden"> to the power </span><sup>64</sup></span> addresses
 							{/if}
 						</dd>
 						<dt>Mask</dt>
@@ -487,6 +523,7 @@
 				class="value-input"
 				type="text"
 				bind:value={macInput}
+				maxlength={40}
 				spellcheck="false"
 				autocomplete="off"
 				autocapitalize="off"
@@ -546,23 +583,29 @@
 						<span class="step-title">Put fe80::/64 in front: the link-local address</span>
 						<span class="mono iid strong" id="link-local" aria-live="polite">{linkLocal}</span>
 						<span class="eui-actions">
-							<button type="button" class="copy" on:click={() => copy(linkLocal, 'link-local address')}
+							<button
+								type="button"
+								class="copy"
+								disabled={!!macError}
+								on:click={() => copy(linkLocal, 'link-local address')}
 								>Copy<span class="visually-hidden"> link-local address</span></button
 							>
-							<button type="button" class="copy" on:click={() => tryAddress(linkLocal)}>Explain this address</button>
+							<button type="button" class="copy" disabled={!!macError} on:click={() => tryAddress(linkLocal)}
+								>Explain this address</button
+							>
 						</span>
 					</li>
 				</ol>
 				<p class="note">
-					{#if e64.locallyAdministered}
+					{#if e64.group}
+						Its lowest bit is 1, which marks a group (multicast) MAC; a real interface never has one. The U/L bit was
+						{e64.locallyAdministered ? 1 : 0}, so the identifier's bit becomes {e64.locallyAdministered ? 0 : 1}.
+					{:else if e64.locallyAdministered}
 						This MAC is locally administered (the bit was 1), so the flip clears it to 0, which in an interface
 						identifier means "local".
 					{:else}
 						This MAC is a universally administered, manufacturer-assigned one (the bit was 0), so the identifier's bit
 						becomes 1, meaning "globally unique".
-					{/if}
-					{#if e64.group}
-						Its lowest bit is 1, which marks a group (multicast) MAC; a real interface never has one.
 					{/if}
 					The flip is there so that hand-numbered identifiers such as ::1 and ::2 read as local without anyone having to
 					set that bit. On a global prefix the same identifier follows the prefix, for example {globalExample}.
@@ -600,10 +643,14 @@
 		<ol class="points">
 			<li>Lower case hex digits (section 4.3).</li>
 			<li>No leading zeros; a zero group is a single 0 (section 4.1).</li>
-			<li>:: must shorten as much as possible: it replaces the longest run of zero groups (section 4.2.1).</li>
+			<li>:: must be used to its full extent: it covers the whole run of zeros it replaces (section 4.2.1).</li>
 			<li>:: is not used for a single zero group (section 4.2.2).</li>
-			<li>If two runs are equally long, the first one becomes :: (section 4.2.3).</li>
-			<li>IPv4-mapped addresses keep their last 32 bits in dotted decimal (section 5).</li>
+			<li>:: replaces the longest run of zero groups; if two runs are equally long, the first one (section 4.2.3).</li>
+			<li>
+				IPv4-mapped addresses keep their last 32 bits in dotted decimal (section 5). RFC 5952 recommends that for other
+				formats that carry an IPv4 address too, such as NAT64's 64:ff9b::192.0.2.33; this tool, like glibc's inet_ntop,
+				writes those in hex and shows the IPv4 address under the address type.
+			</li>
 		</ol>
 	</section>
 
@@ -625,7 +672,7 @@
 									>{#each pieces(r.v) as p}{p}<wbr />{/each}</a
 								></td
 							>
-							<td class="mono strong"
+							<td class="mono strong canon"
 								>{#each pieces(r.canonical) as p}{p}<wbr />{/each}</td
 							>
 							<td>{r.why}</td>
@@ -692,7 +739,9 @@
 					{#each prefixRows as r}
 						<tr>
 							<td class="mono strong">/{r.p}</td>
-							<td class="mono num nowrap">{pow2(r.info.hostBits)}</td>
+							<td class="mono num nowrap"
+								>2<span class="visually-hidden"> to the power </span><sup>{r.info.hostBits}</sup></td
+							>
 							<td class="mono num nowrap">{r.info.subnets64 === null ? '–' : dec(r.info.subnets64)}</td>
 							<td>{r.use}</td>
 						</tr>
@@ -927,8 +976,27 @@
 		padding: 0;
 		margin: 0 0 0.8rem;
 		display: grid;
-		grid-template-columns: repeat(8, minmax(0, 1fr));
+		grid-template-columns: auto repeat(8, minmax(0, 1fr));
 		gap: 6px;
+	}
+
+	.group.legend {
+		background: none;
+		border: none;
+		align-items: flex-end;
+		padding-left: 0;
+		padding-right: 0;
+	}
+
+	.group.legend.second {
+		display: none;
+	}
+
+	.legend-label {
+		font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-size: 0.68rem;
+		font-weight: normal;
+		color: #999;
 	}
 
 	.group {
@@ -941,6 +1009,7 @@
 		border-radius: 3px;
 		padding: 0.35rem 0.2rem;
 		min-width: 0;
+		position: relative;
 	}
 
 	.group.in-run {
@@ -1011,8 +1080,8 @@
 	}
 
 	.bit-groups {
-		display: flex;
-		flex-wrap: wrap;
+		display: grid;
+		grid-template-columns: repeat(4, minmax(max-content, 1fr));
 		gap: 8px;
 	}
 
@@ -1247,12 +1316,28 @@
 
 	@media (max-width: 700px) {
 		.groups {
-			grid-template-columns: repeat(4, minmax(0, 1fr));
+			grid-template-columns: auto repeat(4, minmax(0, 1fr));
+		}
+
+		.group.legend.second {
+			display: flex;
 		}
 	}
 
 	.prefixes td:last-child {
 		min-width: 12rem;
+	}
+
+	sup {
+		font-size: 0.7em;
+		line-height: 0;
+	}
+
+	@media (min-width: 561px) {
+		/* Room for the longest short form here, 20 characters, on one line; the break points are for phones. */
+		.examples td.canon {
+			min-width: 21ch;
+		}
 	}
 
 	@media (max-width: 560px) {
@@ -1293,6 +1378,41 @@
 			min-width: 0;
 		}
 
+		/* The prefix table keeps its three short columns and puts the use underneath. */
+		.prefixes,
+		.prefixes thead,
+		.prefixes tbody {
+			display: block;
+		}
+
+		.prefixes tr {
+			display: grid;
+			grid-template-columns: 3.2rem 1fr 1fr;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+		}
+
+		.prefixes tbody tr:last-child {
+			border-bottom: none;
+		}
+
+		.prefixes th,
+		.prefixes td,
+		.prefixes tbody tr:last-child td {
+			border: none;
+			padding: 0.3rem 0.6rem;
+		}
+
+		.prefixes thead th:last-child {
+			display: none;
+		}
+
+		.prefixes td:last-child {
+			grid-column: 1 / -1;
+			min-width: 0;
+			padding-top: 0;
+			font-size: 0.88rem;
+		}
+
 		.tool {
 			padding: 0.9rem 0.8rem 1.1rem;
 		}
@@ -1306,8 +1426,8 @@
 		}
 
 		.bit-groups {
+			grid-template-columns: repeat(2, minmax(max-content, 1fr));
 			gap: 6px;
-			justify-content: space-between;
 		}
 
 		.bit-group {

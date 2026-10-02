@@ -12,6 +12,7 @@ import {
 	compressText,
 	canonical,
 	explain,
+	summarise,
 	prefixInfo,
 	addressType,
 	describe as describeAddress,
@@ -21,6 +22,7 @@ import {
 	fromBigInt,
 	allBits,
 	ADDRESS_TYPES,
+	MAPPED_RANGE,
 	IPv6Error,
 	type Hextets
 } from '../src/lib/ipv6.js';
@@ -112,11 +114,17 @@ test.describe('RFC 5952 compression', () => {
 		expect(canonical('0:1:1:1:1:1:1:0')).toBe('0:1:1:1:1:1:1:0');
 		expect(canonical('0:0:0:0:0:ffff:0:0')).toBe('::ffff:0.0.0.0');
 		expect(canonical('::ffff:0:0:0')).toBe('::ffff:0:0:0'); // not mapped: ffff is in the wrong group
-		expect(canonical('64:ff9b::192.0.2.33')).toBe('64:ff9b::c000:221'); // only mapped addresses keep dots
+		// RFC 5952 recommends dots for other embedded-IPv4 formats too; this tool, like
+		// inet_ntop and the URL parser, gives them only to IPv4-mapped addresses.
+		expect(canonical('64:ff9b::192.0.2.33')).toBe('64:ff9b::c000:221');
 		expect(canonical('::192.0.2.1')).toBe('::c000:201');
 		const c = compress(parseIPv6('2001:db8:0:0:1:0:0:1').hextets);
 		expect(c.chosen).toEqual({ start: 2, length: 2 });
 		expect(c.tiedWith).toEqual({ start: 5, length: 2 });
+		expect(compress(parseIPv6('0:0:1:0:0:1:0:0').hextets).ties).toEqual([
+			{ start: 3, length: 2 },
+			{ start: 6, length: 2 }
+		]);
 	});
 
 	test('agrees with a naive string compressor and with the URL parser', () => {
@@ -163,6 +171,11 @@ test.describe('parsing IPv6', () => {
 		expect(parseIPv6('1:2:3:4:5:6:1.2.3.4').hextets).toEqual([1, 2, 3, 4, 5, 6, 0x0102, 0x0304]);
 		expect(parseIPv6('::/0').prefix).toBe(0);
 		expect(parseIPv6('::1/128').prefix).toBe(128);
+		// RFC 6874: in a URL the % before the zone is itself escaped as %25.
+		const url = parseIPv6('[fe80::1%25eth0]:80');
+		expect(url.zone).toBe('eth0');
+		expect(url.port).toBe(80);
+		expect(parseIPv6('fe80::1%25').zone).toBe('25'); // outside brackets, %25 is interface 25
 	});
 
 	test('accepts exactly what Node accepts, for addresses without extras', () => {
@@ -219,7 +232,13 @@ test.describe('parsing IPv6', () => {
 		expect(err('1:2:3:4:5:6:7:8:9')).toMatch(/^9 groups: an IPv6 address has exactly 8/);
 		expect(err('1:2:3:4:5:6:7')).toMatch(/Only 7 groups, and no :: to stand for the missing 1/);
 		expect(err('1:2:3:4::5:6:7:8')).toMatch(/All 8 groups are already written/);
-		expect(err('2001:db8::g1')).toMatch(/"g" is not a hex digit .* group 3, "g1"/);
+		// Groups after a :: are numbered by their place in the address, counted from the end.
+		expect(err('2001:db8::g1')).toMatch(/"g" is not a hex digit .* group 8, "g1"/);
+		expect(err('::-1')).toMatch(/"-" is not a hex digit .* group 8, "-1"/);
+		expect(err('1::2:3:4:5:6:12345')).toMatch(/Group 8, "12345", has 5 hex digits/);
+		expect(err('g::1')).toMatch(/group 1, "g"/);
+		expect(err('1::x:1.2.3.4')).toMatch(/group 6, "x"/);
+		expect(err('fe80::1/64%eth0')).toMatch(/zone goes before the prefix length: write fe80::1%eth0\/64/);
 		expect(err('::1.2.3.4:5')).toMatch(/can only be the very end/);
 		expect(err('1.2.3.4::')).toMatch(/can only be the very end/);
 		expect(err('::1.2.3.999')).toMatch(/not a valid IPv4 tail/);
@@ -248,6 +267,33 @@ test.describe('explaining, prefixes and types', () => {
 		expect(single.map((s) => s.detail).join(' ')).toContain('One zero group stays as 0');
 		const mapped = explain(parseIPv6('::ffff:c000:201'));
 		expect(mapped[mapped.length - 1].detail).toContain('192.0.2.1');
+		// The mapped tail is written in dots, so its hex groups are not "trimmed".
+		const hexMapped = explain(parseIPv6('0:0:0:0:0:FFFF:0102:0304'));
+		expect(hexMapped.find((s) => s.rule.startsWith('Drop'))?.changed).toBe(false);
+		const three = explain(parseIPv6('0:0:1:0:0:1:0:0'))
+			.map((s) => s.detail)
+			.join(' ');
+		expect(three).toContain('groups 1 to 2, groups 4 to 5 and groups 7 to 8 are equally long');
+		const short = explain(parseIPv6('2001:db8::0:1'))
+			.map((s) => s.detail)
+			.join(' ');
+		expect(short).toContain('groups 3 to 7');
+		expect(short).toContain('The :: as typed covered only groups 3 to 6');
+	});
+
+	test('the one-line summaries name every rule that changed something', () => {
+		const sum = (s: string) => summarise(parseIPv6(s));
+		expect(sum('2001:0db8:0000:0000:0000:0000:0002:0001')).toBe('Leading zeros dropped and groups 3 to 6 become ::');
+		expect(sum('2001:db8::0:1')).toBe(
+			'The :: did not cover the whole run of zeros, so it grows to groups 3 to 7 (section 4.2.1)'
+		);
+		expect(sum('2001:db8::1:1:1:1:1')).toBe('A single zero group is written 0, not :: (section 4.2.2)');
+		expect(sum('2001:db8:0:0:1:0:0:1')).toContain('2 runs of 2 zero groups tie');
+		expect(sum('FE80:0:0:0:0:0:0:1')).toBe('Letters in lower case and groups 2 to 7 become ::');
+		expect(sum('0:0:0:0:0:ffff:c000:0201')).toBe(
+			'Groups 1 to 5 become :: and the last 32 bits are written as the IPv4 address 192.0.2.1'
+		);
+		expect(sum('2001:db8::1')).toBe('Already canonical');
 	});
 
 	test('prefix arithmetic agrees with BigInt masks built from bit strings', () => {
@@ -310,6 +356,19 @@ test.describe('explaining, prefixes and types', () => {
 		expect(sn).toContain('solicited-node');
 		expect(sn).toContain('3c4d5e');
 		expect(describeAddress(parseIPv6('ff15::1').hextets).notes.join(' ')).toContain('site-local');
+		const ssm = describeAddress(parseIPv6('ff3e::1234').hextets).notes.join(' ');
+		expect(ssm).toContain('transient');
+		expect(ssm).toContain('P bit');
+		expect(ssm).not.toContain('R bit');
+		expect(describeAddress(parseIPv6('ff7e::1').hextets).notes.join(' ')).toContain('R bit');
+	});
+
+	test('every range is written in the canonical form the tool produces', () => {
+		for (const def of ADDRESS_TYPES) {
+			const p = parseIPv6(def.range);
+			expect(`${compressText(p.hextets)}/${p.prefix}`).toBe(def.range);
+		}
+		expect(MAPPED_RANGE).toBe('::ffff:0.0.0.0/96');
 	});
 });
 
@@ -322,6 +381,13 @@ test.describe('EUI-64', () => {
 		expect(() => parseMac('00:1a:2b:3c:4d')).toThrow(/12 hex digits/);
 		expect(() => parseMac('00:1a:2b:3c:4d:5g')).toThrow(/"g" is not a hex digit/);
 		expect(() => parseMac('')).toThrow(/Type a MAC/);
+		// Malformed separators are rejected, not read by squeezing out the punctuation.
+		expect(() => parseMac('a:b:c:d:e:f:0:1:2:3:4:5')).toThrow(/that has 12 bytes/);
+		expect(() => parseMac('0.0.1a.2b.3c.4d5e')).toThrow(/three groups of four/);
+		expect(() => parseMac('::::::001a2b3c4d5e')).toThrow(/Two separators in a row/);
+		expect(() => parseMac('00:1a:2b:3c:4d:5e:')).toThrow(/Two separators in a row/);
+		expect(() => parseMac('0:0:1a2b3c4d5e')).toThrow(/"1a2b3c4d5e" has 10 hex digits/);
+		expect(() => parseMac('001a2b3c4d')).toThrow(/that has 10 digits/);
 	});
 
 	test('inserts fffe and flips the universal/local bit, checked with BigInt', () => {
@@ -370,6 +436,10 @@ test.describe('the ipv6-expand-compress page', () => {
 		await expect(page.locator('.working-title').last()).toContainText('IPv4-mapped');
 		await page.locator('#address').fill('2001:db8::1::1');
 		await expect(page.locator('.error')).toContainText(':: appears twice');
+		// The stale results stay on screen, dimmed, but their buttons cannot be used.
+		const copies = page.locator('.answer button.copy');
+		await expect(copies).toHaveCount(2);
+		for (const i of [0, 1]) await expect(copies.nth(i)).toBeDisabled();
 		await page.locator('#address').fill('fe80::1%eth0/64');
 		await expect(page.locator('.error')).toHaveCount(0);
 		await expect(page.locator('#compressed')).toHaveText('fe80::1%eth0/64');
@@ -386,6 +456,9 @@ test.describe('the ipv6-expand-compress page', () => {
 		await expect(page.locator('#address')).toHaveValue('fe80::200:5eff:fe00:5301');
 		await page.locator('#mac').fill('00:1a:2b');
 		await expect(page.locator('#eui64 .error')).toContainText('12 hex digits');
+		const actions = page.locator('#eui64 .eui-actions button');
+		await expect(actions).toHaveCount(2);
+		for (const i of [0, 1]) await expect(actions.nth(i)).toBeDisabled();
 	});
 
 	test('the URL round trips', async ({ page }) => {

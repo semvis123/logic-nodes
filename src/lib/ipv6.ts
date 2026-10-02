@@ -95,7 +95,8 @@ export function parseIPv6(input: string): ParsedIPv6 {
 
 	let port: number | null = null;
 	let prefixText: string | null = null;
-	if (text.startsWith('[')) {
+	const bracketed = text.startsWith('[');
+	if (bracketed) {
 		const close = text.indexOf(']');
 		if (close < 0) throw new IPv6Error('There is a [ with no ] to close it.');
 		const after = text.slice(close + 1);
@@ -115,6 +116,12 @@ export function parseIPv6(input: string): ParsedIPv6 {
 	if (slash >= 0) {
 		prefixText = text.slice(slash + 1);
 		text = text.slice(0, slash);
+		if (prefixText.includes('%')) {
+			const [len, zoneId] = prefixText.split('%');
+			throw new IPv6Error(
+				`The zone goes before the prefix length: write ${text}%${zoneId}/${len}, not ${text}/${prefixText}.`
+			);
+		}
 		if (!/^\d{1,3}$/.test(prefixText) || Number(prefixText) > 128) {
 			throw new IPv6Error(`The prefix length after / must be a whole number from 0 to 128, not "${prefixText}".`);
 		}
@@ -125,6 +132,9 @@ export function parseIPv6(input: string): ParsedIPv6 {
 	if (percent >= 0) {
 		zone = text.slice(percent + 1);
 		text = text.slice(0, percent);
+		// In a URL the % itself has to be escaped, so RFC 6874 writes the zone of
+		// [fe80::1%eth0] as [fe80::1%25eth0]. Inside brackets, read it that way.
+		if (bracketed && zone.startsWith('25') && zone.length > 2) zone = zone.slice(2);
 		if (!zone) throw new IPv6Error('Nothing follows the %. A zone ID names an interface, such as %eth0 or %3.');
 		if (!/^[\w.~-]+$/.test(zone)) throw new IPv6Error(`"${zone}" is not a zone ID: use letters, digits, ., _, ~ or -.`);
 	}
@@ -172,14 +182,18 @@ export function parseIPv6(input: string): ParsedIPv6 {
 		}
 		ipv4Tail = g;
 	});
-	// Validate each hex group, numbered from 1 as written.
+	const count = written.length + (ipv4Tail ? 1 : 0);
+	// Validate each hex group, numbered by its place in the address: after a ::
+	// the groups belong at the end, so they are counted back from group 8. If
+	// there are too many groups for that to make sense, the order written is all
+	// there is to go on.
+	const tailStart = tail !== null && count < 8 ? 8 - (tailGroups.length + (ipv4Tail ? 1 : 0)) : headGroups.length;
 	written.forEach((g, i) => {
 		if (g === ipv4Tail && i === written.length - 1) return;
 		if (g === '') throw new IPv6Error('Two colons in a row inside the address, where a group was expected.');
-		checkGroup(g, i + 1);
+		checkGroup(g, i < headGroups.length ? i + 1 : tailStart + (i - headGroups.length) + 1);
 	});
 
-	const count = written.length + (ipv4Tail ? 1 : 0);
 	const tailNote = ipv4Tail ? ' (counting the IPv4 tail as two)' : '';
 	if (tail === null) {
 		if (count < 8) {
@@ -242,7 +256,13 @@ export function parseIPv6(input: string): ParsedIPv6 {
 /** Every group written out as four lower case hex digits. */
 export const expand = (hextets: Hextets) => hextets.map(hex4).join(':');
 
-/** True for ::ffff:0:0/96, the one embedded-IPv4 range RFC 5952 says to write with a dotted tail. */
+/**
+ * True for ::ffff:0:0/96, the IPv4-mapped range. RFC 5952 section 5 recommends
+ * the dotted tail for addresses known to carry an IPv4 address; this tool
+ * writes it only for mapped addresses, which every reader recognises, and
+ * keeps the others (NAT64, for one) in hex, as inet_ntop and the URL parser
+ * do. The embedded IPv4 address of those is shown separately by describe().
+ */
 export const isIPv4Mapped = (h: Hextets) => h.slice(0, 5).every((x) => x === 0) && h[5] === 0xffff;
 
 export type ZeroRun = { start: number; length: number };
@@ -270,6 +290,8 @@ export type Compression = {
 	chosen: ZeroRun | null;
 	/** Another run as long as the chosen one, passed over because it came later. */
 	tiedWith: ZeroRun | null;
+	/** Every later run as long as the chosen one (up to two, in 0:0:1:0:0:1:0:0). */
+	ties: ZeroRun[];
 	mapped: boolean;
 	/** The dotted tail of a mapped address. */
 	ipv4: string | null;
@@ -287,17 +309,18 @@ export function compress(hextets: Hextets): Compression {
 	const groups = hexPart.map((h) => h.toString(16));
 	const runs = zeroRuns(hexPart);
 	let chosen: ZeroRun | null = null;
-	let tiedWith: ZeroRun | null = null;
+	let ties: ZeroRun[] = [];
 	for (const run of runs) {
 		if (run.length < 2) continue;
 		// Strictly longer only: on a tie the earlier run keeps its place.
 		if (!chosen || run.length > chosen.length) {
 			chosen = run;
-			tiedWith = null;
-		} else if (run.length === chosen.length && !tiedWith) {
-			tiedWith = run;
+			ties = [];
+		} else if (run.length === chosen.length) {
+			ties.push(run);
 		}
 	}
+	const tiedWith = ties[0] ?? null;
 	const ipv4 = mapped ? formatIPv4(ipv4FromHextets(hextets[6], hextets[7])) : null;
 	let text: string;
 	if (chosen) {
@@ -308,7 +331,7 @@ export function compress(hextets: Hextets): Compression {
 	} else {
 		text = [...groups, ...(ipv4 ? [ipv4] : [])].join(':');
 	}
-	return { text, groups, runs, chosen, tiedWith, mapped, ipv4 };
+	return { text, groups, runs, chosen, tiedWith, ties, mapped, ipv4 };
 }
 
 export const compressText = (hextets: Hextets) => compress(hextets).text;
@@ -325,6 +348,29 @@ export function canonical(input: string): string | null {
 /** "group 3" or "groups 3 to 5", counted from 1 the way people count. */
 export const groupRange = (run: ZeroRun) =>
 	run.length === 1 ? `group ${run.start + 1}` : `groups ${run.start + 1} to ${run.start + run.length}`;
+
+/** "a", "a and b", "a, b and c". */
+const listAnd = (items: string[]) =>
+	items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+
+/** True when the :: as typed is not the run of zeros the canonical form shortens. */
+const gapMoved = (parsed: ParsedIPv6, chosen: ZeroRun | null) =>
+	!!parsed.gap && (!chosen || parsed.gap.at !== chosen.start || parsed.gap.length !== chosen.length);
+
+/** True when the :: as typed sat inside the chosen run but did not cover all of it. */
+const gapTooShort = (parsed: ParsedIPv6, chosen: ZeroRun | null) =>
+	!!parsed.gap &&
+	!!chosen &&
+	gapMoved(parsed, chosen) &&
+	parsed.gap.at >= chosen.start &&
+	parsed.gap.at + parsed.gap.length <= chosen.start + chosen.length;
+
+/** The groups whose leading zeros go, as typed and as written; a mapped tail is written in dotted form instead. */
+function trimmedGroups(parsed: ParsedIPv6, mapped: boolean) {
+	return parsed.typed
+		.map((g, i) => ({ g, i, short: parsed.hextets[i].toString(16) }))
+		.filter(({ g, i, short }) => g !== '' && g.toLowerCase() !== short && !(mapped && i >= 6));
+}
 
 export type Step = { rule: string; changed: boolean; detail: string };
 
@@ -362,9 +408,7 @@ export function explain(parsed: ParsedIPv6): Step[] {
 		detail: upper ? 'The letters a to f are written in lower case.' : 'Already lower case.'
 	});
 
-	const trimmed = parsed.typed
-		.map((g, i) => ({ g, short: parsed.hextets[i].toString(16) }))
-		.filter(({ g, short }) => g !== '' && g.toLowerCase() !== short);
+	const trimmed = trimmedGroups(parsed, c.mapped);
 	steps.push({
 		rule: 'Drop leading zeros (section 4.1)',
 		changed: trimmed.length > 0,
@@ -382,9 +426,9 @@ export function explain(parsed: ParsedIPv6): Step[] {
 			.join(
 				', '
 			)}). One zero group stays as 0: :: would save just one character and look like more was hidden (section 4.2.2).`;
-	else if (c.tiedWith)
-		detail = `${groupRange(c.chosen)} and ${groupRange(
-			c.tiedWith
+	else if (c.ties.length)
+		detail = `${listAnd(
+			[c.chosen, ...c.ties].map(groupRange)
 		)} are equally long runs of zeros, so the first one becomes :: (section 4.2.3).`;
 	else if (long.length > 1)
 		detail = `The longest run of zeros, ${groupRange(
@@ -394,6 +438,16 @@ export function explain(parsed: ParsedIPv6): Step[] {
 		detail = `The run of zeros, ${groupRange(
 			c.chosen
 		)}, becomes ::, and it must: shorten as much as possible (section 4.2.1).`;
+	if (parsed.gap && gapTooShort(parsed, c.chosen))
+		detail += ` The :: as typed covered only ${groupRange({
+			start: parsed.gap.at,
+			length: parsed.gap.length
+		})}; it must take in the whole run.`;
+	else if (parsed.gap && c.chosen && gapMoved(parsed, c.chosen))
+		detail += ` The :: as typed stood for ${groupRange({
+			start: parsed.gap.at,
+			length: parsed.gap.length
+		})}, which is not the longest run.`;
 	if (c.chosen && c.runs.some((r) => r.length === 1)) detail += ' Single zero groups elsewhere stay as 0.';
 	steps.push({ rule: 'Replace the longest run of zeros with ::', changed: !!c.chosen, detail });
 
@@ -401,10 +455,41 @@ export function explain(parsed: ParsedIPv6): Step[] {
 		steps.push({
 			rule: 'IPv4-mapped tail (section 5)',
 			changed: true,
-			detail: `The address is in ::ffff:0:0/96, so its last 32 bits are written as the IPv4 address ${c.ipv4}.`
+			detail: `The address is in the IPv4-mapped range, ${MAPPED_RANGE}, so its last 32 bits are written as the IPv4 address ${c.ipv4}.`
 		});
 	}
 	return steps;
+}
+
+/**
+ * One line saying why the canonical form differs from what was typed, for the
+ * table of examples: the same rules as explain(), in a few words each.
+ */
+export function summarise(parsed: ParsedIPv6): string {
+	const c = compress(parsed.hextets);
+	const parts: string[] = [];
+	if (parsed.typed.some((g) => /[A-F]/.test(g))) parts.push('letters in lower case');
+	if (trimmedGroups(parsed, c.mapped).length) parts.push('leading zeros dropped');
+	// A :: typed exactly where the canonical form puts it changed nothing.
+	const typedRight = !!c.chosen && !!parsed.gap && !gapMoved(parsed, c.chosen);
+	if (c.chosen && !typedRight) {
+		if (c.ties.length)
+			parts.push(
+				`${c.ties.length + 1} runs of ${c.chosen.length} zero groups tie, so the first, ${groupRange(
+					c.chosen
+				)}, becomes ::`
+			);
+		else if (gapTooShort(parsed, c.chosen))
+			parts.push(`the :: did not cover the whole run of zeros, so it grows to ${groupRange(c.chosen)} (section 4.2.1)`);
+		else if (c.runs.some((r) => r !== c.chosen && r.length >= 2))
+			parts.push(`the longer run, ${groupRange(c.chosen)}, becomes ::`);
+		else parts.push(`${groupRange(c.chosen)} become ::`);
+	} else if (!c.chosen && parsed.gap) parts.push('a single zero group is written 0, not :: (section 4.2.2)');
+	else if (!c.chosen && c.runs.length) parts.push('a single zero group stays 0');
+	if (c.mapped && !parsed.ipv4Tail) parts.push(`the last 32 bits are written as the IPv4 address ${c.ipv4}`);
+	if (!parts.length) return 'Already canonical';
+	const text = listAnd(parts);
+	return text[0].toUpperCase() + text.slice(1);
 }
 
 // --- prefixes ------------------------------------------------------------------
@@ -460,6 +545,13 @@ export type TypeId =
 	| 'global'
 	| 'other';
 
+/**
+ * The IPv4-mapped range in canonical form. The IANA registry writes it
+ * ::ffff:0:0/96; RFC 5952 puts the dotted tail on every mapped address, the
+ * all-zero one included, so this page writes it that way throughout.
+ */
+export const MAPPED_RANGE = '::ffff:0.0.0.0/96';
+
 export type AddressTypeDef = { id: TypeId; name: string; range: string; rfc: string; example: string; about: string };
 
 // Most specific first: the first range that matches names the address.
@@ -484,7 +576,7 @@ export const ADDRESS_TYPES: AddressTypeDef[] = [
 	{
 		id: 'mapped',
 		name: 'IPv4-mapped',
-		range: '::ffff:0:0/96',
+		range: MAPPED_RANGE,
 		rfc: 'RFC 4291',
 		example: '::ffff:192.0.2.1',
 		about:
@@ -664,11 +756,14 @@ export function describe(hextets: Hextets): Details {
 					h[0]
 				)}).`
 			);
-			notes.push(
-				`Flags ${flags.toString(16)}: ${
-					flags & 1 ? 'a transient group, not permanently assigned by IANA' : 'a permanent, IANA-assigned group'
-				}.`
-			);
+			// The flags are 0RPT (RFC 4291, RFC 3306, RFC 3956); R needs P, and P needs T.
+			const flagNotes = [
+				flags & 1 ? 'a transient group, not permanently assigned by IANA (T bit)' : 'a permanent, IANA-assigned group'
+			];
+			if (flags & 2) flagNotes.push('its address is built from a unicast prefix (P bit, RFC 3306)');
+			if (flags & 4) flagNotes.push('it carries the address of a rendezvous point (R bit, RFC 3956)');
+			if (flags & 8) flagNotes.push('the reserved high bit is set');
+			notes.push(`Flags ${flags.toString(16)}: ${flagNotes.join('; ')}.`);
 			const known = knownGroupValues.find((g) => g.value === value);
 			if (known) notes.push(`${known.address} is ${known.name}.`);
 			if (inRange(value, solicitedNode, 104)) {
@@ -710,21 +805,33 @@ export function parseMac(input: string): number[] {
 	const text = input.trim();
 	if (!text) throw new IPv6Error('Type a MAC address, such as 00:1a:2b:3c:4d:5e.');
 	let digits: string;
-	if (/^[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}$/i.test(text)) digits = text.replace(/\./g, '');
+	if (/^[0-9a-f]{12}$/i.test(text)) digits = text;
+	else if (/^[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}$/i.test(text)) digits = text.replace(/\./g, '');
 	else if (/^([0-9a-f]{1,2})([:-][0-9a-f]{1,2}){5}$/i.test(text)) {
 		digits = text
 			.split(/[:-]/)
 			.map((b) => b.padStart(2, '0'))
 			.join('');
 	} else {
-		digits = text.replace(/[:\-.\s]/g, '');
-		const bad = [...digits].find((ch) => !/[0-9a-f]/i.test(ch));
+		// Not one of the accepted shapes: say which part is wrong rather than
+		// guessing what was meant from whatever hex digits are there.
+		const bad = [...text].find((ch) => !/[0-9a-f:.-]/i.test(ch));
 		if (bad !== undefined) throw new IPv6Error(`"${bad}" is not a hex digit. A MAC address is six bytes in hex.`);
-		if (digits.length !== 12) {
-			throw new IPv6Error(
-				`A MAC address is 12 hex digits (6 bytes), such as 00:1a:2b:3c:4d:5e; that has ${digits.length}.`
-			);
+		const sizeError = (n: number, unit: string) =>
+			new IPv6Error(`A MAC address is 6 bytes, 12 hex digits, such as 00:1a:2b:3c:4d:5e; that has ${n} ${unit}.`);
+		if (!/[:.-]/.test(text)) throw sizeError(text.length, text.length === 1 ? 'digit' : 'digits');
+		if (text.includes('.')) {
+			throw new IPv6Error('With dots, a MAC address is three groups of four hex digits, such as 001a.2b3c.4d5e.');
 		}
+		const fields = text.split(/[:-]/);
+		if (fields.some((f) => f === '')) {
+			throw new IPv6Error('Two separators in a row, or one at the start or end, where a byte was expected.');
+		}
+		const long = fields.find((f) => f.length > 2);
+		if (long !== undefined) {
+			throw new IPv6Error(`"${long}" has ${long.length} hex digits, but between : or - each byte is two.`);
+		}
+		throw sizeError(fields.length, fields.length === 1 ? 'byte' : 'bytes');
 	}
 	return Array.from({ length: 6 }, (_, i) => parseInt(digits.slice(2 * i, 2 * i + 2), 16));
 }
