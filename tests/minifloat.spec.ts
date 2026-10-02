@@ -379,6 +379,10 @@ test.describe('minifloat engine', () => {
 		expect(neg.rounded).toBe('up');
 		expect(neg.steps!.reason).toContain('up, toward zero');
 		expect(encode('-1.0703125', 'e4m3').steps!.reason).toContain('down, away from zero');
+		expect(encode('-1.1875', 'e4m3').steps!.reason).toContain(
+			'so round to the even pattern, which is down, away from zero.'
+		);
+		expect(encode('1.1875', 'e4m3').steps!.reason).toContain('so round to the even pattern, which is up.');
 		// Nothing to round: no talk of truncating.
 		expect(encode('1', 'fp16').steps!.reason).toContain('stored exactly');
 	});
@@ -417,7 +421,9 @@ test.describe('minifloat engine', () => {
 		expect(() => parseCode('3G00', 'fp16', 'hex')).toThrow(/"G" is not a hex digit/);
 		expect(() => parseCode('012', 'fp16', 'binary')).toThrow(/"2" is not a bit/);
 		expect(() => parseCode('', 'fp16', 'hex')).toThrow(/Type a bit pattern/);
-		expect(() => encode('abc', 'fp16')).toThrow(/not a decimal number/);
+		expect(() => encode('abc', 'fp16')).toThrow(/^"abc" is not a decimal number$/);
+		// Long junk is quoted only in part, so the error stays one short line.
+		expect(() => encode('x' + 'y'.repeat(300), 'fp16')).toThrow(/^"xyyyyyyyyyyyyyyyyyyy…" is not a decimal number$/);
 		expect(() => encode('', 'fp16')).toThrow(/Type a number/);
 		expect(() => encode('1.2.3', 'fp16')).toThrow(MiniFloatError);
 		expect(encode('  +1_000 ', 'fp16').result!.exact).toBe('1000');

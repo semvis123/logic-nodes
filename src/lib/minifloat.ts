@@ -273,7 +273,12 @@ export function parseDecimal(text: string): Parsed {
 	}
 	// One sign at most: '+-5' is a typo, not -5.
 	const m = s.match(/^([+-])?(\d*)(?:\.(\d*))?(?:e([+-]?\d+))?$/);
-	if (!m || (!m[2] && !m[3])) throw new MiniFloatError(`"${text.trim()}" is not a decimal number`);
+	if (!m || (!m[2] && !m[3])) {
+		// Quote only the start, so a pasted paragraph gives a one-line error, not a wall of text.
+		const typed = text.trim();
+		const shown = typed.length > 20 ? `${typed.slice(0, 20)}…` : typed;
+		throw new MiniFloatError(`"${shown}" is not a decimal number`);
+	}
 	const negative = m[1] === '-';
 	const normalised = negative ? s : s.replace(/^\+/, '');
 	const whole = m[2] || '';
@@ -393,7 +398,7 @@ export function roundingSteps(v: Rational, id: FormatId, negative = false): Roun
 	else if (!tie)
 		reason = `The guard bit is 1 and the round bit is 1, so the rest is more than half a step: round ${awayFromZero}.`;
 	else if (odd)
-		reason = `Guard is 1 and round and sticky are 0: exactly halfway. The last kept bit is 1 (odd), so round ${awayFromZero} to the even pattern.`;
+		reason = `Guard is 1 and round and sticky are 0: exactly halfway. The last kept bit is 1 (odd), so round to the even pattern, which is ${awayFromZero}.`;
 	else reason = 'Guard is 1 and round and sticky are 0: exactly halfway. The last kept bit is 0 (even), so keep it.';
 	const keptBits = kept.toString(2).padStart(f.mantissaBits + 1, '0');
 	return {
