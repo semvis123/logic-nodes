@@ -259,12 +259,12 @@ const NAMES: Record<string, Partial<Record<IntSlug, Row>>> = {
 		uint32: ['Uint32Array element', undefined, 'x >>> 0 reads a number as a 32-bit unsigned integer.'],
 		int64: [
 			'BigInt64Array element',
-			'BigInt.asIntN(64, x)',
-			'An ordinary number is exact only up to Number.MAX_SAFE_INTEGER, 2⁵³ − 1.'
+			undefined,
+			'An ordinary number is exact only up to Number.MAX_SAFE_INTEGER, 2⁵³ − 1. BigInt.asIntN(64, x) wraps a BigInt into 64 bits.'
 		],
-		uint64: ['BigUint64Array element', 'BigInt.asUintN(64, x)'],
-		int128: [null, 'BigInt.asIntN(128, x)', 'BigInt has no fixed width; asIntN wraps a value into 128 bits.'],
-		uint128: [null, 'BigInt.asUintN(128, x)', 'BigInt has no fixed width; asUintN wraps a value into 128 bits.']
+		uint64: ['BigUint64Array element', undefined, 'BigInt.asUintN(64, x) wraps a BigInt into 64 bits.'],
+		int128: [null, undefined, 'BigInt has no fixed width; BigInt.asIntN(128, x) wraps a value into 128 bits.'],
+		uint128: [null, undefined, 'BigInt has no fixed width; BigInt.asUintN(128, x) wraps a value into 128 bits.']
 	},
 	Python: {
 		int8: ['ctypes.c_int8', undefined, 'Python’s own int has no fixed width and never overflows.'],
@@ -306,7 +306,7 @@ export const overflowRules: OverflowRule[] = [
 	{
 		language: 'C and C++',
 		behaviour:
-			'Unsigned types wrap around modulo 2ⁿ. Signed overflow is undefined behaviour: the compiler may assume it never happens and optimise on that basis.',
+			'Unsigned types wrap around modulo 2ⁿ. Signed overflow is undefined behaviour: the compiler may assume it never happens and optimise on that basis. Types narrower than int are promoted to int first, so even uint16_t × uint16_t can overflow a signed int.',
 		tools: '__builtin_add_overflow (GCC, Clang); ckd_add in C23’s <stdckdint.h>; -fsanitize=undefined to catch it'
 	},
 	{
@@ -316,7 +316,8 @@ export const overflowRules: OverflowRule[] = [
 	},
 	{
 		language: 'C#',
-		behaviour: 'Wraps around, unless the code is in a checked context, which throws OverflowException.',
+		behaviour:
+			'Wraps around, unless the code is in a checked context, which throws OverflowException. A constant expression that overflows is a compile error.',
 		tools: 'checked(...) blocks, or the CheckForOverflowUnderflow compiler option'
 	},
 	{
@@ -327,7 +328,7 @@ export const overflowRules: OverflowRule[] = [
 	{
 		language: 'Go',
 		behaviour: 'Wraps around silently. Only constant expressions that overflow are compile errors.',
-		tools: 'math/bits.Add64 and Mul64 report the carry'
+		tools: 'math/bits.Add64 reports the carry; Mul64 returns the high half of the product'
 	},
 	{
 		language: 'Swift',
@@ -353,7 +354,7 @@ export const overflowRules: OverflowRule[] = [
 	{
 		language: 'SQL',
 		behaviour: 'An error: the statement fails with an out of range or arithmetic overflow message.',
-		tools: 'MySQL outside strict mode clips to the limit instead, with a warning'
+		tools: 'MySQL outside strict mode clips an out-of-range value stored into a column to the limit, with a warning'
 	}
 ];
 
@@ -502,38 +503,72 @@ export function applyOp(t: IntType, value: bigint, op: Op, target: IntType = t):
 /** The longest input accepted, in characters. */
 export const MAX_INPUT = 160;
 
+const SUPERSCRIPTS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+
+/**
+ * Takes the separators out of a run of digits. Underscores may sit between any
+ * two digits, as in code. Commas, apostrophes and spaces are only accepted as
+ * thousands separators in decimal, in groups of three, so a typo such as
+ * "1,2,3" is reported instead of quietly read as 123.
+ */
+function stripSeparators(body: string, radix: number): string {
+	if (/^_|_$|__/.test(body)) throw new IntLimitsError('Put underscores only between digits, as in 1_000_000');
+	const plain = body.replace(/_/g, '');
+	if (!/[,'\s]/.test(plain)) return plain;
+	if (radix === 10 && /^\d{1,3}(?:[,'\s]\d{3})+$/.test(plain)) return plain.replace(/[,'\s]/g, '');
+	if (radix !== 10 && /^\w+(?: \w+)+$/.test(plain)) return plain.replace(/ /g, '');
+	throw new IntLimitsError(
+		radix === 10
+			? 'Group the digits in threes, as in 1,000,000, or leave the separators out'
+			: 'Separate the digits with single spaces or underscores, or not at all'
+	);
+}
+
 /**
  * Reads a whole number in decimal, hex (0x), binary (0b) or octal (0o), with
- * an optional sign and separators, or a power of two written 2^31 - 1 or
- * 2**31 - 1, since that is how the limits are usually remembered.
+ * an optional sign and digit separators, or a power of two written 2^31 - 1,
+ * 2**31 - 1 or 2³¹ − 1, since that is how the limits are usually written.
  */
 export function parseInteger(text: string): bigint {
 	const raw = text.trim();
 	if (!raw) throw new IntLimitsError('Type a whole number first');
 	if (raw.length > MAX_INPUT) throw new IntLimitsError(`That is more than ${MAX_INPUT} characters`);
-	const s = raw.replace(/[−–]/g, '-').replace(/[\s_,']/g, '');
-	const power = s.match(/^([+-]?)2(?:\^|\*\*)(\d{1,3})(?:([+-])(\d{1,40}))?$/);
-	if (power) {
+	const s = raw
+		.replace(/[−–]/g, '-')
+		// 2³¹ is 2^31: the form these pages print the limits in.
+		.replace(/(\d)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, (_, d: string, sup: string) =>
+			[d, '^', ...Array.from(sup, (c) => SUPERSCRIPTS.indexOf(c))].join('')
+		)
+		// Spaces around an operator are just layout; spaces inside a number are not.
+		.replace(/\s*(\^|\*\*|[+-])\s*/g, '$1');
+
+	if (/^[+-]?2(?:\^|\*\*)/.test(s)) {
+		const power = s.match(/^([+-]?)2(?:\^|\*\*)(\d+)(?:([+-])(.+))?$/);
+		if (!power) throw new IntLimitsError('Write a power of two as 2^31, 2^31 - 1 or 2^31 + 1');
 		const exponent = Number(power[2]);
 		if (exponent > 400) throw new IntLimitsError('Keep the power of two to 400 or less');
 		let n = 1n << BigInt(exponent);
 		if (power[1] === '-') n = -n;
-		if (power[3]) n = power[3] === '-' ? n - BigInt(power[4]) : n + BigInt(power[4]);
+		if (power[3]) {
+			const addend = stripSeparators(power[4], 10);
+			if (!/^\d+$/.test(addend)) throw new IntLimitsError('Add or subtract a whole decimal number, as in 2^31 - 1');
+			n = power[3] === '-' ? n - BigInt(addend) : n + BigInt(addend);
+		}
 		return n;
 	}
 	const m = s.match(/^([+-]?)(0[xX]|0[bB]|0[oO])?(.*)$/) as RegExpMatchArray;
 	const negative = m[1] === '-';
 	const prefix = (m[2] ?? '').toLowerCase();
-	const body = m[3];
 	const radix = prefix === '0x' ? 16 : prefix === '0b' ? 2 : prefix === '0o' ? 8 : 10;
 	const radixName = { 16: 'hex', 2: 'binary', 8: 'octal', 10: 'decimal' }[radix];
-	if (!body)
+	if (!m[3])
 		throw new IntLimitsError(prefix ? `Add some ${radixName} digits after ${prefix}` : 'Type a whole number first');
-	if (radix === 10 && /^\d+\.\d*$|^\d*\.\d+$/.test(body))
+	if (radix === 10 && /^\d+\.\d*$|^\d*\.\d+$/.test(m[3]))
 		throw new IntLimitsError('Whole numbers only: integer types have no fractions');
-	if (radix === 10 && /^\d+(\.\d+)?e\d+$/i.test(body)) {
+	if (radix === 10 && /^\d+(\.\d+)?e\d+$/i.test(m[3])) {
 		throw new IntLimitsError('Write the number out in full, or as a power of two such as 2^31 - 1');
 	}
+	const body = stripSeparators(m[3], radix);
 	const valid = '0123456789abcdef'.slice(0, radix);
 	for (const ch of body.toLowerCase()) {
 		if (!valid.includes(ch)) {
@@ -542,6 +577,17 @@ export function parseInteger(text: string): bigint {
 	}
 	const value = BigInt((prefix || '') + body);
 	return negative ? -value : value;
+}
+
+/**
+ * How a JavaScript number copes with n. Past Number.MAX_SAFE_INTEGER some
+ * integers still have an exact double (every power of two does), but their
+ * neighbours do not, so arithmetic on them is no longer safe.
+ */
+export function jsNumberFit(n: bigint): { safe: boolean; exact: boolean; rounded: bigint | null } {
+	const x = Number(n);
+	const rounded = Number.isFinite(x) ? BigInt(x) : null;
+	return { safe: Number.isSafeInteger(x) && rounded === n, exact: rounded === n, rounded };
 }
 
 // ---------------------------------------------------------------------------
@@ -692,6 +738,114 @@ export const usesOf: Record<IntSlug, string[]> = {
 	uint128: ['An IPv6 address as one number', 'UUIDs, which are 128 bits', 'The full product of two 64-bit numbers']
 };
 
+export type Mistake = { title: string; text: string };
+
+/**
+ * Mistakes people make with a type, with the numbers computed. Each one is a
+ * plain consequence of the rules above (promotion to int, two's complement,
+ * doubles in JSON), not an anecdote.
+ */
+export function mistakesFor(t: IntType): Mistake[] {
+	const out: Mistake[] = [];
+	const max = formatDecimal(t.max);
+	if (t.signed) {
+		out.push({
+			title: `Negating ${formatDecimal(t.min)} or taking its absolute value`,
+			text: `The exact answer, ${formatDecimal(-t.min)}, is one past the maximum of ${max}, so once it is stored as ${
+				t.slug
+			} it wraps back to ${formatDecimal(wrap(-t.min, t))}: −x and abs(x) of the minimum stay negative${
+				t.bits >= 32 ? ' wherever the result wraps, and in C and C++ the overflow is undefined behaviour' : ''
+			}.`
+		});
+	} else {
+		out.push({
+			title: 'Counting down to zero with an unsigned counter',
+			text: `A loop such as for (i = n; i >= 0; i--) never ends when i is ${t.slug}: i >= 0 is always true, and 0 − 1 wraps to ${max}. Test i > 0 and use i − 1 inside, or use a signed counter.`
+		});
+	}
+	if (t.slug === 'int8') {
+		out.push({
+			title: 'Reading Java bytes as 0 to 255',
+			text: `Java’s byte is signed, so a byte holding 0xFF reads as ${formatDecimal(
+				wrap(255n, t)
+			)}. Use b & 0xFF or Byte.toUnsignedInt(b) to get ${formatDecimal(255n)}.`
+		});
+	}
+	if (t.slug === 'uint8') {
+		const sum = 200n + 100n;
+		out.push({
+			title: 'Expecting a byte sum in C to wrap straight away',
+			text: `Two uint8_t values are promoted to int before they are added, so 200 + 100 is ${formatDecimal(
+				sum
+			)} until it is stored back into a uint8_t, where it becomes ${formatDecimal(
+				wrap(sum, t)
+			)}. Comparing the sum with 255 before storing it therefore works.`
+		});
+	}
+	if (t.slug === 'int16') {
+		out.push({
+			title: 'Expecting short arithmetic in Java to stay short',
+			text: `s = s + 1 does not compile when s is a short, because s + 1 is an int. s += 1 and s++ do compile, and silently wrap ${max} to ${formatDecimal(
+				wrap(t.max + 1n, t)
+			)}.`
+		});
+	}
+	if (t.slug === 'uint16') {
+		const product = t.max * t.max;
+		const int32 = intTypeBySlug('int32') as IntType;
+		out.push({
+			title: 'Multiplying two uint16_t values in C',
+			text: `Both are promoted to signed int first, so ${max} × ${max} = ${formatDecimal(
+				product
+			)} overflows a 32-bit int (maximum ${formatDecimal(
+				int32.max
+			)}), which is undefined behaviour. Cast one operand to uint32_t before multiplying.`
+		});
+	}
+	if (t.slug === 'uint32' || t.slug === 'uint64') {
+		const cname = t.slug === 'uint32' ? 'uint32_t' : 'uint64_t';
+		out.push({
+			title: 'Comparing signed with unsigned in C',
+			text: `-1 < x is false when x is a ${cname}, even when x is 0: the −1 is converted to ${
+				t.slug
+			} first and becomes ${max}${t.slug === 'uint32' ? ' (on platforms where int is 32 bits)' : ''}.`
+		});
+	}
+	if (t.bits === 32 || t.bits === 64) {
+		out.push({
+			title: 'Finding a midpoint as (low + high) / 2',
+			text: `When low and high are both ${formatDecimal(
+				t.max / 2n + 1n
+			)} or more, just over half the maximum, their sum overflows ${
+				t.slug
+			}. low + (high − low) / 2 gives the same midpoint without the overflow.`
+		});
+	}
+	if (t.slug === 'int32') {
+		const r = unixRollover(t) as { last: string; next: string };
+		out.push({
+			title: 'Storing timestamps or growing IDs in 32 bits',
+			text: `A signed 32-bit count of seconds since 1970 runs out at ${r.last}, and an auto-increment ID stops at ${max}. Use 64 bits for anything that keeps growing.`
+		});
+	}
+	if (t.bits === 64) {
+		const id = 2n ** 53n + 1n;
+		out.push({
+			title: 'Sending 64-bit IDs through JSON to JavaScript',
+			text: `JSON.parse turns every number into a double, which is exact only up to 2⁵³ − 1. An ID of ${formatDecimal(
+				id
+			)} arrives as ${formatDecimal(BigInt(Number(id)))}. Send large IDs as strings.`
+		});
+	}
+	if (t.bits === 128) {
+		out.push({
+			title: 'Expecting the usual tools to handle 128 bits',
+			text: 'GCC and Clang have no literal for __int128 and printf has no format for it, so build values from two 64-bit halves and print them yourself. MySQL, PostgreSQL and SQL Server have no 128-bit integer column type either.'
+		});
+	}
+	return out;
+}
+
 /** A JavaScript expression that shows max + 1 wrapping, for the type's own storage. */
 export function jsWrapExample(t: IntType): string {
 	const arrays: Partial<Record<IntSlug, string>> = {
@@ -713,21 +867,83 @@ export function jsWrapExample(t: IntType): string {
 export const typeTitle = (t: IntType) =>
 	`${t.slug} Max Value and Range: ${t.bits}-bit ${t.signed ? 'Signed' : 'Unsigned'} Integer`;
 
-/** A 110 to 160 character description: the first candidate that fits. */
+/** "A", "A and B", "A, B and C". */
+export const listOf = (items: string[]): string =>
+	items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+
+/** True when the language has a type of exactly this width, by namesFor. */
+export const hasType = (t: IntType, language: string): boolean =>
+	namesFor(t).some((n) => n.language === language && n.type !== null);
+
+/** The languages a description names: only those with a real name for the type. */
+export function describedLanguages(t: IntType): string[] {
+	const named = [
+		['C and C++', 'C'],
+		['Java', 'Java'],
+		['C#', 'C#'],
+		['Rust', 'Rust'],
+		['Go', 'Go']
+	]
+		.filter(([language]) => hasType(t, language))
+		.map(([, short]) => short);
+	const sql = ['MySQL', 'PostgreSQL', 'SQL Server'].some((d) => hasType(t, d));
+	return sql ? [...named, 'SQL'] : named;
+}
+
+/** A 110 to 160 character description, a full sentence: the first candidate that fits. */
 export function typeDescription(t: IntType): string {
 	const f = formulas(t);
 	const range = `${formatDecimal(t.min)} to ${formatDecimal(t.max)}`;
+	const langs = listOf(describedLanguages(t));
 	const candidates = [
-		`${t.slug} holds ${range} (${f.min} to ${f.max}). Its names in C, Java, C#, Rust, Go and SQL, and what each language does on overflow.`,
-		`${t.slug} holds ${range}. Its names in C, Java, Rust, Go and SQL, and what happens on overflow.`,
-		`${t.slug}, the ${describeType(t)}, holds ${f.min} to ${f.max}: up to ${formatDecimal(t.max)}.`,
+		`${t.slug} holds ${range} (${f.min} to ${f.max}). Here are its names in ${langs} and what each language does on overflow.`,
+		`${t.slug} holds ${range}. Here are its names in ${langs} and what happens on overflow.`,
+		`${t.slug}, the ${describeType(t)}, holds ${f.min} to ${f.max}, up to ${formatDecimal(
+			t.max
+		)}. See its name in each language and what overflow does.`,
 		`${t.slug} is the ${describeType(t)}: ${f.min} to ${
 			f.max
-		}. Exact limits in decimal, hex and binary, its names in each language, and what overflow does.`
+		}. See its exact limits in decimal, hex and binary, its names in ${langs} and what overflow does.`,
+		`${t.slug} is the ${describeType(t)}, holding ${f.min} to ${
+			f.max
+		}. See its exact limits in decimal, hex and binary, its name in each language, and what overflow does.`
 	];
 	const fit = candidates.find((c) => c.length >= 110 && c.length <= 160);
 	if (!fit) throw new Error(`no description fits for ${t.slug}`);
 	return fit;
+}
+
+/**
+ * What max + 1 does, language by language. Only languages that have the type
+ * are named. Below 32 bits the C family, Java, C# and Kotlin do the sum in int
+ * (Java's byte + 1 is the int 128), so the wrap happens only when the result
+ * is stored back; Go, Rust and Swift work at the narrow width itself.
+ */
+export function overflowAnswer(t: IntType): string {
+	const max = formatDecimal(t.max);
+	const next = formatDecimal(wrap(t.max + 1n, t));
+	const head = `On the hardware the result keeps only its low ${t.bits} bits, so ${max} + 1 becomes ${next}.`;
+	if (t.bits < 32) {
+		const promoting = ['C', 'C++', ...['Java', 'C#', 'Kotlin'].filter((l) => hasType(t, l))];
+		return `${head} In ${listOf(promoting)}, arithmetic on ${
+			t.bits
+		}-bit values is done in int, so ${max} + 1 is ${formatDecimal(
+			t.max + 1n
+		)} as an int; it becomes ${next} only when stored back into the ${
+			t.bits
+		}-bit type, as x++, x += 1 or a cast do. Go wraps at ${
+			t.bits
+		} bits directly, Rust panics in debug builds and wraps in release builds, and Swift stops with a runtime error.`;
+	}
+	const wrapping = ['Java', 'Kotlin', 'Go', 'C#']
+		.filter((l) => hasType(t, l))
+		.map((l) => (l === 'C#' ? 'C# (outside a checked context)' : l));
+	const c = t.signed
+		? 'In C and C++ signed overflow is undefined behaviour'
+		: 'C and C++ wrap unsigned types the same way';
+	return `${head} ${listOf(wrapping)} ${
+		wrapping.length === 1 ? 'does' : 'do'
+	} exactly that. ${c}; Rust panics in debug builds and wraps in release builds; Swift stops with a runtime error.`;
 }
 
 export type Faq = { q: string; a: string };
@@ -736,7 +952,6 @@ export function typeFaqs(t: IntType): Faq[] {
 	const f = formulas(t);
 	const names = namesFor(t).filter((n) => n.type && !n.type.includes('element') && !n.language.includes('SQL'));
 	const sql = namesFor(t).filter((n) => n.type && ['MySQL', 'PostgreSQL', 'SQL Server'].includes(n.language));
-	const next = wrap(t.max + 1n, t);
 	const faqs: Faq[] = [
 		{
 			q: `What is the maximum value of ${t.slug}?`,
@@ -775,11 +990,7 @@ export function typeFaqs(t: IntType): Faq[] {
 		},
 		{
 			q: `What happens when ${t.slug} overflows?`,
-			a: `On the hardware the result keeps only its low ${t.bits} bits, so ${formatDecimal(
-				t.max
-			)} + 1 becomes ${formatDecimal(next)}. Java, Kotlin, Go and C# (outside a checked block) do exactly that. ${
-				t.signed ? 'In C and C++ signed overflow is undefined behaviour' : 'C and C++ wrap unsigned types the same way'
-			}; Rust panics in debug builds and wraps in release builds; Swift stops with a runtime error.`
+			a: overflowAnswer(t)
 		},
 		{
 			q: `What is ${t.slug} called in other languages?`,

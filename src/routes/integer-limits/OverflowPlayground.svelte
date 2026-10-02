@@ -11,6 +11,7 @@
 		formatDecimal,
 		binaryOf,
 		hexOf,
+		lookup,
 		IntLimitsError,
 		type IntSlug,
 		type IntType,
@@ -18,6 +19,8 @@
 		type OpResult
 	} from '$lib/intLimits';
 	import Bits from './Bits.svelte';
+	import CopyButton from './CopyButton.svelte';
+	import { breakable } from './breakable';
 
 	export let type: IntSlug;
 	export let value: string;
@@ -29,11 +32,16 @@
 
 	let result: OpResult | null = null;
 	let error = '';
+	/** When the value parses but is too big for the type: the nearest type that holds it. */
+	let roomier: IntType | null = null;
 	// Runs at prerender too, so the served page shows a worked overflow.
 	$: {
+		roomier = null;
 		try {
 			const n = parseInteger(value);
 			if (!fits(n, t)) {
+				const l = lookup(n);
+				roomier = (t.signed || n < 0n ? l.smallestSigned : l.smallestUnsigned) ?? null;
 				throw new IntLimitsError(
 					`${formatDecimal(n)} does not fit in ${t.slug}, which holds ${formatDecimal(t.min)} to ${formatDecimal(
 						t.max
@@ -49,9 +57,15 @@
 
 	/** Carry the answer back into the input, to apply another step to it. */
 	function keep() {
-		if (!result) return;
+		if (!result || error) return;
 		type = result.to.slug;
 		value = result.result.toString();
+	}
+
+	/** Takes a stale result out of the tab order and the accessibility tree while an error shows. */
+	function inertWhen(node: HTMLElement, on: boolean) {
+		node.toggleAttribute('inert', on);
+		return { update: (v: boolean) => node.toggleAttribute('inert', v) };
 	}
 
 	const presets = (x: IntType) => [
@@ -60,6 +74,16 @@
 		{ label: '0', v: 0n },
 		...(x.signed ? [{ label: '−1', v: -1n }] : [{ label: 'max ÷ 2', v: x.max / 2n }])
 	];
+
+	// For an arithmetic wrap, the exact answer one bit wider than the type, in
+	// two's complement: its low bits are what is kept, its top bit is dropped.
+	// Every operation here (±1, ×2, negate) needs at most one extra bit.
+	$: showExact = !!result && result.wrapped && op !== 'cast';
+	$: exactBits = result && showExact ? binaryOf(result.exact, result.to.bits + 1) : '';
+	$: cast = result?.castKind;
+	$: droppedBits = result && cast === 'truncate' ? result.from.bits - result.to.bits : 0;
+	$: addedBits =
+		result && (cast === 'sign-extend' || cast === 'zero-extend') ? result.to.bits - result.from.bits : 0;
 </script>
 
 <div class="playground">
@@ -68,7 +92,7 @@
 			<label for="pg-type">Type</label>
 			<select id="pg-type" bind:value={type}>
 				{#each intTypes as x}
-					<option value={x.slug}>{x.slug}</option>
+					<option value={x.slug} selected={x.slug === type}>{x.slug}</option>
 				{/each}
 			</select>
 		</div>
@@ -88,7 +112,7 @@
 		</div>
 	</div>
 	<p class="field-help" id="pg-help">
-		Decimal, 0x hex or 0b binary, with a minus sign if negative. 2^31{'\u00a0'}-{'\u00a0'}1 works too.
+		Decimal, 0x hex or 0b binary, with a minus sign if negative. <span class="nowrap">2^31 − 1</span> works too.
 	</p>
 	<div class="chips" aria-label="Set the value">
 		{#each presets(t) as preset}
@@ -112,25 +136,35 @@
 			<label class="visually-hidden" for="pg-to">Cast to type</label>
 			<select id="pg-to" bind:value={to}>
 				{#each intTypes as x}
-					<option value={x.slug}>{x.slug}</option>
+					<option value={x.slug} selected={x.slug === to}>{x.slug}</option>
 				{/each}
 			</select>
 		{/if}
 	</div>
 
 	{#if error}
-		<p class="error" role="alert">{error}</p>
+		<div class="error-row">
+			<p class="error" role="alert">{error}</p>
+			{#if roomier}
+				<button type="button" class="chip-btn" data-testid="pg-widen" on:click={() => roomier && (type = roomier.slug)}
+					>Use {roomier.slug}</button
+				>
+			{/if}
+		</div>
 	{/if}
 
 	{#if result}
-		<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
+		<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'} use:inertWhen={!!error}>
 			<div class="answer" role={error ? undefined : 'status'}>
 				<span class="answer-label">
 					{op === 'cast'
 						? `${formatDecimal(result.value)} as ${result.to.slug}`
 						: `${result.to.slug}: ${formatDecimal(result.value)} ${ops.find((o) => o.id === op)?.label}`}
 				</span>
-				<span class="answer-value mono" data-testid="pg-result">{formatDecimal(result.result)}</span>
+				<span class="answer-line">
+					<span class="answer-value mono" data-testid="pg-result">{@html breakable(formatDecimal(result.result))}</span>
+					<CopyButton text={result.result.toString()} label="result" />
+				</span>
 				<span class="verdict" class:wrapped={result.wrapped}>
 					{#if result.wrapped}
 						{op === 'cast'
@@ -146,29 +180,60 @@
 
 			<div class="bit-rows">
 				<div class="bit-row">
-					<span class="row-label">Before <span class="mono">{hexOf(result.value, result.from.bits)}</span></span>
+					<span class="row-label"
+						>Before <span class="mono">{hexOf(result.value, result.from.bits)}</span>{droppedBits
+							? `: the top ${droppedBits} bits are dropped`
+							: ''}</span
+					>
 					<Bits
 						bits={binaryOf(result.value, result.from.bits)}
 						signed={result.from.signed}
+						gutter={showExact}
+						dropped={droppedBits}
 						label="{result.from.bits} bits before: {binaryOf(result.value, result.from.bits)}"
 					/>
 				</div>
+				{#if showExact}
+					<div class="bit-row">
+						<span class="row-label"
+							>Exact answer <span class="mono">{formatDecimal(result.exact)}</span> written in {result.to.bits + 1} bits{result.exact <
+							0n
+								? ' of two’s complement'
+								: ''}: the leftmost bit does not fit and is dropped</span
+						>
+						<Bits
+							bits={exactBits.slice(1)}
+							gutter
+							carry={exactBits[0]}
+							label="Exact answer in {result.to.bits +
+								1} bits: {exactBits}. The leftmost bit, {exactBits[0]}, is dropped."
+						/>
+					</div>
+				{/if}
 				<div class="bit-row">
-					<span class="row-label">After <span class="mono">{hexOf(result.result, result.to.bits)}</span></span>
+					<span class="row-label"
+						>After <span class="mono">{hexOf(result.result, result.to.bits)}</span>{addedBits
+							? `: ${addedBits} new bits, copies of ${cast === 'sign-extend' ? 'the sign bit' : '0'}`
+							: ''}</span
+					>
 					<Bits
 						bits={binaryOf(result.result, result.to.bits)}
 						signed={result.to.signed}
+						gutter={showExact}
+						added={addedBits}
 						label="{result.to.bits} bits after: {binaryOf(result.result, result.to.bits)}"
 					/>
 				</div>
-				{#if t.signed || result.to.signed}
-					<p class="legend">The underlined bit is the sign bit: 1 means negative in a signed type.</p>
-				{/if}
+				<p class="legend">
+					{#if t.signed || result.to.signed}The solid underlined bit is the sign bit: 1 means negative in a signed type.{/if}
+					{#if showExact || droppedBits}Struck-through bits are dropped.{/if}
+					{#if addedBits}Bits with a dotted underline are new.{/if}
+				</p>
 			</div>
 
 			<ol class="steps">
 				{#each result.steps as step}
-					<li>{step}</li>
+					<li>{@html breakable(step)}</li>
 				{/each}
 			</ol>
 			<button type="button" class="keep" data-testid="pg-keep" on:click={keep}>
@@ -289,10 +354,22 @@
 		padding: 0.35rem 0.4rem;
 	}
 
+	.error-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.4rem 0.8rem;
+		margin: 0 0 0.8rem;
+	}
+
 	.error {
 		color: #f66;
 		font-size: 0.9rem;
-		margin: 0 0 0.8rem;
+		margin: 0;
+	}
+
+	.nowrap {
+		white-space: nowrap;
 	}
 
 	.results {
@@ -317,14 +394,20 @@
 		display: block;
 		font-size: 0.75rem;
 		letter-spacing: 0.04em;
-		overflow-wrap: anywhere;
+		overflow-wrap: break-word;
+	}
+
+	.answer-line {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.3rem 0.7rem;
 	}
 
 	.answer-value {
 		color: #8ede8e;
-		display: block;
 		font-size: 1.5rem;
-		overflow-wrap: anywhere;
+		min-width: 0;
 	}
 
 	.verdict {
@@ -354,7 +437,7 @@
 	.row-label {
 		color: #bbb;
 		font-size: 0.8rem;
-		overflow-wrap: anywhere;
+		overflow-wrap: break-word;
 	}
 
 	.legend {
@@ -368,7 +451,7 @@
 		font-size: 0.92rem;
 		margin: 0.8rem 0;
 		padding-left: 1.3rem;
-		overflow-wrap: anywhere;
+		overflow-wrap: break-word;
 	}
 
 	.steps li {
@@ -383,7 +466,7 @@
 		cursor: pointer;
 		font-size: 0.85rem;
 		max-width: 100%;
-		overflow-wrap: anywhere;
+		overflow-wrap: break-word;
 		padding: 0.35rem 0.75rem;
 		text-align: left;
 	}

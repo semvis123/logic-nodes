@@ -13,6 +13,8 @@
 		formatDecimal,
 		hexOf,
 		lookup,
+		jsNumberFit,
+		mistakesFor,
 		parseInteger,
 		storiesFor,
 		wrap,
@@ -26,6 +28,7 @@
 	} from '$lib/intLimits';
 	import OverflowPlayground from './OverflowPlayground.svelte';
 	import OverflowRules from './OverflowRules.svelte';
+	import { breakable } from './breakable';
 
 	const opIds = ['inc', 'dec', 'dbl', 'neg', 'cast'] as const;
 	const DEFAULTS = { q: '3000000000', t: 'int8', v: '127', op: 'inc', to: 'uint8' };
@@ -81,6 +84,31 @@
 	const withStories = intTypes.filter((t) => storiesFor(t).length);
 	const safeMax = 2n ** 53n - 1n;
 
+	$: js = jsNumberFit(found.value);
+	const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+	/** Takes a stale result out of the tab order and the accessibility tree while an error shows. */
+	function inertWhen(node: HTMLElement, on: boolean) {
+		node.toggleAttribute('inert', on);
+		return { update: (v: boolean) => node.toggleAttribute('inert', v) };
+	}
+
+	// A few mistakes from the type pages, each computed for the type it concerns.
+	const pick = (slug: IntSlug, title: string) => {
+		const m = mistakesFor(T(slug)).find((x) => x.title.startsWith(title));
+		if (!m) throw new Error(`no mistake "${title}" for ${slug}`);
+		return { ...m, slug };
+	};
+	const mistakes = [
+		pick('int32', 'Negating'),
+		pick('uint32', 'Counting down'),
+		pick('uint32', 'Comparing signed'),
+		pick('int32', 'Finding a midpoint'),
+		pick('int64', 'Sending 64-bit IDs'),
+		pick('int8', 'Reading Java bytes'),
+		pick('uint16', 'Multiplying')
+	];
+
 	const faqs = [
 		{
 			q: 'What is the maximum value of an int?',
@@ -101,10 +129,14 @@
 		{
 			q: 'What happens when an integer overflows?',
 			a: `The processor keeps the low n bits of the result and drops the carry, so the value wraps around: ${formatDecimal(
+				int32.max
+			)} + 1 in a 32-bit int becomes ${formatDecimal(
+				wrap(int32.max + 1n, int32)
+			)}. Java, Go, Kotlin and C# do exactly that by default. C and C++ treat signed overflow as undefined behaviour, Rust panics in debug builds, Swift stops the program, and Python’s ints never overflow at all. Below 32 bits, C, Java, C# and Kotlin do the arithmetic in int, so ${formatDecimal(
 				int8.max
-			)} + 1 in int8 becomes ${formatDecimal(
-				wrap(int8.max + 1n, int8)
-			)}. Java, Go, Kotlin and C# expose that directly. C and C++ treat signed overflow as undefined behaviour, Rust panics in debug builds, Swift stops the program, and Python’s ints never overflow at all.`
+			)} + 1 on an 8-bit value is ${formatDecimal(
+				int8.max + 1n
+			)} until it is stored back into the 8-bit variable; Go, Rust and Swift work at the narrow width itself.`
 		},
 		{
 			q: 'What is the largest integer JavaScript can hold exactly?',
@@ -214,7 +246,8 @@
 				<p class="error" role="alert" id="lookup-error">{lookupError}</p>
 			{/if}
 			<p class="field-help" id="lookup-help">
-				A whole number in decimal, 0x hex or 0b binary, negative if you like. Commas are fine, and so is 2^31{'\u00a0'}-{'\u00a0'}1.
+				A whole number in decimal, 0x hex or 0b binary, negative if you like. Commas are fine, and so are
+				<span class="nowrap">2^31 − 1</span> and <span class="nowrap">2³¹ − 1</span>.
 			</p>
 			<div class="chips">
 				{#each examples as example}
@@ -222,9 +255,14 @@
 				{/each}
 			</div>
 
-			<div class="results" class:stale={!!lookupError} aria-hidden={lookupError ? 'true' : 'false'}>
+			<div
+				class="results"
+				class:stale={!!lookupError}
+				aria-hidden={lookupError ? 'true' : 'false'}
+				use:inertWhen={!!lookupError}
+			>
 				<div class="answer" role={lookupError ? undefined : 'status'}>
-					<span class="answer-label">{formatDecimal(found.value)}</span>
+					<span class="answer-label">{@html breakable(formatDecimal(found.value))}</span>
 					<div class="smallest">
 						<span
 							>Smallest signed type:
@@ -246,25 +284,37 @@
 								>
 							{:else}
 								<strong class="none" data-testid="lookup-unsigned"
-									>{found.value < 0n ? 'none: it is negative' : 'none up to 128 bits'}</strong
+									>{found.value < 0n ? 'none (it is negative)' : 'none up to 128 bits'}</strong
 								>
 							{/if}</span
 						>
 					</div>
 					<span class="answer-also">
-						It needs {found.bits.signed} bits as a signed two’s complement number{found.bits.unsigned === null
+						It needs {plural(found.bits.signed, 'bit')} as a signed two’s complement number{found.bits.unsigned ===
+						null
 							? ''
-							: ` and ${found.bits.unsigned} as an unsigned one`}.
-						{#if found.value > safeMax || found.value < -safeMax}
-							That is past 2⁵³ − 1, so a JavaScript number cannot hold it exactly; a BigInt can.
+							: ` and ${plural(found.bits.unsigned, 'bit')} as an unsigned one`}.
+						{#if !js.exact}
+							That is past 2⁵³ − 1 and a JavaScript number cannot hold it exactly{js.rounded === null
+								? ''
+								: `: it rounds to ${formatDecimal(js.rounded)}`}. A BigInt can.
+						{:else if !js.safe}
+							That is past Number.MAX_SAFE_INTEGER, 2⁵³ − 1. A JavaScript number holds this exact value, but not all of
+							its neighbours, so arithmetic on it is not safe; use a BigInt.
 						{/if}
 					</span>
 				</div>
 				<ul class="fit-grid" aria-label="Every type">
 					{#each found.all as row}
 						<li class:fits={row.fits}>
-							<a class="mono" href="/integer-limits/{row.type.slug}">{row.type.slug}</a>
-							<span>{row.fits ? 'holds it' : 'too small'}</span>
+							<span class="mono">{row.type.slug}</span>
+							<span
+								>{row.fits
+									? 'holds it'
+									: !row.type.signed && found.value < 0n
+									? 'no negatives'
+									: 'too small'}</span
+							>
 						</li>
 					{/each}
 				</ul>
@@ -284,22 +334,26 @@
 				<thead>
 					<tr>
 						<th scope="col">Type</th>
-						<th scope="col" class="num">Bits</th>
-						<th scope="col" class="num">Minimum</th>
+						<th scope="col" class="num bits-col">Bits</th>
 						<th scope="col" class="num">Maximum</th>
-						<th scope="col">Maximum as a power</th>
-						<th scope="col">Maximum in hex</th>
+						<th scope="col" class="num">Minimum</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each intTypes as t}
 						<tr>
 							<th scope="row"><a class="mono" href="/integer-limits/{t.slug}">{t.slug}</a></th>
-							<td class="num">{t.bits}</td>
-							<td class="mono num">{formatDecimal(t.min)}</td>
-							<td class="mono num big">{formatDecimal(t.max)}</td>
-							<td class="mono">{formulas(t).max}</td>
-							<td class="mono">{hexOf(t.max, t.bits)}</td>
+							<td class="num bits-col">{t.bits}</td>
+							<td class="num"
+								><span class="mono big">{@html breakable(formatDecimal(t.max))}</span><span class="pow"
+									>{formulas(t).max}</span
+								></td
+							>
+							<td class="num"
+								><span class="mono">{@html breakable(formatDecimal(t.min))}</span>{#if t.signed}<span class="pow"
+										>{formulas(t).min}</span
+									>{/if}</td
+							>
 						</tr>
 					{/each}
 				</tbody>
@@ -316,14 +370,14 @@
 		<div class="formula-grid">
 			<div class="card formula">
 				<h3>Signed, n bits</h3>
-				<p class="mono big-formula">−2ⁿ⁻¹ to 2ⁿ⁻¹ − 1</p>
+				<p class="big-formula">−2ⁿ⁻¹ to 2ⁿ⁻¹ − 1</p>
 				<p class="small">
 					For 32 bits: −2³¹ to 2³¹ − 1, which is {formatDecimal(int32.min)} to {formatDecimal(int32.max)}.
 				</p>
 			</div>
 			<div class="card formula">
 				<h3>Unsigned, n bits</h3>
-				<p class="mono big-formula">0 to 2ⁿ − 1</p>
+				<p class="big-formula">0 to 2ⁿ − 1</p>
 				<p class="small">For 32 bits: 0 to 2³² − 1, which is 0 to {formatDecimal(uint32.max)}.</p>
 			</div>
 		</div>
@@ -350,8 +404,8 @@
 						{@const f = formulas(t)}
 						<tr>
 							<th scope="row">{t.bits} bits</th>
-							<td class="mono">{f.min} to {f.max}</td>
-							<td class="mono">0 to 2{f.count.slice(1)} − 1</td>
+							<td>{f.min} to {f.max}</td>
+							<td>0 to 2{f.count.slice(1)} − 1</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -386,15 +440,27 @@
 	</section>
 
 	<section id="stories">
-		<h2>Real overflows</h2>
+		<h2>Real overflows and limits</h2>
 		<ul class="stories">
 			{#each withStories as t}
 				{#each storiesFor(t) as story}
 					<li>
 						<strong>{story.title}</strong>
-						<span class="mono">(<a href="/integer-limits/{t.slug}">{t.slug}</a>)</span>: {story.text}
+						<span class="mono">(<a href="/integer-limits/{t.slug}">{t.slug}</a>)</span>: {@html breakable(story.text)}
 					</li>
 				{/each}
+			{/each}
+		</ul>
+	</section>
+
+	<section id="mistakes">
+		<h2>Common mistakes</h2>
+		<ul class="stories">
+			{#each mistakes as m}
+				<li>
+					<strong>{m.title}</strong>
+					<span class="mono">(<a href="/integer-limits/{m.slug}">{m.slug}</a>)</span>: {@html breakable(m.text)}
+				</li>
 			{/each}
 		</ul>
 	</section>
@@ -416,7 +482,7 @@
 		{#each faqs as faq, i}
 			<details open={i === 0}>
 				<summary>{faq.q}</summary>
-				<p>{faq.a}</p>
+				<p>{@html breakable(faq.a)}</p>
 			</details>
 		{/each}
 	</section>
@@ -514,7 +580,7 @@
 		color: #aaa;
 		display: block;
 		font: 0.85rem ui-monospace, SFMono-Regular, Menlo, monospace;
-		overflow-wrap: anywhere;
+		overflow-wrap: break-word;
 	}
 
 	.smallest {
@@ -557,11 +623,17 @@
 		border: 1px dashed rgba(255, 255, 255, 0.25);
 		border-radius: 3px;
 		display: flex;
+		flex-wrap: wrap;
 		justify-content: space-between;
-		gap: 0.4rem;
+		gap: 0 0.4rem;
 		padding: 0.3rem 0.5rem;
 		font-size: 0.82rem;
 		color: #aaa;
+	}
+
+	.fit-grid li span:last-child {
+		margin-left: auto;
+		white-space: nowrap;
 	}
 
 	.fit-grid li.fits {
@@ -577,8 +649,28 @@
 		margin: 1rem 0 0;
 	}
 
-	.limits td,
 	.limits th {
+		white-space: nowrap;
+	}
+
+	.limits tbody th {
+		vertical-align: top;
+	}
+
+	/* Numbers break only between digit groups (<wbr>), so the table fits a phone. */
+	.limits td {
+		font-size: 0.9rem;
+		vertical-align: top;
+	}
+
+	.pow {
+		color: #bbb;
+		display: block;
+		font-size: 0.8rem;
+		white-space: nowrap;
+	}
+
+	.nowrap {
 		white-space: nowrap;
 	}
 
@@ -614,7 +706,6 @@
 	.small {
 		font-size: 0.9rem;
 		margin: 0.3rem 0 0;
-		overflow-wrap: anywhere;
 	}
 
 	.pairs caption {
@@ -646,10 +737,10 @@
 		margin-bottom: 0.6rem;
 	}
 
-	/* 128-bit limits are 40 digits with no natural break; let prose wrap them. */
+	/* Long numbers carry <wbr> between digit groups; this is only a safety net. */
 	section p,
 	.stories li {
-		overflow-wrap: anywhere;
+		overflow-wrap: break-word;
 	}
 
 	.stories strong {
@@ -658,6 +749,16 @@
 
 	.type-links {
 		columns: 2 16rem;
+	}
+
+	@media (max-width: 560px) {
+		.limits .bits-col {
+			display: none;
+		}
+
+		.limits td {
+			font-size: 0.8rem;
+		}
 	}
 
 	.type-links li span:last-child {

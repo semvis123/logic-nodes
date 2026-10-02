@@ -1,7 +1,7 @@
 <script lang="ts">
 	/** The exact text put on the clipboard. */
 	export let text: string;
-	/** What is being copied, for screen readers: "Copy maximum in hex". */
+	/** What is being copied, read after the visible word: "Copy maximum in hex". */
 	export let label: string;
 
 	let state: 'idle' | 'copied' | 'failed' = 'idle';
@@ -19,22 +19,30 @@
 	}
 </script>
 
-<button type="button" class="copy" on:click={copy} aria-label="Copy {label}"
-	>{state === 'copied' ? 'Copied' : state === 'failed' ? 'Select it' : 'Copy'}</button
-><span class="live" aria-live="polite"
+<!-- The visible word starts the accessible name, so speech users can say what they see. -->
+<button type="button" class="copy" on:click={copy}
+	>{state === 'copied' ? 'Copied' : state === 'failed' ? 'Select it' : 'Copy'}<span class="visually-hidden">
+		{label}</span
+	></button
+><span class="visually-hidden" aria-live="polite"
 	>{state === 'copied' ? `Copied ${text}` : state === 'failed' ? 'Copying failed: select the text instead' : ''}</span
 >
 
 <style>
+	/* The same size and look as the site's Copy link button. */
 	.copy {
+		align-self: center;
 		background: #0d0d0f;
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
 		cursor: pointer;
-		font-size: 0.72rem;
-		min-width: 4.4rem;
-		padding: 0.15rem 0.45rem;
+		font-size: 0.8rem;
+		line-height: 1.2;
+		min-width: 4.6rem;
+		padding: 0.3rem 0.7rem;
+		position: relative;
+		vertical-align: middle;
 		white-space: nowrap;
 	}
 
@@ -43,7 +51,7 @@
 		color: #fff;
 	}
 
-	.live {
+	.visually-hidden {
 		position: absolute;
 		width: 1px;
 		height: 1px;

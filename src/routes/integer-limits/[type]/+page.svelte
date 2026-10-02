@@ -24,6 +24,7 @@
 		typeTitle,
 		typeDescription,
 		typeFaqs,
+		mistakesFor,
 		MAX_INPUT,
 		type IntSlug,
 		type IntType,
@@ -32,6 +33,7 @@
 	import OverflowPlayground from '../OverflowPlayground.svelte';
 	import OverflowRules from '../OverflowRules.svelte';
 	import CopyButton from '../CopyButton.svelte';
+	import { breakable } from '../breakable';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
@@ -45,6 +47,19 @@
 	$: names = namesFor(t);
 	$: stories = storiesFor(t);
 	$: faqs = typeFaqs(t);
+	$: mistakes = mistakesFor(t);
+	$: lede = `${t.slug} holds every whole number from ${formatDecimal(t.min)} to ${formatDecimal(t.max)}, which is ${
+		f.min
+	} to ${f.max}. That is ${f.count} = ${formatDecimal(t.count)} values in ${t.bits} bits${
+		t.signed ? ', stored in two’s complement' : ', none of them negative'
+	}.`;
+	// Types whose width depends on the platform are noted on the rows they can match.
+	$: platformNote =
+		t.bits === 64
+			? 'Types whose width depends on the platform, such as C’s long, Go’s int and Rust’s isize, are in the notes.'
+			: t.bits === 32
+			? 'C’s int, whose width depends on the platform, is in the notes.'
+			: '';
 	$: wrapped = wrap(t.max + 1n, t);
 	$: wrappedLow = wrap(t.min - 1n, t);
 
@@ -139,7 +154,8 @@
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/hex-to-decimal', label: 'Hex to decimal converter' },
 		{ href: '/fp16-bf16-fp8-converter', label: 'FP16, BF16 and FP8 converter' },
-		{ href: '/bit-manipulation-tricks', label: 'Bit manipulation tricks' }
+		{ href: '/bit-manipulation-tricks', label: 'Bit manipulation tricks' },
+		{ href: '/tools', label: 'All tools' }
 	]}
 >
 	<section class="intro">
@@ -148,12 +164,7 @@
 			<span>{t.slug}</span>
 		</nav>
 		<h1>{t.slug}: the {describeType(t)}</h1>
-		<p class="lede">
-			{t.slug} holds every whole number from {formatDecimal(t.min)} to {formatDecimal(t.max)}, which is {f.min} to {f.max}.
-			That is {f.count} = {formatDecimal(t.count)} values in {t.bits} bits{t.signed
-				? ', stored in two’s complement'
-				: ', none of them negative'}.
-		</p>
+		<p class="lede">{@html breakable(lede)}</p>
 
 		<div class="card limits-card">
 			<h2 class="card-title">{t.slug} limits</h2>
@@ -162,14 +173,14 @@
 					<div class="limit">
 						<dt>{row.label}</dt>
 						<dd>
-							<div class="limit-line">
+							<div class="limit-main">
 								<span class="mono limit-value" data-testid={row.label === 'Maximum' ? 'max' : 'min'}
-									>{formatDecimal(row.value)}</span
+									>{@html breakable(formatDecimal(row.value))}</span
 								>
 								<CopyButton text={row.value.toString()} label="{row.label.toLowerCase()} in decimal" />
 							</div>
 							<div class="limit-line sub">
-								<span class="tag">power</span><span class="mono">{row.formula}</span>
+								<span class="tag">power</span><span class="formula">{row.formula}</span>
 							</div>
 							<div class="limit-line sub">
 								<span class="tag">hex</span><span class="mono">{hexOf(row.value, t.bits)}</span>
@@ -177,13 +188,14 @@
 							</div>
 							<div class="limit-line sub binary">
 								<span class="tag">binary</span><span class="mono">{nibbles(binaryOf(row.value, t.bits))}</span>
+								<CopyButton text={binaryOf(row.value, t.bits)} label="{row.label.toLowerCase()} in binary" />
 							</div>
 						</dd>
 					</div>
 				{/each}
 				<div class="limit">
 					<dt>Distinct values</dt>
-					<dd class="mono">{f.count} = {formatDecimal(t.count)}</dd>
+					<dd>{f.count} = {@html breakable(formatDecimal(t.count))}</dd>
 				</div>
 				<div class="limit">
 					<dt>Size</dt>
@@ -226,25 +238,27 @@
 					{#each names as n}
 						<tr>
 							<th scope="row">{n.language}</th>
-							<td class="mono type-name" class:missing={!n.type}>{n.type ?? 'none'}</td>
-							<td class="mono">{n.limits ?? ''}</td>
-							<td class="note-cell">{n.note ?? ''}</td>
+							<td class="mono type-name" class:missing={!n.type} data-label="Type">{n.type ?? 'none'}</td>
+							<td class="mono" class:empty={!n.limits} data-label="Limits">{n.limits ?? ''}</td>
+							<td class="note-cell" class:empty={!n.note} data-label="Note">{n.note ?? ''}</td>
 						</tr>
 					{/each}
 				</tbody>
 			</table>
 		</div>
 		<p class="reducer">
-			Only names with exactly {t.bits} bits on every platform are listed as the type. Types whose width depends on the platform,
-			such as C’s int and long, Go’s int and Rust’s isize, are in the notes.
+			Only names with exactly {t.bits} bits on every platform are listed as the type.
+			{platformNote}
 		</p>
 	</section>
 
 	<section id="overflow">
 		<h2>What happens when {t.slug} overflows</h2>
 		<p>
-			In {t.bits} bits, {formatDecimal(t.max)} + 1 wraps to <strong class="mono">{formatDecimal(wrapped)}</strong>, and
-			{formatDecimal(t.min)} − 1 wraps to <strong class="mono">{formatDecimal(wrappedLow)}</strong>. The processor keeps
+			In {t.bits} bits, {@html breakable(formatDecimal(t.max))} + 1 wraps to
+			<strong class="mono">{@html breakable(formatDecimal(wrapped))}</strong>, and
+			{@html breakable(formatDecimal(t.min))} − 1 wraps to
+			<strong class="mono">{@html breakable(formatDecimal(wrappedLow))}</strong>. The processor keeps
 			the low {t.bits} bits of the answer, which is the same as working modulo {f.count}{t.signed
 				? ', and the top bit then decides the sign'
 				: ''}. You can see it in JavaScript:
@@ -262,8 +276,22 @@
 				{t.signed
 					? 'That conversion is implementation defined in C (GCC and Clang wrap) and defined as wrapping since C++20.'
 					: 'For unsigned types that conversion is always defined: it wraps.'}
+				{t.slug === 'uint16'
+					? `The promotion has a catch: it is to signed int, so uint16_t × uint16_t is a signed multiplication, and ${formatDecimal(
+							t.max
+						)} × ${formatDecimal(t.max)} overflows it.`
+					: ''}
 			</p>
 		{/if}
+	</section>
+
+	<section id="mistakes">
+		<h2>Common mistakes with {t.slug}</h2>
+		<ul class="mistakes">
+			{#each mistakes as m}
+				<li><strong>{m.title}.</strong> {@html breakable(m.text)}</li>
+			{/each}
+		</ul>
 	</section>
 
 	{#if stories.length}
@@ -272,7 +300,7 @@
 			{#each stories as story}
 				<div class="card story">
 					<h3>{story.title}</h3>
-					<p>{story.text}</p>
+					<p>{@html breakable(story.text)}</p>
 				</div>
 			{/each}
 		</section>
@@ -309,13 +337,14 @@
 						<tr class:current={other.slug === t.slug}>
 							<th scope="row">
 								{#if other.slug === t.slug}
-									<span class="mono" aria-current="page">{other.slug} (this page)</span>
+									<span class="mono" aria-current="page">{other.slug}</span>
+									<span class="this-page">this page</span>
 								{:else}
 									<a class="mono" href="/integer-limits/{other.slug}">{other.slug}</a>
 								{/if}
 							</th>
-							<td class="mono num">{formatDecimal(other.min)}</td>
-							<td class="mono num">{formatDecimal(other.max)}</td>
+							<td class="mono num">{@html breakable(formatDecimal(other.min))}</td>
+							<td class="mono num">{@html breakable(formatDecimal(other.max))}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -332,7 +361,7 @@
 		{#each faqs as faq, i}
 			<details open={i === 0}>
 				<summary>{faq.q}</summary>
-				<p>{faq.a}</p>
+				<p>{@html breakable(faq.a)}</p>
 			</details>
 		{/each}
 	</section>
@@ -386,13 +415,21 @@
 		color: #ddd;
 		margin: 0;
 		min-width: 0;
-		overflow-wrap: anywhere;
+		overflow-wrap: break-word;
+	}
+
+	.limit-main {
+		line-height: 1.5;
+	}
+
+	.limit-main :global(.copy) {
+		margin-left: 0.5rem;
 	}
 
 	.limit-line {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: baseline;
+		align-items: center;
 		gap: 0.2rem 0.6rem;
 	}
 
@@ -400,8 +437,7 @@
 		color: #8ede8e;
 		font-size: 1.35rem;
 		font-weight: 700;
-		overflow-wrap: anywhere;
-		min-width: 0;
+		vertical-align: middle;
 	}
 
 	.sub {
@@ -412,6 +448,10 @@
 	.sub .mono {
 		overflow-wrap: anywhere;
 		min-width: 0;
+	}
+
+	.formula {
+		color: #ddd;
 	}
 
 	.tag {
@@ -477,6 +517,19 @@
 		overflow-wrap: anywhere;
 	}
 
+	.mistakes {
+		color: #ddd;
+		padding-left: 1.25rem;
+	}
+
+	.mistakes li {
+		margin-bottom: 0.6rem;
+	}
+
+	.mistakes strong {
+		color: #fff;
+	}
+
 	.arrow {
 		color: #999;
 		margin: 0 0.3rem;
@@ -484,19 +537,18 @@
 
 	strong.mono {
 		color: #8ede8e;
-		overflow-wrap: anywhere;
 	}
 
-	/* 128-bit limits are 40 digits with no natural break; let prose wrap them. */
+	/* Long numbers carry <wbr> between digit groups; this is only a safety net. */
 	section p,
-	.points li {
-		overflow-wrap: anywhere;
+	.points li,
+	.mistakes li {
+		overflow-wrap: break-word;
 	}
 
 	.story {
 		padding: 0.9rem 1rem;
 		margin-bottom: 0.8rem;
-		max-width: 760px;
 	}
 
 	.story h3 {
@@ -521,9 +573,15 @@
 		white-space: nowrap;
 	}
 
-	/* The 128-bit rows would otherwise make this the widest thing on the page. */
+	.this-page {
+		color: #bbb;
+		display: block;
+		font-size: 0.75rem;
+		font-weight: 400;
+	}
+
+	/* The 128-bit rows break between digit groups (<wbr>), never inside one. */
 	.all td {
-		overflow-wrap: anywhere;
 		font-size: 0.85rem;
 	}
 
@@ -541,12 +599,62 @@
 		display: flex;
 		justify-content: space-between;
 		margin-top: 0.8rem;
-		max-width: 760px;
 	}
 
 	@media (max-width: 560px) {
 		.limit {
 			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.all td {
+			font-size: 0.78rem;
+		}
+
+		/* The names table becomes one block per language: no sideways scrolling. */
+		.names {
+			min-width: 0;
+		}
+
+		.names thead {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip: rect(0 0 0 0);
+		}
+
+		.names tr,
+		.names th[scope='row'],
+		.names td {
+			display: block;
+		}
+
+		.names tr {
+			border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+			padding: 0.4rem 0;
+		}
+
+		/* tr in the selector outranks the shared .data-table cell border. */
+		.names tr th[scope='row'],
+		.names tr td {
+			border: none;
+			padding: 0.1rem 0.5rem;
+		}
+
+		.names td.empty {
+			display: none;
+		}
+
+		.names td::before {
+			content: attr(data-label) ': ';
+			color: #999;
+			font-family: system-ui, sans-serif;
+			font-size: 0.75rem;
+			font-style: normal;
+		}
+
+		.names .type-name {
+			white-space: normal;
 		}
 	}
 </style>

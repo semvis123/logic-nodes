@@ -22,6 +22,10 @@ import {
 	typeTitle,
 	typeDescription,
 	typeFaqs,
+	overflowAnswer,
+	describedLanguages,
+	mistakesFor,
+	jsNumberFit,
 	binaryOf,
 	hexOf,
 	formatDecimal,
@@ -33,6 +37,24 @@ import {
 } from '../src/lib/intLimits.js';
 
 const T = (slug: string) => intTypeBySlug(slug) as IntType;
+
+/** A seeded generator (mulberry32), so a failing random case can be replayed. */
+function seeded(seed: number): () => number {
+	let a = seed >>> 0;
+	return () => {
+		a = (a + 0x6d2b79f5) >>> 0;
+		let x = Math.imul(a ^ (a >>> 15), 1 | a);
+		x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+		return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+	};
+}
+
+/** A uniformly random value of the type, from 32-bit chunks of a seeded generator. */
+function randomIn(t: IntType, rand: () => number): bigint {
+	let u = 0n;
+	for (let i = 0; i < t.bits / 32 || i < 1; i++) u = (u << 32n) | BigInt(Math.floor(rand() * 2 ** 32));
+	return BigInt.asUintN(t.bits, u) + t.min;
+}
 
 /** A second way to the limits: build the bit patterns as strings and parse them. */
 function referenceLimits(bits: number, signed: boolean): { min: bigint; max: bigint } {
@@ -189,11 +211,12 @@ test.describe('integer limits', () => {
 	});
 
 	test('the playground agrees with typed arrays on random wider values', () => {
+		const rand = seeded(2038);
 		const ctor = { int16: Int16Array, uint16: Uint16Array, int32: Int32Array, uint32: Uint32Array } as const;
 		for (const [slug, Arr] of Object.entries(ctor)) {
 			const t = T(slug);
 			for (let i = 0; i < 400; i++) {
-				const v = BigInt(Math.floor(Math.random() * Number(t.count))) + t.min;
+				const v = randomIn(t, rand);
 				for (const op of ['inc', 'dec', 'dbl', 'neg'] as Op[]) {
 					const r = applyOp(t, v, op);
 					expect(r.result).toBe(BigInt(new Arr([Number(r.exact)])[0]));
@@ -206,14 +229,70 @@ test.describe('integer limits', () => {
 		] as const) {
 			const t = T(slug);
 			for (let i = 0; i < 400; i++) {
-				const v = BigInt.asUintN(64, BigInt(Math.floor(Math.random() * 2 ** 52)) << BigInt(i % 13)) + t.min;
-				const value = fits(v, t) ? v : t.max;
+				const value = i < 4 ? [t.min, t.max, 0n, t.min + 1n][i] : randomIn(t, rand);
 				for (const op of ['inc', 'dec', 'dbl', 'neg'] as Op[]) {
 					const r = applyOp(t, value, op);
 					expect(r.result).toBe(new Arr([BigInt.asUintN(64, r.exact)])[0]);
 				}
 			}
 		}
+	});
+
+	test('128-bit arithmetic agrees with a remainder-based reference', () => {
+		// Wrapping written a third way: the remainder modulo 2ⁿ, shifted into range.
+		const reference = (n: bigint, t: IntType) => {
+			const r = ((n % t.count) + t.count) % t.count;
+			return t.signed && r > t.max ? r - t.count : r;
+		};
+		const rand = seeded(128);
+		for (const t of [T('int128'), T('uint128')]) {
+			const values = [
+				t.min,
+				t.max,
+				0n,
+				t.min + 1n,
+				t.max - 1n,
+				...Array.from({ length: 500 }, () => randomIn(t, rand))
+			];
+			for (const v of values) {
+				for (const [op, f] of [
+					['inc', (x: bigint) => x + 1n],
+					['dec', (x: bigint) => x - 1n],
+					['dbl', (x: bigint) => x * 2n],
+					['neg', (x: bigint) => -x]
+				] as [Op, (x: bigint) => bigint][]) {
+					const r = applyOp(t, v, op);
+					expect(r.exact).toBe(f(v));
+					expect(r.result, `${t.slug} ${v} ${op}`).toBe(reference(f(v), t));
+					expect(r.wrapped).toBe(r.result !== r.exact);
+				}
+				for (const to of intTypes) expect(applyOp(t, v, 'cast', to).result).toBe(reference(v, to));
+			}
+		}
+	});
+
+	test('cast step texts say what happens to the bits', () => {
+		const steps = (from: string, v: bigint, to: string) => applyOp(T(from), v, 'cast', T(to)).steps.join(' ');
+		expect(steps('int32', 300n, 'int8')).toContain('keeps the low 8 bits and drops the top 24');
+		expect(steps('int32', 300n, 'int8')).toContain('The top bit of the result is 0, so as int8 it reads as 44');
+		expect(steps('int8', -1n, 'int32')).toContain(
+			'copies its sign bit (1) into the 24 new bits, so the number keeps its value'
+		);
+		expect(steps('int8', -1n, 'uint32')).not.toContain('keeps its value.');
+		expect(steps('int8', -1n, 'uint32')).toContain('Read as unsigned, the bits are 4,294,967,295');
+		expect(steps('uint8', 200n, 'int8')).toContain('200 − 2⁸ = −56');
+		expect(steps('uint8', 200n, 'int32')).toContain('fills the 24 new bits with 0');
+		expect(steps('int32', 5n, 'int32')).toBe('Same type: nothing changes.');
+	});
+
+	test('a JavaScript number is exact for some integers past 2^53, not all', () => {
+		expect(jsNumberFit(2n ** 53n - 1n)).toEqual({ safe: true, exact: true, rounded: 2n ** 53n - 1n });
+		expect(jsNumberFit(2n ** 53n)).toMatchObject({ safe: false, exact: true });
+		expect(jsNumberFit(2n ** 53n + 1n)).toEqual({ safe: false, exact: false, rounded: 2n ** 53n });
+		expect(jsNumberFit(-(2n ** 53n))).toMatchObject({ safe: false, exact: true });
+		expect(jsNumberFit(2n ** 64n)).toMatchObject({ safe: false, exact: true });
+		expect(jsNumberFit(2n ** 64n - 1n)).toEqual({ safe: false, exact: false, rounded: 2n ** 64n });
+		expect(jsNumberFit(2n ** 1100n).rounded).toBeNull();
 	});
 
 	test('cast explanations name the right bit operation', () => {
@@ -252,8 +331,26 @@ test.describe('integer limits', () => {
 		expect(() => parseInteger('0x')).toThrow(/hex digits/);
 		expect(() => parseInteger('0b102')).toThrow(/"2" is not a binary digit/);
 		expect(() => parseInteger('9'.repeat(200))).toThrow(/more than/);
+		// Limits as the pages print them, superscripts and typographic minus included.
+		expect(parseInteger('2³¹ − 1')).toBe(2147483647n);
+		expect(parseInteger('−2⁶³')).toBe(-9223372036854775808n);
+		expect(parseInteger('2 ^ 31')).toBe(2147483648n);
+		expect(parseInteger('2^31 + 1,000')).toBe(2147484648n);
+		expect(parseInteger('0xFFFF_FFFF')).toBe(4294967295n);
+		expect(parseInteger('0xFF FF')).toBe(65535n);
+		// Malformed input is reported, not read as some other number.
+		expect(() => parseInteger('2^3 1')).toThrow(/power of two as/);
+		expect(() => parseInteger('2^31-1-1')).toThrow(/whole decimal number/);
+		expect(() => parseInteger('2^1000')).toThrow(/400 or less/);
+		expect(() => parseInteger('2^' + '1'.repeat(50))).toThrow(/400 or less/);
+		expect(() => parseInteger('1,2,3')).toThrow(/threes/);
+		expect(() => parseInteger('12,34')).toThrow(/threes/);
+		expect(() => parseInteger('_1')).toThrow(/underscores/);
+		expect(() => parseInteger('1_')).toThrow(/underscores/);
+		expect(() => parseInteger('1__0')).toThrow(/underscores/);
+		const rand = seeded(53);
 		for (let i = 0; i < 300; i++) {
-			const n = BigInt(Math.floor((Math.random() - 0.5) * 2 ** 53)) * BigInt(i + 1);
+			const n = BigInt(Math.floor((rand() - 0.5) * 2 ** 53)) * BigInt(i + 1);
 			expect(parseInteger(n.toString())).toBe(n);
 			expect(parseInteger(formatDecimal(n))).toBe(n);
 		}
@@ -325,11 +422,60 @@ test.describe('integer limits', () => {
 			expect(faqs.find((f) => f.q.includes('overflows'))?.a).toContain(formatDecimal(wrap(t.max + 1n, t)));
 		}
 	});
+
+	test('descriptions and the overflow answer name only languages that have the type', () => {
+		const sql = ['MySQL', 'PostgreSQL', 'SQL Server'];
+		for (const t of intTypes) {
+			const has = (language: string) => namesFor(t).some((n) => n.language === language && n.type !== null);
+			for (const language of describedLanguages(t)) {
+				if (language === 'SQL') expect(sql.some(has), `${t.slug} SQL`).toBe(true);
+				else expect(has(language === 'C' ? 'C and C++' : language), `${t.slug} ${language}`).toBe(true);
+			}
+			const d = typeDescription(t);
+			const answer = overflowAnswer(t);
+			for (const language of ['Java', 'Kotlin', 'Go', 'C#']) {
+				const word = new RegExp(`(^|[^A-Za-z])${language.replace('#', '\\#')}([^A-Za-z]|$)`);
+				if (!has(language)) {
+					expect(answer, `${t.slug} overflow answer names ${language}`).not.toMatch(word);
+					expect(d, `${t.slug} description names ${language}`).not.toMatch(word);
+				}
+			}
+			if (!sql.some(has)) expect(d).not.toContain('SQL');
+			// Below 32 bits the sum is promoted to int, so the answer must not
+			// claim that the expression itself wraps in Java, C# or Kotlin.
+			if (t.bits < 32) {
+				expect(answer).toContain(`is ${formatDecimal(t.max + 1n)} as an int`);
+				expect(answer).not.toContain('undefined behaviour');
+			}
+		}
+		expect(describedLanguages(T('uint128'))).toEqual(['C', 'C#', 'Rust']);
+		expect(overflowAnswer(T('uint128'))).toContain('C# (outside a checked context) does exactly that');
+	});
+
+	test('common mistakes carry computed numbers', () => {
+		for (const t of intTypes) expect(mistakesFor(t).length, t.slug).toBeGreaterThanOrEqual(1);
+		const text = (slug: string) =>
+			mistakesFor(T(slug))
+				.map((m) => m.text)
+				.join(' ');
+		expect(text('int32')).toContain('wraps back to −2,147,483,648');
+		expect(text('uint8')).toContain('200 + 100 is 300');
+		expect(text('uint8')).toContain('where it becomes 44');
+		expect(text('uint16')).toContain(formatDecimal(65535n * 65535n));
+		expect(text('int64')).toContain('9,007,199,254,740,993 arrives as 9,007,199,254,740,992');
+		expect(text('uint32')).toContain('wraps to 4,294,967,295');
+		expect(text('int8')).toContain('reads as −1');
+		expect(text('int8')).not.toContain('undefined behaviour');
+	});
 });
 
 test.describe('the integer-limits page', () => {
 	test('the hub ships the table, a worked overflow and a lookup', async ({ page }) => {
-		const html = await (await page.request.get('/integer-limits')).text();
+		// Long numbers carry <wbr> between digit groups (and {@html} markers); read the text without them.
+		const html = (await (await page.request.get('/integer-limits')).text()).replace(
+			/<wbr>|<!-- HTML_TAG_(START|END) -->/g,
+			''
+		);
 		for (const t of intTypes) {
 			expect(html).toContain(`href="/integer-limits/${t.slug}"`);
 			expect(html).toContain(formatDecimal(t.max));
@@ -341,8 +487,19 @@ test.describe('the integer-limits page', () => {
 		await page.fill('#lookup', '70000');
 		await expect(page.locator('[data-testid="lookup-signed"]')).toHaveText('int32');
 		await expect(page.locator('[data-testid="lookup-unsigned"]')).toHaveText('uint32');
+		await page.fill('#lookup', '-1');
+		await expect(page.locator('.fit-grid')).toContainText('uint128 no negatives');
+		await expect(page.locator('.answer-also')).toContainText('It needs 1 bit as a signed');
+		await page.fill('#lookup', '2^64');
+		await expect(page.locator('.answer-also')).toContainText('holds this exact value');
+		await page.fill('#lookup', '2^53 + 1');
+		await expect(page.locator('.answer-also')).toContainText(
+			'cannot hold it exactly: it rounds to 9,007,199,254,740,992'
+		);
 		await page.fill('#lookup', '1.5');
 		await expect(page.locator('#lookup-error')).toContainText('Whole numbers only');
+		// The faded stale result cannot be reached by keyboard.
+		await expect(page.locator('.results.stale')).toHaveAttribute('inert', '');
 	});
 
 	test('the playground computes, and its state survives a reload', async ({ page }) => {
@@ -371,7 +528,10 @@ test.describe('the integer-limits page', () => {
 	});
 
 	test('a type page shows its limits, names, stories and a wrapped default', async ({ page }) => {
-		const html = await (await page.request.get('/integer-limits/int32')).text();
+		const html = (await (await page.request.get('/integer-limits/int32')).text()).replace(
+			/<wbr>|<!-- HTML_TAG_(START|END) -->/g,
+			''
+		);
 		expect(html).toContain('2,147,483,647');
 		expect(html).toContain('−2,147,483,648');
 		expect(html).toContain('0x7FFFFFFF');
@@ -384,6 +544,11 @@ test.describe('the integer-limits page', () => {
 			expect(res.status(), slug).toBe(200);
 		}
 		expect((await page.request.get('/integer-limits/int7')).status()).toBe(404);
+		// The served select already shows this page's type, before any script runs.
+		const uint64 = await (await page.request.get('/integer-limits/uint64')).text();
+		expect(uint64).toMatch(/<option value="uint64" selected/);
+		expect(uint64).not.toMatch(/<option value="int8" selected/);
+		expect(uint64).toContain('href="/tools"');
 
 		await page.goto('/integer-limits/uint16');
 		await page.waitForLoadState('networkidle');
@@ -393,6 +558,13 @@ test.describe('the integer-limits page', () => {
 		await page.click('[data-testid="pg-keep"]');
 		await expect(page.locator('#pg-value')).toHaveValue('65534');
 		await expect(page).toHaveURL(/v=65534/);
+		// Too big for the type: an error, a way out, and no stale button to press.
+		await page.fill('#pg-value', '70000');
+		await expect(page.locator('.playground [role="alert"]')).toContainText('does not fit in uint16');
+		await expect(page.locator('.playground .results')).toHaveAttribute('inert', '');
+		await page.click('[data-testid="pg-widen"]');
+		await expect(page.locator('#pg-type')).toHaveValue('uint32');
+		await expect(page.locator('[data-testid="pg-result"]')).toHaveText('140,000');
 
 		// Moving to another type page reuses the component: it must reset to that type.
 		await page.locator('.pager a').first().click();
