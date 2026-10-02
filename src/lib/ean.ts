@@ -173,7 +173,7 @@ export interface IsbnConversion {
  * out a new one with the EAN rule, since the two schemes share nothing else.
  */
 export function isbn10To13(isbn10: string): IsbnConversion {
-	const s = isbn10.replace(/[\s-]/g, '').toUpperCase();
+	const s = cleanCode(isbn10).toUpperCase();
 	if (!/^\d{9}[\dX]$/.test(s)) throw new BarcodeError('An ISBN-10 is nine digits and a check digit or X');
 	const expected10 = isbn10Check(s.slice(0, 9));
 	const data = '978' + s.slice(0, 9);
@@ -270,8 +270,14 @@ export interface ParsedCode {
 	isbn?: IsbnConversion;
 }
 
-/** Spaces and hyphens are how these numbers are usually printed, so they are ignored. */
-export const cleanCode = (text: string): string => text.replace(/[\s-]/g, '');
+/**
+ * Spaces and hyphens are how these numbers are usually printed, so they are
+ * ignored. Numbers copied from a web page or a PDF often carry a typographic
+ * hyphen, dash or minus sign (U+2010 to U+2015, U+2212) or a soft hyphen
+ * instead of the ASCII one, so those go too.
+ */
+const SEPARATORS = /[\s\-\u00ad\u2010-\u2015\u2212]/g;
+export const cleanCode = (text: string): string => text.replace(SEPARATORS, '');
 
 /**
  * Reads a number for `symbology`. The short length (12 for EAN-13) gets a
@@ -279,10 +285,11 @@ export const cleanCode = (text: string): string => text.replace(/[\s-]/g, '');
  * typed into the EAN-13 field is converted to its ISBN-13.
  */
 export function parseCode(text: string, symbology: Symbology): ParsedCode {
-	const s = cleanCode(text).toUpperCase();
+	const s = cleanCode(text);
 	const { length, name } = SYMBOLOGIES[symbology];
 	if (!s) throw new BarcodeError('Type a number first');
-	if (symbology === 'ean13' && /^\d{9}[\dX]$/.test(s)) {
+	// Upper case only for the ISBN test, so an error quotes what was typed.
+	if (symbology === 'ean13' && /^\d{9}[\dX]$/.test(s.toUpperCase())) {
 		const isbn = isbn10To13(s);
 		return {
 			symbology,
@@ -293,7 +300,8 @@ export function parseCode(text: string, symbology: Symbology): ParsedCode {
 			isbn
 		};
 	}
-	const bad = s.match(/[^\d]/);
+	// The u flag takes a whole code point, so an emoji is quoted whole, not as half a surrogate pair.
+	const bad = s.match(/[^0-9]/u);
 	if (bad) throw new BarcodeError(`“${bad[0]}” is not a digit: ${name} numbers are digits 0 to 9 only`);
 	if (s.length !== length && s.length !== length - 1) {
 		const isbnHint = symbology === 'ean13' ? ', or a 10 character ISBN' : '';

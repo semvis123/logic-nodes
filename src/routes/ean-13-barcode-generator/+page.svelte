@@ -43,7 +43,10 @@
 	onMount(() => {
 		const p = readUrl();
 		sym = safeOption(p.sym, symbologies) ?? sym;
-		input = safeText(p.v, 40) ?? input;
+		// A link with a type but no number opens that type's own example, not the EAN-13 default.
+		input = safeText(p.v, 40) ?? examplesFor[sym];
+		// Rewrite the address now, so an empty or over-long v= that fell back to the default does not stay there.
+		syncUrl({ v: input, sym }, DEFAULTS);
 	});
 	$: syncUrl({ v: input, sym }, DEFAULTS);
 
@@ -73,9 +76,18 @@
 	/** Twelve digits in the EAN-13 field that already end in a valid check digit are probably a UPC-A. */
 	$: upcHint = sym === 'ean13' && /^\d{12}$/.test(typed) && isValidCode(typed);
 
-	/** The highlighted digit, by its index in the number; null for none. */
-	let active: number | null = null;
-	$: if (active !== null && active >= parsed.code.length) active = null;
+	// The highlighted digit, by its index in the number. Hovering wins, then the
+	// focused digit, then one pinned by a click or tap, which stays lit after
+	// the pointer or focus moves away until it is clicked again or Escape.
+	let hover: number | null = null;
+	let focused: number | null = null;
+	let pinned: number | null = null;
+	$: wanted = hover ?? focused ?? pinned;
+	$: active = wanted !== null && wanted < parsed.code.length ? wanted : null;
+	function clearHighlight() {
+		hover = focused = pinned = null;
+	}
+	const togglePin = (i: number) => (pinned = pinned === i ? null : i);
 	$: activeSegment = active === null ? undefined : digitSegments.find((s) => s.digitIndex === active);
 	$: hiddenFirst = parsed.symbology === 'ean13';
 	/** In EAN-13 the first digit has no bars, so highlighting it lights up the six digits whose code sets carry it. */
@@ -83,47 +95,70 @@
 		i !== undefined && active !== null && (i === active || (hiddenFirst && active === 0 && i >= 1 && i <= 6));
 
 	/** Module numbers count from the first bar of the start guard, as 1. */
-	const moduleRange = (s: Segment) => `${s.start - barcode.quiet.left + 1}–${s.start - barcode.quiet.left + s.bits.length}`;
+	const moduleRange = (s: Segment) =>
+		`${s.start - barcode.quiet.left + 1}–${s.start - barcode.quiet.left + s.bits.length}`;
 
+	/**
+	 * Carries the number across when it means the same thing in both, working
+	 * from what was typed rather than the computed code, so a typed check digit
+	 * (right or wrong) is kept.
+	 */
 	function choose(next: Symbology) {
 		if (next === sym) return;
-		const code = error ? '' : parsed.code;
-		if (sym === 'ean13' && next === 'upca' && code.startsWith('0')) input = code.slice(1);
-		else if (sym === 'upca' && next === 'ean13' && code) input = '0' + code;
+		const t = typed;
+		if (sym === 'ean13' && next === 'upca') {
+			if (/^\d{12}$/.test(t) && isValidCode(t)) input = t; // already a UPC-A, as the hint says
+			else if (/^0\d{12}$/.test(t)) input = t.slice(1);
+			else if (!error && parsed.code.startsWith('0')) input = parsed.code.slice(1);
+			else input = examplesFor[next];
+		} else if (sym === 'upca' && next === 'ean13' && /^\d{11,12}$/.test(t)) input = '0' + t;
 		else input = examplesFor[next];
 		sym = next;
-		active = null;
+		clearHighlight();
 	}
 	const examplesFor: Record<Symbology, string> = { ean13: '400638133393', upca: '03600029145', ean8: '9638507' };
 
 	function tryValue(v: string, s: Symbology) {
 		sym = s;
 		input = v;
-		active = null;
+		clearHighlight();
 		const field = document.getElementById('code');
 		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
 	const examples: { label: string; v: string; sym: Symbology }[] = [
-		{ label: '400638133393', v: '400638133393', sym: 'ean13' },
 		{ label: '5901234123457', v: '5901234123457', sym: 'ean13' },
+		{ label: '8712345678906', v: '8712345678906', sym: 'ean13' },
 		{ label: 'Wrong check digit', v: '5901234123450', sym: 'ean13' },
 		{ label: 'ISBN 0-306-40615-2', v: '0-306-40615-2', sym: 'ean13' },
-		{ label: 'In-store 200…', v: '200123456789', sym: 'ean13' },
+		{ label: 'In-store 200123456789', v: '200123456789', sym: 'ean13' },
 		{ label: 'UPC-A 036000291452', v: '036000291452', sym: 'upca' },
 		{ label: 'EAN-8 9638507', v: '9638507', sym: 'ean8' }
 	];
 
-	let message = '';
-	let messageTimer: ReturnType<typeof setTimeout>;
-	function say(text: string) {
-		message = text;
-		clearTimeout(messageTimer);
-		messageTimer = setTimeout(() => (message = ''), 2500);
+	// Each copy button reports next to itself, so the confirmation is where the
+	// person is looking (the two buttons can be a screen apart on a phone).
+	type Slot = 'figure' | 'modules';
+	let messages: Record<Slot, string> = { figure: '', modules: '' };
+	const timers: Partial<Record<Slot, ReturnType<typeof setTimeout>>> = {};
+	function say(slot: Slot, text: string) {
+		messages = { ...messages, [slot]: text };
+		clearTimeout(timers[slot]);
+		timers[slot] = setTimeout(() => (messages = { ...messages, [slot]: '' }), 2500);
 	}
-	async function copy(text: string, what: string) {
-		say((await copyText(text)) ? `${what} copied` : `Could not copy; select the ${what.toLowerCase()} and press ctrl+C`);
+	async function copy(slot: Slot, text: string, what: string) {
+		say(
+			slot,
+			(await copyText(text)) ? `${what} copied` : `Could not copy; select the ${what.toLowerCase()} and press ctrl+C`
+		);
+	}
+
+	/** Takes a block out of the tab order and the accessibility tree while it shows a stale result. */
+	function inert(node: HTMLElement, on: boolean) {
+		const set = (value: boolean) => (value ? node.setAttribute('inert', '') : node.removeAttribute('inert'));
+		set(on);
+		return { update: set };
 	}
 	$: fileName = `${info.name.toLowerCase()}-${parsed.code}`;
 	function saveSvg() {
@@ -134,7 +169,7 @@
 			// Three pixels per module in the file, doubled: six pixels, so every bar is a whole number of pixels.
 			await downloadPng(barcodeSvg(barcode), `${fileName}.png`, 2);
 		} catch {
-			say('The PNG could not be made in this browser; the SVG download still works');
+			say('figure', 'The PNG could not be made in this browser; the SVG download still works');
 		}
 	}
 
@@ -163,11 +198,7 @@
 	const faqs = [
 		{
 			q: 'How is the EAN-13 check digit calculated?',
-			a: `Multiply the first 12 digits alternately by 1 and 3, starting with 1, and add the results. The check digit is whatever brings that sum up to the next multiple of 10. For ${
-				defaultCode.data
-			} the sum is ${defaultCode.working.sum}, the next multiple of 10 is ${defaultCode.working.nextTen}, so the check digit is ${
-				defaultCode.working.check
-			} and the full number is ${defaultCode.code}.`
+			a: `Multiply the first 12 digits alternately by 1 and 3, starting with 1, and add the results. The check digit is whatever brings that sum up to the next multiple of 10. For ${defaultCode.data} the sum is ${defaultCode.working.sum}, the next multiple of 10 is ${defaultCode.working.nextTen}, so the check digit is ${defaultCode.working.check} and the full number is ${defaultCode.code}.`
 		},
 		{
 			q: 'Does the barcode prefix tell you the country of origin?',
@@ -179,9 +210,11 @@
 		},
 		{
 			q: 'How do I turn an ISBN-10 into an ISBN-13 for the barcode?',
-			a: `Put 978 in front of the first nine digits, drop the old check digit and work out a new one with the EAN rule. ${isbnExample.isbn10} becomes ${isbnExample.working.steps
-				.map((s) => s.digit)
-				.join('')} plus check digit ${isbnExample.working.check}, which is ${isbnExample.isbn13}. Type an ISBN-10 into the generator and it does this for you.`
+			a: `Put 978 in front of the first nine digits, drop the old check digit and work out a new one with the EAN rule. ${
+				isbnExample.isbn10
+			} becomes ${isbnExample.working.steps.map((s) => s.digit).join('')} plus check digit ${
+				isbnExample.working.check
+			}, which is ${isbnExample.isbn13}. Type an ISBN-10 into the generator and it does this for you.`
 		},
 		{
 			q: 'Why does an EAN-13 barcode have 95 modules?',
@@ -196,7 +229,9 @@
 			a: `It catches every single wrong digit. It misses a swap of two neighbouring digits only when they differ by 5, such as ${missed
 				.map(([a, b]) => `${a} and ${b}`)
 				.slice(0, 2)
-				.join(' or ')}, because the weights 1 and 3 then change the sum by a multiple of 10. Two or more wrong digits can also cancel out.`
+				.join(
+					' or '
+				)}, because the weights 1 and 3 then change the sum by a multiple of 10. Two or more wrong digits can also cancel out.`
 		}
 	];
 
@@ -299,16 +334,17 @@
 				autocapitalize="off"
 				inputmode="numeric"
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="code-help"
+				aria-describedby="code-help code-error"
 			/>
-			{#if error}
-				<p class="error" role="alert">{error}</p>
-			{/if}
-			<p class="field-help" id="code-help">
-				{SYMBOLOGIES[sym].length - 1} digits and the check digit is worked out; {SYMBOLOGIES[sym].length} and it is checked.
-				{#if sym === 'ean13'}An ISBN-10 such as 0-306-40615-2 is converted to its ISBN-13.{/if}
-				Spaces and hyphens are ignored.
-			</p>
+			<!-- The error takes the help text's place, so the card does not grow when one appears. -->
+			<div class="field-msg">
+				<p class="field-help" id="code-help" class:hidden={!!error}>
+					{SYMBOLOGIES[sym].length - 1} digits and the check digit is worked out; {SYMBOLOGIES[sym].length} and it is checked.
+					{#if sym === 'ean13'}An ISBN-10 such as 0-306-40615-2 is converted to its ISBN-13.{/if}
+					Spaces and hyphens are ignored.
+				</p>
+				<p class="error" id="code-error" role="alert">{error}</p>
+			</div>
 
 			<div class="chips">
 				{#each examples as example}
@@ -318,221 +354,292 @@
 				{/each}
 			</div>
 
-			<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
+			<!-- While the field holds an error, the last good barcode stays on screen, dimmed and inert,
+			     so nothing jumps; the answer stays a live region throughout. -->
+			<div class="results">
 				<div class="result-grid">
-				<div class="side">
-				<div class="answer" role={error ? undefined : 'status'}>
-					<span class="answer-label">{info.name}{parsed.status === 'invalid' ? ', check digit corrected' : ''}</span>
-					<span class="answer-value mono">{printedForm(parsed.code, parsed.symbology)}</span>
-					<span class="answer-also">
-						{#if parsed.isbn}
-							ISBN-10 <span class="mono">{parsed.isbn.isbn10}</span> becomes ISBN-13 with 978 in front and a new check
-							digit, <strong class="mono">{parsed.working.check}</strong>.
-						{:else if parsed.status === 'computed'}
-							Check digit <strong class="mono">{parsed.working.check}</strong>, worked out from the first {parsed.data
-								.length} digits.
-						{:else if parsed.status === 'valid'}
-							The check digit <strong class="mono">{parsed.working.check}</strong> is correct.
-						{:else}
-							The check digit is wrong: the first {parsed.data.length} digits need
-							<strong class="mono">{parsed.working.check}</strong>, not {parsed.given}.
-						{/if}
-						{#if prefix}
-							Prefix <span class="mono">{ean13Form.slice(0, 3)}</span>: {prefix.meaning}{prefix.special
-								? ''
-								: ' issued the company prefix (not a country of origin)'}.
-						{/if}
-						{#if isbn10}ISBN-10: <span class="mono">{isbn10}</span>.{/if}
-					</span>
-				</div>
-				{#if !error && parsed.status === 'invalid'}
-					<p class="warning" role="alert">
-						{parsed.data}{parsed.given} does not scan as typed: a scanner would reject it. The barcode below uses the correct
-						check digit, {parsed.working.check}.
-					</p>
-				{/if}
-				{#if !error && parsed.isbn && !parsed.isbn.valid10}
-					<p class="warning" role="alert">
-						The ISBN-10 check character should be {parsed.isbn.expected10}, not {parsed.isbn.isbn10[9]}, so check the
-						number. The ISBN-13 does not use it: its check digit is worked out afresh.
-					</p>
-				{/if}
-				{#if !error && upcHint}
-					<p class="hint">
-						These 12 digits already end in a valid check digit, so they may be a UPC-A.
-						<button type="button" class="link-btn" on:click={() => tryValue(typed, 'upca')}>Read them as UPC-A</button>
-					</p>
-				{/if}
-
-				</div>
-				<figure class="barcode-figure">
-					<div class="barcode-paper">
-						<svg
-							class="barcode"
-							viewBox="0 0 {lay.width} {lay.height}"
-							role="img"
-							aria-label="{info.name} barcode for {parsed.code}"
-						>
-							{#each lay.digitSpans as span (span.digitIndex)}
-								{#if lit(span.digitIndex)}
-									<rect class="band" x={span.x} y="0" width={span.width} height={lay.height} />
-								{/if}
-							{/each}
-							{#each lay.bars as bar}
-								<rect
-									class="bar"
-									class:hot={lit(bar.digitIndex)}
-									x={bar.x}
-									y={lay.barTop}
-									width={bar.width}
-									height={(bar.long ? lay.longBottom : lay.barBottom) - lay.barTop}
-								/>
-							{/each}
-							{#each lay.labels as label}
-								<text
-									class="digit-label"
-									class:hot={lit(label.digitIndex)}
-									x={label.x}
-									y={label.small ? lay.textY - 1 : lay.textY}
-									font-size={label.small ? lay.fontSize - 2 : lay.fontSize}>{label.text}</text
-								>
-							{/each}
-							<!-- Invisible hover targets, one per digit, over its bars and its printed digit. -->
-							{#each lay.digitSpans as span (span.digitIndex)}
-								<rect
-									class="hover-target"
-									x={span.x}
-									y="0"
-									width={span.width}
-									height={lay.height}
-									on:mouseenter={() => (active = span.digitIndex)}
-									on:mouseleave={() => (active = null)}
-								/>
-							{/each}
-							{#each lay.labels.filter((l) => !lay.digitSpans.some((s) => s.digitIndex === l.digitIndex)) as label}
-								<rect
-									class="hover-target"
-									x={label.x - 3}
-									y={lay.barBottom}
-									width="6"
-									height={lay.height - lay.barBottom}
-									on:mouseenter={() => (active = label.digitIndex)}
-									on:mouseleave={() => (active = null)}
-								/>
-							{/each}
-						</svg>
-					</div>
-					<figcaption class="actions">
-						<button type="button" class="action" on:click={saveSvg}>Download SVG</button>
-						<button type="button" class="action" on:click={savePng}>Download PNG</button>
-						<button type="button" class="action" on:click={() => copy(parsed.code, 'Number')}>Copy number</button>
-						<span class="copy-status" aria-live="polite">{message}</span>
-					</figcaption>
-				</figure>
-				</div>
-
-				<h2 class="working-title">Digit by digit</h2>
-				<p class="strip-help">
-					Hover over the bars, or focus a digit below, to see which modules it owns.
-					{#if hiddenFirst}The first digit has no bars: it picks the L and G pattern of the next six.{/if}
-				</p>
-				<div class="strip" role="group" aria-label="Digits of the barcode">
-					{#if hiddenFirst}
-						<button
-							type="button"
-							class="digit-btn first"
-							class:hot={active === 0}
-							aria-describedby="digit-detail"
-							on:mouseenter={() => (active = 0)}
-							on:mouseleave={() => (active = null)}
-							on:focus={() => (active = 0)}
-							on:blur={() => (active = null)}
-						>
-							<span class="digit-num mono">{parsed.code[0]}</span>
-							<span class="digit-set">no bars</span>
-							<span class="digit-bits mono">{barcode.parity}</span>
-						</button>
-					{/if}
-					{#each digitSegments as seg, i (seg.digitIndex)}
-						{#if i === info.half}<span class="centre-mark" aria-hidden="true">01010</span>{/if}
-						<button
-							type="button"
-							class="digit-btn"
-							class:hot={lit(seg.digitIndex)}
-							aria-label="Digit {parsed.code[seg.digitIndex ?? 0]}, position {(seg.digitIndex ?? 0) + 1}, {seg.set} code {seg.bits}"
-							aria-describedby="digit-detail"
-							on:mouseenter={() => (active = seg.digitIndex ?? null)}
-							on:mouseleave={() => (active = null)}
-							on:focus={() => (active = seg.digitIndex ?? null)}
-							on:blur={() => (active = null)}
-						>
-							<span class="digit-num mono">{parsed.code[seg.digitIndex ?? 0]}</span>
-							<span class="digit-set">{seg.set}</span>
-							<CodeBars bits={seg.bits} size={4} height={14} />
-							<span class="digit-bits mono">{seg.bits}</span>
-						</button>
-					{/each}
-				</div>
-				<p class="digit-detail" id="digit-detail" aria-live="polite">
-					{#if active === 0 && hiddenFirst}
-						The first digit, {parsed.code[0]}, is not drawn. It sets the code sets of the left six digits to
-						<strong class="mono">{barcode.parity}</strong>, and a scanner works it out from that pattern.
-					{:else if activeSegment}
-						Position {(activeSegment.digitIndex ?? 0) + 1}: {parsed.code[activeSegment.digitIndex ?? 0]} drawn with its
-						{activeSegment.set} code <strong class="mono">{activeSegment.bits}</strong>, modules {moduleRange(activeSegment)}
-						of {barcode.modules.length}{activeSegment.set === 'R'
-							? ', on the right where every digit uses R'
-							: hiddenFirst
-							? `, ${activeSegment.set} because the first digit ${parsed.code[0]} gives ${barcode.parity}`
-							: ''}.
-					{:else}
-						{info.name}: {barcode.modules.length} modules between the quiet zones, {lay.width} with them.
-					{/if}
-				</p>
-
-				<h2 class="working-title">All {barcode.modules.length} modules</h2>
-				<div class="modules" aria-label="The modules, segment by segment">
-					{#each barcode.segments.filter((s) => s.kind !== 'quiet') as seg}
-						<span class="module-seg" class:guard={seg.kind === 'guard'} class:hot={lit(seg.digitIndex)}>
-							<span class="seg-label"
-								>{seg.kind === 'guard' ? seg.label.replace(' guard', '') : `${parsed.code[seg.digitIndex ?? 0]} ${seg.set}`}</span
+					<div class="side">
+						<div class="answer" class:stale={!!error} role="status">
+							<span class="answer-label">{info.name}{parsed.status === 'invalid' ? ', check digit corrected' : ''}</span
 							>
-							<span class="seg-bits mono">{seg.bits}</span>
-						</span>
-					{/each}
+							<span class="answer-value mono">{printedForm(parsed.code, parsed.symbology)}</span>
+							<span class="answer-also">
+								{#if parsed.isbn}
+									ISBN-10 <span class="mono">{parsed.isbn.isbn10}</span> becomes ISBN-13 with 978 in front and a new
+									check digit, <strong class="mono">{parsed.working.check}</strong>.
+								{:else if parsed.status === 'computed'}
+									Check digit <strong class="mono">{parsed.working.check}</strong>, worked out from the first {parsed
+										.data.length} digits.
+								{:else if parsed.status === 'valid'}
+									The check digit <strong class="mono">{parsed.working.check}</strong> is correct.
+								{:else}
+									The check digit is wrong: the first {parsed.data.length} digits need
+									<strong class="mono">{parsed.working.check}</strong>, not {parsed.given}.
+								{/if}
+								{#if prefix}
+									Prefix <span class="mono">{ean13Form.slice(0, 3)}</span>: {prefix.meaning}{prefix.special
+										? ''
+										: ' issued the company prefix (not a country of origin)'}.
+								{:else if parsed.symbology !== 'ean8'}
+									Prefix <span class="mono">{ean13Form.slice(0, 3)}</span> is not in this page's selection of GS1 ranges.
+								{/if}
+								{#if isbn10}ISBN-10: <span class="mono">{isbn10}</span>.{/if}
+							</span>
+						</div>
+						{#if !error && parsed.status === 'invalid'}
+							<p class="warning">
+								{parsed.data}{parsed.given} does not scan as typed: a scanner would reject it. The barcode below uses the
+								correct check digit, {parsed.working.check}.
+							</p>
+						{/if}
+						{#if !error && parsed.isbn && !parsed.isbn.valid10}
+							<p class="warning">
+								The ISBN-10 check character should be {parsed.isbn.expected10}, not {parsed.isbn.isbn10[9]}, so check
+								the number. The ISBN-13 does not use it: its check digit is worked out afresh.
+							</p>
+						{/if}
+						{#if !error && upcHint}
+							<p class="hint">
+								These 12 digits already end in a valid check digit, so they may be a UPC-A.
+								<button type="button" class="link-btn" on:click={() => tryValue(typed, 'upca')}
+									>Read them as UPC-A</button
+								>
+							</p>
+						{/if}
+					</div>
+					<figure class="barcode-figure" class:stale={!!error} use:inert={!!error}>
+						<!-- Sized by module count, so every symbology is drawn at the same module width. -->
+						<div class="barcode-paper" style="max-width: {lay.width * 3.5 + 12}px">
+							<svg
+								class="barcode"
+								viewBox="0 0 {lay.width} {lay.height}"
+								role="img"
+								aria-label="{info.name} barcode for {parsed.code}"
+							>
+								<defs>
+									<pattern
+										id="quiet-hatch"
+										width="2"
+										height="2"
+										patternUnits="userSpaceOnUse"
+										patternTransform="rotate(45)"
+									>
+										<rect class="hatch-line" width="0.35" height="2" />
+									</pattern>
+								</defs>
+								<rect
+									class="quiet"
+									x="0"
+									y={lay.barTop}
+									width={barcode.quiet.left}
+									height={lay.barBottom - lay.barTop}
+								/>
+								<rect
+									class="quiet"
+									x={lay.width - barcode.quiet.right}
+									y={lay.barTop}
+									width={barcode.quiet.right}
+									height={lay.barBottom - lay.barTop}
+								/>
+								{#each lay.digitSpans as span (span.digitIndex)}
+									{#if lit(span.digitIndex)}
+										<rect class="band" x={span.x} y="0" width={span.width} height={lay.height} />
+									{/if}
+								{/each}
+								{#each lay.bars as bar}
+									<rect
+										class="bar"
+										class:hot={lit(bar.digitIndex)}
+										x={bar.x}
+										y={lay.barTop}
+										width={bar.width}
+										height={(bar.long ? lay.longBottom : lay.barBottom) - lay.barTop}
+									/>
+								{/each}
+								{#each lay.labels as label}
+									<text
+										class="digit-label"
+										class:hot={lit(label.digitIndex)}
+										x={label.x}
+										y={label.small ? lay.textY - 1 : lay.textY}
+										font-size={label.small ? lay.fontSize - 2 : lay.fontSize}>{label.text}</text
+									>
+								{/each}
+								<!-- Invisible hover targets, one per digit, over its bars and its printed digit. -->
+								{#each lay.digitSpans as span (span.digitIndex)}
+									<rect
+										class="hover-target"
+										x={span.x}
+										y="0"
+										width={span.width}
+										height={lay.height}
+										on:mouseenter={() => (hover = span.digitIndex)}
+										on:mouseleave={() => (hover = null)}
+									/>
+								{/each}
+								<!-- Digits printed outside their bars (EAN-13's first, UPC-A's first and last) get a target of their own. -->
+								{#each lay.labels.filter((l) => l.small || !lay.digitSpans.some((s) => s.digitIndex === l.digitIndex)) as label}
+									<rect
+										class="hover-target"
+										x={label.x - 3}
+										y="0"
+										width="6"
+										height={lay.height}
+										on:mouseenter={() => (hover = label.digitIndex)}
+										on:mouseleave={() => (hover = null)}
+									/>
+								{/each}
+							</svg>
+						</div>
+						<figcaption>
+							<p class="quiet-note">
+								Hatched: the quiet zones, {barcode.quiet.left} modules on the left and {barcode.quiet.right} on the right,
+								left blank when printed.
+							</p>
+							<p class="actions">
+								<button type="button" class="action" on:click={saveSvg}>Download SVG</button>
+								<button type="button" class="action" on:click={savePng}>Download PNG</button>
+								<button type="button" class="action" on:click={() => copy('figure', parsed.code, 'Number')}
+									>Copy number</button
+								>
+								<span class="copy-status" aria-live="polite">{messages.figure}</span>
+							</p>
+						</figcaption>
+					</figure>
 				</div>
-				<p class="module-line">
-					<button type="button" class="action" on:click={() => copy(barcode.modules, 'Modules')}>Copy modules</button>
-					<span class="field-help inline-help"
-						>1 is a bar module, 0 a space. Add {barcode.quiet.left} spaces on the left and {barcode.quiet.right} on the right
-						for the quiet zones.</span
-					>
-				</p>
 
-				<h2 class="working-title">Check digit working</h2>
-				<div class="table-wrap scroll-box">
-					<table class="data-table check-table">
-						<tbody>
-							<tr>
-								<th scope="row">Digit</th>
-								{#each parsed.working.steps as s}<td class="mono">{s.digit}</td>{/each}
-							</tr>
-							<tr>
-								<th scope="row">× weight</th>
-								{#each parsed.working.steps as s}<td class="mono" class:three={s.weight === 3}>{s.weight}</td>{/each}
-							</tr>
-							<tr>
-								<th scope="row">Product</th>
-								{#each parsed.working.steps as s}<td class="mono">{s.product}</td>{/each}
-							</tr>
-						</tbody>
-					</table>
+				<div class="working" class:stale={!!error} use:inert={!!error}>
+					<h2 class="working-title">Digit by digit</h2>
+					<p class="strip-help">
+						Hover over the bars, or focus a digit below, to see which modules it owns; click or tap a digit to keep it
+						lit, and press Escape to let go.
+						{#if hiddenFirst}The first digit has no bars: it picks the L and G pattern of the next six.{/if}
+					</p>
+					<div
+						class="strip"
+						role="group"
+						aria-label="Digits of the barcode"
+						on:keydown={(e) => e.key === 'Escape' && (pinned = null)}
+					>
+						{#if hiddenFirst}
+							<button
+								type="button"
+								class="digit-btn first"
+								class:hot={active === 0}
+								aria-pressed={pinned === 0}
+								aria-describedby="digit-detail"
+								on:click={() => togglePin(0)}
+								on:mouseenter={() => (hover = 0)}
+								on:mouseleave={() => (hover = null)}
+								on:focus={() => (focused = 0)}
+								on:blur={() => (focused = null)}
+							>
+								<span class="digit-num mono">{parsed.code[0]}</span>
+								<span class="digit-set">no bars</span>
+								<span class="digit-bits mono">{barcode.parity}</span>
+							</button>
+						{/if}
+						{#each digitSegments as seg, i (seg.digitIndex)}
+							{@const idx = seg.digitIndex ?? 0}
+							{#if i === info.half}<span class="centre-mark" aria-hidden="true">01010</span>{/if}
+							<button
+								type="button"
+								class="digit-btn"
+								class:hot={lit(idx)}
+								aria-pressed={pinned === idx}
+								aria-label="Digit {parsed.code[idx]}, position {idx + 1}, {seg.set} code {seg.bits}"
+								aria-describedby="digit-detail"
+								on:click={() => togglePin(idx)}
+								on:mouseenter={() => (hover = idx)}
+								on:mouseleave={() => (hover = null)}
+								on:focus={() => (focused = idx)}
+								on:blur={() => (focused = null)}
+							>
+								<span class="digit-num mono">{parsed.code[idx]}</span>
+								<span class="digit-set">{seg.set}</span>
+								<CodeBars bits={seg.bits} size={4} height={14} ink />
+								<span class="digit-bits mono">{seg.bits}</span>
+							</button>
+						{/each}
+					</div>
+					<p class="digit-detail" id="digit-detail" aria-live="polite">
+						{#if active === 0 && hiddenFirst}
+							The first digit, {parsed.code[0]}, is not drawn. It sets the code sets of the left six digits to
+							<strong class="mono">{barcode.parity}</strong>, and a scanner works it out from that pattern.
+						{:else if activeSegment}
+							Position {(activeSegment.digitIndex ?? 0) + 1}: {parsed.code[activeSegment.digitIndex ?? 0]} drawn with its
+							{activeSegment.set} code <strong class="mono">{activeSegment.bits}</strong>, modules {moduleRange(
+								activeSegment
+							)}
+							of {barcode.modules.length}{activeSegment.set === 'R'
+								? ', on the right where every digit uses R'
+								: hiddenFirst
+								? `, ${activeSegment.set} because the first digit ${parsed.code[0]} gives ${barcode.parity}`
+								: ''}.
+						{:else}
+							{info.name}: {barcode.modules.length} modules between the quiet zones, {lay.width} with them.
+						{/if}
+					</p>
+
+					<h2 class="working-title">All {barcode.modules.length} modules</h2>
+					<div class="modules" role="group" aria-label="The modules, segment by segment">
+						{#each barcode.segments.filter((s) => s.kind !== 'quiet') as seg}
+							<span class="module-seg" class:guard={seg.kind === 'guard'} class:hot={lit(seg.digitIndex)}>
+								<span class="seg-label"
+									>{seg.kind === 'guard'
+										? seg.label.replace(' guard', '')
+										: `${parsed.code[seg.digitIndex ?? 0]} ${seg.set}`}</span
+								>
+								<span class="seg-bits mono">{seg.bits}</span>
+							</span>
+						{/each}
+					</div>
+					<p class="module-line">
+						<button type="button" class="action" on:click={() => copy('modules', barcode.modules, 'Modules')}
+							>Copy modules</button
+						>
+						<span class="copy-status" aria-live="polite">{messages.modules}</span>
+						<span class="field-help inline-help"
+							>1 is a bar module, 0 a space. Add {barcode.quiet.left} spaces on the left and {barcode.quiet.right} on the
+							right for the quiet zones.</span
+						>
+					</p>
+
+					<h2 class="working-title">Check digit working</h2>
+					<div class="table-wrap scroll-box wide-only">
+						<table class="data-table check-table">
+							<tbody>
+								<tr>
+									<th scope="row">Digit</th>
+									{#each parsed.working.steps as s}<td class="mono">{s.digit}</td>{/each}
+								</tr>
+								<tr>
+									<th scope="row">× weight</th>
+									{#each parsed.working.steps as s}<td class="mono" class:three={s.weight === 3}>{s.weight}</td>{/each}
+								</tr>
+								<tr>
+									<th scope="row">Product</th>
+									{#each parsed.working.steps as s}<td class="mono">{s.product}</td>{/each}
+								</tr>
+							</tbody>
+						</table>
+					</div>
+					<!-- On a phone the same working as small columns that wrap, so no digit is hidden off to the side. -->
+					<ol class="check-tiles narrow-only">
+						{#each parsed.working.steps as s}
+							<li aria-label="Digit {s.digit} times {s.weight} is {s.product}">
+								<span class="mono tile-digit">{s.digit}</span>
+								<span class="mono" class:three={s.weight === 3}>×{s.weight}</span>
+								<span class="mono tile-product">{s.product}</span>
+							</li>
+						{/each}
+					</ol>
+					<p class="equation">
+						Sum <span class="mono">{parsed.working.steps.map((s) => s.product).join(' + ')} = {parsed.working.sum}</span
+						>. The next multiple of 10 is {parsed.working.nextTen}, so the check digit is {parsed.working.nextTen} −
+						{parsed.working.sum} = <strong class="mono">{parsed.working.check}</strong>.
+					</p>
 				</div>
-				<p class="equation">
-					Sum <span class="mono">{parsed.working.steps.map((s) => s.product).join(' + ')} = {parsed.working.sum}</span>.
-					The next multiple of 10 is {parsed.working.nextTen}, so the check digit is {parsed.working.nextTen} −
-					{parsed.working.sum} = <strong class="mono">{parsed.working.check}</strong>.
-				</p>
 			</div>
 			<p class="share-row"><ShareLink what="this barcode" /></p>
 		</div>
@@ -541,10 +648,10 @@
 	<section id="structure">
 		<h2>How an EAN-13 barcode is put together</h2>
 		<p>
-			An EAN-13 (the 13 digit European Article Number, now formally a GTIN-13) is drawn on a grid of equal-width
-			columns called modules. Each module is either dark or light, so the whole symbol is a string of bits: a bar is a
-			run of 1s and a space a run of 0s, and a bar can be one to four modules wide. At the nominal size a module is 0.33
-			mm.
+			An EAN-13 (originally European Article Number, now International Article Number) is the barcode that carries a 13
+			digit GTIN-13. It is drawn on a grid of equal-width columns called modules. Each module is either dark or light,
+			so the whole symbol is a string of bits: a bar is a run of 1s and a space a run of 0s, and a bar can be one to
+			four modules wide. At the nominal size a module is 0.33 mm.
 		</p>
 		<div class="table-wrap">
 			<table class="data-table">
@@ -585,18 +692,18 @@
 	<section id="codes">
 		<h2>The three codes: L, G and R</h2>
 		<p>
-			Every digit is drawn as 7 modules: two bars and two spaces. There are three ways to draw each digit. The L code (set
-			A in the specification) is used on the left, R (set C) on the right, and G (set B) is a second choice on the left
-			of an EAN-13. R is L with every module inverted, and G is R read backwards.
+			Every digit is drawn as 7 modules: two bars and two spaces. There are three ways to draw each digit. The L code
+			(set A in the specification) is used on the left, R (set C) on the right, and G (set B) is a second choice on the
+			left of an EAN-13. R is L with every module inverted, and G is R read backwards.
 		</p>
 		<div class="table-wrap">
 			<table class="data-table code-table">
 				<thead>
 					<tr>
 						<th scope="col">Digit</th>
-						<th scope="col">L code (left)</th>
-						<th scope="col">G code (left)</th>
-						<th scope="col">R code (right)</th>
+						<th scope="col">L<span class="wide-text"> code (left)</span></th>
+						<th scope="col">G<span class="wide-text"> code (left)</span></th>
+						<th scope="col">R<span class="wide-text"> code (right)</span></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -619,13 +726,13 @@
 			<li>
 				<strong>Parity tells the sets apart.</strong> Each L code has an odd number of dark modules ({darkModules(
 					L_CODES[0]
-				)} for 0), each G and R code an even number ({darkModules(G_CODES[0])} for 0). A scanner that counts them knows
-				which set a digit came from.
+				)} for 0), each G and R code an even number ({darkModules(G_CODES[0])} for 0). A scanner that counts them knows which
+				set a digit came from.
 			</li>
 			<li>
-				<strong>Direction comes free.</strong> The first digit after the start guard is always an L code, which is odd.
-				Read backwards, the first code a scanner meets is an R code reversed, which is even, so it knows to flip the
-				symbol round. That is how a checkout scanner reads a product held either way up.
+				<strong>Direction comes free.</strong> The first digit after the start guard is always an L code, which is odd. Read
+				backwards, the first code a scanner meets is an R code reversed, which is even, so it knows to flip the symbol round.
+				That is how a checkout scanner reads a product held either way up.
 			</li>
 		</ul>
 	</section>
@@ -633,11 +740,11 @@
 	<section id="first-digit">
 		<h2>Where the 13th digit hides</h2>
 		<p>
-			Twelve digits get bars, but an EAN-13 has thirteen. The first digit is never drawn. Instead it decides, for each of
-			the six left-hand digits, whether the L or the G code is used, and a scanner reads it back from that pattern. The
-			right half always uses R.
+			Twelve digits get bars, but an EAN-13 has thirteen. The first digit is never drawn. Instead it decides, for each
+			of the six left-hand digits, whether the L or the G code is used, and a scanner reads it back from that pattern.
+			The right half always uses R.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap wide-only">
 			<table class="data-table parity-table">
 				<thead>
 					<tr>
@@ -654,6 +761,25 @@
 							<td class="mono pattern">{pattern}</td>
 							<td class="mono strong gap">{d + 5}</td>
 							<td class="mono pattern">{PARITY_PATTERNS[d + 5]}</td>
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+		<!-- One pair of columns on a phone, so neither half is cut off. -->
+		<div class="table-wrap narrow-only">
+			<table class="data-table parity-table">
+				<thead>
+					<tr>
+						<th scope="col">First digit</th>
+						<th scope="col">Left six digits use</th>
+					</tr>
+				</thead>
+				<tbody>
+					{#each PARITY_PATTERNS as pattern, d}
+						<tr>
+							<td class="mono strong">{d}</td>
+							<td class="mono pattern">{pattern}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -698,8 +824,8 @@
 		<p>
 			Because 3 and 1 are both coprime to 10, changing any one digit always changes the sum by something that is not a
 			multiple of 10, so every single-digit mistake is caught. Swapping two neighbouring digits is caught too, unless
-			they differ by exactly 5: {missed.map(([a, b]) => `${a}↔${b}`).join(', ')}. Those {missed.length} pairs out of 45
-			change the sum by a multiple of 10.
+			they differ by exactly 5: {missed.map(([a, b]) => `${a}↔${b}`).join(', ')}. Those {missed.length} pairs out of 45 change
+			the sum by a multiple of 10.
 		</p>
 	</section>
 
@@ -713,8 +839,8 @@
 			digits' bars long like the guards.
 		</p>
 		<p>
-			<strong>EAN-8</strong> is the short version for small packs: 8 digits, four each side of the centre guard, all L on
-			the left and all R on the right, so there is no hidden digit. Its {symbolModules('ean8')} modules use the same codes,
+			<strong>EAN-8</strong> is the short version for small packs: 8 digits, four each side of the centre guard, all L
+			on the left and all R on the right, so there is no hidden digit. Its {symbolModules('ean8')} modules use the same codes,
 			guards and check digit rule. EAN-8 numbers are allocated separately by GS1, not by shortening an EAN-13.
 		</p>
 	</section>
@@ -724,8 +850,8 @@
 		<p>
 			The first two or three digits of an EAN-13 are a GS1 prefix. It identifies the GS1 member organisation that issued
 			the company prefix to the brand owner. <strong>It is not the country where the product was made</strong>: a
-			company registered in one country keeps its prefix for goods made anywhere. A few ranges have special uses instead.
-			This table is a selection, not the full list.
+			company registered in one country keeps its prefix for goods made anywhere. A few ranges have special uses
+			instead. This table is a selection, not the full list.
 		</p>
 		<div class="table-wrap">
 			<table class="data-table prefix-table">
@@ -735,7 +861,7 @@
 				<tbody>
 					{#each PREFIX_RANGES as range}
 						<tr class:special={range.special}>
-							<td class="mono">{prefixLabel(range)}</td>
+							<td class="mono prefix-range">{prefixLabel(range)}</td>
 							<td>{range.meaning}</td>
 						</tr>
 					{/each}
@@ -743,17 +869,18 @@
 			</table>
 		</div>
 		<p class="reducer">
-			Every UPC-A, read as an EAN-13 with a leading 0, falls between 000 and 099. Restricted circulation numbers (020 to
-			029, 040 to 049 and 200 to 299) are for use inside a shop or a company, such as weighed produce labels printed in
-			store, and mean nothing outside it.
+			Every UPC-A, read as an EAN-13 with a leading 0, falls between 000 and 099. The restricted circulation ranges 020
+			to 029 and 200 to 299 are for use within a geographic region, with rules set by the local GS1 member organisation
+			(often weighed or priced items labelled in store); 040 to 049 is for use inside a single company. None of them
+			identify a product outside that scope.
 		</p>
 	</section>
 
 	<section id="isbn">
 		<h2>Book barcodes: ISBN-10 to ISBN-13</h2>
 		<p>
-			Books use the 978 and 979 prefixes, sometimes called Bookland, and the EAN-13 printed on a book is its ISBN-13. ISBNs
-			have been 13 digits since 2007. An older ISBN-10 converts by putting 978 in front and replacing its check
+			Books use the 978 and 979 prefixes, sometimes called Bookland, and the EAN-13 printed on a book is its ISBN-13.
+			ISBNs have been 13 digits since 2007. An older ISBN-10 converts by putting 978 in front and replacing its check
 			character, which works differently: weights 10 down to 2, modulo 11, with X standing for 10.
 		</p>
 		<div class="card worked isbn-card">
@@ -781,25 +908,24 @@
 		<h2>Common mistakes</h2>
 		<ul class="points">
 			<li>
-				<strong>Reading the prefix as a country of origin.</strong> 400 to 440 means the company prefix came from GS1
-				Germany, not that the product was made there.
+				<strong>Reading the prefix as a country of origin.</strong> 400 to 440 means the company prefix came from GS1 Germany,
+				not that the product was made there.
 			</li>
 			<li>
 				<strong>Using a UPC-A as the first 12 digits of an EAN-13.</strong> A 12 digit UPC-A already has its check digit.
 				Typing it into an EAN-13 generator adds a 13th digit and makes a different number; put a 0 in front instead.
 			</li>
 			<li>
-				<strong>Cropping the quiet zone.</strong> The blank margins are part of the symbol. Placing the code against an
-				edge or a line of text can make it unreadable.
+				<strong>Cropping the quiet zone.</strong> The blank margins are part of the symbol. Placing the code against an edge
+				or a line of text can make it unreadable.
 			</li>
 			<li>
 				<strong>Scaling a small PNG.</strong> Stretched pixels make some bars a pixel wider than others. Use the SVG for
 				print, or a PNG at a whole number of pixels per module.
 			</li>
 			<li>
-				<strong>Inventing numbers for real products.</strong> Shops and marketplaces expect a GTIN licensed from GS1. A
-				number that merely has a valid check digit is not registered to anyone; the 200 to 299 range exists for in-store
-				use.
+				<strong>Inventing numbers for real products.</strong> Shops and marketplaces expect a GTIN licensed from GS1. A number
+				that merely has a valid check digit is not registered to anyone; the 200 to 299 range exists for in-store use.
 			</li>
 		</ul>
 		<p class="reducer">
@@ -887,10 +1013,24 @@
 		margin: 0.45rem 0 0.7rem;
 	}
 
+	/* Help and error share one grid cell, so the taller of the two sets the height. */
+	.field-msg {
+		display: grid;
+		margin: 0.45rem 0 0.7rem;
+	}
+
+	.field-msg > p {
+		grid-area: 1 / 1;
+		margin: 0;
+	}
+
+	.field-help.hidden {
+		visibility: hidden;
+	}
+
 	.error {
 		color: #f66;
 		font-size: 0.9rem;
-		margin: 0.4rem 0 0;
 	}
 
 	.warning {
@@ -942,7 +1082,7 @@
 		padding-top: 1rem;
 	}
 
-	.results.stale {
+	.stale {
 		opacity: 0.35;
 		pointer-events: none;
 	}
@@ -1015,8 +1155,21 @@
 		background: #fff;
 		border-radius: 3px;
 		color: #000;
-		max-width: 400px;
 		padding: 6px;
+	}
+
+	.quiet {
+		fill: url(#quiet-hatch);
+	}
+
+	.hatch-line {
+		fill: #c8c8c8;
+	}
+
+	.quiet-note {
+		color: #999;
+		font-size: 0.75rem;
+		margin: 0.4rem 0 0;
 	}
 
 	.barcode {
@@ -1059,7 +1212,7 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 6px;
-		margin-top: 0.6rem;
+		margin: 0.5rem 0 0;
 	}
 
 	.action {
@@ -1125,6 +1278,14 @@
 		background: #1a2d1a;
 	}
 
+	.digit-btn[aria-pressed='true'] {
+		box-shadow: inset 0 -3px 0 #5db65d;
+	}
+
+	.digit-btn :global(.code-bars) {
+		color: #eee;
+	}
+
 	.digit-num {
 		color: #fff;
 		font-size: 1.05rem;
@@ -1142,7 +1303,7 @@
 	}
 
 	.digit-bits {
-		font-size: 0.66rem;
+		font-size: 0.75rem;
 		color: #ccc;
 		letter-spacing: 0.02em;
 	}
@@ -1232,9 +1393,45 @@
 		text-align: left;
 	}
 
-	.check-table td.three {
+	.check-table td.three,
+	.check-tiles .three {
 		color: #8ede8e;
 		font-weight: 700;
+	}
+
+	.check-tiles {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.check-tiles li {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		min-width: 2.2rem;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+		border-radius: 3px;
+		color: #ccc;
+		font-size: 0.85rem;
+		padding: 0.2rem 0.3rem;
+	}
+
+	.tile-digit {
+		color: #fff;
+		font-weight: 700;
+	}
+
+	.tile-product {
+		border-top: 1px solid rgba(255, 255, 255, 0.25);
+		color: #fff;
+	}
+
+	.narrow-only {
+		display: none;
 	}
 
 	.equation {
@@ -1286,6 +1483,10 @@
 
 	.pattern {
 		letter-spacing: 0.12em;
+	}
+
+	.prefix-range {
+		white-space: nowrap;
 	}
 
 	.prefix-table tr.special td {
@@ -1354,6 +1555,19 @@
 
 		.code-table td :global(.code-bars) {
 			display: none;
+		}
+
+		.wide-only,
+		.wide-text {
+			display: none;
+		}
+
+		.narrow-only {
+			display: block;
+		}
+
+		.check-tiles.narrow-only {
+			display: flex;
 		}
 	}
 </style>

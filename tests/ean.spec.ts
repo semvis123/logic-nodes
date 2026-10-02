@@ -262,6 +262,15 @@ test.describe('EAN engine', () => {
 		expect(prefixInfo('0036000291452')?.meaning).toBe('GS1 US');
 		expect(prefixInfo('2001234567893')?.meaning).toContain('Restricted');
 		expect(prefixInfo('1500000000000')).toBeNull();
+		expect(prefixInfo('6901234567892')?.meaning).toBe('GS1 China');
+		expect(prefixInfo('7541234567891')?.meaning).toBe('GS1 Canada');
+		expect(prefixInfo('9771234567003')?.meaning).toContain('ISSN');
+		expect(prefixInfo('0401234567891')?.meaning).toBe('Restricted circulation within a company');
+		expect(prefixInfo('0201234567891')?.meaning).toBe('Restricted circulation within a geographic region');
+		expect(prefixInfo('8712345678906')?.meaning).toBe('GS1 Netherlands');
+		expect(prefixInfo('5001234567892')?.meaning).toBe('GS1 UK');
+		expect(prefixInfo('0501234567891')).toBeNull();
+		expect(prefixInfo('9991234567891')).toBeNull();
 		// Ranges are in order and never overlap.
 		for (let i = 1; i < PREFIX_RANGES.length; i++) {
 			expect(PREFIX_RANGES[i].from).toBeGreaterThan(PREFIX_RANGES[i - 1].to);
@@ -295,6 +304,16 @@ test.describe('EAN engine', () => {
 			expect(() => parseCode(text, sym)).toThrow(BarcodeError);
 		}
 		expect(() => parseCode('12', 'ean8')).toThrow(/7 digits.*or 8/);
+		// Typographic hyphens, dashes and minus signs from copied text are separators too.
+		for (const dash of ['\u2010', '\u2011', '\u2012', '\u2013', '\u2014', '\u2212', '\u00ad']) {
+			expect(parseCode(`400${dash}6381333931`, 'ean13').status).toBe('valid');
+			expect(parseCode(`0${dash}306${dash}40615${dash}2`, 'ean13').code).toBe('9780306406157');
+			expect(isbn10To13(`0${dash}8044${dash}2957${dash}X`).valid10).toBe(true);
+		}
+		// The error quotes the character as typed: not upper-cased, and a whole code point.
+		expect(() => parseCode('59012x', 'ean13')).toThrow('“x” is not a digit');
+		expect(() => parseCode('ß00638133393', 'ean13')).toThrow('“ß” is not a digit');
+		expect(() => parseCode('4006😀', 'ean13')).toThrow('“😀” is not a digit');
 	});
 
 	test('the modules match the independent encoder and decode back', () => {
@@ -321,7 +340,17 @@ test.describe('EAN engine', () => {
 		expect(encode('4006381333931', 'ean13').parity).toBe('LGLLGG');
 		expect(symbolModules('ean13')).toBe(95);
 		expect(symbolModules('ean8')).toBe(67);
+		// The quiet zones and totals as GS1 gives them, not as the engine's own constants.
+		expect(QUIET_ZONES).toEqual({
+			ean13: { left: 11, right: 7 },
+			upca: { left: 9, right: 9 },
+			ean8: { left: 7, right: 7 }
+		});
 		expect(structure('ean13').reduce((t, p) => t + p.modules, 0)).toBe(113);
+		expect(structure('upca').reduce((t, p) => t + p.modules, 0)).toBe(113);
+		expect(structure('ean8').reduce((t, p) => t + p.modules, 0)).toBe(81);
+		expect(encode('96385074', 'ean8').width).toBe(81);
+		expect(encode('036000291452', 'upca').width).toBe(113);
 		expect(() => encode('4006381333932', 'ean13')).toThrow(BarcodeError);
 		expect(() => encode('400638133393', 'ean13')).toThrow(BarcodeError);
 	});
@@ -409,9 +438,21 @@ test.describe('the ean-13-barcode-generator page', () => {
 		await expect(page.locator('.warning')).toContainText('correct check digit, 7');
 		await expect(page.locator('.answer-also')).toContainText('need 7, not 0');
 
+		const before = await page.locator('.tool').boundingBox();
 		await page.fill('#code', '59012x');
-		await expect(page.locator('.error')).toContainText('“X” is not a digit');
-		await expect(page.locator('.results')).toHaveAttribute('aria-hidden', 'true');
+		await expect(page.locator('.error')).toContainText('“x” is not a digit');
+		// The stale barcode and working are inert: out of the tab order, not just dimmed.
+		await expect(page.locator('.barcode-figure')).toHaveAttribute('inert', '');
+		await expect(page.locator('.working')).toHaveAttribute('inert', '');
+		await expect(page.locator('.answer')).toHaveAttribute('role', 'status');
+		// The error takes the help text's place, so the card does not grow.
+		expect((await page.locator('.tool').boundingBox())?.height).toBe(before?.height);
+		await page.locator('#code').focus();
+		for (let i = 0; i < 12; i++) {
+			await page.keyboard.press('Tab');
+			const inside = await page.evaluate(() => !!document.activeElement?.closest('.barcode-figure, .working'));
+			expect(inside).toBe(false);
+		}
 		await page.fill('#code', '12345');
 		await expect(page.locator('.error')).toContainText('this is 5 digits');
 
@@ -439,6 +480,21 @@ test.describe('the ean-13-barcode-generator page', () => {
 		await page.fill('#code', '036000291452');
 		await page.getByRole('button', { name: 'Read them as UPC-A' }).click();
 		await expect(page.getByRole('button', { name: 'UPC-A', exact: true })).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.locator('#code')).toHaveValue('036000291452');
+
+		// Pressing UPC-A instead of the hint keeps the typed number too, not the 13 digit code with its 0 dropped.
+		await page.getByRole('button', { name: 'EAN-13', exact: true }).click();
+		await page.fill('#code', '036000291452');
+		await page.getByRole('button', { name: 'UPC-A', exact: true }).click();
+		await expect(page.locator('#code')).toHaveValue('036000291452');
+		await expect(page.locator('.answer-value')).toHaveText('0 36000 29145 2');
+		// Back to EAN-13 puts the 0 in front of what was typed.
+		await page.getByRole('button', { name: 'EAN-13', exact: true }).click();
+		await expect(page.locator('#code')).toHaveValue('0036000291452');
+		// A number that cannot be a UPC-A falls back to the UPC-A example.
+		await page.fill('#code', '400638133393');
+		await page.getByRole('button', { name: 'UPC-A', exact: true }).click();
+		await expect(page.locator('#code')).toHaveValue('03600029145');
 	});
 
 	test('a shared link reopens the same barcode', async ({ page }) => {
@@ -455,6 +511,22 @@ test.describe('the ean-13-barcode-generator page', () => {
 		// Junk in the link falls back to the defaults rather than breaking the page.
 		await page.goto(`${URL_}?sym=qr`);
 		await expect(page.locator('.answer-value')).toHaveText('4 006381 333931');
+		// A type with no number opens that type's example, not the EAN-13 default.
+		await page.goto(`${URL_}?sym=upca`);
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.answer-value')).toHaveText('0 36000 29145 2');
+		await expect(page.locator('.warning')).toHaveCount(0);
+		await page.goto(`${URL_}?sym=ean8`);
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.error')).toHaveText('');
+		await expect(page.locator('.answer-value')).toHaveText('9638 5074');
+		// An empty or over-long value falls back to the default and is cleaned out of the address.
+		await page.goto(`${URL_}?v=`);
+		await page.waitForLoadState('networkidle');
+		await expect(page).toHaveURL(/ean-13-barcode-generator$/);
+		await page.goto(`${URL_}?v=${'1'.repeat(41)}`);
+		await page.waitForLoadState('networkidle');
+		await expect(page).toHaveURL(/ean-13-barcode-generator$/);
 	});
 
 	test('focusing a digit lights up its bars', async ({ page }) => {
@@ -475,6 +547,48 @@ test.describe('the ean-13-barcode-generator page', () => {
 		const target = page.locator('svg.barcode rect.hover-target').nth(7);
 		await target.hover();
 		await expect(buttons.nth(8)).toHaveClass(/hot/);
+
+		// A click pins a digit: it stays lit after the pointer and focus leave, until Escape.
+		await buttons.nth(4).click();
+		await expect(buttons.nth(4)).toHaveAttribute('aria-pressed', 'true');
+		await page.mouse.move(0, 0);
+		await page.locator('#code').focus();
+		await expect(buttons.nth(4)).toHaveClass(/hot/);
+		await expect(page.locator('svg.barcode rect.bar.hot')).toHaveCount(2);
+		await buttons.nth(4).focus();
+		await page.keyboard.press('Escape');
+		await expect(buttons.nth(4)).toHaveAttribute('aria-pressed', 'false');
+		await page.locator('#code').focus();
+		await expect(page.locator('svg.barcode rect.bar.hot')).toHaveCount(0);
+		// Leaving the bars goes back to the focused digit rather than to nothing.
+		await buttons.nth(1).focus();
+		await page.locator('svg.barcode rect.hover-target').nth(9).hover();
+		await expect(buttons.nth(10)).toHaveClass(/hot/);
+		await page.mouse.move(0, 0);
+		await expect(buttons.nth(1)).toHaveClass(/hot/);
+	});
+
+	test('hovering a UPC-A digit printed outside the bars lights it up', async ({ page }) => {
+		await page.goto(`${URL_}?v=036000291452&sym=upca`);
+		await page.waitForLoadState('networkidle');
+		await page.locator('svg.barcode').evaluate((svg) => svg.scrollIntoView({ block: 'center' }));
+		// The printed digits sit under their (invisible) hover targets, so the pointer goes to where the digit is drawn.
+		const smalls = page.locator('svg.barcode text.digit-label');
+		await smalls.first().hover({ force: true });
+		await expect(page.locator('.digit-btn').first()).toHaveClass(/hot/);
+		await smalls.last().hover({ force: true });
+		await expect(page.locator('.digit-btn').last()).toHaveClass(/hot/);
+	});
+
+	test('each copy button confirms beside itself', async ({ page, context }) => {
+		await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+		await page.goto(URL_);
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'Copy modules' }).click();
+		await expect(page.locator('.module-line .copy-status')).toHaveText('Modules copied');
+		await expect(page.locator('.barcode-figure .copy-status')).toHaveText('');
+		await page.getByRole('button', { name: 'Copy number' }).click();
+		await expect(page.locator('.barcode-figure .copy-status')).toHaveText('Number copied');
 	});
 
 	test('the downloads are the barcode', async ({ page }) => {
