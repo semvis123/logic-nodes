@@ -516,7 +516,7 @@
 						autocomplete="off"
 						autocapitalize="off"
 						aria-invalid={errorField === 'x' ? 'true' : 'false'}
-						aria-describedby="x-help"
+						aria-describedby={errorField === 'x' ? 'input-error' : 'x-help'}
 					/>
 				</div>
 				{#if trick.y}
@@ -531,6 +531,7 @@
 							autocomplete="off"
 							autocapitalize="off"
 							aria-invalid={errorField === 'y' ? 'true' : 'false'}
+							aria-describedby={errorField === 'y' ? 'input-error' : undefined}
 						/>
 					</div>
 				{/if}
@@ -546,6 +547,7 @@
 							max={nMax}
 							bind:value={n}
 							aria-invalid={errorField === 'n' ? 'true' : 'false'}
+							aria-describedby={errorField === 'n' ? 'input-error' : undefined}
 						/>
 					</div>
 				{/if}
@@ -557,7 +559,7 @@
 					Negative numbers are stored in two's complement.
 				</p>
 				{#if error}
-					<p class="error" role="alert">{error}</p>
+					<p class="error" role="alert" id="input-error">{error}</p>
 				{/if}
 			</div>
 
@@ -643,22 +645,29 @@
 			code as the tracer above.
 		</p>
 		<div class="table-wrap">
-			<table class="data-table cheat">
-				<thead>
-					<tr>
-						<th scope="col">Trick</th>
-						<th scope="col">C</th>
-						<th scope="col">Example at 8 bits</th>
-						<th scope="col">Result</th>
+			<!-- The roles are spelled out because the phone layout below sets display: block on the table, which makes
+			     some browsers drop its table semantics. -->
+			<!-- svelte-ignore a11y-no-redundant-roles -->
+			<table class="data-table cheat" role="table">
+				<!-- svelte-ignore a11y-no-redundant-roles -->
+				<thead role="rowgroup">
+					<!-- svelte-ignore a11y-no-redundant-roles -->
+					<tr role="row">
+						<th scope="col" role="columnheader">Trick</th>
+						<th scope="col" role="columnheader">C</th>
+						<th scope="col" role="columnheader">Example at 8 bits</th>
+						<th scope="col" role="columnheader">Result</th>
 					</tr>
 				</thead>
-				<tbody>
+				<!-- svelte-ignore a11y-no-redundant-roles -->
+				<tbody role="rowgroup">
 					{#each worked as wk}
-						<tr>
-							<th scope="row"><a href="#{wk.trick.id}">{wk.trick.name}</a></th>
-							<td class="mono code-cell" data-label="C">{shortCode(wk.trick)}</td>
-							<td class="mono ex-cell" data-label="Example">{shortInput(wk)}</td>
-							<td class="mono ex-cell" data-label="Result">{outputText(wk)}</td>
+						<!-- svelte-ignore a11y-no-redundant-roles -->
+						<tr role="row">
+							<th scope="row" role="rowheader"><a href="#{wk.trick.id}">{wk.trick.name}</a></th>
+							<td class="mono code-cell" role="cell" data-label="C">{shortCode(wk.trick)}</td>
+							<td class="mono ex-cell" role="cell" data-label="Example">{shortInput(wk)}</td>
+							<td class="mono ex-cell" role="cell" data-label="Result">{outputText(wk)}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -962,13 +971,21 @@
 
 	.code {
 		margin: 0;
-		background: #0d0d0f;
 		border: 1px solid rgba(255, 255, 255, 0.2);
 		border-radius: 3px;
 		padding: 0.5rem 0.75rem;
 		overflow-x: auto;
 		max-width: 100%;
 		box-sizing: border-box;
+		/* A scroll cue for long lines on a phone: a soft light edge shows on whichever side has more code.
+		   The two covers scroll with the text (local) and hide the edges once you reach that end. */
+		background: linear-gradient(to right, #0d0d0f 40%, rgba(13, 13, 15, 0)) left center / 2.5rem 100% no-repeat local,
+			linear-gradient(to left, #0d0d0f 40%, rgba(13, 13, 15, 0)) right center / 2.5rem 100% no-repeat local,
+			radial-gradient(farthest-side at 0 50%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0)) left center / 0.9rem
+				100% no-repeat scroll,
+			radial-gradient(farthest-side at 100% 50%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0)) right center /
+				0.9rem 100% no-repeat scroll,
+			#0d0d0f;
 	}
 
 	.code code {
