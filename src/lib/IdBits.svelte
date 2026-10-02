@@ -11,6 +11,19 @@
 	export let numbering: 'top' | 'bottom' = 'top';
 	/** Used in the accessible name of the diagram. */
 	export let label = 'Bit layout';
+	/**
+	 * How the Value column writes numbers. One base for the whole ID, so related
+	 * fields can be compared: hex for UUIDs and ObjectIds, which are written in
+	 * hex, decimal for snowflakes, which are written in decimal.
+	 */
+	export let base: 'hex' | 'dec' = 'hex';
+
+	// Dates in a meaning are kept on one line: the browser would otherwise break
+	// them after a hyphen, splitting 2016-04-30 across two lines.
+	const ISO = /(\d{4}-\d{2}-\d{2}T[\d:.]+Z)/;
+	const pieces = (text: string) => text.split(ISO).map((t, i) => ({ text: t, date: i % 2 === 1 }));
+
+	const valueText = (f: IdField) => (base === 'hex' ? `0x${hexOf(f.value, Math.ceil(f.length / 4))}` : `${f.value}`);
 
 	const ROW = 32;
 
@@ -65,6 +78,7 @@
 					<span
 						class="bit t-{fields[c.index].tone}"
 						class:edge={c.edge || i === 0}
+						class:nib-start={i % 4 === 0 && i > 0}
 						class:last={i === row.cells.length - 1}
 						style="grid-row: 2">{c.bit}</span
 					>
@@ -97,11 +111,12 @@
 				<tr>
 					<th scope="row"
 						><span class="swatch t-{f.tone}" aria-hidden="true" />{f.name}{#if f.meaning}<span class="meaning"
-								>{f.meaning}</span
+								>{#each pieces(f.meaning) as p}{#if p.date}<span class="nowrap">{p.text}</span
+										>{:else}{p.text}{/if}{/each}</span
 							>{/if}</th
 					>
 					<td class="mono nowrap">{range(f)} <span class="dim">({f.length})</span></td>
-					<td class="mono value">{f.length > 16 ? `0x${hexOf(f.value, Math.ceil(f.length / 4))}` : f.value}</td>
+					<td class="mono value">{valueText(f)}</td>
 				</tr>
 			{/each}
 		</tbody>
@@ -144,6 +159,12 @@
 		line-height: 1.7;
 		border-top: 1px solid rgba(255, 255, 255, 0.14);
 		border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+	}
+
+	/* A sliver of space before every fourth bit, so the bits group into the
+	   nibbles the hex digits above them stand for. */
+	.bit.nib-start {
+		margin-left: 2px;
 	}
 
 	.bit.edge {
@@ -267,12 +288,14 @@
 		min-width: 8ch;
 	}
 
+	/* Break between words, never inside a date or a hex number, unless one
+	   word alone is wider than the column. */
 	.meaning {
 		display: block;
 		color: #bbb;
 		font-size: 0.8rem;
 		margin: 0.15rem 0 0 1.15em;
-		overflow-wrap: anywhere;
+		overflow-wrap: break-word;
 	}
 
 	.dim {
@@ -292,8 +315,48 @@
 		.bit {
 			font-size: 0.66rem;
 		}
+		.bit.nib-start {
+			margin-left: 3px;
+		}
 		.seg {
 			font-size: 0.6rem;
+		}
+
+		/* On a phone each field becomes a block: its name and meaning across the
+		   full width, then its bits and value on the line below, so nothing is
+		   squeezed into a narrow column. */
+		.fields thead {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip: rect(0 0 0 0);
+		}
+		.fields,
+		.fields tbody {
+			display: block;
+		}
+		.fields tr:last-child {
+			border-bottom: 0 !important;
+		}
+		.fields tr {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr);
+			column-gap: 1rem;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+			padding: 0.35rem 0;
+		}
+		.fields th[scope='row'] {
+			grid-column: 1 / -1;
+			width: auto;
+		}
+		.fields th[scope='row'],
+		.fields td {
+			border: 0;
+			padding: 0.1rem 0.4rem;
+		}
+		.fields .value {
+			min-width: 0;
 		}
 	}
 </style>

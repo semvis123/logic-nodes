@@ -51,7 +51,9 @@
 		}
 	}
 	$: epoch = SNOWFLAKE_EPOCHS[service];
-	$: shifted = decoded ? decoded.value >> 22n : 0n;
+	// The timestamp field, as the engine read it: for Twitter that leaves the sign bit out.
+	$: shifted = decoded?.time ? decoded.time.raw : 0n;
+	$: signDropped = service === 'twitter' && !!decoded && decoded.value >> 63n === 1n;
 	$: localTime =
 		decoded?.time && now !== null
 			? new Intl.DateTimeFormat(undefined, { dateStyle: 'full', timeStyle: 'long' }).format(decoded.time.unixMs)
@@ -64,8 +66,10 @@
 	let rangeError = '';
 	$: {
 		try {
-			momentMs = parseMoment(moment);
-			range = snowflakeRange(momentMs, service);
+			const ms = parseMoment(moment);
+			range = snowflakeRange(ms, service);
+			// Only now, so a stale range keeps the label of the time it belongs to.
+			momentMs = ms;
 			rangeError = '';
 		} catch (e) {
 			rangeError = e instanceof IdError ? e.message : 'That time could not be read';
@@ -155,7 +159,7 @@
 		},
 		{
 			q: 'Can two snowflakes be the same?',
-			a: 'Not from a working system. Each worker gets its own ID bits, and each worker counts up the 12-bit increment for every ID it makes in one millisecond, so it can make 4,096 IDs per millisecond before it has to wait for the next one.'
+			a: "Two different objects should not get the same one: each worker and process has its own ID bits, and the increment goes up for every ID that process makes. Discord's documentation notes one exception on purpose: some child objects share their parent's ID, such as a server's @everyone role, which has the server's ID. In Twitter's original design the 12-bit sequence starts again from 0 each millisecond, so one machine can make 4,096 IDs per millisecond."
 		},
 		{
 			q: 'Is a Twitter/X ID decoded the same way?',
@@ -279,9 +283,12 @@
 
 			{#if decoded && decoded.time}
 				<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
-					<div class="answer" role={error ? undefined : 'status'}>
-						<span class="answer-label">Made at, UTC</span>
-						<span class="answer-value mono">{decoded.time.iso}</span>
+					<div class="answer">
+						<!-- The age below ticks every second, so only the time itself is live. -->
+						<div role={error ? undefined : 'status'}>
+							<span class="answer-label">Made at, UTC</span>
+							<span class="answer-value mono">{decoded.time.iso}</span>
+						</div>
 						<dl class="times">
 							<dt>Your time</dt>
 							<dd>{localTime || '…'}</dd>
@@ -294,17 +301,17 @@
 
 					<h2 class="working-title">Working</h2>
 					<p class="equation mono">
-						{decoded.canonical} &gt;&gt; 22 = {shifted}<br />
+						{decoded.canonical} &gt;&gt; 22{#if signDropped}, without the sign bit,{/if} = {shifted}<br />
 						{shifted} + {epoch.ms} = {decoded.time.unixMs}<br />
 						= {decoded.time.iso}
 					</p>
 					<p class="note">
 						Shifting right by 22 drops the low 22 bits, leaving the milliseconds since the {epoch.name} epoch,
-						{epoch.iso}. Adding the epoch gives Unix milliseconds.
+						<span class="nowrap">{epoch.iso}</span>. Adding the epoch gives Unix milliseconds.
 					</p>
 
 					<h2 class="working-title">The bits</h2>
-					<IdBits fields={decoded.fields} bits={64} numbering="bottom" label="Bit layout of the snowflake" />
+					<IdBits fields={decoded.fields} bits={64} base="dec" numbering="bottom" label="Bit layout of the snowflake" />
 					{#each decoded.notes as note}
 						<p class="note">{note}</p>
 					{/each}
@@ -396,12 +403,14 @@
 		<p class="section-intro">The same sum in code. BigInt keeps all 64 bits; a plain number would not.</p>
 		<pre class="code"><code
 				>{`// JavaScript
-const ms = Number(BigInt(id) >> 22n) + ${SNOWFLAKE_EPOCHS.discord.ms};
+const snowflake = '${DISCORD_EXAMPLE}';
+const ms = Number(BigInt(snowflake) >> 22n) + ${SNOWFLAKE_EPOCHS.discord.ms};
 new Date(ms).toISOString();
 
 # Python
 from datetime import datetime, timezone
-datetime.fromtimestamp(((id >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 1000, tz=timezone.utc)`}</code
+snowflake = ${DISCORD_EXAMPLE}
+datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 1000, tz=timezone.utc)`}</code
 			></pre>
 
 		<div class="table-wrap">
@@ -419,9 +428,9 @@ datetime.fromtimestamp(((id >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 1000, tz=
 					{#each layouts as l}
 						<tr>
 							<th scope="row">{l.name}</th>
-							<td><span class="mono">{l.epoch}</span><br /><span class="dim mono">{l.epochMs}</span></td>
+							<td class="nowrap"><span class="mono">{l.epoch}</span><br /><span class="dim mono">{l.epochMs}</span></td>
 							<td>{l.fields.join(', ')}</td>
-							<td class="mono">{l.last.slice(0, 10)}</td>
+							<td class="mono nowrap">{l.last.slice(0, 10)}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -742,6 +751,14 @@ datetime.fromtimestamp(((id >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 1000, tz=
 		font-weight: 400;
 		text-align: left;
 		white-space: nowrap;
+	}
+
+	.nowrap {
+		white-space: nowrap;
+	}
+
+	#how-it-works .section-intro {
+		margin-top: 1rem;
 	}
 
 	.dim {

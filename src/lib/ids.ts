@@ -202,6 +202,11 @@ export function parseUuid(input: string): string {
 	if (hex.length !== 32) {
 		throw new IdError(`A UUID has 32 hex digits; this has ${hex.length}`);
 	}
+	// Dashes are optional, but where they appear they must split the digits
+	// 8-4-4-4-12; a dash anywhere else means the text was mangled.
+	if (s.includes('-') && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)) {
+		throw new IdError('The dashes in a UUID go after the 8th, 12th, 16th and 20th hex digits (8-4-4-4-12)');
+	}
 	return hex.toLowerCase();
 }
 
@@ -261,7 +266,7 @@ export function decodeUuid(input: string): DecodedId {
 		// field that can be named is the variant itself.
 		notes.push(
 			variant === 'microsoft'
-				? 'GUIDs of this variant store the first three groups little-endian, so the bytes in memory are in a different order from the text.'
+				? "This is Microsoft's reserved backward-compatibility variant, used by old COM GUIDs such as IUnknown, 00000000-0000-0000-C000-000000000046. RFC 9562 does not define its fields."
 				: 'Only the RFC 9562 variant defines versions and fields, so the rest of the bits cannot be read any further.'
 		);
 		return {
@@ -462,8 +467,7 @@ export function decodeUuid(input: string): DecodedId {
 	if (time) {
 		const timeFields = fields.filter((f) => f.tone === 'time');
 		for (const f of timeFields) {
-			if (!f.meaning)
-				f.meaning = timeFields.length === 1 ? time.iso : `0x${f.value.toString(16)}, part of the timestamp`;
+			if (!f.meaning) f.meaning = timeFields.length === 1 ? time.iso : 'part of the timestamp';
 		}
 	}
 	for (const f of fields) if (!f.meaning) f.meaning = f.tone === 'random' ? 'random' : f.tone === 'hash' ? 'hash' : '';
@@ -562,10 +566,10 @@ export const uuidToUlid = (uuid: string) => crockfordEncode(BigInt('0x' + parseU
 // ---------------------------------------------------------------- ObjectId
 
 export function decodeObjectId(input: string): DecodedId {
-	const s = input
-		.trim()
-		.replace(/^ObjectId\(\s*["']?/i, '')
-		.replace(/["']?\s*\)$/, '');
+	// Either the bare hex or the whole ObjectId("...") the mongo shell prints.
+	const t = input.trim();
+	const wrapped = t.match(/^ObjectId\(\s*(["']?)([0-9a-fA-F]{24})\1\s*\)$/i);
+	const s = wrapped ? wrapped[2] : t;
 	if (!/^[0-9a-fA-F]{24}$/.test(s)) throw new IdError('An ObjectId is 24 hex digits');
 	const value = BigInt('0x' + s);
 	const fields = layout(value, 96, [
@@ -638,7 +642,8 @@ export function decodeSnowflake(input: string | bigint, service: SnowflakeServic
 						name: 'Increment',
 						length: 12,
 						tone: 'counter',
-						meaning: (v) => `${v}, counts IDs made by that process in the same millisecond`
+						// Discord's documentation: "For every ID that is generated on that process, this number is incremented".
+						meaning: (v) => `${v}, goes up by one for every ID generated on that process`
 					}
 			  ])
 			: layout(value, 64, [
@@ -663,10 +668,13 @@ export function decodeSnowflake(input: string | bigint, service: SnowflakeServic
 						name: 'Sequence',
 						length: 12,
 						tone: 'counter',
-						meaning: (v) => `${v}, counts IDs made by that machine in the same millisecond`
+						meaning: (v) => `${v}, counts IDs made by that machine in the same millisecond, from 0`
 					}
 			  ]);
-	const ms = value >> 22n;
+	// Twitter's timestamp is 41 bits under a sign bit. Leaving the sign bit out
+	// keeps the time inside the layout's range even for a value Twitter would
+	// never produce; the sign bit field says it is set.
+	const ms = service === 'twitter' ? (value >> 22n) & ((1n << 41n) - 1n) : value >> 22n;
 	const time = unixMsTime(ms, epoch.ms, `${epoch.iso}, the ${epoch.name} epoch`);
 	const timeField = fields.find((f) => f.tone === 'time');
 	if (timeField) timeField.meaning = `${ms} ms after the epoch: ${time.iso}`;
@@ -747,13 +755,20 @@ export function parseMoment(input: string): number {
 	) {
 		throw new IdError('That date or time has a field out of range');
 	}
-	let ms = Date.UTC(parts[0], parts[1] - 1, parts[2], parts[3], parts[4], parts[5], Number(frac.padEnd(3, '0')));
-	// Date.UTC rolls 31 April over into May; refuse it rather than move the date.
-	if (new Date(ms).getUTCDate() !== parts[2]) throw new IdError('That month does not have that many days');
+	// Date.UTC reads years 0 to 99 as 1900 to 1999, so the year is set on its own.
+	const date = new Date(0);
+	date.setUTCFullYear(parts[0], parts[1] - 1, parts[2]);
+	date.setUTCHours(parts[3], parts[4], parts[5], Number(frac.padEnd(3, '0')));
+	let ms = date.getTime();
+	// Date rolls 31 April over into May; refuse it rather than move the date.
+	if (date.getUTCDate() !== parts[2]) throw new IdError('That month does not have that many days');
 	if (zone && !/^(Z|UTC)$/i.test(zone)) {
 		const z = zone.replace(':', '');
-		const offset = (Number(z.slice(1, 3)) * 60 + Number(z.slice(3, 5))) * (z[0] === '-' ? -1 : 1);
-		ms -= offset * 60_000;
+		const hours = Number(z.slice(1, 3));
+		const minutes = Number(z.slice(3, 5));
+		// Real offsets run from -12:00 to +14:00.
+		if (hours > 14 || minutes > 59) throw new IdError('A UTC offset is at most 14 hours, such as +02:00 or -05:00');
+		ms -= (hours * 60 + minutes) * (z[0] === '-' ? -1 : 1) * 60_000;
 	}
 	return ms;
 }
@@ -769,11 +784,18 @@ export function describeAge(thenMs: number, nowMs: number): string {
 	else if (s < 3600) text = unit(Math.floor(s / 60), 'minute');
 	else if (s < 86400) text = `${unit(Math.floor(s / 3600), 'hour')} ${unit(Math.floor((s % 3600) / 60), 'minute')}`;
 	else {
-		const days = Math.floor(s / 86400);
-		// A mean Gregorian year, so leap years even out over long spans.
-		const years = Math.floor(days / 365.2425);
-		const rest = Math.floor(days - years * 365.2425);
-		text = years ? `${unit(years, 'year')} ${unit(rest, 'day')}` : unit(days, 'day');
+		// Whole calendar years first, so 2025-01-01 to 2026-01-01 is one year,
+		// then the days left over.
+		const [a, b] = diff >= 0 ? [thenMs, nowMs] : [nowMs, thenMs];
+		const addYears = (ms: number, n: number) => {
+			const d = new Date(ms);
+			d.setUTCFullYear(d.getUTCFullYear() + n);
+			return d.getTime();
+		};
+		let years = new Date(b).getUTCFullYear() - new Date(a).getUTCFullYear();
+		if (addYears(a, years) > b) years--;
+		const rest = Math.floor((b - addYears(a, years)) / 86_400_000);
+		text = years ? `${unit(years, 'year')} ${unit(rest, 'day')}` : unit(rest, 'day');
 	}
 	if (s === 0) return 'just now';
 	return diff >= 0 ? `${text} ago` : `${text} from now`;
@@ -814,8 +836,9 @@ export function detectId(input: string, service: SnowflakeService = 'discord'): 
 		.replace(/^\{(.*)\}$/, '$1')
 		.replace(/-/g, '');
 	if (/^[0-9a-f]{32}$/i.test(bare)) return decodeUuid(s);
-	if (/^(ObjectId\(\s*["']?)?[0-9a-f]{24}(["']?\s*\))?$/i.test(s)) return decodeObjectId(s);
-	if (/^\d{1,20}$/.test(s)) return decodeSnowflake(s, service);
+	if (/^[0-9a-f]{24}$/i.test(s) || /^ObjectId\(\s*(["']?)[0-9a-f]{24}\1\s*\)$/i.test(s)) return decodeObjectId(s);
+	// Snowflakes are sometimes pasted with digit-group separators: 175,928,847,299,117,063.
+	if (/^\d[\d,_ ]*$/.test(s) && /^\d{1,20}$/.test(s.replace(/[,_ ]/g, ''))) return decodeSnowflake(s, service);
 	if (s.length === 26 && [...s].every((c) => crockfordValue(c) >= 0)) return decodeUlid(s);
 	if (s.length === 21 && /^[A-Za-z0-9_-]+$/.test(s)) return decodeNanoId(s);
 
@@ -849,16 +872,48 @@ export interface GenOptions {
 	dashes: boolean;
 }
 
+/** Every time the generators can write, as Unix milliseconds: [first, last]. */
+export const GEN_TIME_RANGE: Record<'v7' | 'v1' | 'ulid' | 'objectid', { min: number; max: number; name: string }> = {
+	// 48 bits of milliseconds from 1970.
+	v7: { min: 0, max: 2 ** 48 - 1, name: 'A UUID v7' },
+	ulid: { min: 0, max: 2 ** 48 - 1, name: 'A ULID' },
+	// 60 bits of 100 ns from 1582-10-15; the last whole millisecond that fits.
+	v1: {
+		min: -Number(GREGORIAN_OFFSET / 10_000n),
+		max: Number(((1n << 60n) - 1n - GREGORIAN_OFFSET) / 10_000n),
+		name: 'A UUID v1'
+	},
+	// 32 bits of seconds from 1970, which ends in February 2106.
+	objectid: { min: 0, max: (2 ** 32 - 1) * 1000 + 999, name: 'An ObjectId' }
+};
+
+/** Refuses a time a format has no bits for, rather than writing a malformed ID. */
+function checkGenTime(kind: keyof typeof GEN_TIME_RANGE, nowMs: number) {
+	const r = GEN_TIME_RANGE[kind];
+	if (!Number.isInteger(nowMs) || nowMs < r.min || nowMs > r.max) {
+		const year = (ms: number) => new Date(ms).getUTCFullYear();
+		throw new IdError(`${r.name} can only hold times from ${year(r.min)} to ${year(r.max)}`);
+	}
+}
+
 /**
  * A generator keeps the state a real one would: the last timestamp, so IDs
  * made in the same millisecond still come out in order, and the per-process
  * values (v1 node and clock sequence, ObjectId random bytes and counter).
+ *
+ * Asking for an earlier time than the last one is treated as the clock having
+ * been set back: the IDs get the time asked for, and only stop being in order
+ * with the ones before. For version 1, RFC 9562 section 5.1 says the clock
+ * sequence must change when that happens, so it does.
  */
 export class IdGenerator {
-	private lastMs = -1;
-	private lastV7 = -1;
-	private v7Random = 0n;
+	private ulidAsked = -1;
+	private ulidMs = -1;
 	private ulidRandom = 0n;
+	private v7Asked = -1;
+	private v7Ms = -1;
+	private v7Random = 0n;
+	private v1Asked = Number.NEGATIVE_INFINITY;
 	private v1Ticks = -1n;
 	private v1Clock: bigint;
 	private v1Node: bigint;
@@ -880,8 +935,11 @@ export class IdGenerator {
 
 	/** A UUID v7. In the same millisecond, the 74 random bits go up by a random step, as RFC 9562 method 2 allows. */
 	v7(nowMs: number): bigint {
-		let ms = Math.max(nowMs, this.lastV7);
-		if (ms === this.lastV7) {
+		checkGenTime('v7', nowMs);
+		let ms = nowMs;
+		if (nowMs >= this.v7Asked && nowMs <= this.v7Ms) {
+			// Same millisecond as last time (or one the counter already spilled into).
+			ms = this.v7Ms;
 			this.v7Random += 1n + bytesToBig(this.random(4));
 			if (this.v7Random >> 74n) {
 				ms += 1;
@@ -890,7 +948,8 @@ export class IdGenerator {
 		} else {
 			this.v7Random = bytesToBig(this.random(10)) & ((1n << 74n) - 1n);
 		}
-		this.lastV7 = ms;
+		this.v7Asked = nowMs;
+		this.v7Ms = ms;
 		const randA = this.v7Random >> 62n;
 		const randB = this.v7Random & ((1n << 62n) - 1n);
 		return (BigInt(ms) << 80n) | (7n << 76n) | (randA << 64n) | (2n << 62n) | randB;
@@ -898,8 +957,15 @@ export class IdGenerator {
 
 	/** A UUID v1 with a random node. Within one millisecond the 100 ns count steps on so no two are equal. */
 	v1(nowMs: number): bigint {
+		checkGenTime('v1', nowMs);
 		let ticks = BigInt(nowMs) * 10_000n + GREGORIAN_OFFSET;
-		if (ticks <= this.v1Ticks) ticks = this.v1Ticks + 1n;
+		if (nowMs < this.v1Asked) {
+			// The clock went back: same time again is possible, so change the clock sequence.
+			this.v1Clock = (this.v1Clock + 1n) & 0x3fffn;
+		} else if (ticks <= this.v1Ticks) {
+			ticks = this.v1Ticks + 1n;
+		}
+		this.v1Asked = nowMs;
 		this.v1Ticks = ticks;
 		const low = ticks & 0xffffffffn;
 		const mid = (ticks >> 32n) & 0xffffn;
@@ -911,18 +977,21 @@ export class IdGenerator {
 
 	/** A ULID. In the same millisecond the random part goes up by one, as the ULID spec's monotonic mode says. */
 	ulid(nowMs: number): bigint {
-		if (nowMs <= this.lastMs) {
-			nowMs = this.lastMs;
+		checkGenTime('ulid', nowMs);
+		if (nowMs >= this.ulidAsked && nowMs <= this.ulidMs) {
+			nowMs = this.ulidMs;
 			this.ulidRandom += 1n;
 			if (this.ulidRandom >> 80n) throw new IdError('Too many ULIDs in one millisecond');
 		} else {
+			this.ulidAsked = nowMs;
 			this.ulidRandom = bytesToBig(this.random(10));
 		}
-		this.lastMs = nowMs;
+		this.ulidMs = nowMs;
 		return (BigInt(nowMs) << 80n) | this.ulidRandom;
 	}
 
 	objectId(nowMs: number): bigint {
+		checkGenTime('objectid', nowMs);
 		this.oidCounter = (this.oidCounter + 1) % 0x1000000;
 		return (BigInt(Math.floor(nowMs / 1000)) << 64n) | (this.oidRandom << 24n) | BigInt(this.oidCounter);
 	}
@@ -967,15 +1036,20 @@ export class IdGenerator {
 	}
 }
 
-/** Which formatting options apply to which kind: case and dashes would change a NanoID or a snowflake into another ID. */
-export const GEN_FORMATS: Record<GenKind, { label: string; caseOption: boolean; dashes: boolean }> = {
-	v4: { label: 'UUID v4 (random)', caseOption: true, dashes: true },
-	v7: { label: 'UUID v7 (time-ordered)', caseOption: true, dashes: true },
-	v1: { label: 'UUID v1 (random node)', caseOption: true, dashes: true },
-	ulid: { label: 'ULID', caseOption: true, dashes: false },
-	objectid: { label: 'MongoDB ObjectId', caseOption: true, dashes: false },
-	nanoid: { label: 'NanoID', caseOption: false, dashes: false },
-	snowflake: { label: 'Discord snowflake', caseOption: false, dashes: false }
+/**
+ * Which formatting options apply to which kind: case and dashes would change a
+ * NanoID or a snowflake into another ID. `upper` is the case the format is
+ * usually written in: the ULID spec writes upper case, UUIDs and ObjectIds are
+ * usually printed in lower case.
+ */
+export const GEN_FORMATS: Record<GenKind, { label: string; caseOption: boolean; dashes: boolean; upper: boolean }> = {
+	v4: { label: 'UUID v4 (random)', caseOption: true, dashes: true, upper: false },
+	v7: { label: 'UUID v7 (time-ordered)', caseOption: true, dashes: true, upper: false },
+	v1: { label: 'UUID v1 (random node)', caseOption: true, dashes: true, upper: false },
+	ulid: { label: 'ULID', caseOption: true, dashes: false, upper: true },
+	objectid: { label: 'MongoDB ObjectId', caseOption: true, dashes: false, upper: false },
+	nanoid: { label: 'NanoID', caseOption: false, dashes: false, upper: false },
+	snowflake: { label: 'Discord snowflake', caseOption: false, dashes: false, upper: false }
 };
 
 /**
@@ -993,29 +1067,51 @@ export const ID_FORMATS: {
 	chars: string;
 	time: string;
 	random: string;
-	sortable: boolean;
+	/** Whether sorting the IDs sorts them by creation time, and to what precision. */
+	sortable: string;
 }[] = [
-	{ name: 'UUID v4', bits: 128, chars: '36 hex and dashes', time: 'none', random: '122 bits', sortable: false },
-	{ name: 'UUID v7', bits: 128, chars: '36 hex and dashes', time: '48 bits, 1 ms', random: '74 bits', sortable: true },
+	{ name: 'UUID v4', bits: 128, chars: '36 hex and dashes', time: 'none', random: '122 bits', sortable: 'No' },
+	{
+		name: 'UUID v7',
+		bits: 128,
+		chars: '36 hex and dashes',
+		time: '48 bits, 1 ms',
+		random: '74 bits',
+		sortable: 'To the millisecond'
+	},
 	{
 		name: 'UUID v1',
 		bits: 128,
 		chars: '36 hex and dashes',
 		time: '60 bits, 100 ns',
-		random: 'none (MAC)',
-		sortable: false
+		random: 'none, or a random node',
+		sortable: 'No'
 	},
-	{ name: 'ULID', bits: 128, chars: '26 Crockford Base32', time: '48 bits, 1 ms', random: '80 bits', sortable: true },
-	{ name: 'ObjectId', bits: 96, chars: '24 hex', time: '32 bits, 1 s', random: '40 bits per process', sortable: true },
+	{
+		name: 'ULID',
+		bits: 128,
+		chars: '26 Crockford Base32',
+		time: '48 bits, 1 ms',
+		random: '80 bits',
+		sortable: 'To the millisecond'
+	},
+	{
+		name: 'ObjectId',
+		bits: 96,
+		chars: '24 hex',
+		time: '32 bits, 1 s',
+		random: '40 bits per process',
+		sortable: 'To the second'
+	},
 	{
 		name: 'Discord snowflake',
 		bits: 64,
 		chars: 'up to 20 decimal digits',
 		time: '42 bits, 1 ms',
 		random: 'none',
-		sortable: true
+		sortable: 'To the millisecond'
 	},
-	{ name: 'NanoID', bits: 126, chars: '21 URL-safe characters', time: 'none', random: '126 bits', sortable: false }
+	{ name: 'NanoID', bits: 126, chars: '21 URL-safe characters', time: 'none', random: '126 bits', sortable: 'No' }
 ];
 
 /** Bit strings of each field, for drawing. */

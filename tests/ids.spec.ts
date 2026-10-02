@@ -75,7 +75,7 @@ function sliceUuid(text: string) {
 }
 
 test('RFC 9562 Appendix A: version 1', () => {
-	const id = decodeUuid('C232AB00-9414-11EC-B3C8-9F6BCCED46E3');
+	const id = decodeUuid('C232AB00-9414-11EC-B3C8-9F6BDECED846');
 	expect(id.version).toBe(1);
 	expect(id.variant).toBe('rfc');
 	// Python's uuid.UUID(...).time and .clock_seq give these for the same value.
@@ -83,14 +83,25 @@ test('RFC 9562 Appendix A: version 1', () => {
 	expect(sliceUuid(id.canonical).v1Ticks).toBe(138648505420000000n);
 	expect(id.time!.iso).toBe('2022-02-22T19:22:22.0000000Z');
 	expect(id.fields.find((f) => f.name === 'Clock sequence')!.value).toBe(13256n);
-	expect(id.fields.find((f) => f.name === 'Node')!.value).toBe(0x9f6bcced46e3n);
+	expect(id.fields.find((f) => f.name === 'Node')!.value).toBe(0x9f6bdeced846n);
 	// 0x9F has the low bit set: the RFC's example node is a random one.
 	expect(id.fields.find((f) => f.name === 'Node')!.meaning).toContain('multicast bit is set');
 });
 
+test('RFC 9562 Appendix A: version 4', () => {
+	const id = decodeUuid('919108F7-52D1-4320-9BAC-F847DB4148A8');
+	expect(id.version).toBe(4);
+	expect(id.variant).toBe('rfc');
+	expect(id.time).toBeUndefined();
+	expect(id.fields.map((f) => f.length)).toEqual([48, 4, 12, 2, 62]);
+	expect(id.fields[2].value).toBe(0x320n);
+});
+
 test('RFC 9562 Appendix A: version 6 is the same moment as the version 1 example', () => {
-	const id = decodeUuid('1EC9414C-232A-6B00-B3C8-9F6BCCED46E3');
+	const id = decodeUuid('1EC9414C-232A-6B00-B3C8-9F6BDECED846');
 	expect(id.version).toBe(6);
+	expect(id.fields.find((f) => f.name === 'Node')!.value).toBe(0x9f6bdeced846n);
+	expect(id.fields.find((f) => f.name === 'Clock sequence')!.value).toBe(13256n);
 	expect(id.time!.raw).toBe(138648505420000000n);
 	expect(sliceUuid(id.canonical).v6Ticks).toBe(138648505420000000n);
 	expect(id.time!.iso).toBe('2022-02-22T19:22:22.0000000Z');
@@ -190,6 +201,9 @@ test('UUIDs are read in all their usual spellings', () => {
 	}
 	expect(errorOf(() => parseUuid('017f22e2-79b0-7cc3-98c4-dc0c0c07398'))).toBe('A UUID has 32 hex digits; this has 31');
 	expect(errorOf(() => parseUuid('017f22e2-79b0-7cc3-98c4-dc0c0c07398g'))).toContain('"g"');
+	// Dashes only where they belong.
+	expect(errorOf(() => parseUuid('0-1-7f22e279b07cc398c4dc0c0c07398f'))).toContain('8-4-4-4-12');
+	expect(errorOf(() => detectId('0-1-7f22e279b07cc398c4dc0c0c07398f'))).toContain('8-4-4-4-12');
 });
 
 test('MongoDB ObjectId: the documented example', () => {
@@ -199,6 +213,10 @@ test('MongoDB ObjectId: the documented example', () => {
 	expect(id.fields[2].value).toBe(0x439011n);
 	expect(decodeObjectId('ObjectId("507f1f77bcf86cd799439011")').canonical).toBe('507f1f77bcf86cd799439011');
 	expect(detectId('ObjectId("507F1F77BCF86CD799439011")').kind).toBe('objectid');
+	expect(decodeObjectId("ObjectId('507f1f77bcf86cd799439011')").canonical).toBe('507f1f77bcf86cd799439011');
+	// Half a wrapper is not an ObjectId.
+	expect(errorOf(() => decodeObjectId('507f1f77bcf86cd799439011)'))).toContain('24 hex digits');
+	expect(errorOf(() => decodeObjectId('ObjectId("507f1f77bcf86cd799439011\')'))).toContain('24 hex digits');
 });
 
 test('Discord: the documented example snowflake', () => {
@@ -223,6 +241,15 @@ test('Twitter/X snowflakes read with Twitter’s epoch and a 10-bit machine', ()
 	expect(id.fields.map((f) => f.length)).toEqual([1, 41, 10, 12]);
 	expect(id.fields[2].meaning).toContain('datacentre 1, worker 3');
 	expect(id.fields[3].value).toBe(5n);
+	// With the sign bit set the time still comes from the 41-bit field, so it
+	// cannot land past the last moment the layout holds.
+	const top = decodeSnowflake('18446744073709551615', 'twitter');
+	expect(top.fields[0].value).toBe(1n);
+	expect(top.time!.raw).toBe(2n ** 41n - 1n);
+	expect(top.time!.iso).toBe(snowflakeLastMoment('twitter'));
+	expect(top.fields[1].meaning).toContain(`${2n ** 41n - 1n} ms after the epoch`);
+	// Discord has no sign bit: all 42 bits are time.
+	expect(decodeSnowflake('18446744073709551615', 'discord').time!.iso).toBe(snowflakeLastMoment('discord'));
 });
 
 test('a date gives the snowflake range for that millisecond, and back', () => {
@@ -291,6 +318,9 @@ test('detection names each kind of ID and explains near misses', () => {
 	expect(errorOf(() => detectId(''))).toContain('Paste an ID');
 	expect(errorOf(() => detectId('9b2f8d5e-3c4a-4f61-8e2b-7a9c0d1e2f3'))).toContain('this has 31');
 	expect(errorOf(() => detectId('hello world'))).toContain('Not a recognised ID');
+	// Digit-group separators are accepted here as on the snowflake page.
+	expect(detectId('175,928,847,299,117,063').canonical).toBe('175928847299117063');
+	expect(detectId('175_928_847_299_117_063').kind).toBe('snowflake');
 });
 
 test('generated v4 and v7 UUIDs always have the right version and variant', () => {
@@ -335,6 +365,62 @@ test('generated IDs decode back to the time they were made with, and stay in ord
 	expect(v1.version).toBe(1);
 });
 
+test('a generator makes IDs for an earlier time after a later one', () => {
+	// The page keeps one generator and regenerates whenever the time changes,
+	// so going back in time must give IDs for the time asked for.
+	const opts = { upper: false, dashes: true };
+	const later = Date.parse('2030-01-01T00:00:00Z');
+	const earlier = Date.parse('2020-06-01T12:00:00Z');
+	const realNow = Date.now();
+	for (const kind of ['v7', 'v1', 'ulid', 'objectid', 'snowflake'] as GenKind[]) {
+		const gen = new IdGenerator(seeded(9));
+		for (const at of [realNow, later, earlier, earlier - 3_600_000, realNow]) {
+			const batch = Array.from({ length: 20 }, () => gen.make(kind, at, opts));
+			for (const text of batch) {
+				const ms = detectId(text).time!.unixMs;
+				expect(kind === 'objectid' ? ms : Math.floor(ms)).toBe(kind === 'objectid' ? Math.floor(at / 1000) * 1000 : at);
+			}
+			expect(new Set(batch).size).toBe(20);
+		}
+	}
+	// Version 1 changes its clock sequence when the clock goes back, as RFC 9562 section 5.1 asks.
+	const gen = new IdGenerator(seeded(5));
+	const seq = (t: string) => decodeUuid(t).fields.find((f) => f.name === 'Clock sequence')!.value;
+	const first = gen.make('v1', later, opts);
+	const again = gen.make('v1', later, opts);
+	const back = gen.make('v1', earlier, opts);
+	expect(seq(again)).toBe(seq(first));
+	expect(seq(back)).toBe((seq(first) + 1n) & 0x3fffn);
+	// Asking for the same time again is the same millisecond: still in order.
+	const v7a = gen.make('v7', earlier, opts);
+	const v7b = gen.make('v7', earlier, opts);
+	expect(v7a < v7b).toBe(true);
+});
+
+test('a generator refuses times its format has no bits for', () => {
+	const gen = new IdGenerator(seeded(2));
+	const opts = { upper: false, dashes: true };
+	const at = (iso: string) => parseMoment(iso);
+	expect(errorOf(() => gen.make('v7', at('1969-06-01'), opts))).toBe(
+		'A UUID v7 can only hold times from 1970 to 10889'
+	);
+	expect(errorOf(() => gen.make('ulid', at('1960-01-01'), opts))).toBe('A ULID can only hold times from 1970 to 10889');
+	expect(errorOf(() => gen.make('objectid', at('1960-01-01'), opts))).toBe(
+		'An ObjectId can only hold times from 1970 to 2106'
+	);
+	expect(errorOf(() => gen.make('objectid', at('2200-01-01'), opts))).toContain('2106');
+	expect(errorOf(() => gen.make('v1', at('1500-01-01'), opts))).toContain('from 1582');
+	// The edges themselves work and decode back.
+	expect(detectId(gen.make('v7', 0, opts)).time!.unixMs).toBe(0);
+	expect(detectId(gen.make('v7', 2 ** 48 - 1, opts)).time!.unixMs).toBe(2 ** 48 - 1);
+	expect(detectId(gen.make('ulid', 2 ** 48 - 1, opts)).time!.unixMs).toBe(2 ** 48 - 1);
+	expect(detectId(gen.make('objectid', at('2106-02-07T06:28:15Z'), opts)).time!.iso).toBe('2106-02-07T06:28:15Z');
+	expect(detectId(gen.make('objectid', 0, opts)).time!.iso).toBe('1970-01-01T00:00:00Z');
+	expect(detectId(gen.make('v1', at('1582-10-15'), opts)).time!.iso).toBe('1582-10-15T00:00:00.0000000Z');
+	expect(detectId(gen.make('v1', at('1969-07-20T20:17:40Z'), opts)).time!.iso).toBe('1969-07-20T20:17:40.0000000Z');
+	expect(errorOf(() => gen.make('snowflake', at('2014-01-01'), opts))).toContain('before the Discord epoch');
+});
+
 test('generator formatting options', () => {
 	const gen = new IdGenerator(seeded(1));
 	const now = 1_700_000_000_000;
@@ -344,6 +430,9 @@ test('generator formatting options', () => {
 	const nano = gen.make('nanoid', now, { upper: true, dashes: false });
 	expect(nano).toMatch(/^[A-Za-z0-9_-]{21}$/);
 	expect(GEN_FORMATS.nanoid.caseOption).toBe(false);
+	// ULIDs are written in upper case by their spec; UUIDs usually in lower case.
+	expect(GEN_FORMATS.ulid.upper).toBe(true);
+	expect(GEN_FORMATS.v7.upper).toBe(false);
 	// Every one of the 64 characters comes up, and none is much more common.
 	const counts = new Map<string, number>();
 	for (let i = 0; i < 2000; i++) for (const c of gen.nanoid()) counts.set(c, (counts.get(c) ?? 0) + 1);
@@ -360,6 +449,12 @@ test('a moment is read as UTC unless it says otherwise', () => {
 	expect(errorOf(() => parseMoment('30/04/2016'))).toContain('YYYY-MM-DD');
 	expect(errorOf(() => parseMoment('2016-02-30'))).toContain('that many days');
 	expect(errorOf(() => parseMoment('2016-13-01'))).toContain('out of range');
+	// Years below 100 are those years, not 1900 plus.
+	expect(new Date(parseMoment('0050-01-01')).toISOString()).toBe('0050-01-01T00:00:00.000Z');
+	expect(new Date(parseMoment('1582-10-15')).toISOString()).toBe('1582-10-15T00:00:00.000Z');
+	expect(errorOf(() => parseMoment('2024-01-01T00:00+99:99'))).toContain('UTC offset');
+	expect(errorOf(() => parseMoment('2024-01-01T00:00+15:00'))).toContain('UTC offset');
+	expect(parseMoment('2024-01-01T00:00+14:00')).toBe(Date.UTC(2023, 11, 31, 10));
 });
 
 test('ages read naturally', () => {
@@ -371,6 +466,11 @@ test('ages read naturally', () => {
 	expect(describeAge(now - 3 * 86_400_000, now)).toBe('3 days ago');
 	expect(describeAge(Date.UTC(2016, 0, 1), now)).toBe('10 years 0 days ago');
 	expect(describeAge(now + 2 * 86_400_000, now)).toBe('2 days from now');
+	// Calendar years, so a year from one new year to the next is exactly one.
+	expect(describeAge(Date.UTC(2025, 0, 1), now)).toBe('1 year 0 days ago');
+	expect(describeAge(Date.UTC(2024, 0, 1), Date.UTC(2025, 0, 1))).toBe('1 year 0 days ago');
+	expect(describeAge(Date.UTC(2025, 0, 2), now)).toBe('364 days ago');
+	expect(describeAge(Date.UTC(2027, 0, 11), now)).toBe('1 year 10 days from now');
 });
 
 test('the comparison table matches the decoders', () => {
@@ -413,7 +513,7 @@ test.describe('the uuid-decoder page', () => {
 
 		await page.goto('/uuid-decoder');
 		await page.waitForLoadState('networkidle');
-		await page.locator('#id-input').fill('C232AB00-9414-11EC-B3C8-9F6BCCED46E3');
+		await page.locator('#id-input').fill('C232AB00-9414-11EC-B3C8-9F6BDECED846');
 		await expect(page.locator('.answer').first()).toContainText('UUID version 1');
 		await expect(page.locator('.answer').first()).toContainText('2022-02-22T19:22:22.0000000Z');
 		await expect(page.locator('.answer').first()).toContainText(/ago/);
@@ -443,6 +543,36 @@ test.describe('the uuid-decoder page', () => {
 		await expect(page).toHaveURL(/g=snowflake/);
 		await page.locator('#gen-at').fill('yesterday');
 		await expect(page.locator('.error')).toContainText('YYYY-MM-DD');
+	});
+
+	test('a time typed after IDs were made at the current time is used', async ({ page }) => {
+		await page.goto('/uuid-decoder');
+		await page.waitForLoadState('networkidle');
+		const items = page.locator('.generated .gen-id');
+		for (const kind of ['v7', 'v1', 'ulid'] as const) {
+			await page.locator('#gen-kind').selectOption(kind);
+			await page.locator('#gen-at').fill('');
+			await expect(items).toHaveCount(5);
+			await page.locator('#gen-at').fill('2020-06-01 12:00');
+			await expect
+				.poll(async () => detectId((await items.first().textContent())!).time!.unixMs)
+				.toBe(Date.UTC(2020, 5, 1, 12));
+			for (const text of await items.allTextContents()) {
+				expect(Math.floor(detectId(text).time!.unixMs)).toBe(Date.UTC(2020, 5, 1, 12));
+			}
+			await page.locator('#gen-at').fill('2020-06-01 11:00');
+			await expect
+				.poll(async () => detectId((await items.first().textContent())!).time!.unixMs)
+				.toBe(Date.UTC(2020, 5, 1, 11));
+		}
+		// ULIDs come out in their usual upper case unless asked otherwise.
+		expect(await items.first().textContent()).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/);
+		// A time the format cannot hold is refused, not written as a broken ID.
+		await page.locator('#gen-at').fill('1960-01-01');
+		await expect(page.locator('#generator .error')).toContainText('can only hold times from 1970');
+		await expect(items).toHaveCount(0);
+		await page.locator('#gen-kind').selectOption('v4');
+		await expect(page).not.toHaveURL(/at=/);
 	});
 
 	test('the address round-trips', async ({ page }) => {
@@ -495,6 +625,8 @@ test.describe('the snowflake-id-decoder page', () => {
 		await expect(page.locator('#date-to-snowflake .answer')).toContainText(max.toString());
 		await page.locator('#sf-time').fill('2014-12-31');
 		await expect(page.locator('#date-to-snowflake .error')).toContainText('before the Discord epoch');
+		// The dimmed range still names the time its numbers belong to.
+		await expect(page.locator('#date-to-snowflake .answer-label')).toContainText('2024-03-01T17:30:00.000Z');
 	});
 
 	test('the address round-trips', async ({ page }) => {

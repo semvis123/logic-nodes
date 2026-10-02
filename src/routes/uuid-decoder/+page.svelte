@@ -8,6 +8,7 @@
 		decodeUuid,
 		decodeUlid,
 		decodeObjectId,
+		parseUlid,
 		uuidToUlid,
 		ulidToUuid,
 		variantOfDigit,
@@ -25,24 +26,28 @@
 		NIL_UUID,
 		MAX_UUID,
 		type DecodedId,
-		type GenKind
+		type GenKind,
+		type UuidVariant
 	} from '$lib/ids';
 	import { readUrl, syncUrl, safeText, safeOption, safeInt, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import { onMount } from 'svelte';
 
+	// RFC 9562 Appendix A writes its examples in upper case.
 	const RFC_V7 = '017F22E2-79B0-7CC3-98C4-DC0C0C07398F';
-	const RFC_V1 = 'C232AB00-9414-11EC-B3C8-9F6BCCED46E3';
-	const RFC_V6 = '1EC9414C-232A-6B00-B3C8-9F6BCCED46E3';
+	const RFC_V1 = 'C232AB00-9414-11EC-B3C8-9F6BDECED846';
+	const RFC_V6 = '1EC9414C-232A-6B00-B3C8-9F6BDECED846';
+	const RFC_V4 = '919108F7-52D1-4320-9BAC-F847DB4148A8';
 	const RFC_V5 = '2ed6657d-e927-568b-95e1-2665a8aea6a2';
 	const genKinds = Object.keys(GEN_FORMATS) as GenKind[];
 	const TIMED: GenKind[] = ['v7', 'v1', 'ulid', 'objectid', 'snowflake'];
 
-	const DEFAULTS = { id: RFC_V7, g: 'v4', n: 5, case: 'lower', dash: 'on', at: '' };
+	// 'std' is each format's usual case: upper for ULIDs, lower for the rest.
+	const DEFAULTS = { id: RFC_V7, g: 'v4', n: 5, case: 'std', dash: 'on', at: '' };
 	let input = DEFAULTS.id;
 	let gKind: GenKind = 'v4';
 	let gCount = DEFAULTS.n;
-	let gCase: 'lower' | 'upper' = 'lower';
+	let gCase: 'std' | 'lower' | 'upper' = 'std';
 	let gDash: 'on' | 'off' = 'on';
 	let gAt = '';
 
@@ -55,7 +60,7 @@
 		input = safeText(p.id, 120) ?? input;
 		gKind = safeOption(p.g, genKinds) ?? gKind;
 		gCount = safeInt(p.n, 1, 100) ?? gCount;
-		gCase = safeOption(p.case, ['lower', 'upper'] as const) ?? gCase;
+		gCase = safeOption(p.case, ['std', 'lower', 'upper'] as const) ?? gCase;
 		gDash = safeOption(p.dash, ['on', 'off'] as const) ?? gDash;
 		gAt = safeText(p.at, 40) ?? gAt;
 		now = Date.now();
@@ -63,7 +68,11 @@
 		const tick = setInterval(() => (now = Date.now()), 1000);
 		return () => clearInterval(tick);
 	});
-	$: syncUrl({ id: input, g: gKind, n: gCount, case: gCase, dash: gDash, at: gAt }, DEFAULTS);
+	// The time only applies to the kinds that hold one, so it is left out of the link otherwise.
+	$: syncUrl(
+		{ id: input, g: gKind, n: gCount, case: gCase, dash: gDash, at: TIMED.includes(gKind) ? gAt : '' },
+		DEFAULTS
+	);
 
 	// Runs during prerendering too, so the served page shows a decoded UUID.
 	let decoded: DecodedId | null = null;
@@ -83,6 +92,7 @@
 			: '';
 	$: age = decoded?.time && now !== null ? describeAge(decoded.time.unixMs, now) : '';
 	$: isUuid = decoded?.kind === 'uuid' && decoded.version !== undefined;
+	$: ulidChars = decoded?.kind === 'ulid' ? parseUlid(decoded.canonical).chars : [];
 
 	function tryId(value: string) {
 		input = value;
@@ -94,8 +104,8 @@
 	const examples: { label: string; value: string }[] = [
 		{ label: 'v7 (RFC example)', value: RFC_V7 },
 		{ label: 'v1 (RFC example)', value: RFC_V1 },
-		{ label: 'v6', value: RFC_V6 },
-		{ label: 'v4', value: '9b2f8d5e-3c4a-4f61-8e2b-7a9c0d1e2f30' },
+		{ label: 'v6 (RFC example)', value: RFC_V6 },
+		{ label: 'v4 (RFC example)', value: RFC_V4 },
 		{ label: 'v5', value: RFC_V5 },
 		{ label: 'Nil', value: NIL_UUID },
 		{ label: 'Max', value: MAX_UUID },
@@ -111,10 +121,11 @@
 	let genError = '';
 	$: genFormat = GEN_FORMATS[gKind];
 	$: timed = TIMED.includes(gKind);
+	$: countOk = Number.isInteger(gCount) && gCount >= 1 && gCount <= 100;
 
 	function generate() {
 		if (!generator) return;
-		if (!Number.isInteger(gCount) || gCount < 1 || gCount > 100) {
+		if (!countOk) {
 			generated = [];
 			return;
 		}
@@ -129,7 +140,8 @@
 			}
 		}
 		try {
-			const opts = { upper: gCase === 'upper', dashes: gDash === 'on' };
+			const upper = gCase === 'std' ? genFormat.upper : gCase === 'upper';
+			const opts = { upper, dashes: gDash === 'on' };
 			generated = Array.from({ length: gCount }, () => (generator as IdGenerator).make(gKind, at, opts));
 			genError = '';
 		} catch (e) {
@@ -164,19 +176,33 @@
 	const v1Unix = v1Ticks - GREGORIAN_OFFSET;
 	const ulidExample = decodeUlid('01ARYZ6S41TSV4RRFFQ69G5FAV');
 	const oid = decodeObjectId('507f1f77bcf86cd799439011');
-	const variantRows = Array.from({ length: 16 }, (_, d) => {
+	// The 16 possible digits fall into four runs, one per variant.
+	const variantRows: { from: string; to: string; variant: UuidVariant; fixed: string; rest: string }[] = [];
+	for (let d = 0; d < 16; d++) {
 		const { variant, bits } = variantOfDigit(d);
-		const pattern = d.toString(2).padStart(4, '0');
-		return { digit: d.toString(16), variant, fixed: pattern.slice(0, bits), rest: pattern.slice(bits) };
-	});
+		const last = variantRows[variantRows.length - 1];
+		if (last && last.variant === variant) last.to = d.toString(16);
+		else {
+			const pattern = d.toString(2).padStart(4, '0');
+			variantRows.push({
+				from: d.toString(16),
+				to: d.toString(16),
+				variant,
+				fixed: pattern.slice(0, bits),
+				rest: 'x'.repeat(4 - bits)
+			});
+		}
+	}
 	const half = birthdayHalf(122);
+	// Superscript digits, so the visible answer and its JSON-LD copy are the same text.
+	const SUPERSCRIPT = '⁰¹²³⁴⁵⁶⁷⁸⁹';
 	const sci = (n: number) => {
 		const exp = Math.floor(Math.log10(n));
-		return `${(n / 10 ** exp).toFixed(1)} × 10^${exp}`;
+		return `${(n / 10 ** exp).toFixed(1)} × 10${[...String(exp)].map((c) => SUPERSCRIPT[Number(c)]).join('')}`;
 	};
 
 	const versions = [
-		{ v: '1', inside: '60-bit time (100 ns), clock sequence, node (MAC address)', time: 'Yes', sort: 'No' },
+		{ v: '1', inside: '60-bit time (100 ns), clock sequence, node (MAC address or random)', time: 'Yes', sort: 'No' },
 		{ v: '2', inside: 'DCE security: version 1 with a local user or group ID', time: 'Partly', sort: 'No' },
 		{ v: '3', inside: 'MD5 hash of a namespace and a name', time: 'No', sort: 'No' },
 		{ v: '4', inside: '122 random bits', time: 'No', sort: 'No' },
@@ -189,7 +215,7 @@
 	const faqs = [
 		{
 			q: 'Can you get the creation time from a UUID?',
-			a: `Only from versions 1, 6 and 7, which carry a timestamp. Version 7 starts with the Unix time in milliseconds: ${RFC_V7} begins ${hexOf(
+			a: `From versions 1, 6 and 7, which carry a full timestamp. Version 2 keeps only part of one, and a version 8 may hold one in a layout only its maker knows. Version 7 starts with the Unix time in milliseconds: ${RFC_V7.toLowerCase()} begins ${hexOf(
 				v7.fields[0].value,
 				12
 			)}, which is ${v7.fields[0].value} ms, ${
@@ -331,27 +357,32 @@
 
 			{#if decoded}
 				<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
-					<div class="answer" role={error ? undefined : 'status'}>
-						<span class="answer-label">Detected</span>
-						<span class="answer-value">{decoded.title}</span>
-						<span class="canonical mono">
-							{#if isUuid}
-								{decoded.canonical.slice(0, 14)}<mark class="ver" title="version digit">{decoded.canonical[14]}</mark
-								>{decoded.canonical.slice(15, 19)}<mark class="var" title="variant digit">{decoded.canonical[19]}</mark
-								>{decoded.canonical.slice(20)}
-							{:else}
-								{decoded.canonical}
-							{/if}
-						</span>
-						{#if isUuid && decoded.variant}
-							<span class="answer-also">
-								Version digit <strong class="mono">{decoded.canonical[14]}</strong>, variant digit
-								<strong class="mono">{decoded.canonical[19]}</strong>
-								(binary {parseInt(decoded.canonical[19], 16).toString(2).padStart(4, '0')}): {VARIANT_NAMES[
-									decoded.variant
-								]}.
+					<div class="answer">
+						<!-- Only the part that changes when the ID does is live: the age
+						     below ticks every second and must not be read out each time. -->
+						<div role={error ? undefined : 'status'}>
+							<span class="answer-label">Detected</span>
+							<span class="answer-value">{decoded.title}</span>
+							<span class="canonical mono">
+								{#if isUuid}
+									{decoded.canonical.slice(0, 14)}<mark class="ver" title="version digit">{decoded.canonical[14]}</mark
+									>{decoded.canonical.slice(15, 19)}<mark class="var" title="variant digit"
+										>{decoded.canonical[19]}</mark
+									>{decoded.canonical.slice(20)}
+								{:else}
+									{decoded.canonical}
+								{/if}
 							</span>
-						{/if}
+							{#if isUuid && decoded.variant}
+								<span class="answer-also">
+									Version digit <strong class="mono">{decoded.canonical[14]}</strong>, variant digit
+									<strong class="mono">{decoded.canonical[19]}</strong>
+									(binary {parseInt(decoded.canonical[19], 16).toString(2).padStart(4, '0')}): {VARIANT_NAMES[
+										decoded.variant
+									]}.
+								</span>
+							{/if}
+						</div>
 						{#if decoded.time}
 							<dl class="times">
 								<dt>UTC</dt>
@@ -371,6 +402,7 @@
 						<IdBits
 							fields={decoded.fields}
 							bits={decoded.bits}
+							base={decoded.kind === 'snowflake' ? 'dec' : 'hex'}
 							label="Bit layout of {decoded.title}"
 							numbering={decoded.kind === 'snowflake' ? 'bottom' : 'top'}
 						/>
@@ -386,6 +418,20 @@
 						<p class="note">{note}</p>
 					{/each}
 					{#if decoded.kind === 'ulid'}
+						<h3 class="chars-title">The characters</h3>
+						<p class="note">
+							Each character is 5 bits in Crockford Base32. 26 characters would be 130 bits, so the first carries only 3
+							and can only be 0 to 7. The first 10 characters are the time, the last 16 the random part.
+						</p>
+						<ol class="ulid-chars" aria-label="Each character of the ULID, its value and its bits">
+							{#each ulidChars as c, i}
+								<li class:time-char={i < 10}>
+									<span class="mono ch">{c.char}</span>
+									<span class="mono val">{c.value}</span>
+									<span class="mono b5">{c.value.toString(2).padStart(i === 0 ? 3 : 5, '0')}</span>
+								</li>
+							{/each}
+						</ol>
 						<p class="note">
 							The same 128 bits written as a UUID: <span class="mono">{ulidToUuid(decoded.canonical)}</span>. A ULID is
 							its bits in <a href="/base32">Crockford Base32</a>, 5 bits per character.
@@ -408,7 +454,10 @@
 	</section>
 
 	<section id="generator">
-		<h2>UUID generator</h2>
+		<h2>UUID and ID generator</h2>
+		<p class="section-intro">
+			UUID versions 4, 7 and 1, ULIDs, MongoDB ObjectIds, NanoIDs and Discord snowflakes, made in your browser.
+		</p>
 		<div class="card tool">
 			<div class="gen-options">
 				<div>
@@ -426,6 +475,7 @@
 				<div>
 					<label class="field" for="gen-case">Letters</label>
 					<select id="gen-case" bind:value={gCase} disabled={!genFormat.caseOption}>
+						<option value="std">Usual ({genFormat.upper ? 'UPPER' : 'lower'})</option>
 						<option value="lower">lower case</option>
 						<option value="upper">UPPER CASE</option>
 					</select>
@@ -462,7 +512,7 @@
 					Version 4 has no time in it: all 122 bits that are not version or variant are random.
 				{/if}
 			</p>
-			{#if gCount < 1 || gCount > 100 || !Number.isInteger(gCount)}
+			{#if !countOk}
 				<p class="error" role="alert">Choose between 1 and 100 IDs.</p>
 			{/if}
 			{#if genError}
@@ -481,7 +531,9 @@
 				{/each}
 			</ol>
 			<div class="gen-actions">
-				<button type="button" class="action" on:click={generate} disabled={!generator}>Generate again</button>
+				<button type="button" class="action" on:click={generate} disabled={!generator || !countOk}
+					>Generate again</button
+				>
 				<button type="button" class="action" on:click={copyAll} disabled={!generated.length}>
 					{copyState === 'copied' ? 'Copied' : 'Copy all'}
 				</button>
@@ -505,8 +557,9 @@
 			it belongs to. Nearly every UUID in use is the RFC 9562 variant, binary 10, so its 17th digit is 8, 9, a or b.
 		</p>
 		<p>
-			Everything else depends on the version. Versions 1, 6 and 7 hold a timestamp, so they can be decoded to a date.
-			Version 4 is random and versions 3 and 5 are hashes, so the most anyone can read from them is the version itself.
+			Everything else depends on the version. Versions 1, 6 and 7 hold a full timestamp, so they can be decoded to a
+			date; version 2 keeps only part of one. Version 4 is random and versions 3 and 5 are hashes, so the most anyone
+			can read from them is the version itself.
 		</p>
 		<div class="table-wrap">
 			<table class="data-table">
@@ -532,10 +585,10 @@
 			</table>
 		</div>
 
-		<h3>The variant digit</h3>
+		<h3 class="variant-title">The variant digit</h3>
 		<p class="section-intro">
 			Only the top one to three bits of the 17th digit are the variant (shown in bold); the rest belong to the next
-			field. That is why four different hex digits all mean the standard layout.
+			field (shown as x). That is why four different hex digits all mean the standard layout.
 		</p>
 		<div class="table-wrap">
 			<table class="data-table variants">
@@ -549,7 +602,7 @@
 				<tbody>
 					{#each variantRows as row}
 						<tr>
-							<td class="mono strong">{row.digit}</td>
+							<td class="mono strong">{row.from === row.to ? row.from : `${row.from} to ${row.to}`}</td>
 							<td class="mono"><strong class="fixed">{row.fixed}</strong>{row.rest}</td>
 							<td>{VARIANT_NAMES[row.variant]}</td>
 						</tr>
@@ -568,9 +621,9 @@
 				<p class="small">
 					The first 12 hex digits are the time: <span class="mono">0x{hexOf(v7.fields[0].value, 12)}</span> =
 					<span class="mono">{v7.fields[0].value}</span> milliseconds since 1970, which is
-					<strong class="mono">{v7.time?.iso}</strong>. The 13th digit, 7, is the version, and the 17th, 9, is binary
-					1001: variant 10 followed by two random bits.
-					<a href="/uuid-decoder" on:click|preventDefault={() => tryId(RFC_V7)}>Try it</a>
+					<strong class="mono nowrap">{v7.time?.iso}</strong>. The 13th digit, 7, is the version, and the 17th, 9, is
+					binary 1001: variant 10 followed by two random bits.
+					<a class="nowrap" href="/uuid-decoder" on:click|preventDefault={() => tryId(RFC_V7)}>Try it</a>
 				</p>
 			</div>
 			<div class="card worked">
@@ -583,8 +636,8 @@
 					>
 					= <span class="mono">{v1Ticks}</span> steps of 100 ns since 1582-10-15. Subtract
 					<span class="mono">{GREGORIAN_OFFSET}</span> to count from 1970 instead: <span class="mono">{v1Unix}</span>,
-					which is <strong class="mono">{v1.time?.iso}</strong>.
-					<a href="/uuid-decoder?id={RFC_V1}" on:click|preventDefault={() => tryId(RFC_V1)}>Try it</a>
+					which is <strong class="mono nowrap">{v1.time?.iso}</strong>.
+					<a class="nowrap" href="/uuid-decoder?id={RFC_V1}" on:click|preventDefault={() => tryId(RFC_V1)}>Try it</a>
 				</p>
 			</div>
 		</div>
@@ -601,8 +654,8 @@
 		<p>
 			UUIDs are not the only IDs with a time inside. A <strong>ULID</strong> is 128 bits like a UUID, 48 bits of
 			milliseconds and 80 random bits, written as 26 characters of Crockford Base32 instead of hex. The alphabet,
-			<span class="mono">{CROCKFORD}</span>, leaves out I, L, O and U, so a ULID read aloud cannot be mistyped as a
-			similar letter; a decoder reads I and L as 1 and O as 0. The ULID
+			<span class="mono">{CROCKFORD}</span>, leaves out I, L and O, which are easily confused with 1 and 0, and U, which
+			Crockford dropped to avoid accidental obscenities; a decoder reads I and L as 1 and O as 0. The ULID
 			<span class="mono">{ulidExample.canonical}</span> starts with
 			<span class="mono">{ulidExample.canonical.slice(0, 10)}</span>, which is {ulidExample.fields[0].value} ms,
 			{ulidExample.time?.iso}.
@@ -636,7 +689,7 @@
 							<td>{f.chars}</td>
 							<td>{f.time}</td>
 							<td>{f.random}</td>
-							<td>{f.sortable ? 'Yes' : 'No'}</td>
+							<td>{f.sortable}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -654,16 +707,16 @@
 			</li>
 			<li>
 				<strong>Leaking a MAC address.</strong> A version 1 UUID made the original way contains the network card address
-				of the machine that made it. Generators now usually set a random node with the multicast bit on, as the one on this
-				page does.
+				of the machine that made it. Python's uuid1() and PostgreSQL's uuid_generate_v1() still do by default. Some generators,
+				and the one on this page, use a random node with the multicast bit set instead.
 			</li>
 			<li>
 				<strong>Expecting version 1 to sort.</strong> Its time is stored low bits first, so sorting the text does not sort
 				by time. Use version 7, or 6 if you need the version 1 fields.
 			</li>
 			<li>
-				<strong>Comparing case-sensitively.</strong> RFC 9562 says UUIDs are written in lower case but must be read in either.
-				Store one form and compare that.
+				<strong>Comparing case-sensitively.</strong> RFC 9562 allows the hex letters in upper, lower or mixed case, so comparisons
+				must ignore case (the older RFC 4122 asked for lower case output). Store one form and compare that.
 			</li>
 			<li>
 				<strong>Mixing up GUID byte order.</strong> Windows stores the first three groups of a GUID little-endian, so the
@@ -845,6 +898,20 @@
 		overflow-wrap: anywhere;
 	}
 
+	/* An ISO time is one word: on a phone each label goes above its value
+	   rather than squeezing the time into a narrow column. */
+	@media (max-width: 560px) {
+		.times {
+			grid-template-columns: 1fr;
+			gap: 0;
+		}
+
+		.times dd {
+			margin-bottom: 0.3rem;
+			overflow-wrap: normal;
+		}
+	}
+
 	.summary {
 		color: #ddd;
 		margin: 0.8rem 0 0;
@@ -878,9 +945,11 @@
 		align-items: flex-end;
 	}
 
+	/* One height for every control in the row, so their labels line up. */
 	select,
 	.count,
 	.small-input {
+		height: 2.1rem;
 		background-color: #0d0d0f;
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
@@ -923,9 +992,10 @@
 
 	.generated li {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: 0.6rem;
+		gap: 0.2rem 0.6rem;
 		padding: 0.15rem 0.7rem;
 	}
 
@@ -934,10 +1004,12 @@
 		font-size: 0.85rem;
 	}
 
+	/* An ID never breaks across lines; when it and its button do not fit
+	   side by side, the button moves under it instead. */
 	.gen-id {
 		color: #eee;
 		font-size: 0.9rem;
-		overflow-wrap: anywhere;
+		white-space: nowrap;
 		user-select: all;
 	}
 
@@ -1021,6 +1093,68 @@
 		color: #fff;
 	}
 
+	.nowrap {
+		white-space: nowrap;
+	}
+
+	.variant-title {
+		margin-top: 1.6rem;
+	}
+
+	#generator .section-intro {
+		margin-top: 0.3rem;
+	}
+
+	.chars-title {
+		color: #fff;
+		font-size: 1rem;
+		margin: 1rem 0 0;
+	}
+
+	/* One box per character, wrapping to the width: the character, its value
+	   and its 5 bits (3 for the first), coloured like the field it belongs to. */
+	.ulid-chars {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+		list-style: none;
+		margin: 0.6rem 0 0;
+		padding: 0;
+	}
+
+	.ulid-chars li {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		min-width: 3.1rem;
+		padding: 0.2rem 0.25rem;
+		border: 1px solid rgba(90, 155, 216, 0.5);
+		border-radius: 3px;
+		background-color: rgba(90, 155, 216, 0.1);
+		line-height: 1.35;
+	}
+
+	.ulid-chars li.time-char {
+		border-color: rgba(93, 182, 93, 0.6);
+		background-color: rgba(93, 182, 93, 0.12);
+	}
+
+	.ulid-chars .ch {
+		color: #fff;
+		font-size: 1.05rem;
+		font-weight: 700;
+	}
+
+	.ulid-chars .val {
+		color: #bbb;
+		font-size: 0.75rem;
+	}
+
+	.ulid-chars .b5 {
+		color: #ddd;
+		font-size: 0.75rem;
+	}
+
 	.small {
 		font-size: 0.9rem;
 		margin: 0.4rem 0 0;
@@ -1051,7 +1185,7 @@
 		}
 
 		.gen-id {
-			font-size: 0.8rem;
+			font-size: 0.74rem;
 		}
 	}
 </style>
