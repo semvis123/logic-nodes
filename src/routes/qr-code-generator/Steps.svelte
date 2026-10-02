@@ -11,14 +11,54 @@
 	const BLOCKS_SHOWN = 6;
 	const SEQUENCE_SHOWN = 60;
 
-	const fieldNote: Record<Field['kind'], string> = {
+	$: fieldNote = {
 		mode: 'which encoding follows',
-		count: 'how many characters',
-		data: 'the characters',
+		count: qr.mode === 'byte' ? 'how many bytes' : 'how many characters',
+		data: qr.mode === 'byte' ? 'the bytes' : 'the characters',
 		terminator: 'end of data',
 		'bit-padding': 'to a byte boundary',
 		'pad-bytes': '11101100 and 00010001 in turn'
-	};
+	} as Record<Field['kind'], string>;
+
+	/**
+	 * A field's bits cut where they belong apart: the data at each group's
+	 * boundary (so the stream lines up with the table above) and the pad bytes
+	 * every 8 bits. Long fields stop after about BITS_SHOWN bits.
+	 */
+	function chunks(f: Field): { parts: string[]; cut: boolean } {
+		const all =
+			f.kind === 'data'
+				? qr.groups.map((g) => g.bits)
+				: f.kind === 'pad-bytes'
+				? f.bits.match(/.{8}/g) ?? []
+				: [f.bits];
+		const parts: string[] = [];
+		let length = 0;
+		for (const part of all) {
+			if (length >= BITS_SHOWN) break;
+			parts.push(part);
+			length += part.length;
+		}
+		return { parts, cut: parts.length < all.length };
+	}
+
+	// In byte mode a character can be several bytes; each row says which.
+	$: groupRows = (() => {
+		let lead = '';
+		let total = 0;
+		let k = 0;
+		return qr.groups.map((g) => {
+			if (g.chars || qr.mode !== 'byte') {
+				lead = g.chars;
+				total = qr.mode === 'byte' ? new TextEncoder().encode(g.chars).length : 1;
+				k = 0;
+			}
+			k++;
+			return { ...g, lead: shown(lead), k, total };
+		});
+	})();
+	$: multiByte = groupRows.some((g) => g.total > 1);
+	const shown = (chars: string) => chars.replace(/ /g, '␣');
 
 	$: bin8 = (n: number) => n.toString(2).padStart(8, '0');
 	$: dataTotal = qr.blocks.reduce((n, b) => n + b.data.length, 0);
@@ -32,6 +72,12 @@
 			? 'Characters go in pairs: 45 × the first value + the second, in 11 bits. A last single character takes 6 bits.'
 			: 'Each character becomes its UTF-8 bytes, 8 bits each.';
 	$: shortBlocks = qr.blocks.filter((b) => b.data.length === qr.blocks[0].data.length).length;
+	$: blockSplit =
+		shortBlocks === qr.blocks.length
+			? `${qr.blocks.length} blocks of ${qr.blocks[0].data.length} codewords`
+			: `${qr.blocks.length} blocks (${shortBlocks} of ${qr.blocks[0].data.length} codewords, then ${
+					qr.blocks.length - shortBlocks
+			  } of ${qr.blocks[qr.blocks.length - 1].data.length})`;
 </script>
 
 <ol class="build">
@@ -58,9 +104,15 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each qr.groups.slice(0, GROUPS_SHOWN) as g}
+						{#each groupRows.slice(0, GROUPS_SHOWN) as g}
 							<tr>
-								<td class="mono">{g.chars ? g.chars.replace(/ /g, '␣') : '…'}</td>
+								<td class="mono"
+									>{#if g.k === 1}{g.lead}{#if g.total > 1}<span class="byte-of">byte 1 of {g.total}</span
+											>{/if}{:else}<span class="cont"
+											><span aria-hidden="true">↳ </span>{g.lead}<span class="byte-of">byte {g.k} of {g.total}</span
+											></span
+										>{/if}</td
+								>
 								<td class="mono num">{qr.mode === 'byte' ? `0x${hexByte(g.value)}` : g.value}</td>
 								<td class="mono strong">{g.bits}</td>
 							</tr>
@@ -69,7 +121,13 @@
 				</table>
 			</div>
 			{#if qr.groups.length > GROUPS_SHOWN}
-				<p class="note">The first {GROUPS_SHOWN} of {qr.groups.length} groups.</p>
+				<p class="note">The first {GROUPS_SHOWN} of {qr.groups.length} {qr.mode === 'byte' ? 'bytes' : 'groups'}.</p>
+			{/if}
+			{#if multiByte}
+				<p class="note">
+					In UTF-8 the first byte of a character starts 110, 1110 or 11110 when the character takes 2, 3 or 4 bytes, and
+					the bytes after it start 10. The <a href="/binary-translator">binary translator</a> shows the bytes of any text.
+				</p>
 			{/if}
 		{/if}
 	</li>
@@ -83,10 +141,12 @@
 		<div class="stream">
 			{#each qr.fields as f}
 				{#if f.bits.length}
+					{@const c = chunks(f)}
 					<div class="field f-{f.kind}">
 						<span class="field-name">{f.label} <span class="field-len">{f.bits.length} bits</span></span>
 						<span class="field-bits mono"
-							>{f.bits.length > BITS_SHOWN ? `${f.bits.slice(0, BITS_SHOWN)}…` : f.bits}</span
+							>{#each c.parts as part, i}<span class="chunk" class:alt={i % 2 === 1}>{part}</span
+								>{' '}{/each}{#if c.cut}…{/if}</span
 						>
 						<span class="field-note">{fieldNote[f.kind]}</span>
 					</div>
@@ -120,9 +180,9 @@
 				degree
 				{qr.blocks[0].ec.length}, leave a remainder of {qr.blocks[0].ec.length} error correction codewords.
 			{:else}
-				The data is split into {qr.blocks.length} blocks ({shortBlocks} of {qr.blocks[0].data.length} codewords{#if shortBlocks < qr.blocks.length},
-					then {qr.blocks.length - shortBlocks} of {qr.blocks[qr.blocks.length - 1].data.length}{/if}), and each block
-				gets its own {qr.blocks[0].ec.length} Reed–Solomon codewords, so damage in one spot only uses up one block's correction.
+				The data is split into {blockSplit}. Each block gets its own {qr.blocks[0].ec.length} Reed–Solomon codewords and
+				is corrected on its own; a Reed–Solomon block over GF(256) can be at most 255 codewords long, and smaller blocks
+				are quicker to decode. With the interleaving below, damage in one spot is shared between several blocks.
 			{/if}
 		</p>
 		<div class="table-wrap scroll-box">
@@ -137,9 +197,9 @@
 				<tbody>
 					{#each qr.blocks.slice(0, BLOCKS_SHOWN) as b, i}
 						<tr>
-							<td class="mono">{i + 1}</td>
-							<td class="mono hexes">{b.data.map(hexByte).join(' ')}</td>
-							<td class="mono hexes ec">{b.ec.map(hexByte).join(' ')}</td>
+							<td class="mono" data-label="Block">{i + 1}</td>
+							<td class="mono hexes" data-label="Data">{b.data.map(hexByte).join(' ')}</td>
+							<td class="mono hexes ec" data-label="Error correction">{b.ec.map(hexByte).join(' ')}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -176,8 +236,8 @@
 		</div>
 		<p class="note">
 			{#if qr.sequence.length > SEQUENCE_SHOWN}The first {SEQUENCE_SHOWN} of {qr.sequence.length}.{/if}
-			D is data and E error correction{qr.blocks.length > 1 ? ', then block.position' : ''}; codewords {dataTotal + 1} on
-			are error correction.
+			D is data and E error correction{qr.blocks.length > 1 ? ', then block.position' : ''}: codewords 1–{dataTotal} are
+			data and {dataTotal + 1}–{qr.sequence.length} error correction.
 		</p>
 	</li>
 </ol>
@@ -266,7 +326,53 @@
 	.field-bits {
 		font-size: 0.85rem;
 		overflow-wrap: anywhere;
-		word-break: break-all;
+	}
+
+	.chunk.alt {
+		color: #9fd59f !important;
+	}
+
+	.byte-of {
+		color: #aaa;
+		font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font-size: 0.72rem;
+		margin-left: 0.5rem;
+	}
+
+	.cont {
+		color: #aaa;
+	}
+
+	@media (max-width: 560px) {
+		.blocks thead {
+			display: none;
+		}
+
+		.blocks,
+		.blocks tbody,
+		.blocks tr,
+		.blocks td {
+			display: block;
+		}
+
+		.blocks tr {
+			border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+			padding: 0.3rem 0;
+		}
+
+		.blocks td {
+			border: none;
+			min-width: 0;
+			padding: 0.15rem 0.4rem;
+		}
+
+		.blocks td::before {
+			color: #aaa;
+			content: attr(data-label);
+			display: block;
+			font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+			font-size: 0.72rem;
+		}
 	}
 
 	.field-note {

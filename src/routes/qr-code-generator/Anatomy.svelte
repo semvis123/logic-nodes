@@ -63,8 +63,11 @@
 	let svgEl: SVGSVGElement;
 	$: if (cursor && (cursor.x >= qr.size || cursor.y >= qr.size)) cursor = null;
 	$: readout = cursor
-		? describeModule(qr, cursor.x, cursor.y)
+		? describeModule(qr, cursor.x, cursor.y, masked)
 		: 'Point at a module, or focus the code and use the arrow keys, to see what it is.';
+	// Announced only after a key press: pointer moves would fire one announcement
+	// per module crossed.
+	let spoken = '';
 
 	function pointAt(event: PointerEvent) {
 		const box = svgEl.getBoundingClientRect();
@@ -89,6 +92,7 @@
 			x: Math.min(qr.size - 1, Math.max(0, from.x + (cursor ? move[0] * step : 0))),
 			y: Math.min(qr.size - 1, Math.max(0, from.y + (cursor ? move[1] * step : 0)))
 		};
+		spoken = describeModule(qr, cursor.x, cursor.y, masked);
 	}
 
 	const colour = (id: Layer, dark: boolean) => {
@@ -176,12 +180,14 @@
 				/>
 			{/if}
 		</svg>
-		<p class="readout" id="qr-readout" aria-live="polite">{readout}</p>
+		<p class="readout" id="qr-readout">{readout}</p>
+		<p class="visually-hidden" aria-live="polite">{spoken}</p>
 	</div>
 
 	<div class="controls">
 		<fieldset class="layers">
 			<legend>Highlight</legend>
+			<p class="layer-head" aria-hidden="true">Modules</p>
 			{#each LAYERS as layer}
 				{#if counts[layer.id] > 0}
 					<label class="layer">
@@ -190,7 +196,7 @@
 							><span style="background:{layer.dark}" /><span style="background:{layer.light}" /></span
 						>
 						<span class="layer-name">{layer.label}</span>
-						<span class="layer-count">{counts[layer.id]}</span>
+						<span class="layer-count">{counts[layer.id]}<span class="visually-hidden"> modules</span></span>
 					</label>
 				{/if}
 			{/each}
@@ -361,6 +367,24 @@
 		color: #999;
 		display: block;
 		font-size: 0.75rem;
+	}
+
+	.layer-head {
+		color: #999;
+		font-size: 0.68rem;
+		letter-spacing: 0.04em;
+		margin: 0 0 0.1rem;
+		text-align: right;
+		text-transform: uppercase;
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 
 	.layer-count {

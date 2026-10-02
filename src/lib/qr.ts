@@ -284,8 +284,10 @@ export type Penalty = { mask: number; runs: number; boxes: number; finders: numb
  *     for each module past five.
  *  2. Each 2×2 block of one colour: 3 (blocks may overlap).
  *  3. Each 1:1:3:1:1 dark-light-dark-light-dark pattern with four light
- *     modules before or after it, in a row or column: 40. The quiet zone
- *     counts as light, so a pattern at the edge counts too.
+ *     modules before or after it, in a row or column: 40 for each light side,
+ *     so 80 when both are light. Some encoders count such a pattern once;
+ *     this one, like Nayuki's, counts each side. The quiet zone counts as
+ *     light, so a pattern at the edge counts too.
  *  4. 10 for every whole 5% step the share of dark modules is away from 50%.
  */
 export function penalty(matrix: boolean[][], mask = -1): Penalty {
@@ -331,6 +333,31 @@ export function penalty(matrix: boolean[][], mask = -1): Penalty {
 	return { mask, runs, boxes, finders, balance, total: runs + boxes + finders + balance };
 }
 
+/**
+ * The part of rule 3 that the three real finder patterns score in every mask:
+ * each is crossed by three rows and three columns in the 1:1:3:1:1 ratio, with
+ * the quiet zone as the light run on its outer side. Measured by scoring a
+ * symbol of this size with only the finders and separators drawn and every
+ * other module dark, so nothing on the inner side counts.
+ */
+export function finderBaseline(size: number): number {
+	const matrix = Array.from({ length: size }, () => new Array(size).fill(true));
+	for (const [ox, oy] of [
+		[0, 0],
+		[size - 7, 0],
+		[0, size - 7]
+	])
+		for (let dy = -1; dy <= 7; dy++)
+			for (let dx = -1; dx <= 7; dx++) {
+				const x = ox + dx;
+				const y = oy + dy;
+				if (x < 0 || y < 0 || x >= size || y >= size) continue;
+				const ring = Math.max(Math.abs(dx - 3), Math.abs(dy - 3));
+				matrix[y][x] = ring !== 2 && ring !== 4;
+			}
+	return penalty(matrix).finders;
+}
+
 // --- The bit stream ---------------------------------------------------------
 
 /** The most compact single mode the whole text fits. */
@@ -340,7 +367,11 @@ export function chooseMode(text: string): Mode {
 	return 'byte';
 }
 
-/** UTF-8, as every modern scanner reads byte mode; a lone surrogate becomes U+FFFD. */
+/**
+ * UTF-8, with no ECI header. Without one the standard's default for byte mode
+ * is ISO-8859-1, but most scanners recognise UTF-8 by its byte patterns. A
+ * lone surrogate becomes U+FFFD.
+ */
 export const utf8 = (text: string): number[] => Array.from(new TextEncoder().encode(text));
 
 /** One group of characters and the bits they become. */
@@ -352,6 +383,8 @@ export type Field = {
 	label: string;
 	bits: string;
 };
+
+const fmt = (n: number) => n.toLocaleString('en-GB');
 
 const binary = (value: number, width: number) => value.toString(2).padStart(width, '0');
 
@@ -489,6 +522,7 @@ export type EncodeOptions = { ec?: EcLevel; version?: number | 'auto'; mask?: nu
 /** Encodes the text into a QR code, choosing the version and the mask unless they are given. */
 export function encodeQr(text: string, options: EncodeOptions = {}): QrCode {
 	const ec = options.ec ?? 'M';
+	if (!EC_LEVELS.includes(ec)) throw new QrError('The error correction level is L, M, Q or H');
 	const mode = chooseMode(text);
 	const count = charCount(text, mode);
 	const minVersion = smallestVersion(text, ec, mode);
@@ -496,7 +530,7 @@ export function encodeQr(text: string, options: EncodeOptions = {}): QrCode {
 		const max = capacity(MAX_VERSION, ec, mode);
 		const unit = mode === 'byte' ? 'bytes' : 'characters';
 		throw new QrError(
-			`That is ${count} ${unit} in ${mode} mode, and the largest QR code holds ${max} at level ${ec}` +
+			`That is ${fmt(count)} ${unit} in ${mode} mode, and the largest QR code holds ${fmt(max)} at level ${ec}` +
 				(ec === 'L' ? '.' : '. A lower error correction level fits more.')
 		);
 	}
@@ -790,12 +824,15 @@ export function qrSvg(modules: boolean[][], moduleSize = 10, quiet = QUIET_ZONE)
 /** Two hex digits per codeword, upper case. */
 export const hexByte = (n: number) => n.toString(16).toUpperCase().padStart(2, '0');
 
-/** What a module is, in words, for the inspector under the symbol. */
-export function describeModule(qr: QrCode, x: number, y: number): string {
+/**
+ * What a module is, in words, for the inspector under the symbol. With
+ * `masked` false it describes the module as drawn before masking.
+ */
+export function describeModule(qr: QrCode, x: number, y: number, masked = true): string {
 	const m = qr.info[y][x];
 	const where = `Row ${y}, column ${x}`;
-	const masked = qr.modules[y][x];
-	const colour = masked ? 'dark' : 'light';
+	const dark = (masked ? qr.modules : qr.unmasked)[y][x];
+	const colour = dark ? 'dark' : 'light';
 	switch (m.role) {
 		case 'finder':
 			return `${where}: finder pattern, ${colour}.`;
@@ -812,16 +849,20 @@ export function describeModule(qr: QrCode, x: number, y: number): string {
 		case 'version':
 			return `${where}: version information, copy ${m.copy}, bit ${m.bit} of 18, ${colour}.`;
 		case 'remainder':
-			return `${where}: remainder bit, a spare module after the last codeword (0 before masking), ${colour}.`;
+			return `${where}: remainder bit, a spare module after the last codeword (0 before masking), ${
+				masked ? colour : 'so light'
+			}.`;
 		default: {
 			const o = qr.origin[m.codeword];
 			const kind = o.kind === 'data' ? 'data' : 'error correction';
 			const value = qr.sequence[m.codeword];
 			const raw = (value >>> m.bit) & 1;
-			const flipped = raw !== Number(masked);
-			return `${where}: codeword ${m.codeword + 1} (${kind} ${o.index + 1} of block ${o.block + 1}, 0x${hexByte(
+			const head = `${where}: codeword ${m.codeword + 1} (${kind} ${o.index + 1} of block ${o.block + 1}, 0x${hexByte(
 				value
-			)}), bit ${m.bit}. The bit is ${raw}${flipped ? ', inverted by the mask,' : ''} so the module is ${colour}.`;
+			)}), bit ${m.bit}. The bit is ${raw}`;
+			if (!masked) return `${head}, so before masking the module is ${colour}.`;
+			const flipped = raw !== Number(dark);
+			return `${head}${flipped ? ', inverted by the mask,' : ''} so the module is ${colour}.`;
 		}
 	}
 }
