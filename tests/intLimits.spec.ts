@@ -446,6 +446,9 @@ test.describe('integer limits', () => {
 			if (t.bits < 32) {
 				expect(answer).toContain(`is ${formatDecimal(t.max + 1n)} as an int`);
 				expect(answer).not.toContain('undefined behaviour');
+				// Kotlin's UByte and UShort arithmetic gives a UInt, not an Int.
+				if (!t.signed) expect(answer).toContain('done in int (UInt in Kotlin)');
+				else expect(answer).not.toContain('UInt');
 			}
 		}
 		expect(describedLanguages(T('uint128'))).toEqual(['C', 'C#', 'Rust']);

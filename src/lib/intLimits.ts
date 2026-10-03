@@ -916,7 +916,7 @@ export function typeDescription(t: IntType): string {
 /**
  * What max + 1 does, language by language. Only languages that have the type
  * are named. Below 32 bits the C family, Java, C# and Kotlin do the sum in int
- * (Java's byte + 1 is the int 128), so the wrap happens only when the result
+ * (Java's byte + 1 is the int 128; Kotlin's UByte and UShort give a UInt), so the wrap happens only when the result
  * is stored back; Go, Rust and Swift work at the narrow width itself.
  */
 export function overflowAnswer(t: IntType): string {
@@ -925,11 +925,11 @@ export function overflowAnswer(t: IntType): string {
 	const head = `On the hardware the result keeps only its low ${t.bits} bits, so ${max} + 1 becomes ${next}.`;
 	if (t.bits < 32) {
 		const promoting = ['C', 'C++', ...['Java', 'C#', 'Kotlin'].filter((l) => hasType(t, l))];
-		return `${head} In ${listOf(promoting)}, arithmetic on ${
+		return `${head} In ${listOf(promoting)}, arithmetic on ${t.bits}-bit values is done in int${
+			!t.signed && promoting.includes('Kotlin') ? ' (UInt in Kotlin)' : ''
+		}, so ${max} + 1 is ${formatDecimal(t.max + 1n)} as an int; it becomes ${next} only when stored back into the ${
 			t.bits
-		}-bit values is done in int, so ${max} + 1 is ${formatDecimal(
-			t.max + 1n
-		)} as an int; it becomes ${next} only when stored back into the ${t.bits}-bit type, as x++, ${
+		}-bit type, as x++, ${
 			promoting.includes('Kotlin')
 				? 'a cast or (except in Kotlin, where it does not compile) x += 1'
 				: 'x += 1 or a cast'

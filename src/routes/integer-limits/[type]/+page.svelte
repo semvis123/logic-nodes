@@ -343,8 +343,8 @@
 									<a class="mono" href="/integer-limits/{other.slug}">{other.slug}</a>
 								{/if}
 							</th>
-							<td class="mono num">{@html breakable(formatDecimal(other.min))}</td>
-							<td class="mono num">{@html breakable(formatDecimal(other.max))}</td>
+							<td class="mono num">{@html breakable(formatDecimal(other.min), 0)}</td>
+							<td class="mono num">{@html breakable(formatDecimal(other.max), 0)}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -608,6 +608,14 @@
 
 		.all td {
 			font-size: 0.78rem;
+		}
+
+		/* Narrower side padding keeps a 32-bit limit such as −2,147,483,648 on
+		   one line at phone width; on a narrower screen it breaks at a comma. */
+		.all th,
+		.all td {
+			padding-left: 0.5rem;
+			padding-right: 0.5rem;
 		}
 
 		/* The names table becomes one block per language: no sideways scrolling. */

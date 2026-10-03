@@ -339,12 +339,12 @@
 							<th scope="row"><a class="mono" href="/integer-limits/{t.slug}">{t.slug}</a></th>
 							<td class="num bits-col">{t.bits}</td>
 							<td class="num"
-								><span class="mono big">{@html breakable(formatDecimal(t.max))}</span><span class="pow"
+								><span class="mono big">{@html breakable(formatDecimal(t.max), 0)}</span><span class="pow"
 									>{formulas(t).max}</span
 								></td
 							>
 							<td class="num"
-								><span class="mono">{@html breakable(formatDecimal(t.min))}</span>{#if t.signed}<span class="pow"
+								><span class="mono">{@html breakable(formatDecimal(t.min), 0)}</span>{#if t.signed}<span class="pow"
 										>{formulas(t).min}</span
 									>{/if}</td
 							>
@@ -752,6 +752,14 @@
 
 		.limits td {
 			font-size: 0.8rem;
+		}
+
+		/* Narrower side padding keeps a 32-bit limit such as −2,147,483,648 on
+		   one line at phone width; on a narrower screen it breaks at a comma. */
+		.limits th,
+		.limits td {
+			padding-left: 0.5rem;
+			padding-right: 0.5rem;
 		}
 	}
 
