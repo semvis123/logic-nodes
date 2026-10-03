@@ -251,7 +251,7 @@
 		{ href: '/twos-complement', label: "Two's complement" },
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/hex-to-decimal', label: 'Hex to decimal converter' },
-		{ href: '/fp16-bf16-fp8-converter', label: 'FP16, BF16 and FP8 converter' },
+		{ href: '/fp16-bf16-fp8-converter', label: 'FP16, BF16, FP8 and FP4 converter' },
 		{ href: '/bit-manipulation-tricks', label: 'Bit manipulation tricks' },
 		{ href: '/struct-padding-calculator', label: 'Struct padding calculator' },
 		{ href: '/tools', label: 'All tools' }
