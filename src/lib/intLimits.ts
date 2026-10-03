@@ -929,9 +929,11 @@ export function overflowAnswer(t: IntType): string {
 			t.bits
 		}-bit values is done in int, so ${max} + 1 is ${formatDecimal(
 			t.max + 1n
-		)} as an int; it becomes ${next} only when stored back into the ${
-			t.bits
-		}-bit type, as x++, x += 1 or a cast do. Go wraps at ${
+		)} as an int; it becomes ${next} only when stored back into the ${t.bits}-bit type, as x++, ${
+			promoting.includes('Kotlin')
+				? 'a cast or (except in Kotlin, where it does not compile) x += 1'
+				: 'x += 1 or a cast'
+		} do. Go wraps at ${
 			t.bits
 		} bits directly, Rust panics in debug builds and wraps in release builds, and Swift stops with a runtime error.`;
 	}

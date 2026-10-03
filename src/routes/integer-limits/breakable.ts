@@ -6,5 +6,10 @@
 const escapeHtml = (s: string): string =>
 	s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-/** Escaped text with a <wbr> after every comma that separates digit groups, for {@html}. */
-export const breakable = (s: string): string => escapeHtml(s).replace(/(\d,)(?=\d)/g, '$1<wbr>');
+// Numbers up to 32 bits (2,147,483,647 is 13 characters) fit any line, so they
+// stay whole: breaking them would only split a short number for no gain.
+const LONGEST_UNBROKEN = 13;
+
+/** Escaped text with a <wbr> after each digit-group comma of a long number, for {@html}. */
+export const breakable = (s: string): string =>
+	escapeHtml(s).replace(/\d{1,3}(?:,\d{3})+/g, (n) => (n.length > LONGEST_UNBROKEN ? n.replace(/,/g, ',<wbr>') : n));
