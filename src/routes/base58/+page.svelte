@@ -642,13 +642,15 @@
 		<div class="table-wrap">
 			<table class="data-table ripple">
 				<thead>
-					<tr><th scope="col">Text</th><th scope="col">Base58</th><th scope="col">Base64</th></tr>
+					<tr>
+						<th scope="col" class="wide-only">Text</th><th scope="col">Base58</th><th scope="col">Base64</th>
+					</tr>
 				</thead>
 				<tbody>
 					{#each ripple as r, i}
 						{@const other = ripple[1 - i]}
 						<tr>
-							<td class="mono">{r.t}</td>
+							<td class="mono wide-only">{r.t}</td>
 							<td class="mono"
 								>{#each marked(r.b58, other.b58) as c}<span class:diff={c.diff} class:same={!c.diff}>{c.ch}</span
 									>{/each}</td
@@ -720,9 +722,9 @@
 					<tr>
 						<th scope="col">Version</th>
 						<th scope="col">What it is</th>
-						<th scope="col" class="num">Payload</th>
+						<th scope="col" class="num wide-only">Payload</th>
 						<th scope="col">Starts with</th>
-						<th scope="col" class="num">Longest</th>
+						<th scope="col" class="num wide-only">Longest</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -730,9 +732,9 @@
 						<tr>
 							<td class="mono">{hexBytes([k.version])}</td>
 							<td>{k.name}</td>
-							<td class="mono num">{k.payloadLength} bytes</td>
+							<td class="mono num wide-only">{k.payloadLength} bytes</td>
 							<td class="mono strong">{k.starts}</td>
-							<td class="mono num">{k.longest}</td>
+							<td class="mono num wide-only">{k.longest}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -1219,5 +1221,19 @@
 
 	.kinds td {
 		vertical-align: top;
+	}
+
+	/* On a phone the comparison columns come first: the two texts are named just
+	   above the ripple table, and the payload size and longest length are extras. */
+	@media (max-width: 480px) {
+		.wide-only {
+			display: none;
+		}
+
+		:global(.content) .ripple td,
+		:global(.content) .ripple th {
+			padding-left: 0.4rem;
+			padding-right: 0.4rem;
+		}
 	}
 </style>

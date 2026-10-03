@@ -10,6 +10,7 @@ import {
 	base32Encode,
 	base32Decode,
 	base32Length,
+	crockfordNumber,
 	BASE32_ALPHABETS,
 	CROCKFORD_CHECK_SYMBOLS,
 	base58Encode,
@@ -239,6 +240,29 @@ test.describe('Base32', () => {
 		// Only Crockford, and only a 26-character input that fits in 128 bits, is read that way.
 		expect(base32Decode(ulid.slice(0, 24), 'crockford').asNumber).toBeUndefined();
 		expect(base32Decode('8' + ulid.slice(1), 'crockford').asNumber).toBeUndefined();
+	});
+
+	test('writes 16 bytes back as a ULID, the inverse of the number reading', () => {
+		const ulid = '01ARZ3NDEKTSV4RRFFQ69G5FAV';
+		expect(crockfordNumber(base32Decode(ulid, 'crockford').asNumber ?? [])).toBe(ulid);
+		expect(crockfordNumber(Array(16).fill(0))).toBe('0'.repeat(26));
+		// The largest 128-bit number: the first character holds only 2 zero bits and a 1-1-1.
+		expect(crockfordNumber(Array(16).fill(0xff))).toBe('7' + 'Z'.repeat(25));
+		// Against BigInt's own base 32, mapped onto Crockford's alphabet, on random bytes.
+		const digits = '0123456789abcdefghijklmnopqrstuv';
+		for (let n = 0; n < 200; n++) {
+			const bytes = Array.from({ length: 16 }, () => Math.floor(Math.random() * 256));
+			const reference = [...bytesToBigInt(bytes).toString(32).padStart(26, '0')]
+				.map((c) => BASE32_ALPHABETS.crockford[digits.indexOf(c)])
+				.join('');
+			const text = crockfordNumber(bytes);
+			expect(text).toBe(reference);
+			expect(base32Decode(text, 'crockford').asNumber).toEqual(bytes);
+		}
+		// The cut from the left differs from the ULID form: its 2 zero bits are at the end.
+		const cut = base32Encode(base32Decode(ulid, 'crockford').bytes, { variant: 'crockford' }).text;
+		expect(cut).toBe('01ARZ3NDEKTSV4RRFFQ69G5FAR');
+		expect(errorOf(() => crockfordNumber([1, 2, 3]))).toMatch(/16 bytes/);
 	});
 
 	test('checks a Crockford check symbol at the end, and refuses one that does not match', () => {
@@ -612,6 +636,31 @@ test.describe('the base32 page', () => {
 		await page.waitForLoadState('networkidle');
 		await expect(page.locator('#output')).toHaveValue(cut);
 		await page.getByRole('button', { name: '128-bit number (ULID)' }).click();
+		await expect(page.locator('#output')).toHaveValue(asNumber);
+		await expect(page).not.toHaveURL(/r=/);
+
+		// Swapping to Encode carries the cut from the left, which encodes back to the ULID bar
+		// its 2 dropped bits (not the number's bytes, which the encoder would cut into a
+		// different string); swapping back gives the same bytes.
+		await page.getByRole('button', { name: 'Encode', exact: true }).click();
+		await expect(page.locator('#input')).toHaveValue(cut);
+		await expect(page.locator('#output')).toHaveValue('01ARZ3NDEKTSV4RRFFQ69G5FAR');
+		const cutAsUlid = crockfordNumber(base32Decode(ulid, 'crockford').bytes);
+		await expect(page.locator('.tool')).toContainText(`the 2 zero bits at the front: ${cutAsUlid}`);
+		await expect(page.locator('#output')).not.toHaveValue(/^05B3/);
+		await page.getByRole('button', { name: 'Decode', exact: true }).click();
+		await expect(page.locator('#output')).toHaveValue(cut);
+		await page.getByRole('button', { name: 'Encode', exact: true }).click();
+		await expect(page.locator('#output')).toHaveValue('01ARZ3NDEKTSV4RRFFQ69G5FAR');
+
+		// The reading choice is forgotten once the input is no longer a ULID.
+		await page.goto(`/base32?m=decode&a=crockford&t=${ulid}&r=bytes`);
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#output')).toHaveValue(cut);
+		await page.locator('#input').fill('91JPRV3F');
+		await expect(page.locator('#output')).toHaveValue('Hello');
+		await expect(page).not.toHaveURL(/r=/);
+		await page.locator('#input').fill(ulid);
 		await expect(page.locator('#output')).toHaveValue(asNumber);
 		await expect(page).not.toHaveURL(/r=/);
 	});

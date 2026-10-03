@@ -8,6 +8,7 @@
 		base32Decode,
 		base32Length,
 		bytesAsText,
+		crockfordNumber,
 		hexBytes,
 		BASE32_ALPHABETS,
 		BASE32_NAMES,
@@ -46,8 +47,13 @@
 	let source: Source = 'text';
 	// A ULID-shaped Crockford string can be read two ways (see the engine); a
 	// ULID is a number, so that reading comes first, and the RFC 4648 cut is a click away.
+	// The choice only means something while a ULID-shaped string is decoded, so
+	// only then does it go in the link.
 	let reading: 'number' | 'bytes' = 'number';
-	$: syncUrl({ m: mode, t: input, a: variant, pad, in: source, r: reading }, DEFAULTS);
+	$: syncUrl(
+		{ m: mode, t: input, a: variant, pad, in: source, r: mode === 'decode' && asNumber ? reading : DEFAULTS.r },
+		DEFAULTS
+	);
 
 	const SHOWN_GROUPS = 4;
 
@@ -62,11 +68,17 @@
 	let numberNote: string | undefined;
 	let byteCount = 0;
 	let byteHex = '';
+	// 16 bytes in Crockford's alphabet, written the ULID way, for comparison with the cut from the left.
+	let ulidForm: string | undefined;
+	// The decoded bytes cut from the left, whichever reading is shown.
+	let lastBytes: number[] | undefined;
 	$: {
 		try {
 			notes = [];
 			notText = false;
 			asNumber = undefined;
+			ulidForm = undefined;
+			lastBytes = undefined;
 			errorAt = undefined;
 			if (mode === 'encode') {
 				const bytes = source === 'hex' ? parseHex(input).bytes : textToBytes(input);
@@ -75,12 +87,16 @@
 				groups = result.groups;
 				byteCount = bytes.length;
 				byteHex = hexBytes(bytes);
+				if (variant === 'crockford' && bytes.length === 16) ulidForm = crockfordNumber(bytes);
 			} else {
 				const result = base32Decode(input, variant);
+				lastBytes = result.bytes;
 				groups = result.groups;
 				notes = result.notes;
 				asNumber = result.asNumber;
 				numberNote = result.numberNote;
+				// Once the input is no longer a ULID, the next one opens on the number reading again.
+				if (!asNumber) reading = 'number';
 				const bytes = asNumber && reading === 'number' ? asNumber : result.bytes;
 				byteCount = bytes.length;
 				byteHex = hexBytes(bytes);
@@ -103,7 +119,14 @@
 	/** Switches mode, carrying the result across so the toggle reads as a swap. */
 	function setMode(next: Mode) {
 		if (next === mode) return;
-		if (!error && output) {
+		if (!error && output && asWholeNumber && lastBytes) {
+			// The encoder cuts bytes from the left, so it would turn the number's bytes into
+			// a different string. The cut from the left encodes back to this input (bar the 2
+			// dropped bits), and the bytes reading keeps the swap back stable.
+			input = hexBytes(lastBytes);
+			source = 'hex';
+			reading = 'bytes';
+		} else if (!error && output) {
 			if (next === 'encode' && notText) {
 				input = output;
 				source = 'hex';
@@ -455,6 +478,12 @@
 				<textarea id="output" class="output mono" readonly rows={outputRows} value={output} />
 				{#if mode === 'decode' && !notText && byteCount}
 					<p class="note">Bytes: <span class="mono wrap">{byteHex}</span></p>
+				{/if}
+				{#if ulidForm}
+					<p class="note">
+						16 bytes become 26 characters cut from the left, with 2 zero bits at the end. A ULID writes the same 16
+						bytes as one 128-bit number, with the 2 zero bits at the front: <span class="mono wrap">{ulidForm}</span>.
+					</p>
 				{/if}
 				{#if asWholeNumber}
 					<p class="note">

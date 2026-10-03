@@ -682,14 +682,18 @@
 		<div class="table-wrap">
 			<table class="data-table powers">
 				<thead>
-					<tr><th scope="col">Power</th><th scope="col" class="num">Value</th><th scope="col">In base 36</th></tr>
+					<tr>
+						<th scope="col">Power</th><th scope="col" class="num">Value</th><th scope="col" class="wide-only"
+							>In base 36</th
+						>
+					</tr>
 				</thead>
 				<tbody>
 					{#each powers as p}
 						<tr>
 							<td class="mono">36{superscript(p.n)}</td>
 							<td class="mono num">{grouped(p.value)}</td>
-							<td class="mono">1{'0'.repeat(p.n)}</td>
+							<td class="mono wide-only">1{'0'.repeat(p.n)}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -702,27 +706,27 @@
 		<p class="section-intro">
 			A base 36 digit carries log<sub>2</sub> 36 ≈ 5.17 bits, a little more than the 5 bits of a
 			<a href="/base32">Base32</a> character, so base 36 is the shortest way to write a number with digits and one case of
-			letters. The largest unsigned value of each common width:
+			letters. For each common width, the digits its largest unsigned value needs, and that value in base 36:
 		</p>
 		<div class="table-wrap">
 			<table class="data-table widths">
 				<thead>
 					<tr>
 						<th scope="col" class="num">Bits</th>
-						<th scope="col">Largest value in base 36</th>
 						<th scope="col" class="num">Base 36 digits</th>
 						<th scope="col" class="num">Hex digits</th>
 						<th scope="col" class="num">Decimal digits</th>
+						<th scope="col">Largest value in base 36</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each widths as w}
 						<tr>
 							<td class="mono num">{w.bits}</td>
-							<td class="mono strong">{w.b36}</td>
 							<td class="mono num">{w.b36.length}</td>
 							<td class="mono num">{w.b16}</td>
 							<td class="mono num">{w.b10}</td>
+							<td class="mono strong">{w.b36}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -1134,6 +1138,16 @@
 
 	.widths td {
 		white-space: nowrap;
+	}
+
+	/* The digit counts are the comparison, so they come first and fit a phone's
+	   width; the long value itself is last, a scroll away. */
+	@media (max-width: 480px) {
+		:global(.content) .widths th,
+		:global(.content) .widths td {
+			padding-left: 0.5rem;
+			padding-right: 0.5rem;
+		}
 	}
 
 	.points {

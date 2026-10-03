@@ -176,6 +176,23 @@ const asciiUpper = (ch: string) => (ch >= 'a' && ch <= 'z' ? ch.toUpperCase() : 
 /** The 26 characters of a ULID: a 48-bit time and 80 random bits, one 128-bit number. */
 export const ULID_LENGTH = 26;
 
+/**
+ * 16 bytes written the ULID way: one 128-bit number in 26 Crockford
+ * characters, with the 2 spare bits as zeros at the front. Encoding the same
+ * bytes from the left puts those zeros at the end instead, so the two strings
+ * differ; this is the reading base32Decode returns as `asNumber`, turned back.
+ */
+export function crockfordNumber(bytes: number[]): string {
+	if (bytes.length !== 16) throw new BaseNError('A ULID is 16 bytes, one 128-bit number.');
+	let n = bytesToBigInt(bytes);
+	let text = '';
+	for (let k = 0; k < ULID_LENGTH; k++) {
+		text = BASE32_ALPHABETS.crockford[Number(n & 31n)] + text;
+		n >>= 5n;
+	}
+	return text;
+}
+
 const allowedBase32: Record<Base32Variant, string> = {
 	rfc4648: 'A–Z and 2–7',
 	hex: '0–9 and A–V',
