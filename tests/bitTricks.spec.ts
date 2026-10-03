@@ -631,6 +631,16 @@ test.describe('the bit-manipulation-tricks page', () => {
 		await page.locator('#x-input').fill('0x1FFFFFFFF');
 		await expect(page.locator('.error')).toContainText('33 bits');
 		await expect(page.locator('#x-input')).toHaveAttribute('aria-invalid', 'true');
+		await expect(page.locator('#x-input')).toHaveAttribute('aria-describedby', 'x-help input-error');
+		// The dimmed last trace is out of the tab order, and the spoken alert
+		// waits for a pause in typing rather than firing on every key.
+		await expect(page.locator('.results')).toHaveJSProperty('inert', true);
+		await expect(page.getByRole('alert')).toContainText('33 bits');
+		await page.locator('#x-input').fill('0xFF');
+		await expect(page.locator('.results')).toHaveJSProperty('inert', false);
+		await expect(page.getByRole('alert')).toHaveCount(0);
+		// A bad x does not carry over: the next trick starts from its own example.
+		await page.locator('#x-input').fill('0x1FFFFFFFF');
 		// Two operands and the aliasing aside.
 		await page.locator('#trick').selectOption('xor-swap');
 		await page.locator('#y-input').fill('7');
