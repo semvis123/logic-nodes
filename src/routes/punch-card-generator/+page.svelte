@@ -155,7 +155,7 @@
 	const table = cardTable();
 	const baudot = baudotTable();
 	const exercise = 'NAND 7400';
-	const exerciseScene = cardScene(punch('card', exercise).cells, 12);
+	const exerciseScene = cardScene(punch('card', exercise).cells, 12, false);
 	const working0 = workingColumns(exercise)[0];
 	const hex = (n: number | undefined) => (n ?? 0).toString(16).toUpperCase();
 	const parity = ['A', 'C'].map((c) => ({ c, byte: punch('ascii', c).cells[0] }));

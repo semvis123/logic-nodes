@@ -334,8 +334,9 @@ export interface Scene {
 export const sceneSvg = (s: Scene) =>
 	`<svg xmlns="http://www.w3.org/2000/svg" width="${s.w}" height="${s.h}" viewBox="0 0 ${s.w} ${s.h}">${s.inner}</svg>`;
 
-/** A card of `columns` columns (80 for a real one; fewer crops it for an exercise). */
-export function cardScene(cells: number[], columns = MAX_CHARS): Scene {
+/** A card of `columns` columns (80 for a real one; fewer crops it for an exercise).
+ * `printed` false leaves the characters off the top edge, so an exercise does not give its answer away. */
+export function cardScene(cells: number[], columns = MAX_CHARS, printed = true): Scene {
 	const cw = 11,
 		rh = 20,
 		left = 30,
@@ -345,9 +346,11 @@ export function cardScene(cells: number[], columns = MAX_CHARS): Scene {
 	const cx = (c: number) => left + c * cw + cw / 2;
 	const cy = (r: number) => top + r * rh + rh / 2;
 	let inner = `<path d="M14 0H${w - 1}V${h - 1}H0V14Z" fill="${CREAM}" stroke="#8a7a4e"/>`;
-	const printed = cells.slice(0, columns).map((m, c) => [cx(c), CHAR_OF.get(m) ?? UNREADABLE] as [number, string]);
+	const chars = printed
+		? cells.slice(0, columns).map((m, c) => [cx(c), CHAR_OF.get(m) ?? UNREADABLE] as [number, string])
+		: [];
 	inner += glyphs(
-		printed.filter((p) => p[1] !== ' '),
+		chars.filter((p) => p[1] !== ' '),
 		top - 9,
 		10,
 		INK

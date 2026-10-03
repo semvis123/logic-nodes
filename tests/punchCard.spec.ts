@@ -289,6 +289,31 @@ test.describe('the punch-card-generator page', () => {
 		await expect(page.locator('[role=alert]')).toContainText('~');
 	});
 
+	test('the exercise card does not print its answer, and the answer shows only when asked for', async ({ page }) => {
+		const html = await (await page.request.get('/punch-card-generator')).text();
+		const start = html.indexOf('<section id="exercise"');
+		const section = html.slice(start, html.indexOf('</section>', start));
+		const drawing = section.slice(section.indexOf('<div role="img"'), section.indexOf('<details'));
+		const texts = (h: string) => [...h.matchAll(/<text[^>]*>([^<]*)<\/text>/g)].map((m) => m[1]);
+		// Only column numbers, row labels and the faint row digits: no letters, no printed row of "NAND7400".
+		expect(texts(drawing).length).toBeGreaterThan(10);
+		for (const t of texts(drawing)) expect(t).toMatch(/^\d+$/);
+		expect(drawing).not.toContain('NAND');
+		expect(drawing.match(/aria-label="[^"]*"/g)).toEqual(['aria-label="A card with 12 columns to read"']);
+		expect(drawing).not.toContain('<title');
+		// The main card on the same page still prints its text along the top.
+		expect(texts(html.slice(0, start))).toContain('HELLO,WORLD');
+
+		await page.goto('/punch-card-generator');
+		await page.waitForLoadState('networkidle');
+		const answer = page.locator('#exercise details');
+		await expect(answer).not.toHaveAttribute('open', '');
+		await expect(answer.locator('.mono')).toBeHidden();
+		await answer.locator('summary').click();
+		await expect(answer.locator('.mono').first()).toHaveText('NAND 7400');
+		await expect(page.locator('#exercise .exercise')).not.toContainText('NAND');
+	});
+
 	test('clicking a hole changes the text, and the link carries the holes', async ({ page }) => {
 		await page.goto('/punch-card-generator?t=AB');
 		await page.waitForLoadState('networkidle');
