@@ -964,7 +964,7 @@
 				<span class="chips-label">Watch a game (replaces the one in progress):</span>
 				{#each DEMOS as d}
 					<button type="button" class="chip-btn" on:click={d.run}
-						>{d.label}<span class="chip-value">{d.value}</span></button
+						>{d.label}{' '}<span class="chip-value">{d.value}</span></button
 					>
 				{/each}
 			</div>
@@ -1724,7 +1724,8 @@
 	.chip-value {
 		color: #8ede8e;
 		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-		margin-left: 0.45rem;
+		/* Adds to the real space before it (kept for screen readers) to make the old 0.45rem gap. */
+		margin-left: 0.2rem;
 	}
 
 	.chip-btn:hover {

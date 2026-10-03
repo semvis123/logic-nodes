@@ -519,7 +519,9 @@ test.describe('the guess-my-number page', () => {
 		await expect(page.locator('.question')).toContainText('add up to 12');
 		await expect(page.locator('.result-text')).toHaveCount(0);
 		// The two-lies chip shows the same flag rather than a confident wrong number.
-		await page.getByRole('button', { name: /^Liar, two lies/ }).click();
+		// Each chip's accessible name keeps a space between its label and the number it plays.
+		await expect(page.getByRole('button', { name: 'Liar, lie on question 6 42', exact: true })).toHaveCount(1);
+		await page.getByRole('button', { name: 'Liar, two lies 42', exact: true }).click();
 		await expect(page.locator('.question')).toContainText('More than one lie');
 	});
 
