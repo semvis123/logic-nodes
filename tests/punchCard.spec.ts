@@ -82,7 +82,7 @@ test.describe('card code', () => {
 test.describe('round trips', () => {
 	const alphabets: Record<Medium, string[]> = {
 		card: cardChars,
-		baudot: [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789-',:(+)2?./;\n"],
+		baudot: [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789-',:(+)2?./\n"],
 		ascii: [...Array(95)].map((_, i) => String.fromCharCode(32 + i)).concat(['\n', '\r'])
 	};
 	for (const medium of ['card', 'baudot', 'ascii'] as Medium[]) {
@@ -115,7 +115,7 @@ test.describe('round trips', () => {
 
 // The ITA2 table as binary codes, the way a standard prints it, in a different order from the engine's.
 const ITA2 =
-	`00011 A -|11001 B ?|01110 C :|01001 D ENQ|00001 E 3|01101 F NAT|11010 G NAT|10100 H NAT|00110 I 8|01011 J BEL|01111 K (|10010 L )|11100 M .|01100 N ,|11000 O 9|10110 P 0|10111 Q 1|01010 R 4|00101 S '|10000 T 5|00111 U 7|11110 V ;|10011 W 2|11101 X /|10101 Y 6|10001 Z +|00100 SP SP|01000 CR CR|00010 LF LF|11111 LTRS LTRS|11011 FIGS FIGS|00000 NUL NUL`.split(
+	`00011 A -|11001 B ?|01110 C :|01001 D ENQ|00001 E 3|01101 F NAT|11010 G NAT|10100 H NAT|00110 I 8|01011 J BEL|01111 K (|10010 L )|11100 M .|01100 N ,|11000 O 9|10110 P 0|10111 Q 1|01010 R 4|00101 S '|10000 T 5|00111 U 7|11110 V VAR|10011 W 2|11101 X /|10101 Y 6|10001 Z +|00100 SP SP|01000 CR CR|00010 LF LF|11111 LTRS LTRS|11011 FIGS FIGS|00000 NUL NUL`.split(
 		'|'
 	);
 
@@ -131,6 +131,7 @@ test.describe('Baudot tape', () => {
 					LTRS: '',
 					FIGS: '',
 					NAT: UNREADABLE,
+					VAR: UNREADABLE,
 					ENQ: UNREADABLE,
 					BEL: UNREADABLE
 				} as Record<string, string>
@@ -215,6 +216,16 @@ test.describe('limits and bad input', () => {
 		expect(punch('ascii', 'é').notes[0]).toContain('é');
 	});
 
+	test('problems are listed in one note, not one per column', () => {
+		const r = read('card', [3, 0, 3, 3]);
+		expect(r.notes).toEqual([`Columns 1, 3, 4 are not a character this page knows, so they read as ${UNREADABLE}.`]);
+		expect(read('card', [3]).notes).toEqual([
+			`Column 1 is not a character this page knows, so it reads as ${UNREADABLE}.`
+		]);
+		expect(read('baudot', [27, ...Array(40).fill(9)]).notes).toHaveLength(3);
+		expect(readBaudot([3])[0].label).toBe('A');
+	});
+
 	test('decoding any value never throws', () => {
 		const next = rng(5);
 		for (const medium of ['baudot', 'ascii'] as Medium[])
@@ -258,6 +269,8 @@ test.describe('drawing and links', () => {
 		expect(unpackCells('0!', 80, 'card')).toBeUndefined();
 		expect(unpackCells(packCells([32]), 80, 'baudot')).toBeUndefined();
 		expect(unpackCells('00'.repeat(81), 80, 'card')).toBeUndefined();
+		expect(unpackCells('0'.repeat(1e6), 80, 'ascii')).toBeUndefined();
+		expect(unpackCells('', 240, 'baudot')).toEqual([]);
 	});
 });
 

@@ -69,7 +69,7 @@
 	onMount(() => {
 		const p = readUrl();
 		medium = safeOption(p.m, ['card', 'baudot', 'ascii'] as const) ?? medium;
-		const packed = unpackCells(p.h ?? '', FRAME_LIMIT, medium);
+		const packed = unpackCells(p.h ?? '', medium === 'baudot' ? FRAME_LIMIT : MAX_CHARS, medium);
 		if (p.h !== undefined && packed) {
 			cells = packed;
 			const r = read(medium, cells);
@@ -173,7 +173,7 @@
 		},
 		{
 			q: 'How does a card become EBCDIC?',
-			a: `A card reader gives the computer the 12 bits of each column. EBCDIC was arranged to follow the card code: the zone punch becomes the high hex digit (12 gives C, 11 gives D, 0 gives E, none gives F for digits) and the digit punch becomes the low hex digit. A, which is 12 and 1, is ${ebA}. The table above is checked against Python's cp037 EBCDIC codec.`
+			a: `A card reader senses the 12 rows of each column. For letters and digits, EBCDIC follows the card code: the zone punch gives the high hex digit (12 gives C, 11 gives D, 0 gives E, none gives F for digits) and the digit punch becomes the low hex digit. A, which is 12 and 1, is ${ebA}. The card code table on this page is checked against Python's cp037 EBCDIC codec.`
 		},
 		{
 			q: 'What are LTRS and FIGS on Baudot tape?',
@@ -254,8 +254,8 @@
 					>
 				{/each}
 			</div>
-			<div id="notes" role="status">
-				{#each notes as n}<p class="note warn" role="alert">{n}</p>{/each}
+			<div id="notes" role="alert">
+				{#each notes as n}<p class="note warn">{n}</p>{/each}
 			</div>
 
 			<div class="scroll-box" use:scrollRegion data-label="{MEDIA.find((m) => m.id === medium)?.name} drawing">
@@ -318,7 +318,7 @@
 			A card column has 12 positions. Rows 0 to 9 are the digits, and rows 12 and 11 above them are the zones; row 0
 			doubles as a zone. A digit is a single hole. A letter is a zone hole plus a digit hole: A to I are 12 with 1 to 9,
 			J to R are 11 with 1 to 9, and S to Z are 0 with 2 to 9. Space is a column with no holes. Read as binary, the
-			column is a 12-bit number with the top row as the top bit, which is what a card reader hands to the computer.
+			column is a 12-bit number with the top row as the top bit.
 		</p>
 		<div class="table-wrap scroll-box" use:scrollRegion data-label="Worked example">
 			<table class="data-table">
@@ -343,17 +343,16 @@
 		</div>
 		<p>
 			The EBCDIC byte follows from the punches: the zone chooses the high hex digit and the digit punch the low one, so
-			the card code and EBCDIC line up. {MAX_CHARS} columns of 12 rows is {MAX_CHARS * 12} hole positions per card, and 80
-			columns was also one line of source code per card, which is a common explanation for why 80 characters stayed a default
-			line width.
+			the card code and EBCDIC line up. {MAX_CHARS} columns of 12 rows is {MAX_CHARS * 12} hole positions per card.
 		</p>
 	</section>
 
 	<section id="code">
 		<h2>The card code on this page</h2>
 		<p>
-			This is the IBM 029 keypunch set: capitals, digits, space and {CARD_CODE.length - 37} symbols. Each symbol has an 8
-			punch with a zone or digit, except &amp;, - and /. Punch patterns not listed here are not read.
+			This page uses the card code of the IBM 029 keypunch: capitals, digits, space and {CARD_CODE.length - 37} symbols.
+			Apart from &amp;, - and /, each symbol is an 8 punch plus one other punch, with or without a zone. The glyph printed
+			for a few codes differs between keyboards. Punch patterns not listed here are not read.
 		</p>
 		<div class="table-wrap scroll-box" use:scrollRegion data-label="Card code table">
 			<table class="data-table">
@@ -386,9 +385,9 @@
 			direction are this page's convention; the code values are what matter.
 		</p>
 		<p>
-			Baudot (ITA2) uses two shifts to double the 32 codes. Most codes are a letter or a figure depending on the last
-			shift, and the codes marked national use differ between countries, so this page does not read them. Parity on
-			ASCII tape is even: {parity[0].c} needs no parity hole and
+			Baudot (ITA2) uses two shift codes, so that most of the 32 codes mean a letter or a figure depending on the last
+			shift. The codes marked national use or varies differ between countries or sources, so this page does not read
+			them. Parity on ASCII tape is even: {parity[0].c} needs no parity hole and
 			{parity[1].c} needs one, as the FAQ shows.
 		</p>
 		<div class="table-wrap scroll-box" use:scrollRegion data-label="Baudot code table">

@@ -27,7 +27,7 @@ export const punchLabel = (mask: number) => {
 };
 
 // Letters and digits follow a rule (a zone punch plus a digit punch); the rest are listed as
-// "character:rows". The 029's other special characters are left out: they are not needed here.
+// "character:rows". Any other punch pattern is simply not read.
 const SPECIALS =
 	'&:12 -:11 /:0-1 ¢:12-8-2 .:12-8-3 <:12-8-4 (:12-8-5 +:12-8-6 |:12-8-7 !:11-8-2 $:11-8-3 *:11-8-4 ):11-8-5 ;:11-8-6 ¬:11-8-7 ,:0-8-3 %:0-8-4 _:0-8-5 >:0-8-6 ?:0-8-7 ::8-2 #:8-3 @:8-4 \':8-5 =:8-6 ":8-7';
 
@@ -89,11 +89,21 @@ export function punchCard(text: string): Punched {
 		notes.push(`A card has ${MAX_CHARS} columns, so the last ${chars.length - MAX_CHARS} characters were cut.`);
 	const kept = chars.slice(0, MAX_CHARS);
 	const bad = [...new Set(kept.filter((c) => !MASK_OF.has(c)))];
-	if (bad.length) notes.push(`Not on the 029 keypunch, so left blank: ${bad.join(' ')}`);
+	if (bad.length) notes.push(`Not in this page's card code, so left blank: ${bad.join(' ')}`);
 	const cells = kept.map((c) => MASK_OF.get(c) ?? 0);
 	while (cells.length < MAX_CHARS) cells.push(0);
 	return { cells, notes };
 }
+
+/** One sentence naming every position that is a problem, rather than one alert each. */
+const listNote = (noun: string, at: number[], what: string) =>
+	at.length
+		? [
+				`${noun}${at.length > 1 ? 's' : ''} ${at.join(', ')} ${at.length > 1 ? 'are' : 'is'} not ${what}, so ${
+					at.length > 1 ? 'they read' : 'it reads'
+				} as ${UNREADABLE}.`
+		  ]
+		: [];
 
 export interface Reading {
 	text: string;
@@ -102,26 +112,22 @@ export interface Reading {
 
 /** Reads a card back. Trailing blank columns are dropped; a column that is no character reads as ▯. */
 export function readCard(cells: number[]): Reading {
-	const notes: string[] = [];
+	const bad: number[] = [];
 	const text = cells.map((m, i) => {
 		const ch = CHAR_OF.get(m & 0xfff);
-		if (ch === undefined)
-			notes.push(
-				`Column ${i + 1} (punches ${punchLabel(
-					m & 0xfff
-				)}) is not a character this page knows, so it reads as ${UNREADABLE}.`
-			);
+		if (ch === undefined) bad.push(i + 1);
 		return ch ?? UNREADABLE;
 	});
-	return { text: text.join('').replace(/ +$/, ''), notes };
+	return { text: text.join('').replace(/ +$/, ''), notes: listNote('Column', bad, 'a character this page knows') };
 }
 
 // ---- Baudot (ITA2) tape ----
 
 // Code values 0 to 31, in order, for each shift. Names are not text: NUL is a blank frame, NAT is
-// a position that differs between countries, ENQ and BEL are signalling codes.
+// a position that differs between countries, VAR is one whose figure varies between sources (so it
+// is not read), ENQ and BEL are signalling codes.
 const LETTERS = 'NUL E LF A SP S I U CR D R J N F C K T Z L W H Y P Q O B G FIGS M X V LTRS'.split(' ');
-const FIGURES = "NUL 3 LF - SP ' 8 7 CR ENQ 4 BEL , NAT : ( 5 + ) 2 NAT 6 0 1 9 ? NAT FIGS . / ; LTRS".split(' ');
+const FIGURES = "NUL 3 LF - SP ' 8 7 CR ENQ 4 BEL , NAT : ( 5 + ) 2 NAT 6 0 1 9 ? NAT FIGS . / VAR LTRS".split(' ');
 const LTRS = 31;
 const FIGS = 27;
 const TEXT_TOKEN: Record<string, string> = { SP: ' ', LF: '\n', CR: '\r' };
@@ -167,8 +173,8 @@ export function readBaudot(frames: number[]): Frame[] {
 		const ok = ch !== undefined || t === 'NUL' || f === LTRS || f === FIGS;
 		return {
 			out,
-			label: SHORT[t] ?? (t === 'NAT' || t === 'ENQ' || t === 'BEL' ? '?' : t),
-			note: ok ? `${LONG[t] ?? t}` : 'no character this page reads',
+			label: SHORT[t] ?? (['NAT', 'VAR', 'ENQ', 'BEL'].includes(t) ? '?' : t),
+			note: ok ? `${LONG[t] ?? t}` : 'is not a character this page reads',
 			ok
 		};
 	});
@@ -247,7 +253,11 @@ export function read(medium: Medium, cells: number[]): Reading {
 	if (medium === 'card') return readCard(cells);
 	const frames = medium === 'baudot' ? readBaudot(cells) : readAscii(cells);
 	const notes = frames.flatMap((f, i) => (f.ok ? [] : [`Frame ${i + 1} ${f.note}.`]));
-	return { text: frames.map((f) => f.out).join(''), notes };
+	const more = notes.length - 2;
+	return {
+		text: frames.map((f) => f.out).join(''),
+		notes: more > 1 ? [...notes.slice(0, 2), `${more} more frames have a problem.`] : notes
+	};
 }
 
 /** One sentence about a column or frame, for the readout under the drawing. */
@@ -471,6 +481,7 @@ const NAME: Record<string, string> = {
 	NUL: 'blank',
 	SP: 'space',
 	NAT: 'national use',
+	VAR: 'varies',
 	LTRS: 'LTRS',
 	FIGS: 'FIGS',
 	ENQ: 'ENQ',
