@@ -2,12 +2,17 @@
 	// A stylised Nixie tube: ten numerals stacked in the same place, one glowing.
 	// A digit of null leaves the tube dark.
 	export let digit: number | null = null;
-	export let label = "";
+	export let label = '';
 	export let uid = 0;
 	const numerals = Array.from({ length: 10 }, (_, i) => i);
 </script>
 
-<svg viewBox="0 0 60 100" class="tube" role="img" aria-label={label || (digit === null ? 'Dark Nixie tube' : `Nixie tube showing ${digit}`)}>
+<svg
+	viewBox="0 0 60 100"
+	class="tube"
+	role="img"
+	aria-label={label || (digit === null ? 'Dark Nixie tube' : `Nixie tube showing ${digit}`)}
+>
 	<defs>
 		<filter id="glow{uid}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" /></filter>
 	</defs>

@@ -11,7 +11,9 @@
 <div class="opt" class:fill role="group" aria-label={label}>
 	{#if !hideLabel}<span class="opt-label">{label}</span>{/if}
 	{#each options as [v, text]}
-		<button type="button" class:active={value === v} aria-pressed={value === v} on:click={() => (value = v)}>{text}</button>
+		<button type="button" class:active={value === v} aria-pressed={value === v} on:click={() => (value = v)}
+			>{text}</button
+		>
 	{/each}
 </div>
 

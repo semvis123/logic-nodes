@@ -52,9 +52,17 @@
 		const p = readUrl();
 		ex = [p.e, p.r, p.g, p.b].map((v, i) => safeText(v, MAX_LENGTH) ?? ex[i]);
 		size = Number(safeOption(p.s, SIZES.map(String))) || size;
-		mode = safeOption(p.m, MODES.map((m) => m.id)) ?? mode;
+		mode =
+			safeOption(
+				p.m,
+				MODES.map((m) => m.id)
+			) ?? mode;
 		bit = safeInt(p.k, 0, 7) ?? bit;
-		pal = safeOption(p.p, PALETTES.map((q) => q.id)) ?? pal;
+		pal =
+			safeOption(
+				p.p,
+				PALETTES.map((q) => q.id)
+			) ?? pal;
 		t = safeInt(p.t, 0, 255) ?? t;
 		thumbs = drawThumbs();
 		reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -76,7 +84,18 @@
 	// While any expression is invalid the last good picture stays up.
 	let svg = '';
 	$: look = { mode, bit, pal };
-	$: if (tries.every((r) => r.fn)) svg = toSvg(paint(tries.map((r) => r.fn as Fn), look, size, t), size, 1, 'The picture the expression draws');
+	$: if (tries.every((r) => r.fn))
+		svg = toSvg(
+			paint(
+				tries.map((r) => r.fn as Fn),
+				look,
+				size,
+				t
+			),
+			size,
+			1,
+			'The picture the expression draws'
+		);
 	$: if (sel.x >= size || sel.y >= size) sel = { x: Math.min(sel.x, size - 1), y: Math.min(sel.y, size - 1) };
 
 	// What the chosen pixel is, per expression.
@@ -104,7 +123,14 @@
 	}
 	function key(e: KeyboardEvent) {
 		const d = e.shiftKey ? 8 : 1;
-		const moves: Record<string, [number, number]> = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d], Home: [-size, 0], End: [size, 0] };
+		const moves: Record<string, [number, number]> = {
+			ArrowLeft: [-d, 0],
+			ArrowRight: [d, 0],
+			ArrowUp: [0, -d],
+			ArrowDown: [0, d],
+			Home: [-size, 0],
+			End: [size, 0]
+		};
 		const m = moves[e.key];
 		if (!m) return;
 		e.preventDefault();
@@ -136,8 +162,19 @@
 		status = m;
 		setTimeout(() => (status = ''), 2500);
 	};
-	const outSvg = () => toSvg(paint(tries.map((r) => r.fn as Fn), look, size, t), size, exportCell(size));
-	const fileName = () => `bitwise-pattern-${slugifyExpression(mode === 'rgb' ? ex.slice(1).join(' ') : ex[0], 'pattern')}`;
+	const outSvg = () =>
+		toSvg(
+			paint(
+				tries.map((r) => r.fn as Fn),
+				look,
+				size,
+				t
+			),
+			size,
+			exportCell(size)
+		);
+	const fileName = () =>
+		`bitwise-pattern-${slugifyExpression(mode === 'rgb' ? ex.slice(1).join(' ') : ex[0], 'pattern')}`;
 	const exportOk = () => tries.every((r) => r.fn);
 	async function savePng() {
 		try {
@@ -153,7 +190,13 @@
 
 	// --- Teaching content, all drawn by the engine ---
 	const grey = { mode: 'grey', bit: 0, pal: 'fire' } as const;
-	const mini = (grid: ArrayLike<number>, n: number, label: string) => toSvg(Array.from(grid, (v) => (v ? 0xe8e8e8 : 0x101014)), n, 1, label);
+	const mini = (grid: ArrayLike<number>, n: number, label: string) =>
+		toSvg(
+			Array.from(grid, (v) => (v ? 0xe8e8e8 : 0x101014)),
+			n,
+			1,
+			label
+		);
 	const size16 = 16;
 	const pascal = mini(pascalMod2(size16), size16, 'C(x + y, x) mod 2, odd entries light');
 	const andZero = mini(evalGrid(compile('((x & y) - 1) >> 31'), size16, 0), size16, 'Cells where x & y is 0, light');
@@ -163,15 +206,26 @@
 	);
 	const xorGrid = evalGrid(compile('x ^ y'), 256, 0);
 	const sameAs = (e: string) => evalGrid(compile(e), 256, 0).every((v, i) => v === xorGrid[i]);
-	const identities = ['(x ^ y) & (x | y)', '(x | y) - (x & y)', '(x + y) - 2 * (x & y)'].map((e) => ({ e, same: sameAs(e) }));
+	const identities = ['(x ^ y) & (x | y)', '(x | y) - (x & y)', '(x + y) - 2 * (x & y)'].map((e) => ({
+		e,
+		same: sameAs(e)
+	}));
 	// Drawn after hydration: 12 small pictures would add about 80 KB to every prerendered copy of the page.
 	let thumbs: string[] = [];
 	const drawThumbs = () =>
 		PRESETS.map((p) => {
 			const fns = [p.e].flat().map(compile);
-			return toSvg(paint(fns, { mode: p.mode, bit: p.bit ?? 0, pal: p.pal ?? 'fire' }, 32, p.t ?? 0, p.size / 32), 32, 1, '');
+			return toSvg(
+				paint(fns, { mode: p.mode, bit: p.bit ?? 0, pal: p.pal ?? 'fire' }, 32, p.t ?? 0, p.size / 32),
+				32,
+				1,
+				''
+			);
 		});
-	const ramps = PALETTES.map((p) => ({ ...p, css: `linear-gradient(90deg, ${[0, 0.25, 0.5, 0.75, 1].map((u) => hexColour(p.at(u))).join(', ')})` }));
+	const ramps = PALETTES.map((p) => ({
+		...p,
+		css: `linear-gradient(90deg, ${[0, 0.25, 0.5, 0.75, 1].map((u) => hexColour(p.at(u))).join(', ')})`
+	}));
 
 	const OPS: [string, string, string][] = [
 		['~  -  +', 'Unary', 'Flip every bit, negate, or leave alone. Binds tightest.'],
@@ -191,7 +245,9 @@
 		{
 			q: 'Why does x & y show the Sierpinski triangle?',
 			a: `The entry C(x + y, x) of Pascal's triangle is odd exactly when x & y is 0. By Kummer's theorem the power of 2 dividing C(x + y, x) is the number of carries when x and y are added in binary, and the addition has no carries exactly when no bit position is set in both. Colour the odd entries and you have the Sierpinski triangle. ${
-				holds ? 'This page builds Pascal\'s triangle by addition and confirms the match for every x and y below 256.' : ''
+				holds
+					? "This page builds Pascal's triangle by addition and confirms the match for every x and y below 256."
+					: ''
 			}`
 		},
 		{
@@ -209,7 +265,9 @@
 		{
 			q: 'Why do x ^ y and (x ^ y) & (x | y) look the same?',
 			a: `They are the same picture. A bit set in x ^ y is set in exactly one of x and y, so it is also set in x | y, and ANDing with x | y changes nothing. ${
-				identities.every((i) => i.same) ? 'This page compares all 65,536 pixels of x ^ y with (x | y) - (x & y) and (x + y) - 2 * (x & y) as well, and they all match.' : ''
+				identities.every((i) => i.same)
+					? 'This page compares all 65,536 pixels of x ^ y with (x | y) - (x & y) and (x + y) - 2 * (x & y) as well, and they all match.'
+					: ''
 			}`
 		}
 	];
@@ -240,8 +298,9 @@
 	<section class="intro">
 		<h1>Bitwise pattern generator</h1>
 		<p class="lede">
-			Type an expression in <span class="mono">x</span> and <span class="mono">y</span>, the column and row of each pixel, and see
-			the picture it draws. Hover or arrow over a pixel to see the AND, XOR or OR that made it, bit by bit.
+			Type an expression in <span class="mono">x</span> and <span class="mono">y</span>, the column and row of each
+			pixel, and see the picture it draws. Hover or arrow over a pixel to see the AND, XOR or OR that made it, bit by
+			bit.
 		</p>
 
 		<div class="card tool">
@@ -262,7 +321,9 @@
 					<ErrorAt id="err{i}" message={tries[k].err} input={ex[i]} position={tries[k].at} />
 				{/if}
 			{/each}
-			<p class="field-help">Use x, y and t, whole numbers (decimal, 0x1F, 0b101) and ~ - * / % + &lt;&lt; &gt;&gt; &amp; ^ | with brackets.</p>
+			<p class="field-help">
+				Use x, y and t, whole numbers (decimal, 0x1F, 0b101) and ~ - * / % + &lt;&lt; &gt;&gt; &amp; ^ | with brackets.
+			</p>
 
 			<div class="chips">
 				{#each PRESETS as p}
@@ -274,21 +335,32 @@
 				<div class="opt" role="group" aria-label="Colour mode">
 					<span class="opt-label">Colour</span>
 					{#each MODES as m}
-						<button type="button" class:active={mode === m.id} aria-pressed={mode === m.id} on:click={() => (mode = m.id)}>{m.label}</button>
+						<button
+							type="button"
+							class:active={mode === m.id}
+							aria-pressed={mode === m.id}
+							on:click={() => (mode = m.id)}>{m.label}</button
+						>
 					{/each}
 				</div>
 				{#if mode === 'bit'}
 					<div class="opt" role="group" aria-label="Bit to show">
 						<span class="opt-label">Bit</span>
 						{#each [7, 6, 5, 4, 3, 2, 1, 0] as k}
-							<button type="button" class:active={bit === k} aria-pressed={bit === k} on:click={() => (bit = k)}>{k}</button>
+							<button type="button" class:active={bit === k} aria-pressed={bit === k} on:click={() => (bit = k)}
+								>{k}</button
+							>
 						{/each}
 					</div>
 				{:else if mode === 'palette'}
 					<div class="opt" role="group" aria-label="Palette">
 						<span class="opt-label">Palette</span>
 						{#each ramps as p}
-							<button type="button" class:active={pal === p.id} aria-pressed={pal === p.id} on:click={() => (pal = p.id)}
+							<button
+								type="button"
+								class:active={pal === p.id}
+								aria-pressed={pal === p.id}
+								on:click={() => (pal = p.id)}
 								><span class="swatch" style="background: {p.css}" aria-hidden="true" />{p.label}</button
 							>
 						{/each}
@@ -297,17 +369,23 @@
 				<div class="opt" role="group" aria-label="Grid size">
 					<span class="opt-label">Size</span>
 					{#each SIZES as s}
-						<button type="button" class:active={size === s} aria-pressed={size === s} on:click={() => (size = s)}>{s}</button>
+						<button type="button" class:active={size === s} aria-pressed={size === s} on:click={() => (size = s)}
+							>{s}</button
+						>
 					{/each}
 				</div>
 				<div class="opt">
 					<label class="opt-label" for="t">t</label>
 					<input id="t" type="range" min="0" max="255" bind:value={t} aria-describedby="t-help" />
 					<output class="mono" for="t">{t}</output>
-					<button type="button" class:active={playing} aria-pressed={playing} disabled={reduced} on:click={play}>Animate</button>
+					<button type="button" class:active={playing} aria-pressed={playing} disabled={reduced} on:click={play}
+						>Animate</button
+					>
 				</div>
 				<p class="field-help" id="t-help">
-					{reduced ? 'Animation is off because your system asks for reduced motion. Drag t instead.' : 't is a frame number from 0 to 255 you can use in the expression.'}
+					{reduced
+						? 'Animation is off because your system asks for reduced motion. Drag t instead.'
+						: 't is a frame number from 0 to 255 you can use in the expression.'}
 				</p>
 			</div>
 
@@ -326,7 +404,8 @@
 					{@html svg}
 					<span
 						class="marker"
-						style="left: {(sel.x / size) * 100}%; top: {(sel.y / size) * 100}%; width: {100 / size}%; height: {100 / size}%"
+						style="left: {(sel.x / size) * 100}%; top: {(sel.y / size) * 100}%; width: {100 / size}%; height: {100 /
+							size}%"
 					/>
 				</div>
 
@@ -335,20 +414,28 @@
 					{#each pixels as px, k}
 						{#if px}
 							<p class="value">
-								<span class="swatch big" style="background: {hexColour(colourOf(look, px.v, px.v, px.v))}" aria-hidden={mode !== 'rgb'} />
+								<span
+									class="swatch big"
+									style="background: {hexColour(colourOf(look, px.v, px.v, px.v))}"
+									aria-hidden={mode !== 'rgb'}
+								/>
 								{mode === 'rgb' ? NAMES[k + 1] : 'Value'} <strong class="mono">{px.v}</strong>
 								<span class="mono dim">= {bits8(px.v)}</span>
 							</p>
 							{#if px.work}
 								<p class="note">
-									A is <span class="mono">{px.work.aText}</span>, B is <span class="mono">{px.work.bText}</span>. {BIT_OPS[px.work.op]} of the
-									low 8 bits, column by column:
+									A is <span class="mono">{px.work.aText}</span>, B is <span class="mono">{px.work.bText}</span>. {BIT_OPS[
+										px.work.op
+									]} of the low 8 bits, column by column:
 								</p>
-								<ColumnWorking layout={workingLayout(px.work)} label="{BIT_OPS[px.work.op]} working for {NAMES[fields[k]].toLowerCase()}" />
+								<ColumnWorking
+									layout={workingLayout(px.work)}
+									label="{BIT_OPS[px.work.op]} working for {NAMES[fields[k]].toLowerCase()}"
+								/>
 							{:else}
 								<p class="note">
-									The result is {px.raw}{px.raw === px.v ? '' : `, and the picture keeps its low 8 bits, ${px.v}`}. The column working shows when the
-									whole expression is one &amp;, ^ or |.
+									The result is {px.raw}{px.raw === px.v ? '' : `, and the picture keeps its low 8 bits, ${px.v}`}. The
+									column working shows when the whole expression is one &amp;, ^ or |.
 								</p>
 							{/if}
 						{/if}
@@ -360,7 +447,12 @@
 
 			<div class="actions">
 				<button type="button" class="chip-btn" disabled={!exportOk()} on:click={savePng}>Download PNG</button>
-				<button type="button" class="chip-btn" disabled={!exportOk()} on:click={() => downloadSvg(outSvg(), `${fileName()}.svg`)}>Download SVG</button>
+				<button
+					type="button"
+					class="chip-btn"
+					disabled={!exportOk()}
+					on:click={() => downloadSvg(outSvg(), `${fileName()}.svg`)}>Download SVG</button
+				>
 				<button type="button" class="chip-btn" on:click={copyExpr}>Copy expression</button>
 				<ShareLink what="the expression and settings" />
 				<span class="copied" role="status" aria-live="polite">{status}</span>
@@ -371,9 +463,10 @@
 	<section>
 		<h2>What the expression can say</h2>
 		<p class="section-intro">
-			Every pixel is worked out on its own, with <span class="mono">x</span> as its column and <span class="mono">y</span> as its row,
-			both counted from the top left. Numbers are 32-bit two's complement integers, so adding past 2,147,483,647 wraps round to negative,
-			and the picture shows the low 8 bits of the result: in greyscale, 0 is black and 255 is white.
+			Every pixel is worked out on its own, with <span class="mono">x</span> as its column and
+			<span class="mono">y</span> as its row, both counted from the top left. Numbers are 32-bit two's complement integers,
+			so adding past 2,147,483,647 wraps round to negative, and the picture shows the low 8 bits of the result: in greyscale,
+			0 is black and 255 is white.
 		</p>
 		<div class="table-wrap scroll-box" use:scrollRegion data-label="Operators">
 			<table class="data-table">
@@ -385,20 +478,32 @@
 				</tbody>
 			</table>
 		</div>
-		<p class="reducer">Rows run from tightest to loosest, as in C. So <span class="mono">x + y &amp; 8</span> is <span class="mono">(x + y) &amp; 8</span>, and <span class="mono">^</span> is XOR here, never a power.</p>
+		<p class="reducer">
+			Rows run from tightest to loosest, as in C. So <span class="mono">x + y &amp; 8</span> is
+			<span class="mono">(x + y) &amp; 8</span>, and <span class="mono">^</span> is XOR here, never a power.
+		</p>
 	</section>
 
 	<section>
 		<h2>Starting points</h2>
-		<p class="section-intro">Each thumbnail is drawn by the same engine as the picture above. Press the name to load it.</p>
+		<p class="section-intro">
+			Each thumbnail is drawn by the same engine as the picture above. Press the name to load it.
+		</p>
 		<div class="table-wrap scroll-box" use:scrollRegion data-label="Presets">
 			<table class="data-table presets">
-				<thead><tr><th scope="col">Picture</th><th scope="col">Expression</th><th scope="col">What to notice</th></tr></thead>
+				<thead
+					><tr><th scope="col">Picture</th><th scope="col">Expression</th><th scope="col">What to notice</th></tr
+					></thead
+				>
 				<tbody>
 					{#each PRESETS as p, i}
 						<tr>
 							<td class="thumb">{@html thumbs[i] ?? ''}</td>
-							<td><button type="button" class="chip-btn" on:click={() => usePreset(p)}>{p.label}</button><br /><span class="mono nowrap">{[p.e].flat().join(' , ')}</span></td>
+							<td
+								><button type="button" class="chip-btn" on:click={() => usePreset(p)}>{p.label}</button><br /><span
+									class="mono nowrap">{[p.e].flat().join(' , ')}</span
+								></td
+							>
 							<td>{p.note}</td>
 						</tr>
 					{/each}
@@ -410,62 +515,93 @@
 	<section>
 		<h2>Why x &amp; y is the Sierpinski triangle</h2>
 		<p>
-			Build Pascal's triangle with the usual rule, each entry the one above plus the one to its left, and keep only whether it is odd. Lay
-			the entries on a grid so that the entry in column x and row y is C(x + y, x). On the left is that grid for 16 by 16. On the right is
-			a light cell wherever <span class="mono">x &amp; y</span> is 0. They are the same picture{holds ? ', and the check holds for all 256 by 256 cells' : ''}.
+			Build Pascal's triangle with the usual rule, each entry the one above plus the one to its left, and keep only
+			whether it is odd. Lay the entries on a grid so that the entry in column x and row y is C(x + y, x). On the left
+			is that grid for 16 by 16. On the right is a light cell wherever <span class="mono">x &amp; y</span> is 0. They
+			are the same picture{holds ? ', and the check holds for all 256 by 256 cells' : ''}.
 		</p>
 		<div class="pair">
-			<figure>{@html pascal}<figcaption>Odd entries of C(x + y, x)</figcaption></figure>
-			<figure>{@html andZero}<figcaption>Cells where x &amp; y is 0</figcaption></figure>
+			<figure>
+				{@html pascal}
+				<figcaption>Odd entries of C(x + y, x)</figcaption>
+			</figure>
+			<figure>
+				{@html andZero}
+				<figcaption>Cells where x &amp; y is 0</figcaption>
+			</figure>
 		</div>
 		<p>
-			The reason is Kummer's theorem: the highest power of 2 dividing C(x + y, x) is the number of carries when you add x and y in binary.
-			The entry is odd when that number is 0. Adding two numbers carries at all exactly when some column has a 1 in both, which is to say when
-			<span class="mono">x &amp; y</span> is not 0. The preset <span class="mono">((x &amp; y) - 1) &gt;&gt; 31</span> shows it directly: the
-			subtraction makes a 0 negative, and the shift turns a negative number into all ones.
+			The reason is Kummer's theorem: the highest power of 2 dividing C(x + y, x) is the number of carries when you add
+			x and y in binary. The entry is odd when that number is 0. Adding two numbers carries at all exactly when some
+			column has a 1 in both, which is to say when
+			<span class="mono">x &amp; y</span> is not 0. The preset <span class="mono">((x &amp; y) - 1) &gt;&gt; 31</span> shows
+			it directly: the subtraction makes a 0 negative, and the shift turns a negative number into all ones.
 		</p>
 	</section>
 
 	<section>
 		<h2>Why x ^ y repeats itself</h2>
 		<p>
-			Look at the top bit of x and of y in a grid whose size is a power of two. In the top left quadrant both are 0, and in the bottom
-			right both are 1; in either case the XOR of the top bits is 0, so the quadrant is a copy of the picture one size down. In the other
-			two quadrants exactly one is 1, so the top bit of the result is set: the same copy, brighter by half the grid size. Here are the four bit
-			planes of <span class="mono">x ^ y</span> on a 16 by 16 grid, from bit 3 down to bit 0.
+			Look at the top bit of x and of y in a grid whose size is a power of two. In the top left quadrant both are 0, and
+			in the bottom right both are 1; in either case the XOR of the top bits is 0, so the quadrant is a copy of the
+			picture one size down. In the other two quadrants exactly one is 1, so the top bit of the result is set: the same
+			copy, brighter by half the grid size. Here are the four bit planes of <span class="mono">x ^ y</span> on a 16 by 16
+			grid, from bit 3 down to bit 0.
 		</p>
 		<div class="pair planes">
 			{#each planes as plane, i}
-				<figure>{@html plane}<figcaption>Bit {3 - i}</figcaption></figure>
+				<figure>
+					{@html plane}
+					<figcaption>Bit {3 - i}</figcaption>
+				</figure>
 			{/each}
 		</div>
 		<p>
-			A bit plane is one bit of every pixel's value, shown as on or off. Bit 3 splits the grid into four quadrants, bit 2 splits each of
-			those again, and bit 0 is a checkerboard. Use One bit above to look at any plane of any expression.
+			A bit plane is one bit of every pixel's value, shown as on or off. Bit 3 splits the grid into four quadrants, bit
+			2 splits each of those again, and bit 0 is a checkerboard. Use One bit above to look at any plane of any
+			expression.
 		</p>
 		<p>
-			Different expressions can be one picture. {#each identities as id, i}<span class="mono">{id.e}</span>{i < identities.length - 1 ? ', ' : ' '}{/each}
-			{identities.every((i) => i.same) ? 'all draw exactly x ^ y, and the page has compared every pixel to prove it.' : 'are compared with x ^ y on this page.'}
+			Different expressions can be one picture. {#each identities as id, i}<span class="mono">{id.e}</span>{i <
+				identities.length - 1
+					? ', '
+					: ' '}{/each}
+			{identities.every((i) => i.same)
+				? 'all draw exactly x ^ y, and the page has compared every pixel to prove it.'
+				: 'are compared with x ^ y on this page.'}
 		</p>
 	</section>
 
 	<section>
 		<h2>Animating t</h2>
 		<p>
-			The slider sets <span class="mono">t</span> to a value from 0 to 255 and the Animate button steps it once every 70 milliseconds,
-			wrapping from 255 to 0. Try <span class="mono">(x ^ y) + t</span> in a palette, or <span class="mono">(x ^ t) &amp; y</span> in One
-			bit. Animation never starts by itself, and it is switched off if your system asks for reduced motion.
+			The slider sets <span class="mono">t</span> to a value from 0 to 255 and the Animate button steps it once every 70
+			milliseconds, wrapping from 255 to 0. Try <span class="mono">(x ^ y) + t</span> in a palette, or
+			<span class="mono">(x ^ t) &amp; y</span> in One bit. Animation never starts by itself, and it is switched off if your
+			system asks for reduced motion.
 		</p>
 	</section>
 
 	<section>
 		<h2>Common mistakes</h2>
 		<ul class="points">
-			<li><strong>Everything looks black.</strong> At size 16 the largest x ^ y is 15, which is nearly black in 256 shades. Multiply it up, as in <span class="mono">(x ^ y) * 16</span>, or pick a palette.</li>
+			<li>
+				<strong>Everything looks black.</strong> At size 16 the largest x ^ y is 15, which is nearly black in 256
+				shades. Multiply it up, as in <span class="mono">(x ^ y) * 16</span>, or pick a palette.
+			</li>
 			<li><strong>Using ^ as a power.</strong> It is XOR. Multiply for squares: <span class="mono">x * x</span>.</li>
-			<li><strong>Using &lt;, == or &amp;&amp;.</strong> Comparisons are not supported. Subtract and shift instead, as in the Sierpinski preset.</li>
-			<li><strong>Expecting fractions.</strong> <span class="mono">x / 2</span> is whole division, so <span class="mono">5 / 2</span> is 2.</li>
-			<li><strong>Forgetting the wrap.</strong> <span class="mono">x * y</span> is drawn modulo 256, so large products band. Shift right to look at the higher bits.</li>
+			<li>
+				<strong>Using &lt;, == or &amp;&amp;.</strong> Comparisons are not supported. Subtract and shift instead, as in the
+				Sierpinski preset.
+			</li>
+			<li>
+				<strong>Expecting fractions.</strong> <span class="mono">x / 2</span> is whole division, so
+				<span class="mono">5 / 2</span> is 2.
+			</li>
+			<li>
+				<strong>Forgetting the wrap.</strong> <span class="mono">x * y</span> is drawn modulo 256, so large products band.
+				Shift right to look at the higher bits.
+			</li>
 		</ul>
 	</section>
 
@@ -478,8 +614,9 @@
 			</details>
 		{/each}
 		<p class="reducer">
-			The operators are explained on the <a href="/binary-calculator">binary calculator</a> and in <a href="/bit-manipulation-tricks">bit manipulation tricks</a>;
-			for the other neighbour of x ^ y, see the <a href="/gray-code-converter">Gray code converter</a>.
+			The operators are explained on the <a href="/binary-calculator">binary calculator</a> and in
+			<a href="/bit-manipulation-tricks">bit manipulation tricks</a>; for the other neighbour of x ^ y, see the
+			<a href="/gray-code-converter">Gray code converter</a>.
 		</p>
 	</section>
 </ContentPage>
