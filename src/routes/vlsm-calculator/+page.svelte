@@ -28,6 +28,8 @@
 	} from '$lib/ipv4';
 	import { readUrl, syncUrl, safeText, safeOption, safeInt, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
+	import PausedAlert from '$lib/PausedAlert.svelte';
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { onMount, tick } from 'svelte';
 
 	type Row = { name: string; hosts: string };
@@ -76,8 +78,12 @@
 				try {
 					rows = parseRequirements(req).map((r) => ({ name: r.name, hosts: String(r.hosts) }));
 				} catch {
-					// Keep what was shared so the reader can see and fix it.
-					editAsText = true;
+					// A link made from rows with a bad count ("Sales abc") reopens as those
+					// rows, with the bad one marked. Anything else is kept as text so the
+					// reader can see and fix it.
+					const shared = sharedRows(req);
+					if (shared) rows = shared;
+					else editAsText = true;
 				}
 			}
 		}
@@ -96,7 +102,23 @@
 	// A count grouped as 12,500 goes into the link as 12500, which is what the
 	// row shows when the link is opened, so the link stays the same after a reload.
 	const plainCount = (h: string) => (/^\d{1,3}(?:,\d{3})+$/.test(h.trim()) ? h.trim().replace(/,/g, '') : h.trim());
-	$: rowsText = rows.map((r) => `${r.name.replace(/\s*[;\r\n]+\s*/g, ' ').trim()} ${plainCount(r.hosts)}`).join('\n');
+	const rowLine = (r: Row) => `${r.name.replace(/\s*[;\r\n]+\s*/g, ' ').trim()} ${plainCount(r.hosts)}`;
+	$: rowsText = rows.map(rowLine).join('\n');
+
+	/**
+	 * Reads a link's list back as the rows that wrote it: each line is the name,
+	 * a space, then the count field as typed. Only accepted when writing those
+	 * rows gives back exactly the same text, so the link still round trips.
+	 */
+	function sharedRows(req: string): Row[] | null {
+		const out: Row[] = [];
+		for (const line of req.split('\n')) {
+			const k = line.lastIndexOf(' ');
+			if (k < 0) return null;
+			out.push({ name: line.slice(0, k), hosts: line.slice(k + 1) });
+		}
+		return out.map(rowLine).join('\n') === req ? out : null;
+	}
 	$: params = {
 		net: base,
 		req: editAsText ? text : rowsText,
@@ -243,6 +265,10 @@
 			? 'Type a whole number of subnets, 1 or more.'
 			: '';
 	$: newPrefix = splitBy === 'count' && !countError ? net.prefix + bitsForCount(countValue) : splitTo;
+	// With no valid count, no prefix follows from it, so the select shows none. A
+	// plain variable, not an expression, in the select's value: Svelte then reselects
+	// on every update, which keeps the choice when the options under it are rebuilt.
+	$: prefixShown = countError ? '' : newPrefix;
 	let split: ReturnType<typeof splitEqual> | null = null;
 	let splitError = '';
 	$: {
@@ -344,14 +370,14 @@
 	}
 
 	const examples = [
-		{ label: 'Office /24', net: '192.168.10.0/24', req: formatRequirements(DEFAULT_REQS) },
+		{ label: 'Office', net: '192.168.10.0/24', req: formatRequirements(DEFAULT_REQS) },
 		{
-			label: 'Campus /22',
+			label: 'Campus',
 			net: '10.20.0.0/22',
 			req: 'Staff 300\nStudents 200\nLabs 100\nPrinters 25\nServers 12\nWAN 2'
 		},
 		{
-			label: 'Branches /16',
+			label: 'Branches',
 			net: '172.16.0.0/16',
 			req: 'Head office 8000\nBranch 1 2000\nBranch 2 1000\nBranch 3 500'
 		},
@@ -511,10 +537,10 @@
 				autocomplete="off"
 				autocapitalize="off"
 				aria-invalid={baseError ? 'true' : 'false'}
-				aria-describedby="base-help"
+				aria-describedby="base-help{baseError ? ' base-error' : ''}"
 			/>
 			{#if baseError}
-				<p class="error" role="alert">{baseError}</p>
+				<p class="error" id="base-error">{baseError}</p>
 			{/if}
 			<p class="field-help" id="base-help">
 				{#if baseNote}{baseNote}{:else}A network and prefix, such as 192.168.10.0/24 or 10.0.0.0 255.255.252.0.{/if}
@@ -579,7 +605,7 @@
 					<button type="button" class="small-btn add" id="add-row" on:click={addRow}>Add a subnet</button>
 				{/if}
 				{#if reqError}
-					<p class="error" id="req-error" role="alert">{reqError}</p>
+					<p class="error" id="req-error">{reqError}</p>
 				{/if}
 
 				<label class="check">
@@ -589,12 +615,14 @@
 
 				<div class="chips">
 					{#each examples as ex}
-						<button type="button" class="chip-btn" on:click={() => tryPlan(ex.net, ex.req)}>{ex.label}</button>
+						<button type="button" class="chip-btn" on:click={() => tryPlan(ex.net, ex.req)}
+							>{ex.label}<span class="chip-value">{ex.net}</span></button
+						>
 					{/each}
 				</div>
 
 				{#if shortError}
-					<p class="error short" role="alert">{shortError}</p>
+					<p class="error short">{shortError}</p>
 					{#if biggerBase}
 						<p class="fix-row">
 							<button type="button" class="small-btn" on:click={() => (base = biggerBase)}>Use {biggerBase}</button>
@@ -642,7 +670,7 @@
 							</div>
 						</div>
 
-						<div class="table-wrap scroll-box">
+						<div class="table-wrap scroll-box" use:scrollRegion data-label="The VLSM plan">
 							<table class="data-table plan">
 								<caption class="visually-hidden">The subnets, largest first, then the free space</caption>
 								<thead>
@@ -652,8 +680,7 @@
 										<th scope="col">Network and mask</th>
 										<th scope="col" class="num">Needs</th>
 										<th scope="col" class="num">Usable</th>
-										<th scope="col">First host</th>
-										<th scope="col">Last host</th>
+										<th scope="col">Host range</th>
 										<th scope="col">Broadcast</th>
 										<th scope="col" class="num">Unused</th>
 									</tr>
@@ -669,8 +696,7 @@
 											>
 											<td class="mono num">{count(a.hosts)}</td>
 											<td class="mono num">{count(a.info.usable)}</td>
-											<td class="mono">{fmt(a.info.firstHost)}</td>
-											<td class="mono">{fmt(a.info.lastHost)}</td>
+											<td class="mono">{fmt(a.info.firstHost)}<span class="mask">to {fmt(a.info.lastHost)}</span></td>
 											<td class="mono">{a.info.broadcast === null ? 'none (/31)' : fmt(a.info.broadcast)}</td>
 											<td class="mono num">{count(a.spare)}</td>
 										</tr>
@@ -686,7 +712,7 @@
 											>
 											<td />
 											<td />
-											<td class="mono" colspan="3">{fmt(f.network)} to {fmt(f.last)}</td>
+											<td class="mono" colspan="2">{fmt(f.network)} to {fmt(f.last)}</td>
 											<td />
 										</tr>
 									{/each}
@@ -714,6 +740,7 @@
 								splitBy = 'count';
 							}}
 							aria-invalid={splitBy === 'count' && splitError ? 'true' : 'false'}
+							aria-describedby={splitBy === 'count' && splitError && !baseError ? 'split-error' : undefined}
 						/>
 					</div>
 					<span class="or">or</span>
@@ -721,13 +748,16 @@
 						<label class="field" for="split-prefix">New prefix</label>
 						<select
 							id="split-prefix"
-							value={newPrefix}
+							value={prefixShown}
 							on:change={(e) => {
 								splitTo = Number(e.currentTarget.value);
 								splitBy = 'prefix';
 							}}
 						>
-							{#if splitBy === 'prefix' && splitTo < net.prefix}
+							{#if countError}
+								<!-- No count to go by, so no prefix follows from it either. -->
+								<option value="" disabled>Choose a prefix</option>
+							{:else if splitBy === 'prefix' && splitTo < net.prefix}
 								<!-- Kept as an option so the control does not go blank when the base grows past it. -->
 								<option value={splitTo} disabled>/{splitTo} (larger than the network)</option>
 							{/if}
@@ -738,7 +768,7 @@
 					</div>
 				</div>
 				{#if splitError && !baseError}
-					<p class="error" role="alert">{splitError}</p>
+					<p class="error" id="split-error">{splitError}</p>
 				{/if}
 				<div
 					class="results"
@@ -775,7 +805,7 @@
 								</div>
 							</div>
 						{/if}
-						<div class="table-wrap scroll-box">
+						<div class="table-wrap scroll-box" use:scrollRegion data-label="The equal subnets">
 							<table class="data-table split">
 								<thead>
 									<tr>
@@ -808,6 +838,7 @@
 					{/if}
 				</div>
 			{/if}
+			<PausedAlert message={baseError || (mode === 'vlsm' ? reqError || shortError : splitError)} />
 			<p class="copy-row">
 				<button type="button" class="small-btn" on:click={copyResult} disabled={!canCopy}
 					>{mode === 'vlsm' ? 'Copy plan' : 'Copy subnets'}</button
@@ -816,7 +847,7 @@
 					>{copyState === 'copied'
 						? 'Copied to the clipboard, as tab-separated columns.'
 						: copyState === 'failed'
-						? 'Copying was blocked; select the table instead.'
+						? 'Copying was blocked; select the table and press ctrl+C.'
 						: ''}</span
 				>
 			</p>
@@ -844,7 +875,7 @@
 				on its own boundary, and nothing is wasted between blocks.
 			</li>
 		</ol>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollRegion data-label="The example plan, step by step">
 			<table class="data-table demo">
 				<thead>
 					<tr>
@@ -888,7 +919,7 @@
 			The smallest block for a host count: two addresses go to the network and broadcast, so each prefix covers up to
 			its size minus two.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollRegion data-label="Prefix for a host count">
 			<table class="data-table sizes">
 				<thead>
 					<tr>
@@ -929,7 +960,7 @@
 				splitDemo.borrowed} and each of the {splitDemo.count} subnets has {splitDemo.size} addresses, {splitDemo
 				.subnets[0].usable} of them usable.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollRegion data-label="192.168.10.0/24 split into {splitDemoCount}">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -954,7 +985,7 @@
 			</table>
 		</div>
 		<h3>Splitting a /24</h3>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollRegion data-label="Splitting a /24">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -1095,6 +1126,8 @@
 		color: #f66;
 		font-size: 0.9rem;
 		margin: 0.4rem 0 0;
+		/* Messages quote the input, which can be one long unbroken run. */
+		overflow-wrap: anywhere;
 	}
 
 	.error.short {
@@ -1212,9 +1245,16 @@
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.8rem;
 		padding: 0.25rem 0.6rem;
 		cursor: pointer;
+	}
+
+	/* The network the example loads, so a chip says what it will type. */
+	.chip-value {
+		color: #8ede8e;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		margin-left: 0.45rem;
 	}
 
 	.results {
@@ -1440,10 +1480,6 @@
 	}
 
 	@media (max-width: 560px) {
-		.tool {
-			padding: 1rem 0.8rem 1.1rem;
-		}
-
 		.row-unit {
 			display: none;
 		}
