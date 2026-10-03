@@ -21,6 +21,7 @@
 	import Bits from './Bits.svelte';
 	import CopyButton from './CopyButton.svelte';
 	import { breakable } from './breakable';
+	import { onDestroy } from 'svelte';
 
 	export let type: IntSlug;
 	export let value: string;
@@ -55,6 +56,40 @@
 		}
 	}
 
+	// Screen readers hear the error or the answer once the reader pauses, not on
+	// every keystroke of a half-typed value; the page itself updates at once.
+	// Nothing is announced until the reader changes something here (`touched`),
+	// so loading the page or a link stays quiet.
+	let touched = false;
+	let alertText = '';
+	let statusText = '';
+	let alertTimer: ReturnType<typeof setTimeout>;
+	$: announce(error, result, op, touched);
+	function announce(message: string, r: OpResult | null, o: Op, live: boolean) {
+		clearTimeout(alertTimer);
+		if (!live) return;
+		if (!message) alertText = '';
+		alertTimer = setTimeout(() => {
+			alertText = message;
+			statusText = message || !r ? '' : `${heading(r, o)} = ${formatDecimal(r.result)}. ${verdict(r, o)}.`;
+		}, 500);
+	}
+	onDestroy(() => clearTimeout(alertTimer));
+
+	/** What was done, such as "int8: 127 +1" or "200 as int8". */
+	const heading = (r: OpResult, o: Op) =>
+		o === 'cast'
+			? `${formatDecimal(r.value)} as ${r.to.slug}`
+			: `${r.to.slug}: ${formatDecimal(r.value)} ${ops.find((x) => x.id === o)?.label}`;
+	const verdict = (r: OpResult, o: Op) =>
+		r.wrapped
+			? o === 'cast'
+				? 'Value changed by the cast'
+				: r.direction === 'over'
+				? 'Overflow: wrapped past the maximum to the bottom of the range'
+				: 'Underflow: wrapped past the minimum to the top of the range'
+			: 'No overflow: the exact answer fits';
+
 	/** Carry the answer back into the input, to apply another step to it. */
 	function keep() {
 		if (!result || error) return;
@@ -67,6 +102,10 @@
 		node.toggleAttribute('inert', on);
 		return { update: (v: boolean) => node.toggleAttribute('inert', v) };
 	}
+
+	// An operation shown as a symbol (+1, −1, ×2) also carries its name, so
+	// "−1 (subtract one)" is told apart from the value chip −1.
+	const symbolic = (label: string) => !/[a-z]/.test(label);
 
 	const presets = (x: IntType) => [
 		{ label: 'max', v: x.max },
@@ -85,7 +124,8 @@
 	$: addedBits = result && (cast === 'sign-extend' || cast === 'zero-extend') ? result.to.bits - result.from.bits : 0;
 </script>
 
-<div class="playground">
+<!-- Any change made here, by typing, picking or pressing, turns on the announcements. -->
+<div class="playground" on:input={() => (touched = true)} on:change={() => (touched = true)}>
 	<div class="controls">
 		<div class="control">
 			<label for="pg-type">Type</label>
@@ -106,16 +146,16 @@
 				autocomplete="off"
 				autocapitalize="off"
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="pg-help"
+				aria-describedby="pg-help{error ? ' pg-error' : ''}"
 			/>
 		</div>
 	</div>
 	<p class="field-help" id="pg-help">
 		Decimal, 0x hex or 0b binary, with a minus sign if negative. <span class="nowrap">2^31 − 1</span> works too.
 	</p>
-	<div class="chips" aria-label="Set the value">
+	<div class="chips" role="group" aria-label="Set the value">
 		{#each presets(t) as preset}
-			<button type="button" class="chip-btn" on:click={() => (value = preset.v.toString())}>
+			<button type="button" class="chip-btn" on:click={() => ((touched = true), (value = preset.v.toString()))}>
 				{preset.label}
 			</button>
 		{/each}
@@ -128,7 +168,8 @@
 				data-op={o.id}
 				class:active={op === o.id}
 				aria-pressed={op === o.id}
-				on:click={() => (op = o.id)}>{o.label}</button
+				on:click={() => ((touched = true), (op = o.id))}
+				>{o.label}{#if symbolic(o.label)}<span class="visually-hidden">({o.name})</span>{/if}</button
 			>
 		{/each}
 		{#if op === 'cast'}
@@ -143,38 +184,32 @@
 
 	{#if error}
 		<div class="error-row">
-			<p class="error" role="alert">{error}</p>
+			<p class="error" id="pg-error">{error}</p>
 			{#if roomier}
-				<button type="button" class="chip-btn" data-testid="pg-widen" on:click={() => roomier && (type = roomier.slug)}
-					>Use {roomier.slug}</button
+				<button
+					type="button"
+					class="chip-btn"
+					data-testid="pg-widen"
+					on:click={() => ((touched = true), roomier && (type = roomier.slug))}>Use {roomier.slug}</button
 				>
 			{/if}
 		</div>
 	{/if}
 
+	{#if alertText}
+		<p class="visually-hidden" role="alert">{alertText}</p>
+	{/if}
+	<p class="visually-hidden" role="status">{statusText}</p>
+
 	{#if result}
 		<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'} use:inertWhen={!!error}>
-			<div class="answer" role={error ? undefined : 'status'}>
-				<span class="answer-label">
-					{op === 'cast'
-						? `${formatDecimal(result.value)} as ${result.to.slug}`
-						: `${result.to.slug}: ${formatDecimal(result.value)} ${ops.find((o) => o.id === op)?.label}`}
-				</span>
+			<div class="answer">
+				<span class="answer-label">{heading(result, op)}</span>
 				<span class="answer-line">
 					<span class="answer-value mono" data-testid="pg-result">{@html breakable(formatDecimal(result.result))}</span>
 					<CopyButton text={result.result.toString()} label="result" />
 				</span>
-				<span class="verdict" class:wrapped={result.wrapped}>
-					{#if result.wrapped}
-						{op === 'cast'
-							? 'Value changed by the cast'
-							: result.direction === 'over'
-							? 'Overflow: wrapped past the maximum to the bottom of the range'
-							: 'Underflow: wrapped past the minimum to the top of the range'}
-					{:else}
-						No overflow: the exact answer fits
-					{/if}
-				</span>
+				<span class="verdict" class:wrapped={result.wrapped}>{verdict(result, op)}</span>
 			</div>
 
 			<div class="bit-rows">
@@ -285,8 +320,8 @@
 		padding: 0.55rem 0.7rem;
 	}
 
-	.value-input:focus,
-	select:focus {
+	/* The selects keep the site's focus ring from ContentPage. */
+	.value-input:focus {
 		outline: none;
 		border-color: #5db65d;
 	}

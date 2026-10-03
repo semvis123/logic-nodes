@@ -95,6 +95,28 @@ export function formulas(t: IntType): { min: string; max: string; count: string 
 	};
 }
 
+/** How many decimal digits a number has, without its sign. */
+export const digitCount = (n: bigint): number => (n < 0n ? -n : n).toString().length;
+
+/**
+ * A positive number to three significant figures in scientific notation, such
+ * as 1.70 × 10³⁸, for where all 39 digits would not fit. Rounded with BigInt
+ * from the exact digits, so it does not depend on a double's precision.
+ */
+export function scientific(n: bigint): string {
+	const digits = n.toString();
+	if (n < 1000n) return digits;
+	let exponent = digits.length - 1;
+	// Round half up to three significant figures; 9.995e38 rounds up to 1.00e39.
+	let mantissa = (BigInt(digits.slice(0, 4)) + 5n) / 10n;
+	if (mantissa >= 1000n) {
+		mantissa /= 10n;
+		exponent += 1;
+	}
+	const m = mantissa.toString();
+	return `${m[0]}.${m.slice(1)} × 10${superscript(exponent)}`;
+}
+
 /** The same formulas in plain ASCII, for anywhere superscripts would not survive. */
 export function asciiFormulas(t: IntType): { min: string; max: string } {
 	const top = t.signed ? t.bits - 1 : t.bits;
@@ -716,13 +738,16 @@ export function storiesFor(t: IntType): Story[] {
 	return stories;
 }
 
+/** A place a type turns up, linked to the tool for it when the site has one. */
+export type Use = string | { text: string; href: string };
+
 /** Where people actually meet each type. Plain facts, no anecdotes. */
-export const usesOf: Record<IntSlug, string[]> = {
+export const usesOf: Record<IntSlug, Use[]> = {
 	int8: ['Small signed offsets and deltas', 'Java’s byte, which is signed, so a byte read as 0xFF is −1'],
 	uint8: [
 		'One byte of memory or a file',
 		'Each red, green or blue channel of a 24-bit colour',
-		'Each part of an IPv4 address'
+		{ text: 'Each part of an IPv4 address', href: '/subnet-calculator' }
 	],
 	int16: ['CD audio and most WAV files: 16-bit signed samples', 'Older and embedded systems where int is 16 bits'],
 	uint16: [
@@ -731,11 +756,27 @@ export const usesOf: Record<IntSlug, string[]> = {
 		'Unicode code points in the Basic Multilingual Plane'
 	],
 	int32: ['int in Java, C# and (on common platforms) C', 'Unix time in older systems', 'JavaScript bitwise operators'],
-	uint32: ['An IPv4 address as one number', 'CRC-32 checksums', 'RGBA colours packed into one word'],
+	uint32: [
+		{ text: 'An IPv4 address as one number', href: '/subnet-calculator' },
+		'CRC-32 checksums',
+		'RGBA colours packed into one word'
+	],
 	int64: ['Unix time in modern systems', 'long in Java, C# and Kotlin', 'Database primary keys (bigint)'],
-	uint64: ['size_t and memory addresses on 64-bit platforms', 'Hashes such as 64-bit FNV', 'File sizes and offsets'],
+	uint64: [
+		'size_t and memory addresses on 64-bit platforms',
+		'Hashes such as 64-bit FNV',
+		'File sizes and offsets',
+		{
+			text: '64-bit IDs such as Discord snowflakes, which APIs send as strings so JavaScript does not round them',
+			href: '/snowflake-id-decoder'
+		}
+	],
 	int128: ['The full signed product of two 64-bit numbers', 'Sums of many 64-bit values that must not overflow'],
-	uint128: ['An IPv6 address as one number', 'UUIDs, which are 128 bits', 'The full product of two 64-bit numbers']
+	uint128: [
+		{ text: 'An IPv6 address as one number', href: '/ipv6-expand-compress' },
+		{ text: 'UUIDs, which are 128 bits', href: '/uuid-decoder' },
+		'The full product of two 64-bit numbers'
+	]
 };
 
 export type Mistake = { title: string; text: string };
@@ -916,7 +957,7 @@ export function typeDescription(t: IntType): string {
 /**
  * What max + 1 does, language by language. Only languages that have the type
  * are named. Below 32 bits the C family, Java, C# and Kotlin do the sum in int
- * (Java's byte + 1 is the int 128), so the wrap happens only when the result
+ * (Java's byte + 1 is the int 128; Kotlin's UByte and UShort give a UInt), so the wrap happens only when the result
  * is stored back; Go, Rust and Swift work at the narrow width itself.
  */
 export function overflowAnswer(t: IntType): string {
@@ -925,13 +966,15 @@ export function overflowAnswer(t: IntType): string {
 	const head = `On the hardware the result keeps only its low ${t.bits} bits, so ${max} + 1 becomes ${next}.`;
 	if (t.bits < 32) {
 		const promoting = ['C', 'C++', ...['Java', 'C#', 'Kotlin'].filter((l) => hasType(t, l))];
-		return `${head} In ${listOf(promoting)}, arithmetic on ${
+		return `${head} In ${listOf(promoting)}, arithmetic on ${t.bits}-bit values is done in int${
+			!t.signed && promoting.includes('Kotlin') ? ' (UInt in Kotlin)' : ''
+		}, so ${max} + 1 is ${formatDecimal(t.max + 1n)} as an int; it becomes ${next} only when stored back into the ${
 			t.bits
-		}-bit values is done in int, so ${max} + 1 is ${formatDecimal(
-			t.max + 1n
-		)} as an int; it becomes ${next} only when stored back into the ${
-			t.bits
-		}-bit type, as x++, x += 1 or a cast do. Go wraps at ${
+		}-bit type, as x++, ${
+			promoting.includes('Kotlin')
+				? 'a cast or (except in Kotlin, where it does not compile) x += 1'
+				: 'x += 1 or a cast'
+		} do. Go wraps at ${
 			t.bits
 		} bits directly, Rust panics in debug builds and wraps in release builds, and Swift stops with a runtime error.`;
 	}

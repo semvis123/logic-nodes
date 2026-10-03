@@ -25,28 +25,40 @@
 	{#if gutter}
 		<span class="carry" aria-hidden="true"><span class="bit dropped">{carry}</span></span>
 	{/if}
-	{#each bytes as byte, b}
-		<span class="byte" aria-hidden="true">
-			{#each byte.split('') as bit, i}
-				<span
-					class="bit {bit === '1' ? 'one' : 'zero'}"
-					class:sign={signed && b === 0 && i === 0 && !added}
-					class:dropped={b * 8 + i < dropped}
-					class:added={b * 8 + i < added}
-					class:gap={i === 4}>{bit}</span
-				>
-			{/each}
-		</span>
-	{/each}
+	<span class="bytes">
+		{#each bytes as byte, b}
+			<span class="byte" aria-hidden="true">
+				{#each byte.split('') as bit, i}
+					<span
+						class="bit {bit === '1' ? 'one' : 'zero'}"
+						class:sign={signed && b === 0 && i === 0 && !added}
+						class:dropped={b * 8 + i < dropped}
+						class:added={b * 8 + i < added}
+						class:gap={i === 4}>{bit}</span
+					>
+				{/each}
+			</span>
+		{/each}
+	</span>
 </span>
 
 <style>
+	/* The carry slot is its own column beside the bytes, so when the bytes wrap
+	   onto more lines those lines stay under the first, not under the carry. */
 	.bits {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 0.25rem 0.6rem;
+		align-items: flex-start;
+		gap: 0.6rem;
 		font-size: 1rem;
 		line-height: 1.5;
+	}
+
+	.bytes {
+		display: flex;
+		flex-wrap: wrap;
+		flex: 1 1 auto;
+		min-width: 0;
+		gap: 0.25rem 0.6rem;
 	}
 
 	.byte,
@@ -56,6 +68,7 @@
 	}
 
 	.carry {
+		flex: none;
 		width: 0.72em;
 	}
 
