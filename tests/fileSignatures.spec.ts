@@ -768,6 +768,27 @@ test.describe('detecting formats', () => {
 		// A text format's own signature is not in doubt for being text.
 		expect(verdict('a.pdf', '%PDF-1.4\n')[0]).toEqual(['pdf']);
 		expect(top(real('tiny.gif')).certainty).toBe('certain');
+		// With no text after it, a signature is the signature: the reference
+		// table's own bytes, and a bzip2 start whose block magic is confirmed.
+		for (const [text, id] of [
+			['GIF89a', 'gif'],
+			['GIF87a', 'gif'],
+			['wOFF', 'woff'],
+			['wOF2', 'woff2'],
+			['fLaC', 'flac'],
+			['ttcf', 'ttc'],
+			['BZh9', 'bzip2'],
+			['BZh91AY&SY', 'bzip2']
+		]) {
+			const [ids, v] = verdict(`a.${id === 'bzip2' ? 'bz2' : id}`, text);
+			expect(ids[0], text).toBe(id);
+			expect(top(build({ t: text })).certainty, text).toBe('certain');
+			expect((v as { status: string }).status, text).toBe('match');
+		}
+		// Text listed ahead of a format does not claim that nothing matched.
+		const words = detect(fromBytes(build({ t: 'GIF89a is a format\n' })));
+		expect(words[0].explain).toMatch(/^The bytes start with the GIF image signature/);
+		expect(words[0].explain).not.toMatch(/No signature matched/);
 		// A real old QuickTime header still is one.
 		expect(top(HAND['mov-old'].bytes).id).toBe('mov-old');
 	});
@@ -1026,12 +1047,22 @@ test.describe('extensions', () => {
 		expect(verdict('photo.heif', HAND.heic.bytes).status).toBe('match');
 		// HEVC and AV1 are different codecs: a HEIC is a HEIF, but not an AVIF.
 		expect(verdict('photo.avif', HAND.heic.bytes).status).toBe('mismatch');
-		// A generic mif1 major brand says only "HEIF", so any still image extension fits.
+		// A generic mif1 major brand says only "HEIF"; the codec brand decides
+		// .heic or .avif, the same as when it is the major brand.
 		const generic = build(u32be(24), { t: 'ftypmif1' }, '00 00 00 00', { t: 'mif1heic' });
 		expect(top(generic).id).toBe('heic');
-		expect(verdict('photo.avif', generic).status).toBe('compatible');
+		expect(verdict('photo.avif', generic).status).toBe('mismatch');
 		expect(verdict('photo.heic', generic).status).toBe('match');
+		expect(verdict('photo.heif', generic).status).toBe('match');
 		expect(verdict('photo.mp4', generic).status).toBe('mismatch');
+		const genericAv1 = build(u32be(24), { t: 'ftypmif1' }, '00 00 00 00', { t: 'mif1avif' });
+		expect(top(genericAv1).id).toBe('avif');
+		expect(verdict('photo.heic', genericAv1).status).toBe('mismatch');
+		expect(verdict('photo.heif', genericAv1).status).not.toBe('mismatch');
+		// Both codec brands listed: either extension fits.
+		const both = build(u32be(28), { t: 'ftypmif1' }, '00 00 00 00', { t: 'mif1heicavif' });
+		expect(verdict('photo.avif', both).status).not.toBe('mismatch');
+		expect(verdict('photo.heic', both).status).not.toBe('mismatch');
 		expect(verdict('song.mp4', real('tone.m4a')).status).toBe('compatible');
 	});
 

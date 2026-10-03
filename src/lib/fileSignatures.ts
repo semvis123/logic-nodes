@@ -2252,13 +2252,16 @@ const TYPES: TypeDef[] = [
 			// video may carry a 3GP or QuickTime brand: the brand narrows, the
 			// extension can still be any of the family.
 			// HEIC and AVIF are both HEIF, so .heif fits either, but their codecs differ.
-			// A file whose major brand is the generic mif1 or msf1 only says "HEIF"
-			// up front; the codec brand is a compatible one that writers add, so
-			// any of the three still image extensions fits it.
+			// A generic mif1 or msf1 major brand only says "HEIF"; the codec
+			// brands among the compatible ones say which readers can open it,
+			// so .heic fits only with a HEVC brand and .avif only with an AV1 one.
+			const has = (id: string) => f.compatible.some((b) => FTYP_KINDS.find((x) => x.id === id)?.brands.includes(b));
 			const genericHeif = FTYP_KINDS.find((x) => x.id === 'heif')?.brands.includes(f.major);
 			const family =
-				k.id === 'heif' || genericHeif
+				k.id === 'heif'
 					? HEIF_FAMILY
+					: genericHeif
+					? ['heif', ...(has('heic') ? ['heic'] : []), ...(has('avif') ? ['avif'] : [])]
 					: k.id === 'heic' || k.id === 'avif'
 					? ['heif']
 					: k.id === 'cr3'
@@ -2684,10 +2687,15 @@ export function detect(v: ByteView): Detection[] {
 	if (!found.length) run(true);
 	// GIF89a, fLaC, wOFF and BZh are words as well as signatures. A real file
 	// of those formats has binary bytes straight after them (sizes, flags,
-	// compressed data), so when every byte is clean text, the signature is
-	// only likely, and the text reading below goes first.
+	// compressed data), so when clean text carries on past everything the
+	// format accounts for, the signature is only likely, and the text reading
+	// below goes first. The bare signature, or a header whose structure the
+	// checker confirmed (bzip2's BZh91AY&SY is all printable), stays certain.
 	if (wordy.size && readUtf8(v, 0) !== null)
-		for (const d of wordy) if (d.certainty === 'certain') d.certainty = 'likely';
+		for (const d of wordy) {
+			const end = Math.max(...d.fields.map((f) => f.start + f.length));
+			if (d.certainty === 'certain' && v.size > end) d.certainty = 'likely';
+		}
 	// Short signatures that could not be confirmed (true, OTTO, BM, MZ, ID3)
 	// are also ordinary words. When nothing matched in full and every byte
 	// is clean text, the text reading goes first and the others are listed
@@ -2697,7 +2705,12 @@ export function detect(v: ByteView): Detection[] {
 		const text = readUtf8(v, 0);
 		if (text !== null && text.length) {
 			const hit = classifyText(text, { toByte: (i) => utf8Length(text.slice(0, i)), unit: 1 }, wholeHead(v));
-			found.unshift(build(TEXT_DEF, hit, []));
+			const t = build(TEXT_DEF, hit, []);
+			// Plain text's own explanation says no signature matched, which is
+			// not so when a format is listed after it.
+			if (t.id === 'text' && found.length)
+				t.explain = `The bytes start with the ${found[0].name} signature, but every byte read is printable text in valid UTF-8 (or ASCII), including where that format's binary data should be, so this is most likely text that happens to begin with the same letters. Text has no magic number of its own; the extension is the only label it has.`;
+			found.unshift(t);
 		}
 	}
 	return found;

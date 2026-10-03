@@ -284,7 +284,7 @@
 		},
 		{
 			value: 0xfeedfacf,
-			where: `The 64-bit Mach-O magic number, FEEDFACE plus one, and the one on every current Mac program, or on each slice of a universal one: Intel and Apple silicon Macs are little-endian, so the file starts ${machoLittle}.`
+			where: `The 64-bit Mach-O magic number, FEEDFACE plus one, and the one on every current Mac program: Intel and Apple silicon Macs are little-endian, so a single-architecture file, or each slice of a universal one, starts ${machoLittle}.`
 		},
 		{
 			value: 0xdeadbeef,
