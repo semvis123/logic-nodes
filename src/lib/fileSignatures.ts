@@ -134,13 +134,19 @@ export function formatHexLines(bytes: ArrayLike<number>, perLine = 16): string {
  * (plain hexdump, od -x) are left alone, because their byte order is the
  * machine's, not the file's.
  */
+const DUMP_LINE = /^\s*([0-9a-f]{6,16})(:?)(?:\s+(.*))?$/i;
+
 export function stripDumpColumns(input: string): string {
+	// Most pastes are not dumps, and the first line says so: checking it before
+	// splitting keeps a megabyte of plain hex from being cut into lines for nothing.
+	const firstLine = /^\s*([^\r\n]*)/.exec(input)?.[1] ?? '';
+	if (!DUMP_LINE.test(firstLine)) return input;
 	const lines = input.split(/\r?\n/).filter((l) => l.trim());
 	if (!lines.length) return input;
 	const out: string[] = [];
 	let last = -1;
 	for (let i = 0; i < lines.length; i++) {
-		const m = lines[i].match(/^\s*([0-9a-f]{6,16})(:?)(?:\s+(.*))?$/i);
+		const m = lines[i].match(DUMP_LINE);
 		if (!m) return input;
 		const offset = parseInt(m[1], 16);
 		if (offset <= last) return input;
@@ -168,7 +174,10 @@ export const MAX_PASTE_BYTES = 1 << 20;
  * with its neighbour, because "D A" could mean 0D 0A or DA.
  */
 export function parseHex(input: string): Uint8Array {
-	const groups = stripDumpColumns(input)
+	const stripped = stripDumpColumns(input);
+	const plain = parsePlainHex(stripped);
+	if (plain) return plain;
+	const groups = stripped
 		.trim()
 		.split(/[\s,;:]+/)
 		.filter(Boolean);
@@ -192,16 +201,61 @@ export function parseHex(input: string): Uint8Array {
 		}
 		digits += group;
 	}
-	if (digits.length / 2 > MAX_PASTE_BYTES) {
+	checkPasteSize(digits.length / 2);
+	const out = new Uint8Array(digits.length / 2);
+	for (let i = 0; i < out.length; i++) out[i] = parseInt(digits.slice(2 * i, 2 * i + 2), 16);
+	return out;
+}
+
+function checkPasteSize(bytes: number) {
+	if (bytes > MAX_PASTE_BYTES) {
 		throw new HexError(
-			`That is ${(digits.length / 2).toLocaleString('en-GB')} bytes; paste at most ${MAX_PASTE_BYTES.toLocaleString(
+			`That is ${bytes.toLocaleString('en-GB')} bytes; paste at most ${MAX_PASTE_BYTES.toLocaleString(
 				'en-GB'
 			)}, or choose the file instead`
 		);
 	}
-	const out = new Uint8Array(digits.length / 2);
-	for (let i = 0; i < out.length; i++) out[i] = parseInt(digits.slice(2 * i, 2 * i + 2), 16);
-	return out;
+}
+
+/** A hex digit's value, or -1. */
+function hexDigit(code: number): number {
+	if (code >= 48 && code <= 57) return code - 48; // 0-9
+	const lower = code | 0x20;
+	return lower >= 97 && lower <= 102 ? lower - 87 : -1; // a-f, A-F
+}
+
+/** Space, tab, new line, carriage return, form feed, comma, semicolon or colon. */
+const isSeparator = (code: number) =>
+	code === 32 || (code >= 9 && code <= 13) || code === 44 || code === 59 || code === 58;
+
+/**
+ * The common case, whole hex pairs between plain separators, read in a single
+ * pass. Splitting into groups and testing each with regular expressions costs
+ * about half a second for a megabyte, and the page parses again on every
+ * keystroke. Anything else (0x or \x prefixes, a group with an odd number of
+ * digits, a stray character) returns null and goes the slow way, which reads
+ * it or says exactly what is wrong.
+ */
+function parsePlainHex(text: string): Uint8Array | null {
+	const out = new Uint8Array(text.length >> 1);
+	let count = 0;
+	let high = -1;
+	for (let i = 0; i < text.length; i++) {
+		const code = text.charCodeAt(i);
+		const value = hexDigit(code);
+		if (value >= 0) {
+			if (high < 0) high = value;
+			else {
+				out[count++] = (high << 4) | value;
+				high = -1;
+			}
+		} else if (!isSeparator(code) || high >= 0) {
+			return null;
+		}
+	}
+	if (high >= 0) return null;
+	checkPasteSize(count);
+	return out.slice(0, count);
 }
 
 // --- The data model --------------------------------------------------------

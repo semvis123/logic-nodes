@@ -14,6 +14,7 @@ import {
 	fromBytes,
 	detect,
 	parseHex,
+	MAX_PASTE_BYTES,
 	HexError,
 	checkExtension,
 	extensionOf,
@@ -458,6 +459,38 @@ test.describe('reading pasted hex', () => {
 			expect(Buffer.from(parseHex(formatHexLines(bytes))).equals(Buffer.from(bytes))).toBe(true);
 			expect(Buffer.from(parseHex(Buffer.from(bytes).toString('hex'))).equals(Buffer.from(bytes))).toBe(true);
 		}
+	});
+
+	test('mixed separators, prefixes and case read the same as Buffer, and bad pastes still fail', () => {
+		const random = rng(11);
+		const seps = [' ', '  ', ',', ', ', ';', ':', '\n', '\r\n', '\t', ' '];
+		for (let n = 0; n < 300; n++) {
+			const bytes = Uint8Array.from({ length: 1 + Math.floor(random() * 40) }, () => Math.floor(random() * 256));
+			const prefix = random() < 0.2 ? (random() < 0.5 ? '0x' : '\\x') : '';
+			const text = Array.from(bytes, (b) => {
+				const h = prefix + b.toString(16).padStart(2, '0');
+				return random() < 0.5 ? h.toUpperCase().replace('0X', '0x').replace('\\X', '\\x') : h;
+			})
+				.map((h, i) => (i ? seps[Math.floor(random() * seps.length)] : '') + h)
+				.join('');
+			expect(Buffer.from(parseHex(text)).equals(Buffer.from(bytes)), text).toBe(true);
+			// Splitting one byte across a separator is refused, never read as two bytes or merged.
+			const cut = text.replace(/([0-9a-f])([0-9a-f])/i, '$1 $2');
+			expect(() => parseHex(cut), cut).toThrow(HexError);
+		}
+	});
+
+	test('a megabyte of pasted hex parses quickly, and more than that is refused', () => {
+		const bytes = Uint8Array.from({ length: MAX_PASTE_BYTES }, (_, i) => (i * 7) & 255);
+		for (const text of [formatHexLines(bytes), Buffer.from(bytes).toString('hex')]) {
+			const started = performance.now();
+			const out = parseHex(text);
+			// The page parses on every keystroke; the old split-and-test loop took about 500 ms here.
+			expect(performance.now() - started).toBeLessThan(200);
+			expect(Buffer.from(out).equals(Buffer.from(bytes))).toBe(true);
+		}
+		expect(() => parseHex('00 '.repeat(MAX_PASTE_BYTES + 1))).toThrow(/paste at most 1,048,576/);
+		expect(() => parseHex('0x00 '.repeat(MAX_PASTE_BYTES + 1))).toThrow(/paste at most 1,048,576/);
 	});
 });
 
@@ -1292,6 +1325,83 @@ test.describe('the file-signature-checker page', () => {
 		await expect(page.locator('#name')).toHaveValue('');
 		await expect(page.locator('.answer-value')).toHaveText('ELF executable');
 		expect(page.url()).toBe(shared);
+	});
+
+	test('typing bytes does not fire an alert per keystroke, and a stale result is out of reach', async ({ page }) => {
+		await page.goto('/file-signature-checker');
+		await page.waitForLoadState('networkidle');
+		const hex = page.locator('#hex');
+		await hex.fill('');
+		// Counts every alert that appears while typing, however briefly.
+		await page.evaluate(() => {
+			const w = window as unknown as { alerts: number };
+			w.alerts = 0;
+			new MutationObserver(() => (w.alerts += document.querySelectorAll('[role=alert]').length)).observe(
+				document.body,
+				{
+					subtree: true,
+					childList: true,
+					characterData: true
+				}
+			);
+		});
+		await hex.type('25 50 44 46 2D', { delay: 60 });
+		await expect(page.locator('.answer-value')).toHaveText('PDF document');
+		expect(await page.evaluate(() => (window as unknown as { alerts: number }).alerts)).toBe(0);
+		// A half-written byte shows its error at once, but announces it only after a pause.
+		await hex.press('5');
+		await expect(page.locator('#hex-error')).toContainText('odd number of digits');
+		await expect(hex).toHaveAttribute('aria-describedby', 'hex-help hex-error');
+		const inert = () => page.locator('.results').evaluate((el) => el.hasAttribute('inert'));
+		await expect.poll(inert).toBe(true);
+		await expect(page.locator('[role=alert]')).toContainText('odd number of digits');
+		await hex.press('Backspace');
+		await expect(page.locator('[role=alert]')).toHaveCount(0);
+		await expect(hex).toHaveAttribute('aria-describedby', 'hex-help');
+		await expect.poll(inert).toBe(false);
+	});
+
+	test('a long unbroken paste does not widen the page on a phone', async ({ page }) => {
+		await page.setViewportSize({ width: 390, height: 900 });
+		await page.goto('/file-signature-checker');
+		await page.waitForLoadState('networkidle');
+		await page.locator('#hex').fill('Z'.repeat(300));
+		await expect(page.locator('#hex-error')).toBeVisible();
+		const overflow = await page.evaluate(
+			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+		);
+		expect(overflow).toBe(0);
+	});
+
+	test('a file picked while another is still being read wins', async ({ page }) => {
+		await page.goto('/file-signature-checker');
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'Check a file' }).click();
+		// The first read is held back until after the second has finished.
+		await page.evaluate(() => {
+			const original = Blob.prototype.arrayBuffer;
+			Blob.prototype.arrayBuffer = function (this: Blob) {
+				const delay = (window as unknown as { slowNext?: boolean }).slowNext ? 800 : 0;
+				return new Promise((resolve) => setTimeout(() => resolve(original.call(this)), delay));
+			};
+			(window as unknown as { slowNext?: boolean }).slowNext = true;
+		});
+		await page.locator('#file').setInputFiles({ name: 'first.pdf', mimeType: '', buffer: Buffer.from('%PDF-1.7\n') });
+		await page.evaluate(() => ((window as unknown as { slowNext?: boolean }).slowNext = false));
+		await page
+			.locator('#file')
+			.setInputFiles({ name: 'second.elf', mimeType: '', buffer: Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0]) });
+		await expect(page.locator('.answer-value')).toHaveText('ELF executable');
+		await page.waitForTimeout(1200);
+		await expect(page.locator('.answer-value')).toHaveText('ELF executable');
+		await expect(page.locator('.read-note')).toContainText('second.elf: 8 bytes');
+	});
+
+	test('query values the page does not use are dropped from the address bar', async ({ page }) => {
+		await page.goto('/file-signature-checker?e=bogus&x=1');
+		await page.waitForLoadState('networkidle');
+		await expect(page).toHaveURL(/\/file-signature-checker$/);
+		await expect(page.locator('.answer-value')).toHaveText('PNG image');
 	});
 
 	test('the FAQ in the structured data is the FAQ on the page', async ({ page }) => {
