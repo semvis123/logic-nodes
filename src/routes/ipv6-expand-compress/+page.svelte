@@ -534,7 +534,8 @@
 				<p class="error" role="alert">{macError}</p>
 			{/if}
 			<p class="field-help" id="mac-help">
-				Six bytes in hex, written 00:1a:2b:3c:4d:5e, 00-1A-2B-3C-4D-5E, 001a.2b3c.4d5e or with no separators.
+				Six bytes in hex, written 00:1a:2b:3c:4d:5e, 00-1A-2B-3C-4D-5E, 00 1a 2b 3c 4d 5e, 001a.2b3c.4d5e or with no
+				separators.
 			</p>
 
 			<div class="results" class:stale={!!macError} aria-hidden={macError ? 'true' : 'false'}>

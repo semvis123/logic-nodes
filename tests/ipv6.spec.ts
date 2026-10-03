@@ -176,6 +176,9 @@ test.describe('parsing IPv6', () => {
 		expect(url.zone).toBe('eth0');
 		expect(url.port).toBe(80);
 		expect(parseIPv6('fe80::1%25').zone).toBe('25'); // outside brackets, %25 is interface 25
+		expect(parseIPv6('[fe80::1%2525]').zone).toBe('25'); // inside them, interface 25 is %2525
+		expect(parseIPv6('[fe80::1%eth0]').zone).toBe('eth0'); // unescaped, as people paste it
+		expect(() => parseIPv6('[fe80::1%25]')).toThrow(/Nothing follows the %/);
 	});
 
 	test('accepts exactly what Node accepts, for addresses without extras', () => {
@@ -239,6 +242,13 @@ test.describe('parsing IPv6', () => {
 		expect(err('g::1')).toMatch(/group 1, "g"/);
 		expect(err('1::x:1.2.3.4')).toMatch(/group 6, "x"/);
 		expect(err('fe80::1/64%eth0')).toMatch(/zone goes before the prefix length: write fe80::1%eth0\/64/);
+		expect(err('fe80::1%eth0/64%x')).toMatch(/more than one %/);
+		expect(err('fe80::1%a%b')).toMatch(/more than one %/);
+		// With too many groups, places in the address mean nothing: count as written.
+		expect(err('1:2::3:4:5:6:7:8:9z')).toMatch(/"z" is not a hex digit .* in the 9th group written, "9z"/);
+		expect(err('1:2:3:4:5:6:7:8:12345')).toMatch(/^The 9th group written, "12345", has 5 hex digits/);
+		expect(err('1:2:3:4:5:6:7:8:9:10:11:2g')).toMatch(/the 12th group written/);
+		expect(err('1:2:3:4:5:6:7:8:9:10:11:12:13:14:15:16:17:18:19:20:2g')).toMatch(/the 21st group written/);
 		expect(err('::1.2.3.4:5')).toMatch(/can only be the very end/);
 		expect(err('1.2.3.4::')).toMatch(/can only be the very end/);
 		expect(err('::1.2.3.999')).toMatch(/not a valid IPv4 tail/);
@@ -260,7 +270,9 @@ test.describe('explaining, prefixes and types', () => {
 		expect(by['Lower case'].changed).toBe(true);
 		expect(by['Drop leading zeros'].detail).toContain('0DB8 → db8');
 		expect(by['Drop leading zeros'].detail).toContain('0000 → 0');
-		expect(by['Replace the longest run of zeros with ::'].detail).toContain('groups 3 to 4');
+		expect(by['Replace the longest run of zeros with ::'].detail).toBe(
+			'The run of zeros, groups 3 to 4, becomes ::, covering the whole run (section 4.2.1).'
+		);
 		const tie = explain(parseIPv6('2001:db8:0:0:1:0:0:1'));
 		expect(tie.map((s) => s.detail).join(' ')).toContain('equally long');
 		const single = explain(parseIPv6('2001:db8:0:1:1:1:1:1'));
@@ -375,7 +387,14 @@ test.describe('explaining, prefixes and types', () => {
 test.describe('EUI-64', () => {
 	test('MAC notations all read the same', () => {
 		const bytes = [0x00, 0x1a, 0x2b, 0x3c, 0x4d, 0x5e];
-		for (const s of ['00:1a:2b:3c:4d:5e', '00-1A-2B-3C-4D-5E', '001a.2b3c.4d5e', '001A2B3C4D5E', '0:1a:2b:3c:4d:5e']) {
+		for (const s of [
+			'00:1a:2b:3c:4d:5e',
+			'00-1A-2B-3C-4D-5E',
+			'00 1a 2b 3c 4d 5e',
+			'001a.2b3c.4d5e',
+			'001A2B3C4D5E',
+			'0:1a:2b:3c:4d:5e'
+		]) {
 			expect(parseMac(s), s).toEqual(bytes);
 		}
 		expect(() => parseMac('00:1a:2b:3c:4d')).toThrow(/12 hex digits/);
@@ -388,6 +407,9 @@ test.describe('EUI-64', () => {
 		expect(() => parseMac('00:1a:2b:3c:4d:5e:')).toThrow(/Two separators in a row/);
 		expect(() => parseMac('0:0:1a2b3c4d5e')).toThrow(/"1a2b3c4d5e" has 10 hex digits/);
 		expect(() => parseMac('001a2b3c4d')).toThrow(/that has 10 digits/);
+		expect(() => parseMac('00 1a 2b 3c 4d')).toThrow(/that has 5 bytes/);
+		expect(() => parseMac('00  1a 2b 3c 4d 5e')).toThrow(/Two separators in a row/);
+		expect(() => parseMac('00 1a 2b 3c 4d 5x')).toThrow(/"x" is not a hex digit/);
 	});
 
 	test('inserts fffe and flips the universal/local bit, checked with BigInt', () => {
