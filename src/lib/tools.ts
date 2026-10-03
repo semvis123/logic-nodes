@@ -182,7 +182,7 @@ export const tools: Tool[] = [
 	},
 	{
 		href: '/fp16-bf16-fp8-converter',
-		name: 'FP16, BF16 and FP8 converter',
+		name: 'FP16, BF16, FP8 and FP4 converter',
 		short: 'FP16 / FP8',
 		group: 'numbers',
 		blurb:
@@ -214,7 +214,7 @@ export const tools: Tool[] = [
 	},
 	{
 		href: '/base58',
-		name: 'Base58 and Base58Check',
+		name: 'Base58 encode and decode',
 		short: 'Base58',
 		group: 'text',
 		blurb:

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { afterNavigate } from '$app/navigation';
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { tools } from '$lib/tools';
+	import { disarmUrl } from '$lib/urlState';
 	import CommandPalette from '$lib/CommandPalette.svelte';
 
 	// Shared chrome and design system for the content pages (the editor itself
@@ -51,6 +52,14 @@
 		'/flip-flops': ['/counters', '/shift-registers', '/sr-latch', '/finite-state-machines'],
 		'/logic': [...logicPaths, '/set-notation']
 	};
+
+	// Every tool page renders this component, so it is the one place that sees
+	// each tool being left. Leaving disarms the URL sync until the next page has
+	// read its own query. Same-path navigations (a hash link, a tool updating
+	// its own query) do not remount the page, so those stay armed.
+	beforeNavigate(({ from, to }) => {
+		if (!to || from?.url.pathname !== to.url.pathname) disarmUrl();
+	});
 
 	// On a phone the section links scroll sideways inside the bar, and the
 	// later ones (Tools, Practice) start out of view. Bring the current section
@@ -140,6 +149,13 @@
 		margin: 0;
 		padding: 0;
 		background-color: #1d1e20;
+	}
+
+	/* The top bar is sticky, so anything the browser scrolls into view (a
+	   control reached with Shift+Tab, a #fragment) would otherwise land under
+	   it. 48px is the 38px bar, its 1px border and a little room. */
+	:global(html) {
+		scroll-padding-top: 48px;
 	}
 
 	/* The main landmark sits inside .content, which draws the grid, so it must

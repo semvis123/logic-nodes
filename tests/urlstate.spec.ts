@@ -123,3 +123,44 @@ test('practice keeps its topic in the link', async ({ page }) => {
 	await page.locator('.topic', { hasText: 'Simplifying' }).click();
 	await expect(page).toHaveURL(/topic=simplifying/);
 });
+
+test('Back and Forward return to a tool with its link intact', async ({ page }) => {
+	// Arrive by a client side navigation, so the tool is mounted twice in one
+	// session: the second mount must not strip the query the first one wrote.
+	await page.goto('/tools');
+	await page.waitForLoadState('networkidle');
+	await page.locator('main a[href="/hex-to-decimal"]').first().click();
+	await expect(page).toHaveURL(/\/hex-to-decimal$/);
+	await page.waitForLoadState('networkidle');
+	await page.fill('#value', 'BEEFA');
+	await expect(page).toHaveURL(/v=BEEFA/);
+
+	await page.goBack();
+	await expect(page).toHaveURL(/\/tools$/);
+	await page.goForward();
+	await expect(page).toHaveURL(/\/hex-to-decimal\?v=BEEFA$/);
+	await expect(page.locator('#value')).toHaveValue('BEEFA');
+	// And it stays there once the page has settled.
+	await page.waitForLoadState('networkidle');
+	expect(page.url()).toMatch(/v=BEEFA$/);
+});
+
+test('a link with a query opens a tool that was visited earlier in that state', async ({ page }) => {
+	await page.goto('/hex-to-decimal');
+	await page.waitForLoadState('networkidle');
+	await page.locator('header a[href="/tools"]').first().click();
+	await expect(page).toHaveURL(/\/tools$/);
+	await page.waitForLoadState('networkidle');
+	// A link like the palette's answers or another tool's hand-off.
+	await page.evaluate(() => {
+		const a = document.createElement('a');
+		a.href = '/hex-to-decimal?v=C0FFEE';
+		a.id = 'handoff';
+		a.textContent = 'hand-off';
+		document.querySelector('main')?.prepend(a);
+	});
+	await page.click('#handoff');
+	await expect(page.locator('#value')).toHaveValue('C0FFEE');
+	await page.waitForLoadState('networkidle');
+	expect(page.url()).toMatch(/\/hex-to-decimal\?v=C0FFEE$/);
+});

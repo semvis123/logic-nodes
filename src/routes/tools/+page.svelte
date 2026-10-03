@@ -183,7 +183,7 @@
 					<tr>
 						<th scope="row">A model in FP16 or FP8</th>
 						<td>what one number turns into</td>
-						<td><a href="/fp16-bf16-fp8-converter">FP16, BF16 and FP8 converter</a></td>
+						<td><a href="/fp16-bf16-fp8-converter">FP16, BF16, FP8 and FP4 converter</a></td>
 					</tr>
 					<tr>
 						<th scope="row">A C struct</th>
@@ -229,8 +229,8 @@
 		<h2>The expression tools share one engine</h2>
 		<p class="section-intro">
 			The same parser and minimiser sits behind every tool here that takes an expression, so what you type into one
-			means exactly the same thing in the next. (The binary and Gray code converters work on bit patterns rather than
-			expressions, so they are their own thing.) It accepts whichever notation you use —
+			means exactly the same thing in the next. (The number, encoding and programming tools work on bits and bytes
+			rather than expressions, so each has its own engine.) It accepts whichever notation you use —
 			<span class="mono">a·b</span>, <span class="mono">a&amp;b</span>,
 			<span class="mono">a∧b</span>, <span class="mono">ab</span> — and the simplification is
 			<a href="/quine-mccluskey">Quine-McCluskey</a>, the same algorithm whether you see it as algebra or as groups on a

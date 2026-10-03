@@ -1,5 +1,6 @@
 // Instant answers for the Ctrl+K palette. When what was typed is something the
-// site can work out (an expression, a logic statement, a number, some Base64)
+// site can work out (an expression, a logic statement, a number, some Base64,
+// an IP address, a UUID, a barcode number)
 // the palette shows the answer at the top, with a link that opens the tool for
 // it already filled in. The palette loads this module on first open, so no page
 // carries these engines until someone uses it.
@@ -12,6 +13,11 @@ import { parsePropInput, propTable, classify, checkArgument } from './propositio
 import { encode } from './ieee754.js';
 import { calculate, type Op } from './arithmetic.js';
 import { base64Decode, base64EncodeText, decodeUtf8, textToBytes, bin8, asciiTable } from './textEncoding.js';
+import { parseCidr, parseMask, subnetInfo, formatAddress, usableHosts } from './ipv4.js';
+import { parseIPv6, compressText, addressType } from './ipv6.js';
+import { decodeUuid, decodeUlid, decodeSnowflake } from './ids.js';
+import { checkDigit, isValidCode } from './ean.js';
+import { intTypes } from './intLimits.js';
 
 export type Answer = {
 	/** The answer itself, shown in monospace. */
@@ -131,6 +137,115 @@ function floatAnswers(text: string): Answer[] {
 			tool: '/ieee-754-converter'
 		}
 	];
+}
+
+/** 2147483647 is int32's maximum: worth saying, since that is usually why it was typed. */
+function limitAnswer(text: string): Answer | null {
+	const value = BigInt(text);
+	// 0 is every unsigned type's minimum, which says nothing.
+	if (value === 0n) return null;
+	const type = intTypes.find((t) => t.max === value) ?? intTypes.find((t) => t.min === value);
+	if (!type) return null;
+	const which = type.max === value ? 'max' : 'min';
+	return {
+		title: `${text.replace('-', '−')} = ${type.slug} ${which}`,
+		hint: `The ${which === 'max' ? 'largest' : 'smallest'} ${type.bits}-bit ${
+			type.signed ? 'signed' : 'unsigned'
+		} integer`,
+		href: `/integer-limits/${type.slug}`,
+		tool: '/integer-limits'
+	};
+}
+
+// --- Networking, IDs and barcodes -------------------------------------------
+
+const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/;
+
+function ipv4Answer(text: string): Answer | null {
+	if (IPV4.test(text)) {
+		// A bare dotted quad is only worth answering when it is a mask.
+		if (!/^(255|0)\./.test(text)) return null;
+		const prefix = parseMask(text);
+		return {
+			title: `${text} = /${prefix}`,
+			hint: `A subnet mask: ${usableHosts(prefix).toLocaleString('en-GB')} usable hosts per subnet`,
+			href: '/subnet-calculator#table',
+			tool: '/subnet-calculator'
+		};
+	}
+	const cidr = parseCidr(text);
+	const info = subnetInfo(cidr.address, cidr.prefix);
+	const hosts = `${info.usable.toLocaleString('en-GB')} host${info.usable === 1 ? '' : 's'}`;
+	return {
+		title: `${formatAddress(info.network)}/${info.prefix} · ${hosts}`,
+		hint: `Mask ${formatAddress(info.mask)}${
+			info.broadcast === null ? '' : ` · broadcast ${formatAddress(info.broadcast)}`
+		}`,
+		href: link('/subnet-calculator', { ip: text }),
+		tool: '/subnet-calculator'
+	};
+}
+
+function ipv6Answer(text: string): Answer {
+	const parsed = parseIPv6(text);
+	const short = compressText(parsed.hextets);
+	return {
+		title: `${short}${parsed.prefix === null ? '' : `/${parsed.prefix}`}`,
+		hint: `IPv6, shortest form · ${addressType(parsed.value).name}`,
+		href: link('/ipv6-expand-compress', { a: text }),
+		tool: '/ipv6-expand-compress'
+	};
+}
+
+function idAnswer(text: string, ulid: boolean): Answer {
+	const id = ulid ? decodeUlid(text) : decodeUuid(text);
+	return {
+		title: id.title.split(':')[0],
+		hint: id.time ? `Made ${id.time.iso}` : clip(id.summary, 60),
+		href: link('/uuid-decoder', { id: text }),
+		tool: '/uuid-decoder'
+	};
+}
+
+function snowflakeAnswer(text: string): Answer | null {
+	const id = decodeSnowflake(text, 'discord');
+	// Only a time between the epoch and now makes it plausibly a real ID.
+	if (!id.time || id.time.unixMs > Date.now()) return null;
+	return {
+		title: `Discord ID → ${id.time.iso}`,
+		hint: 'Read as a Discord snowflake: when it was made',
+		href: link('/snowflake-id-decoder', { id: text }),
+		tool: '/snowflake-id-decoder'
+	};
+}
+
+/** An 8, 12 or 13 digit number may be a barcode: say what its check digit is. */
+function eanAnswer(text: string): Answer | null {
+	const tool = '/ean-13-barcode-generator';
+	if (text.length === 12) {
+		return {
+			title: `EAN-13 check digit ${checkDigit(text)}`,
+			hint: `${text}${checkDigit(text)} with the check digit added`,
+			href: link(tool, { v: text }),
+			tool
+		};
+	}
+	const valid = isValidCode(text);
+	if (text.length === 8) {
+		if (!valid) return null;
+		return {
+			title: 'A valid EAN-8',
+			hint: 'Its check digit is right',
+			href: link(tool, { sym: 'ean8', v: text }),
+			tool
+		};
+	}
+	return {
+		title: valid ? 'A valid EAN-13' : `Not a valid EAN-13`,
+		hint: valid ? 'Its check digit is right' : `The check digit should be ${checkDigit(text.slice(0, 12))}`,
+		href: link(tool, { v: text }),
+		tool
+	};
 }
 
 // --- Binary and hex arithmetic --------------------------------------------------
@@ -318,12 +433,53 @@ const attempt = (fn: () => Answer[] | Answer | null): Answer[] => {
 	}
 };
 
+/** Short names that are valid hex but are meant as words. */
+const NOT_HEX = new Set(['bf16', '2fa', 'b64']);
+
+/**
+ * A whole number: its binary, plus what else a number that long usually is.
+ * The likelier reading comes first: an 18 digit number is far more often a
+ * Discord ID than something to see in binary, and 2147483647 is int32's limit.
+ */
+function integerAnswers(text: string): Answer[] {
+	const digits = text.replace('-', '');
+	if (digits.length > 40) return [];
+	const front: Answer[] = [];
+	const back: Answer[] = [];
+	for (const limit of attempt(() => limitAnswer(text))) (BigInt(digits) > 255n ? front : back).push(limit);
+	if (text.startsWith('-')) return front.concat(back);
+	if (digits.length >= 17 && digits.length <= 20) front.push(...attempt(() => snowflakeAnswer(text)));
+	if ([8, 12, 13].includes(digits.length)) {
+		for (const ean of attempt(() => eanAnswer(text))) (ean.title === 'A valid EAN-13' ? front : back).push(ean);
+	}
+	const base = digits.length <= 19 ? attempt(() => decimalAnswers(text)) : [];
+	return [...front, ...base, ...back].slice(0, MAX_ANSWERS);
+}
+
 export function answers(query: string): Answer[] {
 	const text = query.trim();
 	if (!text || text.length > 200) return [];
 
 	const quoted = text.match(/^["'“‘](.+)["'”’]$/u);
 	if (quoted) return attempt(() => quotedAnswers(quoted[1])).slice(0, MAX_ANSWERS);
+
+	// Addresses and IDs first: their dots, colons and dashes would otherwise be
+	// read as a float, a sum or a logic statement.
+	if (/^\d{1,3}(\.\d{1,3}){3}(\s*\/\s*\d{1,2}|\s+\d{1,3}(\.\d{1,3}){3})?$/.test(text)) {
+		return attempt(() => ipv4Answer(text));
+	}
+	if (text.includes(':')) {
+		const v6 = attempt(() => ipv6Answer(text));
+		if (v6.length) return v6;
+	}
+	if (/^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(text)) {
+		return attempt(() => idAnswer(text, false));
+	}
+	// A ULID is 26 Crockford Base32 characters; a letter and a digit keep plain
+	// words and long numbers out.
+	if (/^[0-7][0-9a-hjkmnp-tv-z]{25}$/i.test(text) && /[a-z]/i.test(text) && /\d.*\d/.test(text)) {
+		return attempt(() => idAnswer(text, true));
+	}
 
 	// "v" between two letters is logic notation's OR, which the boolean engine
 	// would read as a variable.
@@ -345,11 +501,13 @@ export function answers(query: string): Answer[] {
 	if (binary) return attempt(() => binaryAnswer(binary[1]));
 	const hex = text.match(/^(?:0x|#)([0-9a-f]{1,16})$/i);
 	if (hex) return attempt(() => hexAnswers(hex[1]));
-	// Bare hex needs a digit and a letter, so "beef" and "add" stay words.
+	// Bare hex needs a digit and a letter, so "beef" and "add" stay words, and
+	// a few terms that happen to be hex digits are searches too.
 	if (/^[0-9a-f]{1,16}$/i.test(text) && /[0-9]/.test(text) && /[a-f]/i.test(text)) {
+		if (NOT_HEX.has(text.toLowerCase())) return [];
 		return attempt(() => hexAnswers(text));
 	}
-	if (/^\d{1,19}$/.test(text)) return attempt(() => decimalAnswers(text));
+	if (/^-?\d+$/.test(text)) return integerAnswers(text);
 	if (/^[A-Za-z0-9+/_-]{6,}={0,2}$/.test(text)) {
 		const found = attempt(() => base64Answer(text));
 		if (found.length) return found;

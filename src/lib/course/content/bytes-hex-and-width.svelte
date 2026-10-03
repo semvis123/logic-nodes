@@ -107,8 +107,9 @@
 </p>
 <p>
 	The width sets the biggest number that fits. With <em>n</em> bits there are 2<sup>n</sup> patterns, one of which is
-	zero, so the biggest value is 2<sup>n</sup> − 1. For a byte that is 255. For sixteen bits it is 65,535, and for thirty-two
-	bits it is a little over four billion. Click every bit on below and read the value.
+	zero, so the biggest value is 2<sup>n</sup> − 1. For a byte that is 255. For sixteen bits it is 65,535, and for
+	thirty-two bits it is a little over four billion. The <a href="/integer-limits">integer limits</a> page gives every width
+	exactly. Click every bit on below and read the value.
 </p>
 
 <BitStrip bits={8} value={254} hex label="A byte, with its value in decimal and in hex. Set every bit to 1." />
