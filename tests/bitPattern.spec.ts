@@ -93,7 +93,13 @@ test.describe('the expression language', () => {
 			['2147483647 + 1', -2147483648],
 			['65536 * 65536', 0],
 			['46341 * 46341', -2147479015],
-			['x ^ y', 6, 5]
+			['x ^ y', 6, 5],
+			['-2147483648 / -1', -2147483648],
+			['-2147483648 % -1', 0],
+			['1 << -1', -2147483648],
+			['-1 >> 40', -1],
+			['5 % -3', 2],
+			['x - -y', 5, 5]
 		];
 		for (const [src, want, x] of cases) expect(v(src, x ?? 0, src === 'x ^ y' ? 3 : 0), src).toBe(want);
 	});
@@ -111,7 +117,8 @@ test.describe('the expression language', () => {
 			['4294967296', '32 bits', 1],
 			['* 2', 'Unexpected * at position 1', 1],
 			['x y', 'Unexpected y at position 3', 3],
-			['', 'ends too soon', 1]
+			['', 'Type an expression', 1],
+			['  ', 'Type an expression', 1]
 		];
 		for (const [src, msg, at] of bad) {
 			let err: PatternError | undefined;
@@ -165,6 +172,12 @@ test.describe('the pictures', () => {
 			}
 	});
 
+	test('x | y is the x & y picture turned half way round and inverted', () => {
+		const or = evalGrid(compile('x | y'), 128, 0);
+		const and = evalGrid(compile('x & y'), 128, 0);
+		for (let i = 0; i < or.length; i++) expect(or[i]).toBe(127 - and[or.length - 1 - i]);
+	});
+
 	test('colour modes', () => {
 		const look = { mode: 'grey', bit: 3, pal: 'fire' } as const;
 		expect(colourOf(look, 200)).toBe(0xc8c8c8);
@@ -191,9 +204,15 @@ test.describe('the pictures', () => {
 		// Redraw the SVG's own runs and compare with the pixels.
 		const bg = /<rect[^>]*fill="(#\w+)"/.exec(svg)?.[1] ?? '';
 		const out = Array(256).fill(parseInt(bg.slice(1), 16));
-		for (const m of svg.matchAll(/<path stroke="(#\w+)" d="([^"]*)"/g))
-			for (const r of m[2].matchAll(/M(\d+) ([\d.]+)h(\d+)/g))
-				for (let i = 0; i < +r[3]; i++) out[Math.floor(+r[2]) * 16 + +r[1] + i] = parseInt(m[1].slice(1), 16);
+		for (const m of svg.matchAll(/<path stroke="(#\w+)" d="([^"]*)"/g)) {
+			let cx = 0;
+			let cy = 0;
+			for (const r of m[2].matchAll(/([Mm])(-?\d+) (-?[\d.]+)h(\d+)/g)) {
+				[cx, cy] = r[1] === 'M' ? [+r[2], +r[3]] : [cx + +r[2], cy + +r[3]];
+				for (let i = 0; i < +r[4]; i++) out[Math.floor(cy) * 16 + cx + i] = parseInt(m[1].slice(1), 16);
+				cx += +r[4];
+			}
+		}
 		expect(out).toEqual(Array.from(colours));
 		expect(toSvg(render('7', 256), 256).length).toBeLessThan(400);
 		expect(exportCell(256)).toBe(4);

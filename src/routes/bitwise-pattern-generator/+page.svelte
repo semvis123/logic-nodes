@@ -56,6 +56,7 @@
 		bit = safeInt(p.k, 0, 7) ?? bit;
 		pal = safeOption(p.p, PALETTES.map((q) => q.id)) ?? pal;
 		t = safeInt(p.t, 0, 255) ?? t;
+		thumbs = drawThumbs();
 		reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 		// Written back once settled, so a value the page refused does not stay in the link.
 		tick().then(() => syncUrl(urlState, DEFAULTS));
@@ -163,10 +164,13 @@
 	const xorGrid = evalGrid(compile('x ^ y'), 256, 0);
 	const sameAs = (e: string) => evalGrid(compile(e), 256, 0).every((v, i) => v === xorGrid[i]);
 	const identities = ['(x ^ y) & (x | y)', '(x | y) - (x & y)', '(x + y) - 2 * (x & y)'].map((e) => ({ e, same: sameAs(e) }));
-	const thumbs = PRESETS.map((p) => {
-		const fns = [p.e].flat().map(compile);
-		return toSvg(paint(fns, { mode: p.mode, bit: p.bit ?? 0, pal: p.pal ?? 'fire' }, 32, p.t ?? 0, p.size / 32), 32, 1, '');
-	});
+	// Drawn after hydration: 12 small pictures would add about 80 KB to every prerendered copy of the page.
+	let thumbs: string[] = [];
+	const drawThumbs = () =>
+		PRESETS.map((p) => {
+			const fns = [p.e].flat().map(compile);
+			return toSvg(paint(fns, { mode: p.mode, bit: p.bit ?? 0, pal: p.pal ?? 'fire' }, 32, p.t ?? 0, p.size / 32), 32, 1, '');
+		});
 	const ramps = PALETTES.map((p) => ({ ...p, css: `linear-gradient(90deg, ${[0, 0.25, 0.5, 0.75, 1].map((u) => hexColour(p.at(u))).join(', ')})` }));
 
 	const OPS: [string, string, string][] = [
@@ -369,7 +373,7 @@
 		<p class="section-intro">
 			Every pixel is worked out on its own, with <span class="mono">x</span> as its column and <span class="mono">y</span> as its row,
 			both counted from the top left. Numbers are 32-bit two's complement integers, so adding past 2,147,483,647 wraps round to negative,
-			and the picture shows the low 8 bits of the result: 0 is black and 255 is white.
+			and the picture shows the low 8 bits of the result: in greyscale, 0 is black and 255 is white.
 		</p>
 		<div class="table-wrap scroll-box" use:scrollRegion data-label="Operators">
 			<table class="data-table">
@@ -393,7 +397,7 @@
 				<tbody>
 					{#each PRESETS as p, i}
 						<tr>
-							<td class="thumb">{@html thumbs[i]}</td>
+							<td class="thumb">{@html thumbs[i] ?? ''}</td>
 							<td><button type="button" class="chip-btn" on:click={() => usePreset(p)}>{p.label}</button><br /><span class="mono nowrap">{[p.e].flat().join(' , ')}</span></td>
 							<td>{p.note}</td>
 						</tr>
@@ -416,7 +420,7 @@
 		</div>
 		<p>
 			The reason is Kummer's theorem: the highest power of 2 dividing C(x + y, x) is the number of carries when you add x and y in binary.
-			The entry is odd when that number is 0. Adding two numbers carries only when some column has a 1 in both, which is to say when
+			The entry is odd when that number is 0. Adding two numbers carries at all exactly when some column has a 1 in both, which is to say when
 			<span class="mono">x &amp; y</span> is not 0. The preset <span class="mono">((x &amp; y) - 1) &gt;&gt; 31</span> shows it directly: the
 			subtraction makes a 0 negative, and the shift turns a negative number into all ones.
 		</p>
@@ -427,7 +431,7 @@
 		<p>
 			Look at the top bit of x and of y in a grid whose size is a power of two. In the top left quadrant both are 0, and in the bottom
 			right both are 1; in either case the XOR of the top bits is 0, so the quadrant is a copy of the picture one size down. In the other
-			two quadrants exactly one is 1, so the top bit of the result is set: the same copy, one shade step brighter. Here are the four bit
+			two quadrants exactly one is 1, so the top bit of the result is set: the same copy, brighter by half the grid size. Here are the four bit
 			planes of <span class="mono">x ^ y</span> on a 16 by 16 grid, from bit 3 down to bit 0.
 		</p>
 		<div class="pair planes">
@@ -654,6 +658,8 @@
 	}
 	.presets .thumb {
 		width: 5rem;
+		height: 5rem;
+		box-sizing: border-box;
 		padding: 0.4rem 0.6rem;
 		line-height: 0;
 	}

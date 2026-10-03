@@ -88,7 +88,9 @@ export function parse(src: string): Node {
 
 	let p = 0;
 	const unexpected = (tok: Tok) =>
-		tok.k === 'end'
+		tok.k === 'end' && !toks[1]
+			? new PatternError('Type an expression using x, y or t, for example x ^ y', 1)
+			: tok.k === 'end'
 			? new PatternError(
 					`The expression ends too soon: something is missing after position ${src.trimEnd().length}`,
 					Math.max(src.trimEnd().length, 1)
@@ -381,18 +383,25 @@ export function toSvg(colours: ArrayLike<number>, size: number, cell = 1, label 
 			most = n;
 			bg = c;
 		}
-	const paths = new Map<number, string>();
+	// Each colour is one path; after the first run, moves are relative to where the last run ended.
+	const paths = new Map<number, { d: string; x: number; y: number }>();
 	for (let y = 0; y < size; y++) {
 		for (let x = 0; x < size; ) {
 			const c = colours[y * size + x];
 			let w = 1;
 			while (x + w < size && colours[y * size + x + w] === c) w++;
-			if (c !== bg) paths.set(c, (paths.get(c) ?? '') + `M${x} ${y + 0.5}h${w}`);
+			if (c !== bg) {
+				const p = paths.get(c);
+				if (p) p.d += `m${x - p.x} ${y - p.y}h${w}`;
+				const q = p ?? { d: `M${x} ${y + 0.5}h${w}`, x: 0, y: 0 };
+				[q.x, q.y] = [x + w, y];
+				paths.set(c, q);
+			}
 			x += w;
 		}
 	}
 	let body = `<rect width="${size}" height="${size}" fill="${hex6(bg)}"/>`;
-	for (const [c, d] of paths) body += `<path stroke="${hex6(c)}" d="${d}"/>`;
+	for (const [c, p] of paths) body += `<path stroke="${hex6(c)}" d="${p.d}"/>`;
 	const px = size * cell;
 	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${px}" height="${px}" shape-rendering="crispEdges"${
 		label ? ` role="img" aria-label="${label}"` : ' aria-hidden="true"'
@@ -451,7 +460,7 @@ export const PRESETS: Preset[] = [
 		e: 'x & y',
 		size: 128,
 		mode: 'grey',
-		note: 'Black where x and y share no set bit: the Sierpinski triangle in the dark cells.'
+		note: 'Black where x and y share no set bit: the Sierpinski triangle is the black cells.'
 	},
 	{
 		label: 'Sierpinski',
@@ -466,14 +475,15 @@ export const PRESETS: Preset[] = [
 		size: 128,
 		mode: 'palette',
 		pal: 'fire',
-		note: 'The same shape as AND, turned over: it is brightest where AND is darkest.'
+		note: 'The AND picture turned half way round and inverted, because x | y is 127 minus ((127 - x) & (127 - y)) on this grid.'
 	},
 	{
 		label: 'Checks',
 		e: 'x & y & 8',
 		size: 64,
-		mode: 'grey',
-		note: 'Only bit 3 can survive, so each cell is on or off.'
+		mode: 'bit',
+		bit: 3,
+		note: 'Only bit 3 can survive, so each cell is on or off. Shown as bit 3, since 8 is almost black in greyscale.'
 	},
 	{
 		label: 'Product',
