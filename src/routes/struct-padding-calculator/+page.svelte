@@ -26,7 +26,7 @@
 	} from '$lib/structLayout';
 	import { readUrl, syncUrl, safeText, safeOption } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	const DEFAULT_SOURCE = `struct packet {
     char tag;
@@ -38,7 +38,8 @@
 
 	// Every example names its target, so a chip always gives the answer the
 	// teaching text quotes for it, whatever the previous chip chose.
-	const examples: { label: string; source: string; target: TargetId }[] = [
+	// A chip names a case in words, or shows the literal code it is about in mono.
+	const examples: { label: string; code?: string; source: string; target: TargetId }[] = [
 		{ label: 'Badly ordered', source: DEFAULT_SOURCE, target: 'x64' },
 		{
 			label: 'Nested struct',
@@ -84,7 +85,8 @@ struct bmp_file_header {
 			target: 'x64'
 		},
 		{
-			label: '__attribute__((packed))',
+			label: '',
+			code: '__attribute__((packed))',
 			source: `#include <stdint.h>
 
 struct __attribute__((packed)) frame {
@@ -95,7 +97,8 @@ struct __attribute__((packed)) frame {
 			target: 'x64'
 		},
 		{
-			label: 'alignas(64)',
+			label: '',
+			code: 'alignas(64)',
 			source: `#include <stdalign.h>
 
 struct counters {
@@ -149,6 +152,8 @@ struct samples {
 			everValid = false;
 		}
 		target = safeOption(p.t, TARGET_IDS) ?? target;
+		// Drops any query value that was not valid, so the address shows the state on screen.
+		syncUrl({ c: source === '' ? ' ' : source, t: target }, DEFAULTS);
 	});
 	// An empty field is a state too; a lone space keeps it in the link.
 	$: syncUrl({ c: source === '' ? ' ' : source, t: target }, DEFAULTS);
@@ -232,15 +237,20 @@ struct samples {
 		source = example.source;
 		target = example.target;
 		const field = document.getElementById('struct-source');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		field?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
 	// Swaps just the definition in the field, keeping the typedefs, structs and
 	// pragmas around it that the reordered version still needs.
-	function useReordered() {
+	// The button goes away with the reordered block, so focus moves to the code
+	// it just replaced rather than falling back to the top of the page.
+	async function useReordered() {
 		if (error || !result.reordered) return;
 		source = result.reordered.source;
+		await tick();
+		document.getElementById('struct-source')?.focus({ preventScroll: true });
 	}
 
 	/** A 1-byte cell is too narrow on a phone for more than a few letters. */
@@ -410,7 +420,9 @@ struct samples {
 				aria-invalid={error ? 'true' : 'false'}
 				aria-describedby="source-help{error ? ' source-error' : ''}"
 			/>
-			<p class="error" id="source-error">{error}</p>
+			{#if error}
+				<p class="error" id="source-error">{error}</p>
+			{/if}
 			{#if alertText}
 				<p class="visually-hidden" role="alert">{alertText}</p>
 			{/if}
@@ -422,7 +434,10 @@ struct samples {
 
 			<div class="chips">
 				{#each examples as example}
-					<button type="button" class="chip-btn" on:click={() => tryExample(example)}>{example.label}</button>
+					<button type="button" class="chip-btn" on:click={() => tryExample(example)}
+						>{example.label}{#if example.code}<span class="chip-code" class:alone={!example.label}>{example.code}</span
+							>{/if}</button
+					>
 				{/each}
 			</div>
 
@@ -579,7 +594,9 @@ struct samples {
 							<span class="code-label">Reordered code</span>
 							<span class="code-actions">
 								<button type="button" class="copy" on:click={() => copy('reorder', result.reordered?.code ?? '')}
-									>{copied === 'reorder' && !copyFailed ? 'Copied' : 'Copy'}</button
+									>{copied === 'reorder' && !copyFailed ? 'Copied' : 'Copy'}<span class="visually-hidden">
+										reordered code</span
+									></button
 								>
 								<button type="button" class="copy" on:click={useReordered}>Lay out this version</button>
 							</span>
@@ -597,7 +614,9 @@ struct samples {
 							<div class="code-head">
 								<span class="code-label">_Static_assert lines</span>
 								<button type="button" class="copy" on:click={() => copy('asserts', asserts)}
-									>{copied === 'asserts' && !copyFailed ? 'Copied' : 'Copy'}</button
+									>{copied === 'asserts' && !copyFailed ? 'Copied' : 'Copy'}<span class="visually-hidden">
+										offsetof checks</span
+									></button
 								>
 							</div>
 							<pre class="code mono">{asserts}</pre>
@@ -613,8 +632,8 @@ struct samples {
 						{#if copied}{copyFailed
 								? 'Copying was blocked; select the text and press ctrl+C.'
 								: copied === 'reorder'
-								? 'Reordered code copied.'
-								: 'Checks copied.'}{/if}
+								? 'Copied the reordered code.'
+								: 'Copied the offsetof checks.'}{/if}
 					</p>
 				</div>
 			{/if}
@@ -941,12 +960,10 @@ struct samples {
 		margin: 0.45rem 0 0.7rem;
 	}
 
-	/* Always there, one line high, so an error appearing does not push the page down. */
 	.error {
 		color: #f66;
 		font-size: 0.9rem;
 		margin: 0.4rem 0 0;
-		min-height: 1.35em;
 	}
 
 	.visually-hidden {
@@ -985,9 +1002,20 @@ struct samples {
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.8rem;
 		padding: 0.25rem 0.6rem;
 		cursor: pointer;
+	}
+
+	/* The literal code a chip loads, so a chip is not a guess. */
+	.chip-code {
+		color: #8ede8e;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		margin-left: 0.45rem;
+	}
+
+	.chip-code.alone {
+		margin-left: 0;
 	}
 
 	.chip-btn:hover {
@@ -1258,8 +1286,8 @@ struct samples {
 
 	.steps summary {
 		cursor: pointer;
-		color: #fff;
-		font-size: 0.92rem;
+		color: #8ede8e;
+		font-size: 0.9rem;
 	}
 
 	.steps ol {
@@ -1294,7 +1322,7 @@ struct samples {
 	.code-actions {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 6px;
+		gap: 0.5rem;
 	}
 
 	.copy {
@@ -1303,7 +1331,7 @@ struct samples {
 		border-radius: 3px;
 		color: #ddd;
 		font-size: 0.8rem;
-		padding: 0.2rem 0.7rem;
+		padding: 0.3rem 0.7rem;
 		cursor: pointer;
 	}
 
@@ -1440,10 +1468,6 @@ struct samples {
 	}
 
 	@media (max-width: 560px) {
-		.tool {
-			padding: 0.9rem 0.8rem 1rem;
-		}
-
 		.byte-grid {
 			grid-template-columns: 1.9rem repeat(8, minmax(1.85rem, 1fr));
 			gap: 2px;

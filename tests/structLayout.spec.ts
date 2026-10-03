@@ -1108,9 +1108,12 @@ test.describe('the struct-padding-calculator page', () => {
 	test('the reordered version can be laid out in one click', async ({ page }) => {
 		await page.goto('/struct-padding-calculator');
 		await page.waitForLoadState('networkidle');
-		await page.getByRole('button', { name: 'Lay out this version' }).click();
+		await page.getByRole('button', { name: 'Lay out this version' }).focus();
+		await page.keyboard.press('Enter');
 		await expect(answer(page)).toHaveText('16 bytes');
 		await expect(page.locator('#struct-source')).toHaveValue(/double value;\n {4}int count;/);
+		// The button is gone now, so focus lands on the code it replaced, not the page top.
+		await expect(page.locator('#struct-source')).toBeFocused();
 	});
 
 	test('laying out the reordered version keeps the structs it uses', async ({ page }) => {
@@ -1161,6 +1164,12 @@ test.describe('the struct-padding-calculator page', () => {
 		await page.goto('/struct-padding-calculator?t=vax');
 		await page.waitForLoadState('networkidle');
 		await expect(page.locator('#target')).toHaveValue('x64');
+		// ...and dropped from the address, so Copy link does not share them. 4001
+		// characters is one over MAX_SOURCE.
+		await expect(page).toHaveURL(/\/struct-padding-calculator$/);
+		await page.goto('/struct-padding-calculator?t=arm32&c=' + 'x'.repeat(4001));
+		await page.waitForLoadState('networkidle');
+		await expect(page).toHaveURL(/\/struct-padding-calculator\?t=arm32$/);
 	});
 
 	test('the FAQ markup matches the visible answers', async ({ page }) => {
