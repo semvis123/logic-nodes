@@ -98,9 +98,11 @@
 		spoken = describeModule(qr, cursor.x, cursor.y, masked);
 	}
 
-	const colour = (id: Layer, dark: boolean) => {
+	// `shown` is a parameter so the template re-runs this when a checkbox changes;
+	// read from inside the function, `on` would not be a dependency of the markup.
+	const colour = (id: Layer, dark: boolean, shown: Record<Layer, boolean>) => {
 		const layer = LAYERS.find((l) => l.id === id);
-		if (!layer || !on[id]) return dark ? '#111' : '#fff';
+		if (!layer || !shown[id]) return dark ? '#111' : '#fff';
 		return dark ? layer.dark : layer.light;
 	};
 
@@ -150,8 +152,8 @@
 			{#each LAYERS.slice(0, 10) as layer}
 				{@const p = paths[layer.id]}
 				{#if p}
-					<path d={p.light} fill={colour(layer.id, false)} />
-					<path d={p.dark} fill={colour(layer.id, true)} />
+					<path d={p.light} fill={colour(layer.id, false, on)} />
+					<path d={p.dark} fill={colour(layer.id, true, on)} />
 				{/if}
 			{/each}
 			{#if outlines && outlinePath}

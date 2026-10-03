@@ -722,6 +722,22 @@ test.describe('the qr-code-generator page', () => {
 		await expect(page.locator('.anatomy')).toContainText('before masking');
 	});
 
+	test('turning highlights off shows the plain black and white code', async ({ page }) => {
+		await page.goto('/qr-code-generator');
+		await page.waitForLoadState('networkidle');
+		const fills = () =>
+			page.locator('svg.symbol path[fill]').evaluateAll((ps) => [...new Set(ps.map((p) => p.getAttribute('fill')))]);
+		expect((await fills()).length).toBeGreaterThan(2);
+		await page.getByRole('button', { name: 'Plain code' }).click();
+		expect((await fills()).sort()).toEqual(['#111', '#fff']);
+		await page.getByRole('button', { name: 'Show all' }).click();
+		expect((await fills()).length).toBeGreaterThan(2);
+		// One layer on its own goes plain too.
+		await page.getByRole('checkbox', { name: /Finder patterns/ }).uncheck();
+		await expect(page.locator('.layer', { hasText: 'Finder patterns' }).locator('input')).not.toBeChecked();
+		expect(await fills()).not.toContain('#a32020');
+	});
+
 	test('the SVG download is the plain code with its quiet zone', async ({ page }) => {
 		await page.goto('/qr-code-generator');
 		await page.waitForLoadState('networkidle');
