@@ -37,14 +37,21 @@
 
 	type Mode = 'dec' | 'hex' | 'bin';
 	const DEFAULTS = { v: '0.1', mode: 'dec', fmt: 'fp16', of: 'saturate' };
+	// The address bar is written only once this page has read its own link.
+	// Coming back with Back or Forward, the reactive sync would otherwise run
+	// before onMount and replace the incoming query with the defaults. Turning
+	// it on after reading also rewrites a link whose values were rejected, so
+	// Copy link never passes the junk on.
+	let urlRead = false;
 	onMount(() => {
 		const p = readUrl();
 		input = safeText(p.v, MAX_INPUT) ?? input;
 		mode = safeOption(p.mode, ['dec', 'hex', 'bin'] as const) ?? mode;
 		format = safeOption(p.fmt, FORMAT_IDS) ?? format;
 		overflowMode = safeOption(p.of, ['saturate', 'nan'] as const) ?? overflowMode;
+		urlRead = true;
 	});
-	$: syncUrl({ v: input, mode, fmt: format, of: overflowMode }, DEFAULTS);
+	$: if (urlRead) syncUrl({ v: input, mode, fmt: format, of: overflowMode }, DEFAULTS);
 
 	let input = DEFAULTS.v;
 	let mode: Mode = 'dec';
@@ -71,6 +78,18 @@
 			error = e instanceof MiniFloatError ? e.message : 'That could not be read';
 		}
 	}
+	// The alert waits for a pause in typing, so a screen reader is not
+	// interrupted on every keystroke while a number is half written. The
+	// visible error still updates at once.
+	let alertText = '';
+	let alertTimer: ReturnType<typeof setTimeout>;
+	$: scheduleAlert(error);
+	function scheduleAlert(message: string) {
+		clearTimeout(alertTimer);
+		if (!message) alertText = '';
+		else alertTimer = setTimeout(() => (alertText = message), 500);
+	}
+
 	$: rows = FORMAT_IDS.map((id) => {
 		const enc = encodeParsed(parsed, id, overflowMode);
 		const near = enc.result ? neighbours(enc.result) : { below: null, above: null };
@@ -94,6 +113,20 @@
 	$: shown = typed ?? detail.enc.result;
 	$: sf = FORMATS[format];
 	$: steps = mode === 'dec' ? detail.enc.steps : null;
+	// The result is announced the same way, once typing pauses, rather than
+	// read out in full for every digit.
+	$: resultText =
+		mode === 'dec' || !typed
+			? `${detail.f.name} stores ${detail.enc.result ? minus(detail.enc.result.exact) : 'nothing'}`
+			: `${FORMATS[typed.format].name} ${typed.hex} is ${minus(typed.exact)}`;
+	let statusText = '';
+	let statusTimer: ReturnType<typeof setTimeout>;
+	$: scheduleStatus(error ? '' : resultText);
+	function scheduleStatus(message: string) {
+		clearTimeout(statusTimer);
+		statusTimer = setTimeout(() => (statusText = message), 500);
+	}
+
 	/** A gap after every fourth bit counted from the right of the whole pattern, so the groups are the hex digits. */
 	$: nibbleAfter = (g: number) => (sf.bits - 1 - g) % 4 === 0;
 
@@ -145,23 +178,47 @@
 		format = fmt;
 		input = v;
 		const field = document.getElementById('value');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		field?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
-	const examples: { label: string; v: string; mode?: Mode; fmt?: FormatId }[] = [
-		{ label: '0.1', v: '0.1' },
-		{ label: '3.14159', v: '3.14159' },
-		{ label: '1000', v: '1000' },
-		{ label: '70000', v: '70000' },
-		{ label: '464', v: '464', fmt: 'e4m3' },
-		{ label: '1e-6', v: '1e-6' },
-		{ label: '-0', v: '-0' },
-		{ label: 'NaN', v: 'NaN' },
-		{ label: 'FP16 bits 3C00', v: '3C00', mode: 'hex', fmt: 'fp16' },
-		{ label: 'E4M3 bits 7E', v: '7E', mode: 'hex', fmt: 'e4m3' },
-		{ label: 'E5M2 bits 7C', v: '7C', mode: 'hex', fmt: 'e5m2' }
+	/** A chip shows the literal it loads in mono; a description, if any, goes before it in the text font. */
+	const examples: { label?: string; v: string; mode?: Mode; fmt?: FormatId }[] = [
+		{ v: '0.1' },
+		{ v: '3.14159' },
+		{ v: '1000' },
+		{ v: '70000' },
+		{ v: '464', fmt: 'e4m3' },
+		{ v: '1e-6' },
+		{ v: '-0' },
+		{ v: 'NaN' },
+		{ label: 'FP16 bits', v: '3C00', mode: 'hex', fmt: 'fp16' },
+		{ label: 'E4M3 bits', v: '7E', mode: 'hex', fmt: 'e4m3' },
+		{ label: 'E5M2 bits', v: '7C', mode: 'hex', fmt: 'e5m2' }
 	];
+
+	/** Lets keyboard users focus and scroll a table that overflows its box, and only while it does. */
+	function scrollFocus(node: HTMLElement) {
+		const update = () => {
+			if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
+				node.tabIndex = 0;
+				node.setAttribute('role', 'region');
+				node.setAttribute('aria-label', node.dataset.label ?? 'Table');
+			} else {
+				node.removeAttribute('tabindex');
+				node.removeAttribute('role');
+				node.removeAttribute('aria-label');
+			}
+		};
+		// Re-checked when the box resizes, which includes a closed details being opened.
+		const ro = new ResizeObserver(update);
+		ro.observe(node);
+		const inner = node.firstElementChild;
+		if (inner) ro.observe(inner);
+		update();
+		return { destroy: () => ro.disconnect() };
+	}
 
 	const kindText: Record<string, string> = {
 		zero: 'zero',
@@ -212,7 +269,7 @@
 			copiedId = id;
 			copyFailed = false;
 		} catch {
-			copied = 'Copying failed: select the hex and press Ctrl+C';
+			copied = 'Copying failed: select the hex and press ctrl+C';
 			copiedId = null;
 			copyFailed = true;
 		}
@@ -421,7 +478,7 @@
 	related={[
 		{ href: '/ieee-754-converter', label: 'IEEE 754 converter' },
 		{ href: '/binary-converter', label: 'Binary converter' },
-		{ href: '/hex-to-binary', label: 'Hex to binary' },
+		{ href: '/hex-to-binary', label: 'Hex to binary converter' },
 		{ href: '/integer-limits', label: 'Integer limits' },
 		{ href: '/binary-calculator', label: 'Binary calculator' },
 		{ href: '/tools', label: 'All tools' }
@@ -430,8 +487,8 @@
 	<section class="intro">
 		<h1>FP16, BF16, FP8 and FP4 converter</h1>
 		<p class="lede">
-			Type a decimal to see it in every low-precision float used in machine learning and graphics at once: the bits, the
-			value each format actually stores, and how far that is from what you typed. Or type a bit pattern to read it back.
+			Type a decimal to see it in every low-precision float used in machine learning at once: the bits, the value each
+			format actually stores, and the rounding error. Or type a bit pattern to read it back.
 		</p>
 
 		<div class="card tool">
@@ -488,7 +545,7 @@
 				autocomplete="off"
 				autocapitalize="off"
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby={error ? 'value-error' : 'value-help'}
+				aria-describedby="value-help{error ? ' value-error' : ''}"
 			/>
 			<!-- The help and the error share one slot, so the tool does not jump when the input turns invalid. -->
 			<div class="msg-slot">
@@ -501,8 +558,12 @@
 						dots or underscores between digits, are ignored.
 					{/if}
 				</p>
-				<p class="error" id="value-error" role="alert">{error}</p>
+				<p class="error" id="value-error">{error}</p>
 			</div>
+			{#if alertText}
+				<p class="visually-hidden" role="alert">{alertText}</p>
+			{/if}
+			<p class="visually-hidden" role="status">{statusText}</p>
 			<div class="overflow-row">
 				<span class="opt-label" id="of-label">E4M3 overflow</span>
 				<div class="opt" role="group" aria-labelledby="of-label">
@@ -528,7 +589,9 @@
 						class="chip-btn"
 						on:click={() => tryValue(example.v, example.mode ?? 'dec', example.fmt ?? format)}
 					>
-						{example.label}
+						{#if example.label}{example.label}<span class="chip-value">{example.v}</span>{:else}<span
+								class="chip-value alone">{example.v}</span
+							>{/if}
 					</button>
 				{/each}
 			</div>
@@ -595,7 +658,7 @@
 					<p class="hint">{detail.enc.note}, so there is no {FORMATS[format].name} pattern to show.</p>
 				{/if}
 
-				<div class="answer" role={error ? undefined : 'status'}>
+				<div class="answer">
 					{#if mode === 'dec' || !typed}
 						<span class="answer-label">{detail.f.name} stores</span>
 						<span class="answer-value mono">{detail.enc.result ? minus(detail.enc.result.exact) : 'nothing'}</span>
@@ -627,6 +690,7 @@
 						</p>
 						<div
 							class="grs mono"
+							role="group"
 							aria-label="Kept bits {steps.keptText}, guard {steps.guard}, round {steps.round}, sticky {steps.sticky}"
 						>
 							<span class="grs-cell kept"><span class="tag">kept</span>{steps.keptText}</span>
@@ -767,7 +831,7 @@
 			<span class="key s" /> sign <span class="key e" /> exponent <span class="key m" /> mantissa, drawn to scale. BF16's
 			exponent is exactly as wide as FP32's.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="The formats side by side">
 			<table class="data-table formats">
 				<thead>
 					<tr>
@@ -878,7 +942,7 @@
 			of the two you pick above (saturation unless you change it); and for FP4, which has neither infinity nor NaN, the
 			largest value, ±6.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="What twice the largest value becomes">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -921,7 +985,7 @@
 			)} rather than {pow(fp32.minSubnormal)}. Converting is a matter of rounding off the low 16 bits. FP16 has more
 			precision but a 5 bit exponent, so it runs out at {fp16.max.exact}. The same values in all three:
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="The same values in FP32, BF16 and FP16">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -966,7 +1030,7 @@
 			Here is a block of {block.elements.length} values (a real block has 32), worked by the engine. The largest magnitude
 			sets the scale to {powerOfTwo(block.scaleExp)}, stored as E8M0 code {block.scaleCode}:
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="A block of values scaled to FP4">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -1034,7 +1098,7 @@
 		<h2>All 16 FP4 E2M1 values</h2>
 		<details class="code-list">
 			<summary>Show the FP4 table</summary>
-			<div class="table-wrap">
+			<div class="table-wrap" use:scrollFocus data-label="All 16 FP4 E2M1 values">
 				<table class="data-table">
 					<thead>
 						<tr>
@@ -1066,7 +1130,7 @@
 		</p>
 		<details class="code-list">
 			<summary>Show the E4M3 table</summary>
-			<div class="table-wrap scroll-box">
+			<div class="table-wrap scroll-box" use:scrollFocus data-label="All 256 FP8 E4M3 codes">
 				<table class="data-table e4m3-table">
 					<thead>
 						<tr>
@@ -1232,9 +1296,21 @@
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.8rem;
 		padding: 0.25rem 0.6rem;
 		cursor: pointer;
+	}
+
+	/* The value a chip loads, in mono like the field, so a chip is not a guess. */
+	.chip-value {
+		color: #8ede8e;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		margin-left: 0.45rem;
+	}
+
+	.chip-value.alone {
+		color: inherit;
+		margin-left: 0;
 	}
 
 	.chip-btn:hover {
@@ -1536,17 +1612,18 @@
 		font-weight: 600;
 	}
 
+	/* The same size and look as the site's Copy link button. */
 	.copy {
-		background: #161618;
-		border: 1px solid rgba(255, 255, 255, 0.35);
+		background: #0d0d0f;
+		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
 		cursor: pointer;
-		font: 0.75rem 'Helvetica Neue', Helvetica, Arial, sans-serif;
+		font: 0.8rem/1.2 'Helvetica Neue', Helvetica, Arial, sans-serif;
 		margin-left: 0.4rem;
-		min-height: 24px;
-		min-width: 3.9rem;
-		padding: 0.2rem 0.6rem;
+		min-width: 4.6rem;
+		padding: 0.3rem 0.7rem;
+		white-space: nowrap;
 	}
 
 	.copy-failed {
