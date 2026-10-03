@@ -203,6 +203,7 @@
 		{ href: '/counters', label: 'Counters' },
 		{ href: '/binary-translator', label: 'Binary translator (text)' },
 		{ href: '/ascii-table', label: 'ASCII table' },
+		{ href: '/guess-my-number', label: 'Guess my number (bits as questions)' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >

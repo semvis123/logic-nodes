@@ -10,7 +10,7 @@
 
 	const page = {
 		title: 'Digital Logic Tools: Truth Tables, K-Maps, Boolean Algebra',
-		description: `${Count} free tools: truth tables, boolean algebra, Karnaugh maps, logic proofs, Venn diagrams, binary and hex calculators, ASCII and Base64.`,
+		description: `${Count} free tools: truth tables, boolean algebra, Karnaugh maps, logic proofs, binary and hex, floats, subnets, QR codes, UUIDs and Base64.`,
 		url: `${SITE}/tools`,
 		image: `${SITE}/og/tools.png`,
 		imageAlt: 'LogicGates.org: tools'
@@ -93,8 +93,8 @@
 		<h1>Digital logic tools</h1>
 		<p class="lede">
 			{Count} calculators for the things you actually have to work out, from truth tables, simplification and Karnaugh maps
-			to logic proofs, number bases and text encodings. Each one shows its working, and all of them are free and run in your
-			browser, with nothing uploaded.
+			to logic proofs, number bases, text encodings, and the bits inside subnets, floats, IDs and file formats. Each one
+			shows its working, and all of them are free and run in your browser, with nothing uploaded.
 		</p>
 	</section>
 
@@ -166,6 +166,51 @@
 						<td><a href="/binary-converter">Binary converter</a></td>
 					</tr>
 					<tr>
+						<th scope="row">An IP address and a prefix</th>
+						<td>its network, broadcast and host range</td>
+						<td><a href="/subnet-calculator">Subnet calculator</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A network and some host counts</th>
+						<td>a subnet for each, without overlaps</td>
+						<td><a href="/vlsm-calculator">VLSM calculator</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A long IPv6 address</th>
+						<td>its shortest correct form</td>
+						<td><a href="/ipv6-expand-compress">IPv6 expand and compress</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A model in FP16 or FP8</th>
+						<td>what one number turns into</td>
+						<td><a href="/fp16-bf16-fp8-converter">FP16, BF16, FP8 and FP4 converter</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A C struct</th>
+						<td>its size and where the padding goes</td>
+						<td><a href="/struct-padding-calculator">Struct padding calculator</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A UUID, ULID or ObjectId</th>
+						<td>its version and when it was made</td>
+						<td><a href="/uuid-decoder">UUID decoder and generator</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A Discord or Twitter/X ID</th>
+						<td>the moment it was created</td>
+						<td><a href="/snowflake-id-decoder">Snowflake ID decoder</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A file with a doubtful extension</th>
+						<td>what its first bytes say it is</td>
+						<td><a href="/file-signature-checker">File signature checker</a></td>
+					</tr>
+					<tr>
+						<th scope="row">Some text or a link</th>
+						<td>a QR code, and how it is built</td>
+						<td><a href="/qr-code-generator">QR code generator</a></td>
+					</tr>
+					<tr>
 						<th scope="row">A class to teach</th>
 						<td>a printable question sheet with answers</td>
 						<td><a href="/worksheet">Worksheet generator</a></td>
@@ -184,8 +229,8 @@
 		<h2>The expression tools share one engine</h2>
 		<p class="section-intro">
 			The same parser and minimiser sits behind every tool here that takes an expression, so what you type into one
-			means exactly the same thing in the next. (The binary and Gray code converters work on bit patterns rather than
-			expressions, so they are their own thing.) It accepts whichever notation you use —
+			means exactly the same thing in the next. (The number, encoding and programming tools work on bits and bytes
+			rather than expressions, so each has its own engine.) It accepts whichever notation you use —
 			<span class="mono">a·b</span>, <span class="mono">a&amp;b</span>,
 			<span class="mono">a∧b</span>, <span class="mono">ab</span> — and the simplification is
 			<a href="/quine-mccluskey">Quine-McCluskey</a>, the same algorithm whether you see it as algebra or as groups on a

@@ -618,6 +618,10 @@
 			binary. Some older systems used a single byte for é with a different code, which is why text sometimes shows up as
 			"cafÃ©": its two UTF-8 bytes were read as two separate characters.
 		</p>
+		<p>
+			A QR code in byte mode stores text as bytes too. The <a href="/qr-code-generator">QR code generator</a> writes exactly
+			these UTF-8 bytes into the code and shows them as its data bits.
+		</p>
 	</section>
 
 	<section id="place-values">

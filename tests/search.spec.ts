@@ -50,6 +50,22 @@ test('the obvious result comes first', async ({ request }) => {
 	expect(top('floating point')).toBe('/ieee-754-converter');
 	expect(top('modus ponens')).toBe('/logic/rules-of-inference');
 	expect(top('Karnaugh MAP')).toBe('/karnaugh-map-solver');
+	// Two tools scoring the same go by where the word sits in their keywords.
+	expect(top('cidr')).toBe('/subnet-calculator');
+	expect(top('ipv4')).toBe('/subnet-calculator');
+	expect(top('ip address')).toBe('/subnet-calculator');
+	expect(top('mask')).toBe('/subnet-calculator');
+	expect(top('alignment')).toBe('/struct-padding-calculator');
+	expect(top('ulid')).toBe('/uuid-decoder');
+	// The integer types answer to their names in other languages and their limits.
+	expect(top('u64')).toBe('/integer-limits/uint64');
+	expect(top('u32')).toBe('/integer-limits/uint32');
+	expect(top('INT32_MAX')).toBe('/integer-limits/int32');
+	expect(top('max int')).toBe('/integer-limits/int32');
+	expect(top('sbyte')).toBe('/integer-limits/int8');
+	expect(search(entries, '2147483647').map((e) => e.href)).toContain('/integer-limits/int32');
+	expect(top('mantissa')).toBe('/ieee-754-converter');
+	expect(search(entries, 'significand').map((e) => e.href)).toContain('/fp16-bf16-fp8-converter');
 	expect(search(entries, 'zzzz')).toEqual([]);
 	// With nothing typed, it offers the tools.
 	expect(search(entries, '').every((entry) => entry.kind === 'Tool')).toBe(true);
@@ -142,6 +158,18 @@ test('instant answers are right, and plain words stay searches', () => {
 	expect(first('p -> q')?.title).toBe('Contingency');
 	expect(first('p -> q, q therefore p')?.title).toBe('Invalid argument');
 	expect(first('p -> q, p therefore q')?.title).toBe('Valid argument');
+	expect(first('192.168.1.10/24')?.title).toBe('192.168.1.0/24 · 254 hosts');
+	expect(first('10.0.0.1 255.255.0.0')?.title).toBe('10.0.0.0/16 · 65,534 hosts');
+	expect(first('255.255.255.0')?.title).toBe('255.255.255.0 = /24');
+	expect(first('2001:0db8:0000:0000:0000:0000:0000:0001')?.title).toBe('2001:db8::1');
+	expect(first('550e8400-e29b-41d4-a716-446655440000')?.title).toBe('UUID version 4');
+	expect(first('01ARZ3NDEKTSV4RRFFQ69G5FAV')?.hint).toBe('Made 2016-07-30T23:54:10.259Z');
+	expect(first('175928847299117063')?.title).toBe('Discord ID → 2016-04-30T11:18:25.796Z');
+	expect(first('4006381333931')?.title).toBe('A valid EAN-13');
+	expect(answers('4006381333932').map((a) => a.hint)).toContain('The check digit should be 1');
+	expect(first('2147483647')?.title).toBe('2147483647 = int32 max');
+	expect(first('-128')?.title).toBe('−128 = int8 min');
+	expect(answers('127').map((a) => a.title)).toContain('127 = int8 max');
 	for (const words of [
 		'karnaugh',
 		'full adder',
@@ -152,7 +180,12 @@ test('instant answers are right, and plain words stay searches', () => {
 		'de morgan',
 		'c++',
 		'Karnaugh',
-		'flip-flops'
+		'flip-flops',
+		'bf16',
+		'2fa',
+		'b64',
+		'192.168.1.10',
+		'a:b'
 	]) {
 		expect(answers(words), words).toEqual([]);
 	}
@@ -165,7 +198,12 @@ test('an answer opens its tool with the value already filled in', async ({ page 
 		['42', /\/binary-converter\?value=42/, '42'],
 		['101 + 11', /\/binary-calculator\?/, '101'],
 		['p -> q', /\/propositional-logic-truth-table\?s=/, 'p -> q'],
-		['SGVsbG8=', /\/base64\?m=decode/, 'SGVsbG8=']
+		['SGVsbG8=', /\/base64\?m=decode/, 'SGVsbG8='],
+		['10.0.0.1/8', /\/subnet-calculator\?ip=/, '10.0.0.1/8'],
+		['fe80::1', /\/ipv6-expand-compress\?a=/, 'fe80::1'],
+		['01ARZ3NDEKTSV4RRFFQ69G5FAV', /\/uuid-decoder\?id=/, '01ARZ3NDEKTSV4RRFFQ69G5FAV'],
+		['1000000000000000000', /\/snowflake-id-decoder\?id=/, '1000000000000000000'],
+		['4006381333931', /\/ean-13-barcode-generator\?v=/, '4006381333931']
 	];
 	await page.goto('/tools');
 	await page.waitForLoadState('networkidle');

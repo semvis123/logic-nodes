@@ -407,7 +407,8 @@
 					Each group of three bits is read, write and execute. 755 gives the owner everything and everyone else read and
 					execute. <a href="/hex-to-binary?v=755&amp;from=oct" on:click|preventDefault={() => tryValue('755', 'oct')}
 						>Convert it</a
-					>
+					>. Giving the group write access as well is setting one bit: 755 | 020 = 775 in octal, the
+					<a href="/bit-manipulation-tricks#set-a-bit">set bit n</a> trick.
 				</p>
 			</div>
 		</div>

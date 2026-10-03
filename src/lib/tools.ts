@@ -13,7 +13,8 @@ export const toolGroups = [
 	{ id: 'circuits', name: 'Boolean algebra and circuits' },
 	{ id: 'logic', name: 'Logic statements and sets' },
 	{ id: 'numbers', name: 'Numbers and binary arithmetic' },
-	{ id: 'text', name: 'Text and encodings' }
+	{ id: 'text', name: 'Text and encodings' },
+	{ id: 'dev', name: 'Programming and networking' }
 ] as const;
 
 export type ToolGroup = typeof toolGroups[number]['id'];
@@ -170,6 +171,141 @@ export const tools: Tool[] = [
 		short: 'Base64',
 		group: 'text',
 		blurb: 'Encode text to Base64 or decode it, with every 3 bytes shown becoming 4 characters, bit by bit.'
+	},
+	{
+		href: '/logic-symbols-copy-paste',
+		name: 'Logic symbols to copy and paste',
+		short: 'Logic symbols',
+		group: 'logic',
+		blurb:
+			'Copy any logic, boolean or set symbol in one click, as the character, LaTeX, HTML or its Unicode code point.'
+	},
+	{
+		href: '/fp16-bf16-fp8-converter',
+		name: 'FP16, BF16, FP8 and FP4 converter',
+		short: 'FP16 / FP8',
+		group: 'numbers',
+		blurb:
+			'A decimal in FP16, BF16, FP8 E4M3 and E5M2 and FP4 at once: the bits, the exact value stored, the rounding error and the neighbours.'
+	},
+	{
+		href: '/base36',
+		name: 'Base 36 converter',
+		short: 'Base 36',
+		group: 'numbers',
+		blurb:
+			'Convert decimal to base 36 and back, or between any two bases from 2 to 36, for numbers of any size, with every division step shown.'
+	},
+	{
+		href: '/guess-my-number',
+		name: 'Guess my number',
+		short: 'Guess number',
+		group: 'numbers',
+		blurb:
+			'Think of a number and it is found in 7 yes/no questions, one bit each. Then lie once and a Hamming code catches it, or beat an evil opponent.'
+	},
+	{
+		href: '/base32',
+		name: 'Base32 encode and decode',
+		short: 'Base32',
+		group: 'text',
+		blurb:
+			'Encode or decode Base32 in the RFC 4648, base32hex or Crockford alphabet, with every 5 bytes drawn as 8 characters, bit by bit.'
+	},
+	{
+		href: '/base58',
+		name: 'Base58 encode and decode',
+		short: 'Base58',
+		group: 'text',
+		blurb:
+			'Encode or decode Base58 with the division by 58 written out, and check the checksum of a Bitcoin address or WIF key.'
+	},
+	{
+		href: '/qr-code-generator',
+		name: 'QR code generator',
+		short: 'QR code',
+		group: 'text',
+		blurb:
+			'Makes a QR code and takes it apart: every module coloured by its role, each encoding step written out, with SVG and PNG download.'
+	},
+	{
+		href: '/ean-13-barcode-generator',
+		name: 'EAN-13 barcode generator',
+		short: 'EAN-13',
+		group: 'text',
+		blurb:
+			'Make an EAN-13, UPC-A or EAN-8 barcode with the check digit worked out, and see which L, G or R code draws every digit.'
+	},
+	{
+		href: '/subnet-calculator',
+		name: 'Subnet calculator',
+		short: 'Subnets',
+		group: 'dev',
+		blurb: 'Network, broadcast and host range from any CIDR or netmask, with the address AND mask drawn bit by bit.'
+	},
+	{
+		href: '/vlsm-calculator',
+		name: 'VLSM calculator',
+		short: 'VLSM',
+		group: 'dev',
+		blurb:
+			'Plan subnets of different sizes from host counts, packed largest first with free space shown, or split a network evenly.'
+	},
+	{
+		href: '/ipv6-expand-compress',
+		name: 'IPv6 expand and compress',
+		short: 'IPv6',
+		group: 'dev',
+		blurb:
+			'Expand an IPv6 address to all 32 digits or compress it the RFC 5952 way, with each rule, all 128 bits, the prefix and the address type.'
+	},
+	{
+		href: '/bit-manipulation-tricks',
+		name: 'Bit manipulation tricks',
+		short: 'Bit tricks',
+		group: 'dev',
+		blurb:
+			'The classic bit hacks, from x & (x - 1) to SWAR popcount and XOR swap, traced bit by bit for your own value at 8, 16 or 32 bits.'
+	},
+	{
+		href: '/integer-limits',
+		name: 'Integer limits',
+		short: 'Int limits',
+		group: 'dev',
+		blurb:
+			'The min and max of every integer type from int8 to uint128, their names in each language, and an overflow playground.'
+	},
+	{
+		href: '/struct-padding-calculator',
+		name: 'Struct padding calculator',
+		short: 'Struct padding',
+		group: 'dev',
+		blurb:
+			'Paste a C struct to see every offset and padding byte, sizeof on five ABIs, and a member order that wastes less.'
+	},
+	{
+		href: '/uuid-decoder',
+		name: 'UUID decoder and generator',
+		short: 'UUID decoder',
+		group: 'dev',
+		blurb:
+			'Paste a UUID, ULID or ObjectId to see its version, variant and timestamp bit by bit, or generate fresh IDs in your browser.'
+	},
+	{
+		href: '/snowflake-id-decoder',
+		name: 'Snowflake ID decoder',
+		short: 'Snowflake IDs',
+		group: 'dev',
+		blurb:
+			'Turn a Discord or Twitter/X ID into the exact moment it was made, with its worker and sequence bits, or a date into its snowflake range.'
+	},
+	{
+		href: '/file-signature-checker',
+		name: 'File signature checker',
+		short: 'File signature',
+		group: 'dev',
+		blurb:
+			'Find out what a file really is from its first bytes: the magic number highlighted in a hex dump, and whether the extension tells the truth.'
 	}
 ];
 

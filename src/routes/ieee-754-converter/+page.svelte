@@ -257,6 +257,7 @@
 		{ href: '/hex-to-binary', label: 'Hex to binary' },
 		{ href: '/binary-calculator', label: 'Binary calculator' },
 		{ href: '/twos-complement', label: "Two's complement" },
+		{ href: '/fp16-bf16-fp8-converter', label: 'FP16, BF16, FP8 and FP4 converter' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
@@ -534,6 +535,12 @@
 			float can no longer hold every integer: 16777217 is stored as {bigInt.shortest}, rounded {bigInt.rounded}.
 			<a href="/ieee-754-converter?v=16777217" on:click|preventDefault={() => tryValue('16777217', 'single')}>See it</a
 			>.
+		</p>
+		<p>
+			The same three fields, cut down, make the small formats used in machine learning: half precision (FP16) keeps 5
+			exponent bits and 10 fraction bits, bfloat16 keeps a float's 8 exponent bits but only 7 fraction bits, and FP8
+			fits a whole number into one byte. The <a href="/fp16-bf16-fp8-converter">FP16, BF16, FP8 and FP4 converter</a>
+			shows a value in all of them at once.
 		</p>
 	</section>
 

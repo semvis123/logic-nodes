@@ -90,7 +90,7 @@
 	];
 
 	const page = {
-		title: 'Propositional Logic: Logic Symbols and How to Read Them',
+		title: 'Propositional Logic: Connectives and How to Read Them',
 		description:
 			'Propositional logic explained: the logic symbols ¬ ∧ ∨ → ↔ and how to read them, what a proposition is, order of operations, and guides to proofs.',
 		url: `${SITE}/logic`,
@@ -270,7 +270,9 @@
 		<p class="reducer">
 			≡ and ⊨ are not connectives: they are statements about statements. <span class="mono">p ↔ q</span> is a statement
 			that can be true or false; <span class="mono">p ≡ q</span> is the claim that
-			<span class="mono">p ↔ q</span> is true in every row.
+			<span class="mono">p ↔ q</span> is true in every row. To paste any of these symbols, with its LaTeX and HTML code,
+			use the
+			<a href="/logic-symbols-copy-paste">logic symbols copy and paste</a> page.
 		</p>
 	</section>
 

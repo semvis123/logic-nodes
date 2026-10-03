@@ -22,8 +22,23 @@ const kindWeight: Record<SearchKind, number> = {
 /** On a tie, the tool first. */
 const kindOrder: SearchKind[] = ['Tool', 'Page', 'Gate', 'Flip-flop', 'Circuit', 'Lesson', 'Term'];
 
-const startsWord = (text: string, word: string) =>
-	new RegExp(`(^|[^a-z0-9])${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(text);
+const wordStart = (word: string) => new RegExp(`(^|[^a-z0-9])${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+
+const startsWord = (text: string, word: string) => wordStart(word).test(text);
+
+/**
+ * How far into the keywords a word that missed the title was found. Keywords
+ * are written most important first, so on an exact tie the page that lists the
+ * word earlier is the one it is more about: "cidr" is the subnet calculator's
+ * fifth keyword but only the VLSM calculator's tenth.
+ */
+function keywordPosition(word: string, title: string, keywords: string): number {
+	if (title.includes(word)) return 0;
+	const at = keywords.search(wordStart(word));
+	if (at >= 0) return at;
+	const inside = keywords.indexOf(word);
+	return inside >= 0 ? inside : keywords.length;
+}
 
 /**
  * Whether two words are within `max` edits, counting a swap of two neighbouring
@@ -76,7 +91,7 @@ export function search(entries: SearchEntry[], query: string, limit = 12): Searc
 	const words = fold(query).split(/\s+/).filter(Boolean);
 	if (!words.length) return entries.filter((entry) => entry.kind === 'Tool').slice(0, limit);
 	const phrase = words.join(' ');
-	const scored: { entry: SearchEntry; score: number }[] = [];
+	const scored: { entry: SearchEntry; score: number; pos: number }[] = [];
 	for (const entry of entries) {
 		const title = fold(entry.title);
 		const keywords = fold(entry.keywords ?? '');
@@ -94,13 +109,15 @@ export function search(entries: SearchEntry[], query: string, limit = 12): Searc
 		// The words together, in order, beat the same words scattered.
 		if (words.length > 1 && (title.includes(phrase) || keywords.includes(phrase))) score += 40;
 		if (title === phrase) score += 10;
-		scored.push({ entry, score: score * kindWeight[entry.kind] });
+		const pos = words.reduce((sum, word) => sum + keywordPosition(word, title, keywords), 0);
+		scored.push({ entry, score: score * kindWeight[entry.kind], pos });
 	}
 	return scored
 		.sort(
 			(a, b) =>
 				b.score - a.score ||
 				kindOrder.indexOf(a.entry.kind) - kindOrder.indexOf(b.entry.kind) ||
+				a.pos - b.pos ||
 				a.entry.title.length - b.entry.title.length
 		)
 		.slice(0, limit)

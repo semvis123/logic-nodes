@@ -236,7 +236,8 @@
 		</div>
 		<p class="reducer">
 			Tap a diagram to open it in the <a href="/venn-diagram-generator">Venn diagram generator</a>, where you can shade
-			any expression of up to three sets.
+			any expression of up to three sets. To copy a symbol, or its LaTeX and HTML code, use the
+			<a href="/logic-symbols-copy-paste">logic and set symbols copy and paste</a> page.
 		</p>
 	</section>
 

@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { afterNavigate } from '$app/navigation';
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { tools } from '$lib/tools';
+	import { disarmUrl } from '$lib/urlState';
 	import CommandPalette from '$lib/CommandPalette.svelte';
 
 	// Shared chrome and design system for the content pages (the editor itself
 	// is a separate world). Everything is scoped under .content so the styles
 	// can never reach the canvas route after a client side navigation.
+	/** A tool page: also gets the small shared pieces of tool-page styling below. */
+	export let tool = false;
 	export let related: { href: string; label: string }[] = [];
 
 	// The tools would swamp the bar, so they live behind a hub page.
@@ -22,8 +25,12 @@
 	// A section counts as current when the path starts with it, so the gate
 	// detail pages keep "Gates" highlighted; each tool keeps "Tools" lit,
 	// except the logic statement tools, which light "Logic" instead: one
-	// section per page, and those two belong with the logic concept pages.
-	const logicPaths = ['/propositional-logic-truth-table', '/logical-equivalence-calculator'];
+	// section per page, and those belong with the logic concept pages.
+	const logicPaths = [
+		'/propositional-logic-truth-table',
+		'/logical-equivalence-calculator',
+		'/logic-symbols-copy-paste'
+	];
 	const toolPaths = tools.map((tool) => tool.href).filter((href) => !logicPaths.includes(href));
 
 	// Pages that belong to a section without living under its path.
@@ -47,6 +54,16 @@
 		'/flip-flops': ['/counters', '/shift-registers', '/sr-latch', '/finite-state-machines'],
 		'/logic': [...logicPaths, '/set-notation']
 	};
+
+	// Every tool page renders this component, so it is the one place that sees
+	// each tool being left. Leaving disarms the URL sync until the next page has
+	// read its own query. Same-path navigations (a hash link, a tool updating
+	// its own query) do not remount the page, so those stay armed. Leaving the
+	// site does not disarm either: if the browser brings the page back from its
+	// back/forward cache, nothing mounts again to re-arm it.
+	beforeNavigate(({ from, to, willUnload }) => {
+		if (!willUnload && to && from?.url.pathname !== to.url.pathname) disarmUrl();
+	});
 
 	// On a phone the section links scroll sideways inside the bar, and the
 	// later ones (Tools, Practice) start out of view. Bring the current section
@@ -82,7 +99,7 @@
 
 <svelte:window on:beforeprint={openAll} />
 
-<div class="content">
+<div class="content" class:tool-page={tool}>
 	<!-- The first thing a keyboard user reaches, so the nav can be stepped over
 	     on every page rather than tabbed through each time. -->
 	<a class="skip" href="#main">Skip to content</a>
@@ -136,6 +153,13 @@
 		margin: 0;
 		padding: 0;
 		background-color: #1d1e20;
+	}
+
+	/* The top bar is sticky, so anything the browser scrolls into view (a
+	   control reached with Shift+Tab, a #fragment) would otherwise land under
+	   it. 48px is the 38px bar, its 1px border and a little room. */
+	:global(html) {
+		scroll-padding-top: 48px;
 	}
 
 	/* The main landmark sits inside .content, which draws the grid, so it must
@@ -354,6 +378,39 @@
 	}
 
 	/* --- shared layout and components for the slotted page content --- */
+
+	/* --- pieces every tool page repeats: the intro gap, input labels, bullet lists --- */
+
+	.content.tool-page :global(.intro) {
+		padding-top: 64px;
+	}
+
+	.content.tool-page :global(.field) {
+		display: block;
+		font-size: 0.85rem;
+		color: #ddd;
+		margin-bottom: 0.35rem;
+	}
+
+	.content.tool-page :global(.points) {
+		color: #ddd;
+		max-width: 720px;
+		padding-left: 1.25rem;
+	}
+
+	.content.tool-page :global(.points strong) {
+		color: #fff;
+	}
+
+	.content.tool-page :global(.nowrap) {
+		white-space: nowrap;
+	}
+
+	.content.tool-page :global(.opt button.active) {
+		background-color: #372;
+		border-color: #5db65d;
+		color: #fff;
+	}
 
 	.content :global(section) {
 		max-width: 940px;
