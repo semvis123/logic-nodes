@@ -23,26 +23,31 @@
 	import { readUrl, syncUrl, safeText, safeOption, safeInt, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import ErrorAt from '$lib/ErrorAt.svelte';
+	import { scrollFocus } from '$lib/baseNScrollFocus';
 	import Num from '$lib/WorkingNumber.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	type Mode = 'to36' | 'from36' | 'any' | 'text';
 	const MODES = ['to36', 'from36', 'any', 'text'] as const;
 
 	// Every setting lives in the query string, so a link reopens this exactly.
+	const URL_MAX = 4000;
 	const DEFAULTS = { m: 'to36', v: '1000000', from: 16, to: 36, d: 'encode', c: 'upper' };
 	onMount(() => {
 		const p = readUrl();
 		mode = safeOption(p.m, MODES) ?? mode;
 		// Text mode's own starting example, when a link names the mode but not the text.
-		// Text up to MAX_TEXT_BYTES is never longer than that in characters; a little more
-		// is let through so a link to a too-long text opens on its error, not on another text.
-		input =
-			safeText(p.v, mode === 'text' ? 2 * MAX_TEXT_BYTES : MAX_NUMBER_DIGITS + 20) ?? (mode === 'text' ? 'Hi' : input);
+		// The cap is well above what any mode accepts, so a link to a too-long number or
+		// text opens on its error, not on another example; the engine refuses those cheaply.
+		// The field takes no more than the cap, so nothing typed can fall outside it.
+		input = safeText(p.v, URL_MAX) ?? (mode === 'text' ? 'Hi' : input);
 		anyFrom = safeInt(p.from, 2, 36) ?? anyFrom;
 		anyTo = safeInt(p.to, 2, 36) ?? anyTo;
 		direction = safeOption(p.d, ['encode', 'decode'] as const) ?? direction;
 		letterCase = safeOption(p.c, ['upper', 'lower'] as const) ?? letterCase;
+		// Rewrite the link once the page has settled, even if nothing changed, so a
+		// value the page refused (a base of 99, say) does not stay in it.
+		tick().then(() => syncUrl(urlState, urlDefaults));
 	});
 
 	let mode: Mode = 'to36';
@@ -51,18 +56,17 @@
 	let anyTo = DEFAULTS.to;
 	let direction: 'encode' | 'decode' = 'encode';
 	let letterCase: 'upper' | 'lower' = 'upper';
-	$: syncUrl(
-		{
-			m: mode,
-			v: input,
-			from: mode === 'any' ? anyFrom : undefined,
-			to: mode === 'any' ? anyTo : undefined,
-			d: mode === 'text' ? direction : undefined,
-			c: letterCase
-		},
-		// Text mode starts from its own example, so that is what a link may leave out.
-		mode === 'text' ? { ...DEFAULTS, v: 'Hi' } : DEFAULTS
-	);
+	$: urlState = {
+		m: mode,
+		v: input,
+		from: mode === 'any' ? anyFrom : undefined,
+		to: mode === 'any' ? anyTo : undefined,
+		d: mode === 'text' ? direction : undefined,
+		c: letterCase
+	};
+	// Text mode starts from its own example, so that is what a link may leave out.
+	$: urlDefaults = mode === 'text' ? { ...DEFAULTS, v: 'Hi' } : DEFAULTS;
+	$: syncUrl(urlState, urlDefaults);
 
 	$: fromBase =
 		mode === 'to36' ? 10 : mode === 'from36' ? 36 : mode === 'any' ? anyFrom : direction === 'encode' ? 0 : 36;
@@ -345,7 +349,7 @@
 		{ href: '/hex-to-decimal', label: 'Hex to decimal converter' },
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/base32', label: 'Base32 encode and decode' },
-		{ href: '/base58', label: 'Base58 and Base58Check' },
+		{ href: '/base58', label: 'Base58 encode and decode' },
 		{ href: '/base64', label: 'Base64 encode and decode' },
 		{ href: '/tools', label: 'All tools' }
 	]}
@@ -433,12 +437,13 @@
 				class="value-input"
 				type="text"
 				bind:value={input}
+				maxlength={URL_MAX}
 				spellcheck="false"
 				autocomplete="off"
 				autocapitalize="off"
 				inputmode={fromBase === 10 ? 'numeric' : 'text'}
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="value-help"
+				aria-describedby="value-help{error ? ' value-error' : ''}"
 			/>
 			<p class="field-help" id="value-help">
 				{#if mode === 'text' && direction === 'encode'}
@@ -460,7 +465,7 @@
 			</div>
 
 			{#if error}
-				<ErrorAt message={error} {input} position={errorAt} />
+				<ErrorAt id="value-error" message={error} {input} position={errorAt} />
 			{:else}
 				<div class="results">
 					<div class="answer" role="status">
@@ -522,7 +527,11 @@
 						<h2 class="working-title">
 							Working: each digit times its place value in {baseName(mode === 'text' ? 36 : fromBase)}
 						</h2>
-						<div class="table-wrap" class:scroll-box={terms.length > LONG_TABLE}>
+						<div
+							class="table-wrap"
+							use:scrollFocus={'Working: place values'}
+							class:scroll-box={terms.length > LONG_TABLE}
+						>
 							<table class="data-table steps">
 								<thead>
 									<tr>
@@ -566,7 +575,11 @@
 
 					{#if divisions.length}
 						<h2 class="working-title">Working: divide by {toBaseN}, keep the remainders</h2>
-						<div class="table-wrap" class:scroll-box={divisions.length > LONG_TABLE}>
+						<div
+							class="table-wrap"
+							use:scrollFocus={'Working: repeated division'}
+							class:scroll-box={divisions.length > LONG_TABLE}
+						>
 							<table class="data-table steps">
 								<thead>
 									<tr>
@@ -677,17 +690,21 @@
 		<p class="section-intro">
 			Each place is worth 36 times the one to its right. A digit's value times its place, added up, gives the number.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus={'Powers of 36'}>
 			<table class="data-table powers">
 				<thead>
-					<tr><th scope="col">Power</th><th scope="col" class="num">Value</th><th scope="col">In base 36</th></tr>
+					<tr>
+						<th scope="col">Power</th><th scope="col" class="num">Value</th><th scope="col" class="wide-only"
+							>In base 36</th
+						>
+					</tr>
 				</thead>
 				<tbody>
 					{#each powers as p}
 						<tr>
 							<td class="mono">36{superscript(p.n)}</td>
 							<td class="mono num">{grouped(p.value)}</td>
-							<td class="mono">1{'0'.repeat(p.n)}</td>
+							<td class="mono wide-only">1{'0'.repeat(p.n)}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -700,27 +717,27 @@
 		<p class="section-intro">
 			A base 36 digit carries log<sub>2</sub> 36 ≈ 5.17 bits, a little more than the 5 bits of a
 			<a href="/base32">Base32</a> character, so base 36 is the shortest way to write a number with digits and one case of
-			letters. The largest unsigned value of each common width:
+			letters. For each common width, the digits its largest unsigned value needs, and that value in base 36:
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus={'Digits per width'}>
 			<table class="data-table widths">
 				<thead>
 					<tr>
 						<th scope="col" class="num">Bits</th>
-						<th scope="col">Largest value in base 36</th>
 						<th scope="col" class="num">Base 36 digits</th>
 						<th scope="col" class="num">Hex digits</th>
 						<th scope="col" class="num">Decimal digits</th>
+						<th scope="col">Largest value in base 36</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each widths as w}
 						<tr>
 							<td class="mono num">{w.bits}</td>
-							<td class="mono strong">{w.b36}</td>
 							<td class="mono num">{w.b36.length}</td>
 							<td class="mono num">{w.b16}</td>
 							<td class="mono num">{w.b10}</td>
+							<td class="mono strong">{w.b36}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -1122,10 +1139,26 @@
 		.wide-only {
 			display: none;
 		}
+
+		.data-table.steps td,
+		.data-table.steps th {
+			padding-left: 0.3rem;
+			padding-right: 0.3rem;
+		}
 	}
 
 	.widths td {
 		white-space: nowrap;
+	}
+
+	/* The digit counts are the comparison, so they come first and fit a phone's
+	   width; the long value itself is last, a scroll away. */
+	@media (max-width: 480px) {
+		:global(.content) .widths th,
+		:global(.content) .widths td {
+			padding-left: 0.5rem;
+			padding-right: 0.5rem;
+		}
 	}
 
 	.points {

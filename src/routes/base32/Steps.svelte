@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { hex2 } from '$lib/textEncoding';
 	import type { Base32Group } from '$lib/baseN';
+	import { scrollFocus } from '$lib/baseNScrollFocus';
 
 	// The regrouping drawn to scale: 40 columns, one per bit, so five 8-bit bytes
 	// and eight 5-bit indexes line up exactly, and each bit keeps its byte's
 	// colour (and its byte's position) after it has moved into a five.
 	export let groups: Base32Group[];
 	export let mode: 'encode' | 'decode' = 'encode';
+	/** What a screen reader calls the box when it scrolls; each drawing on a page needs its own. */
+	export let label = 'Base32 working, bit by bit';
 
 	const printable = (b: number) => (b > 32 && b < 127 ? String.fromCharCode(b) : '');
 	const BYTES = [0, 1, 2, 3, 4];
@@ -27,7 +30,7 @@
 		mode === 'encode' ? ['bytes', 'bits8', 'bits5', 'index', 'char'] : ['char', 'index', 'bits5', 'bits8', 'bytes'];
 </script>
 
-<div class="steps-scroll">
+<div class="steps-scroll" use:scrollFocus={label}>
 	<div class="steps-view">
 		{#each groups as g}
 			{@const cs = cells(g)}

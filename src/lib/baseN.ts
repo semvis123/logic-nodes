@@ -158,6 +158,11 @@ export type Base32Decoded = {
 	 * these are its 16 bytes read that way.
 	 */
 	asNumber?: number[];
+	/**
+	 * Says what `asNumber` is. Kept out of `notes`, so a page that shows the
+	 * number reading as its result need not repeat it.
+	 */
+	numberNote?: string;
 	/** A Crockford check symbol at the end, what it stands for, and whether it matches. */
 	check?: { symbol: string; value: number; expected: number; valid: boolean };
 };
@@ -170,6 +175,23 @@ const asciiUpper = (ch: string) => (ch >= 'a' && ch <= 'z' ? ch.toUpperCase() : 
 
 /** The 26 characters of a ULID: a 48-bit time and 80 random bits, one 128-bit number. */
 export const ULID_LENGTH = 26;
+
+/**
+ * 16 bytes written the ULID way: one 128-bit number in 26 Crockford
+ * characters, with the 2 spare bits as zeros at the front. Encoding the same
+ * bytes from the left puts those zeros at the end instead, so the two strings
+ * differ; this is the reading base32Decode returns as `asNumber`, turned back.
+ */
+export function crockfordNumber(bytes: number[]): string {
+	if (bytes.length !== 16) throw new BaseNError('A ULID is 16 bytes, one 128-bit number.');
+	let n = bytesToBigInt(bytes);
+	let text = '';
+	for (let k = 0; k < ULID_LENGTH; k++) {
+		text = BASE32_ALPHABETS.crockford[Number(n & 31n)] + text;
+		n >>= 5n;
+	}
+	return text;
+}
 
 const allowedBase32: Record<Base32Variant, string> = {
 	rfc4648: 'A–Z and 2–7',
@@ -207,15 +229,23 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 		checkSymbol = kept.pop();
 	if (crockford) {
 		const misplaced = kept.find((k) => CROCKFORD_CHECK_SYMBOLS.includes(asciiUpper(k.ch)));
-		if (misplaced)
+		if (misplaced) {
+			const symbols = CROCKFORD_CHECK_SYMBOLS.split('').join(' ');
+			// Only reached with one character when it is all there is: a check
+			// symbol checks the number before it, so it cannot stand alone.
 			throw new BaseNError(
-				`${show(misplaced.ch)} (character ${
-					misplaced.at
-				}) is one of Crockford's check symbols (${CROCKFORD_CHECK_SYMBOLS.split('').join(
-					' '
-				)}), which can only come once, at the very end. Crockford Base32 has no = padding.`,
+				kept.length === 1
+					? `${show(misplaced.ch)} (character ${
+							misplaced.at
+					  }) is one of Crockford's check symbols (${symbols}), which check the characters before them, so it needs data in front of it.`
+					: `${show(misplaced.ch)} (character ${
+							misplaced.at
+					  }) is one of Crockford's check symbols (${symbols}), which can only come once, at the very end.${
+							misplaced.ch === '=' ? ' Crockford Base32 has no = padding.' : ''
+					  }`,
 				misplaced.at
 			);
+		}
 	}
 
 	// Split off the padding first, so an = in the middle is reported as such.
@@ -271,7 +301,9 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 	const needed = BASE32_PAD[leftover];
 	if (needed === undefined)
 		throw new BaseNError(
-			`${body.length} characters leave ${leftover} over after the groups of eight, and a group can only end after 2, 4, 5 or 7 characters (1, 2, 3 or 4 bytes). A character is probably missing or extra.`
+			`${body.length} character${body.length === 1 ? '' : 's'} leave${
+				body.length === 1 ? 's' : ''
+			} ${leftover} over after the groups of eight, and a group can only end after 2, 4, 5 or 7 characters (1, 2, 3 or 4 bytes). A character is probably missing or extra.`
 		);
 	if (padding) {
 		if (padding !== needed)
@@ -347,19 +379,27 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 		});
 		bytes.push(...groupBytes);
 	}
-	if (asNumber)
-		notes.push(
-			`26 characters is the length of a ULID, which is one 128-bit number with 2 zero bits at the front, not bytes cut from the left. Read as a number, these characters are the 16 bytes ${hexBytes(
-				asNumber
-			)}.`
-		);
-	return { bytes, groups, notes, asNumber, check };
+	const numberNote =
+		asNumber &&
+		`26 characters is the length of a ULID, which is one 128-bit number with 2 zero bits at the front, not bytes cut from the left. Read as a number, these characters are the 16 bytes ${hexBytes(
+			asNumber
+		)}.`;
+	return { bytes, groups, notes, asNumber, numberNote, check };
 }
 
 // --- Base58 ----------------------------------------------------------------
 
 /** Bitcoin's alphabet: the digits and letters without 0, O, I and l. */
 export const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+/**
+ * The most bytes Base58 is worked through for. Repeated division of an n-byte
+ * number takes n² time and the kept steps n² memory, so a pasted file would
+ * freeze the page; 2,000 bytes is far beyond any address or key and still quick.
+ */
+export const MAX_BASE58_BYTES = 2000;
+/** The longest Base58 string of MAX_BASE58_BYTES bytes, each character carrying log2 58 bits. */
+export const MAX_BASE58_CHARS = Math.ceil((MAX_BASE58_BYTES * 8) / Math.log2(58));
 
 /** One step of repeated division: n = 58 × quotient + remainder. */
 export type DivisionStep = {
@@ -398,6 +438,12 @@ export type Base58Encoded = {
  * 0 starts with 1.
  */
 export function base58Encode(bytes: number[]): Base58Encoded {
+	if (bytes.length > MAX_BASE58_BYTES)
+		throw new BaseNError(
+			`That is ${bytes.length.toLocaleString(
+				'en-GB'
+			)} bytes; Base58 is worked through here for up to ${MAX_BASE58_BYTES.toLocaleString('en-GB')} bytes.`
+		);
 	let leadingZeros = 0;
 	while (leadingZeros < bytes.length && bytes[leadingZeros] === 0) leadingZeros++;
 	const value = bytesToBigInt(bytes.slice(leadingZeros));
@@ -427,6 +473,14 @@ export type Base58Decoded = {
  */
 export function base58Decode(input: string): Base58Decoded {
 	const text = input.trim();
+	if (text.length > MAX_BASE58_CHARS)
+		throw new BaseNError(
+			`That is ${text.length.toLocaleString(
+				'en-GB'
+			)} characters; Base58 is decoded here for up to ${MAX_BASE58_CHARS.toLocaleString(
+				'en-GB'
+			)}, the length of ${MAX_BASE58_BYTES.toLocaleString('en-GB')} bytes.`
+		);
 	const offset = input.length - input.trimStart().length;
 	let at = offset;
 	const values: number[] = [];

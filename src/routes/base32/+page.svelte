@@ -8,6 +8,7 @@
 		base32Decode,
 		base32Length,
 		bytesAsText,
+		crockfordNumber,
 		hexBytes,
 		BASE32_ALPHABETS,
 		BASE32_NAMES,
@@ -18,22 +19,29 @@
 	import { readUrl, syncUrl, safeText, safeOption, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import ErrorAt from '$lib/ErrorAt.svelte';
+	import { scrollFocus } from '$lib/baseNScrollFocus';
 	import Steps from './Steps.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	type Mode = 'encode' | 'decode';
 	type Source = 'text' | 'hex';
 	const VARIANTS = ['rfc4648', 'hex', 'crockford'] as const;
 
-	// Every setting lives in the query string, so a link reopens this exactly.
-	const DEFAULTS = { m: 'encode', t: 'Hello', a: 'rfc4648', pad: 'on', in: 'text' };
+	// Every setting lives in the query string, so a link reopens this exactly; the
+	// input is capped at the length a link carries, so anything typed round-trips.
+	const URL_MAX = 4000;
+	const DEFAULTS = { m: 'encode', t: 'Hello', a: 'rfc4648', pad: 'on', in: 'text', r: 'number' };
 	onMount(() => {
 		const p = readUrl();
 		mode = safeOption(p.m, ['encode', 'decode'] as const) ?? mode;
-		input = safeText(p.t, 4000) ?? input;
+		input = safeText(p.t, URL_MAX) ?? input;
 		variant = safeOption(p.a, VARIANTS) ?? variant;
 		pad = safeOption(p.pad, ['on', 'off'] as const) ?? pad;
 		source = safeOption(p.in, ['text', 'hex'] as const) ?? source;
+		reading = safeOption(p.r, ['number', 'bytes'] as const) ?? reading;
+		// Rewrite the link once the page has settled, even if nothing changed, so a
+		// value the page refused (an unknown alphabet, say) does not stay in it.
+		tick().then(() => syncUrl(urlState, DEFAULTS));
 	});
 
 	let mode: Mode = 'encode';
@@ -41,7 +49,20 @@
 	let variant: Base32Variant = 'rfc4648';
 	let pad: 'on' | 'off' = 'on';
 	let source: Source = 'text';
-	$: syncUrl({ m: mode, t: input, a: variant, pad, in: source }, DEFAULTS);
+	// A ULID-shaped Crockford string can be read two ways (see the engine); a
+	// ULID is a number, so that reading comes first, and the RFC 4648 cut is a click away.
+	// The choice only means something while a ULID-shaped string is decoded, so
+	// only then does it go in the link.
+	let reading: 'number' | 'bytes' = 'number';
+	$: urlState = {
+		m: mode,
+		t: input,
+		a: variant,
+		pad,
+		in: source,
+		r: mode === 'decode' && asNumber ? reading : DEFAULTS.r
+	};
+	$: syncUrl(urlState, DEFAULTS);
 
 	const SHOWN_GROUPS = 4;
 
@@ -53,13 +74,23 @@
 	let notes: string[] = [];
 	let notText = false;
 	let asNumber: number[] | undefined;
+	let numberNote: string | undefined;
 	let byteCount = 0;
 	let byteHex = '';
+	// 16 bytes in Crockford's alphabet, written the ULID way, for comparison with the cut from the left.
+	let ulidForm: string | undefined;
+	// The decoded bytes cut from the left, whichever reading is shown.
+	let lastBytes: number[] | undefined;
+	// The hex carried to Encode when a decoded ULID is swapped, so the note there can
+	// say where these bytes came from rather than offer a different-looking ULID.
+	let swappedUlidHex: string | undefined;
 	$: {
 		try {
 			notes = [];
 			notText = false;
 			asNumber = undefined;
+			ulidForm = undefined;
+			lastBytes = undefined;
 			errorAt = undefined;
 			if (mode === 'encode') {
 				const bytes = source === 'hex' ? parseHex(input).bytes : textToBytes(input);
@@ -68,14 +99,21 @@
 				groups = result.groups;
 				byteCount = bytes.length;
 				byteHex = hexBytes(bytes);
+				if (variant === 'crockford' && bytes.length === 16) ulidForm = crockfordNumber(bytes);
 			} else {
 				const result = base32Decode(input, variant);
+				lastBytes = result.bytes;
 				groups = result.groups;
 				notes = result.notes;
 				asNumber = result.asNumber;
-				byteCount = result.bytes.length;
-				byteHex = hexBytes(result.bytes);
-				const read = bytesAsText(result.bytes);
+				numberNote = result.numberNote;
+				// Once the input is no longer a ULID, the next one opens on the number reading again.
+				if (!asNumber) reading = 'number';
+				const bytes = asNumber && reading === 'number' ? asNumber : result.bytes;
+				byteCount = bytes.length;
+				byteHex = hexBytes(bytes);
+				// A 128-bit number is an ID, not text, even when its bytes happen to be printable.
+				const read = asNumber && reading === 'number' ? { text: '', isText: false } : bytesAsText(bytes);
 				notText = !read.isText;
 				output = read.isText ? read.text : byteHex;
 			}
@@ -83,16 +121,27 @@
 		} catch (e) {
 			groups = [];
 			output = '';
+			// A string that fails to decode is not a ULID either, so a ULID typed after it opens on its number.
+			if (mode === 'decode') reading = 'number';
 			error = e instanceof BaseNError || e instanceof EncodingError ? e.message : 'That could not be read as Base32.';
 			errorAt = e instanceof BaseNError ? e.position : undefined;
 		}
 	}
+	$: asWholeNumber = mode === 'decode' && !!asNumber && reading === 'number';
 	$: outputRows = Math.min(8, Math.max(2, Math.ceil(output.length / 56) + output.split('\n').length - 1));
 
 	/** Switches mode, carrying the result across so the toggle reads as a swap. */
 	function setMode(next: Mode) {
 		if (next === mode) return;
-		if (!error && output) {
+		if (!error && output && asWholeNumber && lastBytes) {
+			// The encoder cuts bytes from the left, so it would turn the number's bytes into
+			// a different string. The cut from the left encodes back to this input (bar the 2
+			// dropped bits), and the bytes reading keeps the swap back stable.
+			input = hexBytes(lastBytes);
+			source = 'hex';
+			reading = 'bytes';
+			swappedUlidHex = input;
+		} else if (!error && output) {
 			if (next === 'encode' && notText) {
 				input = output;
 				source = 'hex';
@@ -100,6 +149,9 @@
 				input = output;
 				if (next === 'encode') source = 'text';
 			}
+			// 16 bytes encoded in Crockford make a ULID-shaped string, which would open on the
+			// number reading and show different bytes; the bytes reading gives back these ones.
+			if (next === 'decode' && ulidForm) reading = 'bytes';
 		}
 		mode = next;
 	}
@@ -292,9 +344,9 @@
 <ContentPage
 	related={[
 		{ href: '/base64', label: 'Base64 encode and decode' },
-		{ href: '/base58', label: 'Base58 and Base58Check' },
+		{ href: '/base58', label: 'Base58 encode and decode' },
 		{ href: '/base36', label: 'Base 36 converter' },
-		{ href: '/uuid-decoder', label: 'UUID and ULID decoder' },
+		{ href: '/uuid-decoder', label: 'UUID decoder and generator' },
 		{ href: '/binary-translator', label: 'Binary translator' },
 		{ href: '/tools', label: 'All tools' }
 	]}
@@ -366,6 +418,23 @@
 						>
 					</div>
 				{/if}
+				{#if mode === 'decode' && asNumber && !error}
+					<div class="opt" role="group" aria-label="Read as">
+						<span class="opt-label">Read as</span>
+						<button
+							type="button"
+							class:active={reading === 'number'}
+							aria-pressed={reading === 'number'}
+							on:click={() => (reading = 'number')}>128-bit number (ULID)</button
+						>
+						<button
+							type="button"
+							class:active={reading === 'bytes'}
+							aria-pressed={reading === 'bytes'}
+							on:click={() => (reading = 'bytes')}>Bytes from the left</button
+						>
+					</div>
+				{/if}
 			</div>
 
 			<label class="field" for="input"
@@ -376,11 +445,12 @@
 				class="expression-input"
 				rows="2"
 				bind:value={input}
+				maxlength={URL_MAX}
 				spellcheck="false"
 				autocomplete="off"
 				autocapitalize="off"
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="input-help"
+				aria-describedby="input-help{error ? ' input-error' : ''}"
 			/>
 			<p class="field-help" id="input-help">
 				{#if mode === 'encode' && source === 'hex'}
@@ -404,7 +474,7 @@
 			</div>
 
 			{#if error}
-				<ErrorAt message={error} {input} position={errorAt} />
+				<ErrorAt id="input-error" message={error} {input} position={errorAt} />
 			{:else}
 				<div class="out-head">
 					<span class="field"
@@ -427,7 +497,23 @@
 				{#if mode === 'decode' && !notText && byteCount}
 					<p class="note">Bytes: <span class="mono wrap">{byteHex}</span></p>
 				{/if}
-				{#if notText}
+				{#if ulidForm && source === 'hex' && input === swappedUlidHex}
+					<p class="note">
+						These are the ULID's bytes cut from the left, so cut the same way they encode back to it, except that its
+						last 2 bits, which 16 bytes cannot hold, come back as zeros.
+					</p>
+				{:else if ulidForm}
+					<p class="note">
+						16 bytes become 26 characters cut from the left, with 2 zero bits at the end. A ULID writes the same 16
+						bytes as one 128-bit number, with the 2 zero bits at the front: <span class="mono wrap">{ulidForm}</span>.
+					</p>
+				{/if}
+				{#if asWholeNumber}
+					<p class="note">
+						Read as one 128-bit number, the way a ULID is written: 26 characters hold 130 bits, so the first character's
+						top 2 bits are zeros in front of the number. These are its 16 bytes, in hex.
+					</p>
+				{:else if notText}
 					<p class="note">
 						These bytes are not readable UTF-8 text, so they are shown in hex. A 2FA secret, a hash or a key is random
 						bytes like this.
@@ -436,13 +522,23 @@
 				{#each notes as note}
 					<p class="note">{note}</p>
 				{/each}
+				{#if asNumber && !asWholeNumber}
+					<p class="note">{numberNote}</p>
+				{/if}
 				{#if asNumber}
 					<p class="note">
 						Take a ULID apart, time and all, in the <a href="/uuid-decoder">UUID and ULID decoder</a>.
 					</p>
 				{/if}
 
-				{#if groups.length}
+				{#if asWholeNumber}
+					<p class="note">
+						The step-by-step drawing cuts the characters into bytes from the left, the RFC 4648 way, which lines the
+						bits up differently; choose <button type="button" class="link-btn" on:click={() => (reading = 'bytes')}
+							>Bytes from the left</button
+						> to see it.
+					</p>
+				{:else if groups.length}
 					<h2 class="steps-title">Step by step</h2>
 					<p class="note legend">
 						{#if mode === 'encode'}
@@ -454,7 +550,7 @@
 							bytes, and each byte in hex. Grey bits are left over and dropped.
 						{/if}
 					</p>
-					<Steps groups={groups.slice(0, SHOWN_GROUPS)} {mode} />
+					<Steps groups={groups.slice(0, SHOWN_GROUPS)} {mode} label="Step by step working" />
 					{#if groups.length > SHOWN_GROUPS}
 						<p class="note">
 							Showing the first {SHOWN_GROUPS} of {groups.length} groups; every group works the same way.
@@ -476,7 +572,7 @@
 			number of both is 40: five bytes, or eight characters. So the encoder takes the bytes five at a time, writes out their
 			40 bits, cuts them into eight fives and looks each one up in the alphabet. Here is "Hello":
 		</p>
-		<Steps groups={hello.groups} />
+		<Steps groups={hello.groups} label="Hello in Base32, bit by bit" />
 		<p>
 			H, e, l, l and o are the bytes {helloGroup.bytes.join(', ')}. Their 40 bits cut into fives are
 			<span class="mono wrap">{helloGroup.quintets.join(' ')}</span>, which are {helloGroup.indexes.join(', ')}, and in
@@ -492,7 +588,7 @@
 			All three map the numbers 0 to 31 to characters; only the characters differ. Data encoded with one alphabet must
 			be decoded with the same one.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus={'The three Base32 alphabets'}>
 			<table class="data-table alphabet">
 				<thead>
 					<tr>
@@ -537,8 +633,8 @@
 				number, with any spare bits at the front; this page, like many libraries, applies the alphabet to bytes the RFC
 				4648 way, with the spare bits at the end. The two agree whenever the length is a multiple of 8 characters.
 				ULIDs, the sortable IDs the <a href="/uuid-decoder">UUID and ULID decoder</a> takes apart, are one 128-bit number
-				in 26 characters, so 2 zero bits come first; paste one in Crockford decode mode and the page also gives its bytes
-				read that way.
+				in 26 characters, so 2 zero bits come first; paste one in Crockford decode mode and the page reads it as that number,
+				with the bytes cut from the left a click away.
 			</li>
 		</ul>
 	</section>
@@ -550,7 +646,7 @@
 			and = signs take the place of the characters with no bits at all, so the output is always a multiple of eight.
 			These are the test vectors from RFC 4648:
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus={'RFC 4648 padding examples'}>
 			<table class="data-table pad-table">
 				<thead>
 					<tr>
@@ -558,7 +654,9 @@
 						<th scope="col">Base32</th>
 						<th scope="col">base32hex</th>
 						<th scope="col" class="num">= signs</th>
-						<th scope="col" class="num">Zero bits added</th>
+						<th scope="col" class="num"
+							><span class="wide-only">Zero bits added</span><span class="narrow-only">Fill bits</span></th
+						>
 						<th scope="col" class="num wide-only">Bytes</th>
 						<th scope="col" class="num wide-only">Bits</th>
 						<th scope="col" class="num wide-only">Characters</th>
@@ -599,7 +697,7 @@
 		<p class="section-intro">
 			Every 5 bytes become 8 characters, so Base32 is 60% bigger than the data, against a third for Base64.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus={'Base32 sizes'}>
 			<table class="data-table sizes">
 				<thead>
 					<tr>
@@ -630,10 +728,13 @@
 	<section id="totp">
 		<h2>Base32 in two-factor authentication</h2>
 		<p>
-			An authenticator app and a website share a secret key, a run of random bytes. The QR code you scan when you set up
-			2FA holds an <span class="mono">otpauth://</span> link with the key in Base32, and the "enter this key instead"
-			text under it is the same Base32, often in blocks of four and in small letters. Base32 is used because the key may
-			have to be typed by hand, and an alphabet with one case and no 0, 1 or 8 is hard to mistype. The example key
+			An authenticator app and a website share a secret key, a run of random bytes. The <a href="/qr-code-generator"
+				>QR code</a
+			>
+			you scan when you set up 2FA holds an <span class="mono">otpauth://</span> link with the key in Base32, and the
+			"enter this key instead" text under it is the same Base32, often in blocks of four and in small letters. Base32 is
+			used because the key may have to be typed by hand, and an alphabet with one case and no 0, 1 or 8 is hard to
+			mistype. The example key
 			<a
 				href={toolLink('/base32', { m: 'decode', t: totpSecret })}
 				on:click|preventDefault={() => tryExample(examples[4])}><span class="mono">{totpSecret}</span></a
@@ -902,6 +1003,17 @@
 		overflow-wrap: anywhere;
 	}
 
+	.link-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		color: #8ede8e;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+		cursor: pointer;
+	}
+
 	.alphabet {
 		width: auto;
 		min-width: 320px;
@@ -920,6 +1032,10 @@
 
 	.num {
 		text-align: right !important;
+	}
+
+	.narrow-only {
+		display: none;
 	}
 
 	.data-table.pad-table td,
@@ -946,6 +1062,10 @@
 
 		.wide-only {
 			display: none;
+		}
+
+		.narrow-only {
+			display: inline;
 		}
 	}
 </style>
