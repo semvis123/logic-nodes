@@ -172,39 +172,84 @@ export const MAX_PASTE_BYTES = 1 << 20;
  * lines, may carry 0x or \x in front, or may be run together; a separated
  * group with an odd number of digits is refused rather than silently merged
  * with its neighbour, because "D A" could mean 0D 0A or DA.
+ *
+ * It reads in a single pass, character by character. Splitting into groups and
+ * testing each with regular expressions costs about half a second for a
+ * megabyte, and the page parses again on every keystroke, including the half
+ * of them that leave a byte half typed.
  */
 export function parseHex(input: string): Uint8Array {
-	const stripped = stripDumpColumns(input);
-	const plain = parsePlainHex(stripped);
-	if (plain) return plain;
-	const groups = stripped
-		.trim()
-		.split(/[\s,;:]+/)
-		.filter(Boolean);
-	let digits = '';
-	for (const raw of groups) {
-		const group = raw.replace(/^(0x|\\x)/i, '').replace(/\\x/gi, '');
-		const bad = group.match(/[^0-9a-f]/i);
-		if (bad) {
+	const text = stripDumpColumns(input);
+	const out = new Uint8Array(text.length >> 1);
+	let count = 0;
+	let firstGroup = '';
+	let i = 0;
+	while (i < text.length) {
+		if (isSeparator(text.charCodeAt(i))) {
+			i++;
+			continue;
+		}
+		const start = i;
+		while (i < text.length && !isSeparator(text.charCodeAt(i))) i++;
+		if (!firstGroup) firstGroup = text.slice(start, i);
+		count = readGroup(text, start, i, out, count, firstGroup);
+	}
+	checkPasteSize(count);
+	return out.slice(0, count);
+}
+
+/**
+ * Writes one separated group's bytes into out from count and returns the new
+ * count. A leading 0x or \x is dropped, and so is any \x inside (\x41\x42).
+ */
+function readGroup(
+	text: string,
+	start: number,
+	end: number,
+	out: Uint8Array,
+	count: number,
+	firstGroup: string
+): number {
+	let p = start;
+	const c0 = text.charCodeAt(p);
+	const x1 = (text.charCodeAt(p + 1) | 0x20) === 120;
+	if (p + 1 < end && x1 && (c0 === 48 || c0 === 92)) p += 2;
+	const from = p;
+	let digits = 0;
+	let high = -1;
+	let n = count;
+	for (; p < end; p++) {
+		const code = text.charCodeAt(p);
+		if (code === 92 && p + 1 < end && (text.charCodeAt(p + 1) | 0x20) === 120) {
+			p++;
+			continue;
+		}
+		const value = hexDigit(code);
+		if (value < 0) {
+			const raw = text.slice(start, end);
 			throw new HexError(
-				`“${raw}” contains “${bad[0]}”, which is not a hex digit (0 to 9, A to F)${
-					/^[0-9a-f]{6,}:?$/i.test(groups[0] ?? '')
+				`“${raw}” contains “${text[p]}”, which is not a hex digit (0 to 9, A to F)${
+					/^[0-9a-f]{6,}$/i.test(firstGroup)
 						? '. If this is a hex dump, paste only the bytes, without the offset and text columns'
 						: ''
 				}`
 			);
 		}
-		if (group.length % 2) {
-			throw new HexError(
-				`“${raw}” has an odd number of digits; every byte needs two, so write 0${group} or join it to its neighbour`
-			);
+		digits++;
+		if (high < 0) high = value;
+		else {
+			out[n++] = (high << 4) | value;
+			high = -1;
 		}
-		digits += group;
 	}
-	checkPasteSize(digits.length / 2);
-	const out = new Uint8Array(digits.length / 2);
-	for (let i = 0; i < out.length; i++) out[i] = parseInt(digits.slice(2 * i, 2 * i + 2), 16);
-	return out;
+	if (digits % 2) {
+		const raw = text.slice(start, end);
+		const group = text.slice(from, end).replace(/\\x/gi, '');
+		throw new HexError(
+			`“${raw}” has an odd number of digits; every byte needs two, so write 0${group} or join it to its neighbour`
+		);
+	}
+	return n;
 }
 
 function checkPasteSize(bytes: number) {
@@ -224,38 +269,24 @@ function hexDigit(code: number): number {
 	return lower >= 97 && lower <= 102 ? lower - 87 : -1; // a-f, A-F
 }
 
-/** Space, tab, new line, carriage return, form feed, comma, semicolon or colon. */
-const isSeparator = (code: number) =>
-	code === 32 || (code >= 9 && code <= 13) || code === 44 || code === 59 || code === 58;
-
 /**
- * The common case, whole hex pairs between plain separators, read in a single
- * pass. Splitting into groups and testing each with regular expressions costs
- * about half a second for a megabyte, and the page parses again on every
- * keystroke. Anything else (0x or \x prefixes, a group with an odd number of
- * digits, a stray character) returns null and goes the slow way, which reads
- * it or says exactly what is wrong.
+ * What separates groups: a comma, semicolon, colon or any white space,
+ * the same set as the regular expression class [\s,;:].
  */
-function parsePlainHex(text: string): Uint8Array | null {
-	const out = new Uint8Array(text.length >> 1);
-	let count = 0;
-	let high = -1;
-	for (let i = 0; i < text.length; i++) {
-		const code = text.charCodeAt(i);
-		const value = hexDigit(code);
-		if (value >= 0) {
-			if (high < 0) high = value;
-			else {
-				out[count++] = (high << 4) | value;
-				high = -1;
-			}
-		} else if (!isSeparator(code) || high >= 0) {
-			return null;
-		}
-	}
-	if (high >= 0) return null;
-	checkPasteSize(count);
-	return out.slice(0, count);
+function isSeparator(code: number): boolean {
+	if (code === 32 || (code >= 9 && code <= 13) || code === 44 || code === 59 || code === 58) return true;
+	if (code < 0xa0) return false;
+	return (
+		code === 0xa0 ||
+		code === 0x1680 ||
+		(code >= 0x2000 && code <= 0x200a) ||
+		code === 0x2028 ||
+		code === 0x2029 ||
+		code === 0x202f ||
+		code === 0x205f ||
+		code === 0x3000 ||
+		code === 0xfeff
+	);
 }
 
 // --- The data model --------------------------------------------------------

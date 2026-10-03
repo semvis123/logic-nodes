@@ -406,7 +406,10 @@ test.describe('reading pasted hex', () => {
 			'\\x89\\x50\\x4e\\x47',
 			'89:50:4e:47',
 			'  89 50\n4E 47\n',
-			'8950 4E47'
+			'8950 4E47',
+			'\\x89\\x50 0x4e\\x47',
+			// No-break, ideographic and line separator spaces count as white space, as in /\s/.
+			'89\u00a050\u30004e 47\u2028'
 		]) {
 			expect(Array.from(parseHex(text)), text).toEqual(want);
 		}
@@ -428,6 +431,10 @@ test.describe('reading pasted hex', () => {
 		expect(message('00000000: 8950 4e47 zz')).toContain('without the offset and text columns');
 		expect(message('0D A')).toContain('“A” has an odd number of digits');
 		expect(message('895')).toContain('odd number');
+		// The 0x and \x prefixes are not digits, so the advice leaves them out.
+		expect(message('0x8\\x9\\x1')).toContain(
+			'“0x8\\x9\\x1” has an odd number of digits; every byte needs two, so write 0891'
+		);
 	});
 
 	test('hex dumps from od, hexdump -C and xxd paste as their bytes, not their offsets', () => {
@@ -482,13 +489,22 @@ test.describe('reading pasted hex', () => {
 
 	test('a megabyte of pasted hex parses quickly, and more than that is refused', () => {
 		const bytes = Uint8Array.from({ length: MAX_PASTE_BYTES }, (_, i) => (i * 7) & 255);
-		for (const text of [formatHexLines(bytes), Buffer.from(bytes).toString('hex')]) {
+		const timed = (text: string) => {
 			const started = performance.now();
-			const out = parseHex(text);
-			// The page parses on every keystroke; the old split-and-test loop took about 500 ms here.
-			expect(performance.now() - started).toBeLessThan(200);
-			expect(Buffer.from(out).equals(Buffer.from(bytes))).toBe(true);
+			try {
+				return parseHex(text);
+			} finally {
+				// The page parses on every keystroke; the old split-and-test loop took 500 to 900 ms here.
+				expect(performance.now() - started).toBeLessThan(200);
+			}
+		};
+		const prefixed = Array.from(bytes, (b) => '0x' + b.toString(16).padStart(2, '0')).join(', ');
+		for (const text of [formatHexLines(bytes), Buffer.from(bytes).toString('hex'), prefixed]) {
+			expect(Buffer.from(timed(text)).equals(Buffer.from(bytes))).toBe(true);
 		}
+		// Half of all keystrokes leave a byte half typed; saying so must be just as quick.
+		expect(() => timed(formatHexLines(bytes) + ' 4')).toThrow(/“4” has an odd number of digits/);
+		expect(() => timed(formatHexLines(bytes) + ' 4g')).toThrow(/“4g” contains “g”/);
 		expect(() => parseHex('00 '.repeat(MAX_PASTE_BYTES + 1))).toThrow(/paste at most 1,048,576/);
 		expect(() => parseHex('0x00 '.repeat(MAX_PASTE_BYTES + 1))).toThrow(/paste at most 1,048,576/);
 	});
