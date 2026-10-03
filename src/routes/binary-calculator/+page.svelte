@@ -141,6 +141,7 @@
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/hex-to-binary', label: 'Hex to binary' },
 		{ href: '/ieee-754-converter', label: 'IEEE 754 floating point' },
+		{ href: '/bitwise-pattern-generator', label: 'Bitwise pattern generator' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >

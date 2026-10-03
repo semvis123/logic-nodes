@@ -211,6 +211,21 @@
 						<td><a href="/qr-code-generator">QR code generator</a></td>
 					</tr>
 					<tr>
+						<th scope="row">Bytes for a display</th>
+						<td>seven-segment, dot-matrix or Nixie patterns as C, Arduino or Verilog</td>
+						<td><a href="/seven-segment-display-designer">Display designer</a></td>
+					</tr>
+					<tr>
+						<th scope="row">An old punch card or paper tape</th>
+						<td>text punched onto it, or holes read back as text</td>
+						<td><a href="/punch-card-generator">Punch card generator</a></td>
+					</tr>
+					<tr>
+						<th scope="row">A picture from bitwise operators</th>
+						<td>the image x ^ y or x &amp; y draws, and why</td>
+						<td><a href="/bitwise-pattern-generator">Bitwise pattern generator</a></td>
+					</tr>
+					<tr>
 						<th scope="row">A class to teach</th>
 						<td>a printable question sheet with answers</td>
 						<td><a href="/worksheet">Worksheet generator</a></td>

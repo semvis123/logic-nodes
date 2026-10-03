@@ -189,6 +189,7 @@
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/learn/bits-with-meaning', label: 'Lesson: how bits become letters' },
 		{ href: '/file-signature-checker', label: 'File signature checker' },
+		{ href: '/punch-card-generator', label: 'Punch card generator' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >

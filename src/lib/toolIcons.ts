@@ -76,6 +76,13 @@ export const toolIcons: Record<string, string> = {
 		'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M6 6h1v1H6zM17 6h1v1h-1zM6 17h1v1H6zM14 14h3v3h-3zM18 18h3v3h-3zM14 20.5v.5M20.5 14h.5"/>',
 	// Bars of a barcode, with the long guard bars.
 	'/ean-13-barcode-generator': '<path d="M3 4v16M5.5 4v12M8 4v12M10.5 4v12M13 4v16M15.5 4v12M18 4v12M21 4v16"/>',
+	// An 80-column card with a cut corner and some rectangular holes.
+	'/punch-card-generator': '<path d="M7 5h13v14H3V9z"/><path d="M7 11h2M11 11h2M15 11h2M9 15h2M13 15h2"/>',
+	// A grid of cells, some filled, like an XOR texture.
+	'/bitwise-pattern-generator':
+		'<rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/><path d="M9 3h6v6H9zM3 9h6v6H3zM15 15h6v6h-6z"/>',
+	// A seven-segment digit.
+	'/seven-segment-display-designer': '<path d="M8 4h8M8 12h8M8 20h8M6 6v4M6 14v4M18 6v4M18 14v4"/>',
 	// An address split into network and host parts.
 	'/subnet-calculator':
 		'<rect x="2" y="6" width="20" height="12" rx="1.5"/><path d="M13 6v12M5 12h5"/><circle cx="16.5" cy="12" r="1"/><circle cx="19.5" cy="12" r="1"/>',
