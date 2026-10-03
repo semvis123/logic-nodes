@@ -66,6 +66,18 @@
 			error = e instanceof BarcodeError ? e.message : 'That is not a barcode number';
 		}
 	}
+
+	// The visible error updates at once, but the alert waits for a pause in
+	// typing, so a screen reader is not interrupted on every keystroke while
+	// the number is still half typed.
+	let alertText = '';
+	let alertTimer: ReturnType<typeof setTimeout>;
+	$: scheduleAlert(error);
+	function scheduleAlert(message: string) {
+		clearTimeout(alertTimer);
+		if (!message) alertText = '';
+		else alertTimer = setTimeout(() => (alertText = message), 500);
+	}
 	$: barcode = encode(parsed.code, parsed.symbology);
 	$: lay = layout(barcode);
 	$: info = SYMBOLOGIES[parsed.symbology];
@@ -132,18 +144,21 @@
 		input = v;
 		clearHighlight();
 		const field = document.getElementById('code');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		field?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
+	// The description (if any) in the text font, then the number it loads in
+	// mono, so a chip reads as what it shows and not as something to type.
 	const examples: { label: string; v: string; sym: Symbology }[] = [
-		{ label: '5901234123457', v: '5901234123457', sym: 'ean13' },
-		{ label: '8712345678906', v: '8712345678906', sym: 'ean13' },
+		{ label: '', v: '5901234123457', sym: 'ean13' },
+		{ label: '', v: '8712345678906', sym: 'ean13' },
 		{ label: 'Wrong check digit', v: '5901234123450', sym: 'ean13' },
-		{ label: 'ISBN 0-306-40615-2', v: '0-306-40615-2', sym: 'ean13' },
-		{ label: 'In-store 200123456789', v: '200123456789', sym: 'ean13' },
-		{ label: 'UPC-A 036000291452', v: '036000291452', sym: 'upca' },
-		{ label: 'EAN-8 9638507', v: '9638507', sym: 'ean8' }
+		{ label: 'ISBN', v: '0-306-40615-2', sym: 'ean13' },
+		{ label: 'In-store', v: '200123456789', sym: 'ean13' },
+		{ label: 'UPC-A', v: '036000291452', sym: 'upca' },
+		{ label: 'EAN-8', v: '9638507', sym: 'ean8' }
 	];
 
 	// Each copy button reports next to itself, so the confirmation is where the
@@ -157,10 +172,7 @@
 		timers[slot] = setTimeout(() => (messages = { ...messages, [slot]: '' }), 2500);
 	}
 	async function copy(slot: Slot, text: string, what: string) {
-		say(
-			slot,
-			(await copyText(text)) ? `${what} copied` : `Could not copy; select the ${what.toLowerCase()} and press ctrl+C`
-		);
+		say(slot, (await copyText(text)) ? `Copied the ${what}` : `Could not copy; select the ${what} and press ctrl+C`);
 	}
 
 	/** Takes a block out of the tab order and the accessibility tree while it shows a stale result. */
@@ -311,7 +323,7 @@
 		{ href: '/qr-code-generator', label: 'QR code generator' },
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/ascii-table', label: 'ASCII table' },
-		{ href: '/base64', label: 'Base64 encoder' },
+		{ href: '/base64', label: 'Base64 encode and decode' },
 		{ href: '/hex-to-binary', label: 'Hex to binary converter' },
 		{ href: '/tools', label: 'All tools' }
 	]}
@@ -352,13 +364,16 @@
 					{#if sym === 'ean13'}An ISBN-10 such as 0-306-40615-2 is converted to its ISBN-13.{/if}
 					Spaces and hyphens are ignored.
 				</p>
-				<p class="error" id="code-error" role="alert">{error}</p>
+				<p class="error" id="code-error">{error}</p>
+				{#if alertText}
+					<p class="visually-hidden" role="alert">{alertText}</p>
+				{/if}
 			</div>
 
 			<div class="chips">
 				{#each examples as example}
 					<button type="button" class="chip-btn" on:click={() => tryValue(example.v, example.sym)}>
-						{example.label}
+						{#if example.label}{example.label}{' '}{/if}<span class="chip-value">{example.v}</span>
 					</button>
 				{/each}
 			</div>
@@ -512,7 +527,7 @@
 							<p class="actions">
 								<button type="button" class="action" on:click={saveSvg}>Download SVG</button>
 								<button type="button" class="action" on:click={savePng}>Download PNG</button>
-								<button type="button" class="action" on:click={() => copy('figure', parsed.code, 'Number')}
+								<button type="button" class="action" on:click={() => copy('figure', parsed.code, 'number')}
 									>Copy number</button
 								>
 								<span class="copy-status" aria-live="polite">{messages.figure}</span>
@@ -573,6 +588,7 @@
 									class="digit-btn first"
 									class:hot={active === 0}
 									aria-pressed={pinned === 0}
+									aria-label="Digit {parsed.code[0]}, position 1, no bars: sets the L and G pattern {barcode.parity}"
 									aria-describedby="digit-detail"
 									on:click={() => togglePin(0)}
 									on:mouseenter={() => (hover = 0)}
@@ -642,7 +658,7 @@
 						{/each}
 					</div>
 					<p class="module-line">
-						<button type="button" class="action" on:click={() => copy('modules', barcode.modules, 'Modules')}
+						<button type="button" class="action" on:click={() => copy('modules', barcode.modules, 'modules')}
 							>Copy modules</button
 						>
 						<span class="copy-status" aria-live="polite">{messages.modules}</span>
@@ -1114,9 +1130,20 @@
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.8rem;
 		padding: 0.25rem 0.6rem;
 		cursor: pointer;
+	}
+
+	/* The number a chip loads, so a chip is not a guess. */
+	.chip-value {
+		color: #8ede8e;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		margin-left: 0.2rem;
+	}
+
+	.chip-value:first-child {
+		margin-left: 0;
 	}
 
 	.chip-btn:hover {
@@ -1149,7 +1176,8 @@
 		text-transform: uppercase;
 	}
 
-	.answer-value {
+	/* Two classes, so the green beats the page-wide .mono colour. */
+	.answer .answer-value {
 		color: #8ede8e;
 		display: block;
 		font-size: 1.6rem;
@@ -1631,10 +1659,6 @@
 	}
 
 	@media (max-width: 560px) {
-		.tool {
-			padding: 0.9rem 0.8rem 1.1rem;
-		}
-
 		.digit-btn {
 			min-width: 3.4rem;
 		}
@@ -1661,5 +1685,17 @@
 		.check-tiles.narrow-only {
 			display: flex;
 		}
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+		border: 0;
 	}
 </style>

@@ -425,6 +425,31 @@ test.describe('the ean-13-barcode-generator page', () => {
 		expect(await drawnModules(page)).toBe(withQuiet('4006381333931', 'ean13'));
 	});
 
+	test('the alert waits for a pause in typing, while the visible error updates at once', async ({ page }) => {
+		await page.goto(URL_);
+		await page.waitForLoadState('networkidle');
+		const alert = page.locator('[role="alert"]');
+		await page.fill('#code', '');
+		await page.locator('#code').type('590123412345', { delay: 120 });
+		// Every half-typed number was an error, but none of them was announced.
+		await expect(alert).toHaveCount(0);
+		await page.fill('#code', '5901');
+		await expect(page.locator('#code-error')).toContainText('this is 4 digits');
+		await expect(alert).toHaveCount(0);
+		await expect(alert).toContainText('this is 4 digits');
+		await page.fill('#code', '5901234123457');
+		await expect(alert).toHaveCount(0);
+	});
+
+	test('the first EAN-13 digit button is named like the others', async ({ page }) => {
+		await page.goto(URL_);
+		await expect(page.getByRole('button', { name: /^Digit 4, position 1, no bars/ })).toHaveAttribute(
+			'aria-label',
+			'Digit 4, position 1, no bars: sets the L and G pattern LGLLGG'
+		);
+		await expect(page.getByRole('button', { name: 'Wrong check digit 5901234123450' })).toBeVisible();
+	});
+
 	test('typing checks the number and redraws the bars', async ({ page }) => {
 		await page.goto(URL_);
 		await page.waitForLoadState('networkidle');
@@ -615,10 +640,10 @@ test.describe('the ean-13-barcode-generator page', () => {
 		await page.goto(URL_);
 		await page.waitForLoadState('networkidle');
 		await page.getByRole('button', { name: 'Copy modules' }).click();
-		await expect(page.locator('.module-line .copy-status')).toHaveText('Modules copied');
+		await expect(page.locator('.module-line .copy-status')).toHaveText('Copied the modules');
 		await expect(page.locator('.barcode-figure .copy-status')).toHaveText('');
 		await page.getByRole('button', { name: 'Copy number' }).click();
-		await expect(page.locator('.barcode-figure .copy-status')).toHaveText('Number copied');
+		await expect(page.locator('.barcode-figure .copy-status')).toHaveText('Copied the number');
 	});
 
 	test('the downloads are the barcode', async ({ page }) => {
