@@ -2,8 +2,8 @@
 	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
+	import PageHead from '$lib/PageHead.svelte';
 	import ShareLink from '$lib/ShareLink.svelte';
-	import { modifiedFields } from '$lib/lastmod';
 	import { readUrl, syncUrl, safeText, safeOption } from '$lib/urlState';
 	import { onMount } from 'svelte';
 	import {
@@ -192,59 +192,9 @@
 		image: `${SITE}/og/integer-limits.png`,
 		imageAlt: 'LogicGates.org: integer limits for int8 to uint128'
 	};
-
-	const jsonLd = `<script type="application/ld+json">${JSON.stringify({
-		'@context': 'https://schema.org',
-		'@graph': [
-			{
-				'@type': ['WebPage', 'FAQPage'],
-				'@id': `${page.url}#webpage`,
-				url: page.url,
-				name: page.title,
-				description: page.description,
-				isPartOf: { '@id': `${SITE}/#website` },
-				breadcrumb: { '@id': `${page.url}#breadcrumb` },
-				inLanguage: 'en',
-				...modifiedFields(page.url),
-				mainEntity: faqs.map((f) => ({
-					'@type': 'Question',
-					name: f.q,
-					acceptedAnswer: { '@type': 'Answer', text: f.a }
-				}))
-			},
-			{
-				'@type': 'BreadcrumbList',
-				'@id': `${page.url}#breadcrumb`,
-				itemListElement: [
-					{ '@type': 'ListItem', position: 1, name: 'LogicGates.org', item: `${SITE}/` },
-					{ '@type': 'ListItem', position: 2, name: 'Tools', item: `${SITE}/tools` },
-					{ '@type': 'ListItem', position: 3, name: 'Integer limits' }
-				]
-			}
-		]
-	})}${'<'}/script>`;
 </script>
 
-<svelte:head>
-	<title>{page.title}</title>
-	<meta name="description" content={page.description} />
-	<link rel="canonical" href={page.url} />
-	<meta name="author" content="Sem" />
-	<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
-	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="LogicGates.org" />
-	<meta property="og:locale" content="en" />
-	<meta property="og:title" content={page.title} />
-	<meta property="og:description" content={page.description} />
-	<meta property="og:url" content={page.url} />
-	<meta property="og:image" content={page.image} />
-	<meta property="og:image:alt" content={page.imageAlt} />
-	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:title" content={page.title} />
-	<meta name="twitter:description" content={page.description} />
-	<meta name="twitter:image" content={page.image} />
-	{@html jsonLd}
-</svelte:head>
+<PageHead {page} {faqs} crumb="Integer limits" />
 
 <ContentPage
 	related={[
