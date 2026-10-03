@@ -21,6 +21,7 @@ import {
 	exportCell,
 	toRgba,
 	SIN,
+	angleOf,
 	FUNCS
 } from '../src/lib/bitPattern.js';
 
@@ -177,6 +178,36 @@ test.describe('the functions', () => {
 		expect(gap).toBeGreaterThan(1e-6);
 	});
 
+	test('atan2(y, x) is the direction of (x, y) as a whole turn of 256, checked against sector boundaries', () => {
+		expect([at('atan2(0, 1)'), at('atan2(1, 0)'), at('atan2(0, 0 - 1)'), at('atan2(0 - 1, 0)')]).toEqual([
+			0, 64, 128, 192
+		]);
+		expect([at('atan2(1, 1)'), at('atan2(1, 0 - 1)'), at('atan2(0 - 1, 0 - 1)'), at('atan2(0, 0)')]).toEqual([
+			32, 96, 160, 0
+		]);
+		// A second method: (x, y) belongs to step k when it lies between the rays half a step either side of k.
+		const ray = (k: number) => [Math.cos(((k - 0.5) * 2 * Math.PI) / 256), Math.sin(((k - 0.5) * 2 * Math.PI) / 256)];
+		const f = compile('atan2(y, x)');
+		const wrong: string[] = [];
+		for (let y = -90; y <= 90; y++)
+			for (let x = -90; x <= 90; x++) {
+				if (!x && !y) continue;
+				const k = f(x, y, 0);
+				const [lx, ly] = ray(k);
+				const [hx, hy] = ray(k + 1);
+				if (!(lx * y - ly * x > 0 && hx * y - hy * x < 0)) wrong.push(`${x},${y}`);
+			}
+		expect(wrong).toEqual([]);
+		expect(at('atan2(y, x)', 3, 0 - 3)).toBe(at('atan2(0 - 3, 3)', 0, 0));
+		expect(angleOf(-1, 0)).toBe(192);
+		// No rounding sits close to a half step, so engines whose atan2 differs in the last bit still agree.
+		let gap = 1;
+		for (let y = -400; y <= 400; y++)
+			for (let x = -400; x <= 400; x++)
+				if (x || y) gap = Math.min(gap, Math.abs(Math.abs(((Math.atan2(y, x) * 256) / (2 * Math.PI)) % 1) - 0.5));
+		expect(gap).toBeGreaterThan(1e-6);
+	});
+
 	test('abs, min and max follow 32-bit rules', () => {
 		expect([at('abs(0 - 7)'), at('abs(7)'), at('abs(0 - 2147483647 - 1)')]).toEqual([7, 7, -2147483648]);
 		expect([at('min(3, 0 - 4)'), at('max(3, 0 - 4)'), at('min(x, y)', 9, 2), at('max(x, y)', 9, 2)]).toEqual([
@@ -197,12 +228,13 @@ test.describe('the functions', () => {
 		};
 		expect(msg('sin')).toContain('needs (');
 		expect(msg('min(1)')).toContain('two arguments');
+		expect(msg('atan2(1)')).toContain('two arguments');
 		expect(msg('min(1, 2')).toContain('never closed');
 		expect(msg('abs(1, 2)')).toContain('Unexpected ,');
 		expect(msg('foo(1)')).toContain('Unknown name foo');
 		expect(msg('1, 2')).toContain('Unexpected ,');
 		expect(msg('abs('.repeat(70) + '1' + ')'.repeat(70))).toContain('deep');
-		expect(Object.keys(FUNCS).sort()).toEqual(['abs', 'cos', 'max', 'min', 'sin', 'sqrt']);
+		expect(Object.keys(FUNCS).sort()).toEqual(['abs', 'atan2', 'cos', 'max', 'min', 'sin', 'sqrt']);
 	});
 
 	test('paint into a reused buffer matches a fresh one, and toRgba writes opaque RGBA', () => {
@@ -220,7 +252,7 @@ test.describe('the functions', () => {
 
 	test('every moving preset parses, uses t, and changes between frames', () => {
 		const moving = PRESETS.filter((p) => p.play);
-		expect(moving.length).toBeGreaterThanOrEqual(8);
+		expect(moving.length).toBeGreaterThanOrEqual(20);
 		for (const p of moving) {
 			const fns = [p.e].flat().map(compile);
 			const look = { mode: p.mode, bit: p.bit ?? 0, pal: p.pal ?? 'fire' };
@@ -314,8 +346,34 @@ test.describe('the pictures', () => {
 		expect(rootWorking('x', parse('x'))).toBeNull();
 	});
 
-	test('every preset compiles', () => {
-		for (const p of PRESETS) for (const e of [p.e].flat()) expect(() => compile(e), e).not.toThrow();
+	test('every preset compiles, fits the limit, and is marked as moving exactly when it uses t', () => {
+		expect(new Set(PRESETS.map((p) => p.label)).size).toBe(PRESETS.length);
+		for (const p of PRESETS) {
+			const es = [p.e].flat();
+			for (const e of es) expect(() => compile(e), e).not.toThrow();
+			expect(
+				es.every((e) => e.length <= MAX_LENGTH),
+				p.label
+			).toBe(true);
+			expect(
+				es.some((e) => /\bt\b/.test(e)),
+				p.label
+			).toBe(!!p.play);
+			expect(p.note.length, p.label).toBeGreaterThan(20);
+		}
+	});
+
+	test('a 32 by 32 thumbnail of every preset is cheap', () => {
+		const t0 = performance.now();
+		for (const p of PRESETS)
+			paint(
+				[p.e].flat().map(compile),
+				{ mode: p.mode, bit: p.bit ?? 0, pal: p.pal ?? 'fire' },
+				32,
+				p.t ?? 0,
+				p.size / 32
+			);
+		expect(performance.now() - t0).toBeLessThan(500);
 	});
 });
 

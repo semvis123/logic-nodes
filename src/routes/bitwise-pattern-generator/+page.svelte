@@ -298,6 +298,11 @@
 			'sin(a)  cos(a)',
 			'Sine, cosine',
 			'a counts a whole turn as 256, so only its low 8 bits matter. Results are whole numbers from -127 to 127: sin(64) is 127, sin(192) is -127, and cos(a) is sin(a + 64).'
+		],
+		[
+			'atan2(y, x)',
+			'Direction',
+			'The angle of the point (x, y) from the middle, as a whole turn of 256: 0 along +x, 64 along +y (down the picture), 128 along -x, 192 along -y. Rounded to the nearest step; atan2(0, 0) is 0. Note that y comes first. Use atan2(y - 64, x - 64) for the angle round the centre of a 128 grid.'
 		]
 	];
 
@@ -321,6 +326,10 @@
 		{
 			q: 'Why do sin and cos give whole numbers from -127 to 127?',
 			a: 'Everything in the expression is a 32-bit whole number, so sin takes a whole turn as 256 (only its low 8 bits count) and returns 127 times the sine, rounded: sin(64) is 127, sin(0) is 0 and sin(192) is -127. Add 128 to centre it on mid grey, as the Pond starting point does, or halve it before adding several together, as Plasma does.'
+		},
+		{
+			q: 'How do I get an angle for spirals and sweeps?',
+			a: 'Use atan2(y - 64, x - 64). It returns the direction of each pixel from the middle of a 128 by 128 picture as a whole turn of 256, in the same units that sin and cos take, so atan2(y - 64, x - 64) * 3 has three cycles round the middle. Adding the distance, sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64)), twists those into spiral arms, and subtracting t * 4 turns them. Spiral arms and Radar sweep above are built this way.'
 		},
 		{
 			q: 'What happens when I divide by zero?',
@@ -391,14 +400,17 @@
 			{/each}
 			<p class="field-help">
 				Use x, y and t, whole numbers (decimal, 0x1F, 0b101), ~ - * / % + &lt;&lt; &gt;&gt; &amp; ^ | with brackets, and
-				the functions abs, min, max, sqrt, sin and cos.
+				the functions abs, min, max, sqrt, sin, cos and atan2.
 			</p>
 
-			<div class="chips">
-				{#each PRESETS as p}
-					<button type="button" class="chip-btn" on:click={() => usePreset(p)}>{p.label}</button>
-				{/each}
-			</div>
+			{#each [{ name: 'Still', moving: false }, { name: 'Moving', moving: true }] as g}
+				<div class="chips" role="group" aria-label="{g.name} starting points">
+					<span class="chip-label" aria-hidden="true">{g.name}</span>
+					{#each PRESETS.filter((p) => !!p.play === g.moving) as p}
+						<button type="button" class="chip-btn" on:click={() => usePreset(p)}>{p.label}</button>
+					{/each}
+				</div>
+			{/each}
 
 			<div class="controls">
 				<div class="opt" role="group" aria-label="Colour mode">
@@ -661,6 +673,15 @@
 			Plasma and Ripples, begin animating when you load them. Animation never starts by itself otherwise, and it is switched
 			off if your system asks for reduced motion.
 		</p>
+		<p>
+			The moving starting points use t in a few ways. Added to a coordinate or a distance, as in
+			<span class="mono">x + t</span>, it scrolls the picture. Inside <span class="mono">sin</span> or
+			<span class="mono">cos</span> it is a position or angle in a repeating cycle: <span class="mono">sin(t)</span> moves
+			the zoom in XOR zoom, and the angle in Spinning XOR is t itself, so frames 0 to 255 are one full turn. Because sin
+			and cos repeat every 256, those pictures join up when t wraps from 255 to 0; ones that just add t, such as Scrolling
+			maze, jump at that point. Subtracting t from a distance or an angle, as in Ripples and Spiral arms, sends the rings
+			or arms outwards or round, and the sign decides the direction.
+		</p>
 	</section>
 
 	<section>
@@ -737,6 +758,16 @@
 		align-items: center;
 		gap: 6px;
 		margin-bottom: 1rem;
+	}
+	.chip-label {
+		flex-basis: 100%;
+		color: #999;
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+	.chips + .chips {
+		margin-top: -0.4rem;
 	}
 	.chip-btn,
 	.opt button {
