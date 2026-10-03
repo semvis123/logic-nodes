@@ -56,9 +56,11 @@
 	// Every tool page renders this component, so it is the one place that sees
 	// each tool being left. Leaving disarms the URL sync until the next page has
 	// read its own query. Same-path navigations (a hash link, a tool updating
-	// its own query) do not remount the page, so those stay armed.
-	beforeNavigate(({ from, to }) => {
-		if (!to || from?.url.pathname !== to.url.pathname) disarmUrl();
+	// its own query) do not remount the page, so those stay armed. Leaving the
+	// site does not disarm either: if the browser brings the page back from its
+	// back/forward cache, nothing mounts again to re-arm it.
+	beforeNavigate(({ from, to, willUnload }) => {
+		if (!willUnload && to && from?.url.pathname !== to.url.pathname) disarmUrl();
 	});
 
 	// On a phone the section links scroll sideways inside the bar, and the
