@@ -3,7 +3,7 @@
 // for new Function (an oracle only; the shipped code never uses it), with the
 // 32-bit and divide-by-zero rules spelled out in the oracle's text.
 
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
 	compile,
 	parse,
@@ -18,7 +18,10 @@ import {
 	PRESETS,
 	MAX_LENGTH,
 	colourOf,
-	exportCell
+	exportCell,
+	toRgba,
+	SIN,
+	FUNCS
 } from '../src/lib/bitPattern.js';
 
 let seed = 12345;
@@ -146,6 +149,91 @@ test.describe('the expression language', () => {
 	});
 });
 
+test.describe('the functions', () => {
+	const at = (src: string, x = 0, y = 0, t = 0) => compile(src)(x, y, t);
+
+	test('sqrt is the integer square root of every value a 256 grid can reach', () => {
+		const f = compile('sqrt(x * 256 + y)');
+		for (let x = 0; x < 256; x++)
+			for (let y = 0; y < 256; y++) expect(f(x, y, 0)).toBe(Math.floor(Math.sqrt(x * 256 + y)));
+		expect(at('sqrt(0 - 5)')).toBe(0);
+		expect(at('sqrt(2147483647)')).toBe(46340);
+	});
+
+	test('sin is a whole turn in 256 steps from -127 to 127, and cos is sin a quarter turn on', () => {
+		for (let a = 0; a < 256; a++) {
+			expect(at('sin(x)', a)).toBe(Math.round(127 * Math.sin((2 * Math.PI * a) / 256)));
+			expect(at('cos(x)', a)).toBe(at('sin(x + 64)', a));
+			expect(at('sin(x)', a + 256)).toBe(at('sin(x)', a));
+			expect(at('sin(x)', -a)).toBe(at('sin(x)', 256 - a));
+		}
+		expect([at('sin(64)'), at('sin(192)'), at('sin(0)'), at('cos(0)'), at('cos(128)')]).toEqual([
+			127, -127, 0, 127, -127
+		]);
+		// A rounding that sat close to a half could differ between JavaScript engines; none does.
+		const gap = Math.min(
+			...Array.from(SIN, (_, i) => Math.abs(Math.abs((127 * Math.sin((2 * Math.PI * i) / 256)) % 1) - 0.5))
+		);
+		expect(gap).toBeGreaterThan(1e-6);
+	});
+
+	test('abs, min and max follow 32-bit rules', () => {
+		expect([at('abs(0 - 7)'), at('abs(7)'), at('abs(0 - 2147483647 - 1)')]).toEqual([7, 7, -2147483648]);
+		expect([at('min(3, 0 - 4)'), at('max(3, 0 - 4)'), at('min(x, y)', 9, 2), at('max(x, y)', 9, 2)]).toEqual([
+			-4, 3, 2, 9
+		]);
+	});
+
+	test('functions nest and mix with operators; the error messages name the position', () => {
+		expect(at('max(abs(x - 5), min(y, 3)) + 1', 2, 9)).toBe(4);
+		expect(at('abs ( x )', 5)).toBe(5);
+		const msg = (src: string) => {
+			try {
+				parse(src);
+			} catch (e) {
+				return (e as PatternError).message;
+			}
+			return '';
+		};
+		expect(msg('sin')).toContain('needs (');
+		expect(msg('min(1)')).toContain('two arguments');
+		expect(msg('min(1, 2')).toContain('never closed');
+		expect(msg('abs(1, 2)')).toContain('Unexpected ,');
+		expect(msg('foo(1)')).toContain('Unknown name foo');
+		expect(msg('1, 2')).toContain('Unexpected ,');
+		expect(msg('abs('.repeat(70) + '1' + ')'.repeat(70))).toContain('deep');
+		expect(Object.keys(FUNCS).sort()).toEqual(['abs', 'cos', 'max', 'min', 'sin', 'sqrt']);
+	});
+
+	test('paint into a reused buffer matches a fresh one, and toRgba writes opaque RGBA', () => {
+		const fns = ['x', 'y', 'x ^ y'].map(compile);
+		for (const mode of ['rgb', 'palette', 'grey', 'bit'] as const) {
+			const look = { mode, bit: 2, pal: 'fire' };
+			const buf = new Uint32Array(16 * 16).fill(7);
+			expect(paint(fns, look, 16, 3, 1, buf)).toBe(buf);
+			expect(Array.from(buf)).toEqual(Array.from(paint(fns, look, 16, 3)));
+		}
+		const data = new Uint8ClampedArray(8);
+		toRgba([0x102030, 0xffeedd], data);
+		expect(Array.from(data)).toEqual([0x10, 0x20, 0x30, 255, 0xff, 0xee, 0xdd, 255]);
+	});
+
+	test('every moving preset parses, uses t, and changes between frames', () => {
+		const moving = PRESETS.filter((p) => p.play);
+		expect(moving.length).toBeGreaterThanOrEqual(8);
+		for (const p of moving) {
+			const fns = [p.e].flat().map(compile);
+			const look = { mode: p.mode, bit: p.bit ?? 0, pal: p.pal ?? 'fire' };
+			const a = paint(fns, look, 32, 10, 4);
+			const b = paint(fns, look, 32, 60, 4);
+			expect(
+				a.some((c, i) => c !== b[i]),
+				p.label
+			).toBe(true);
+		}
+	});
+});
+
 test.describe('the pictures', () => {
 	test('x & y == 0 is Pascal triangle mod 2, built by addition, up to 256', () => {
 		expect(sierpinskiHolds(256)).toBe(true);
@@ -231,6 +319,15 @@ test.describe('the pictures', () => {
 	});
 });
 
+/** A fingerprint of the canvas, to see that the picture changed or stayed. */
+const pixels = (page: Page) =>
+	page.locator('.picture canvas').evaluate((c: HTMLCanvasElement) => {
+		const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+		let h = 0;
+		for (let i = 0; i < d.length; i++) h = (Math.imul(h, 31) + d[i]) | 0;
+		return `${c.width}:${h}`;
+	});
+
 test.describe('the bitwise-pattern-generator page', () => {
 	const URL = '/bitwise-pattern-generator';
 
@@ -245,14 +342,13 @@ test.describe('the bitwise-pattern-generator page', () => {
 	test('typing redraws, an error keeps the last picture, and the keys move the pixel', async ({ page }) => {
 		await page.goto(URL);
 		await page.waitForLoadState('networkidle');
-		const picture = page.locator('.picture svg');
-		const before = await picture.innerHTML();
+		const before = await pixels(page);
 		await page.fill('#expr0', 'x & y');
-		await expect.poll(() => picture.innerHTML()).not.toBe(before);
-		const good = await picture.innerHTML();
+		await expect.poll(() => pixels(page)).not.toBe(before);
+		const good = await pixels(page);
 		await page.fill('#expr0', '(x ^ y))');
 		await expect(page.locator('#err0')).toContainText('Unexpected ) at position 8');
-		expect(await picture.innerHTML()).toBe(good);
+		expect(await pixels(page)).toBe(good);
 		await page.fill('#expr0', 'x ^ y');
 		await page.locator('.picture').focus();
 		await page.keyboard.press('ArrowRight');
@@ -270,7 +366,7 @@ test.describe('the bitwise-pattern-generator page', () => {
 		await page.getByRole('button', { name: 'RGB', exact: true }).click();
 		await page.fill('#expr2', 'x + t');
 		await expect(page.locator('.field')).toHaveCount(3);
-		await expect(page).toHaveURL(/m=rgb/);
+		await expect(page).toHaveURL(/g=x\+%2B\+t/);
 		const url = page.url();
 		await page.reload();
 		await page.waitForLoadState('networkidle');
@@ -284,6 +380,52 @@ test.describe('the bitwise-pattern-generator page', () => {
 		await page.waitForLoadState('networkidle');
 		await page.locator('.chips').getByRole('button', { name: 'Product, high byte' }).click();
 		await expect(page.locator('#expr0')).toHaveValue('(x * y) >> 8');
-		await expect(page.locator('.picture svg')).toHaveAttribute('viewBox', '0 0 256 256');
+		await expect(page.locator('.picture canvas')).toHaveAttribute('width', '256');
+	});
+
+	test('Animate steps t at the chosen speed, and a moving preset starts by itself', async ({ page }) => {
+		await page.goto(`${URL}?v=120`);
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#speed')).toHaveValue('120');
+		const animate = page.getByRole('button', { name: 'Animate' });
+		await expect(animate).toHaveAttribute('aria-pressed', 'false');
+		await animate.click();
+		await expect(page.locator('#t')).not.toHaveValue('0');
+		await animate.click();
+		await expect(animate).toHaveAttribute('aria-pressed', 'false');
+		const stopped = await page.locator('#t').inputValue();
+		await page.waitForTimeout(300);
+		expect(await page.locator('#t').inputValue()).toBe(stopped);
+		await expect(page).toHaveURL(/v=120/);
+		await page.locator('.chips').getByRole('button', { name: 'Plasma' }).click();
+		await expect(animate).toHaveAttribute('aria-pressed', 'true');
+		await expect(page.locator('input[id^=expr]')).toHaveCount(3);
+		const a = await pixels(page);
+		await expect.poll(() => pixels(page)).not.toBe(a);
+		await page.locator('.chips').getByRole('button', { name: 'XOR texture' }).click();
+		await expect(animate).toHaveAttribute('aria-pressed', 'false');
+	});
+
+	test('dragging t does not hammer history.replaceState', async ({ page }) => {
+		await page.addInitScript(() => {
+			const w = window as unknown as { calls: number };
+			w.calls = 0;
+			const original = history.replaceState.bind(history);
+			history.replaceState = (...args) => {
+				w.calls++;
+				return original(...args);
+			};
+		});
+		await page.goto(URL);
+		await page.waitForLoadState('networkidle');
+		await page.evaluate(() => {
+			const t = document.getElementById('t') as HTMLInputElement;
+			for (let i = 1; i <= 200; i++) {
+				t.value = String(i % 256);
+				t.dispatchEvent(new Event('input', { bubbles: true }));
+			}
+		});
+		await expect(page).toHaveURL(/t=200/);
+		expect(await page.evaluate(() => (window as unknown as { calls: number }).calls)).toBeLessThan(60);
 	});
 });

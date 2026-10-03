@@ -9,6 +9,9 @@
 // people draw this on. Division and remainder by zero give 0, which beats
 // stopping half way through an image (row 0 of `x % y` is not an error).
 // Shift counts use their low 5 bits, as JavaScript and most CPUs do.
+//
+// Six functions are there for moving pictures: abs, min, max, sqrt (the integer
+// part), and sin and cos, which take a whole turn as 256 and give -127 to 127.
 
 import type { Layout, Tone } from '$lib/arithmetic';
 
@@ -23,7 +26,7 @@ export class PatternError extends Error {
 
 export type Fn = (x: number, y: number, t: number) => number;
 
-/** op is 'num', 'x', 'y', 't', 'u-', 'u~', 'u+' or the binary operator itself. */
+/** op is 'num', 'x', 'y', 't', 'u-', 'u~', 'u+', 'f:name' for a function, or the binary operator itself. */
 export interface Node {
 	op: string;
 	a?: Node;
@@ -37,12 +40,16 @@ export interface Node {
 export const MAX_LENGTH = 400;
 const MAX_DEPTH = 64;
 // Lowest precedence first, as in C: | ^ & shifts, then + -, then * / %.
+/** Function names and how many arguments each takes. */
+export const FUNCS: Record<string, number> = { abs: 1, min: 2, max: 2, sqrt: 1, sin: 1, cos: 1 };
+/** sin of a whole turn split into 256 steps, scaled to 127 and rounded. */
+export const SIN = Int8Array.from({ length: 256 }, (_, i) => Math.round(127 * Math.sin((2 * Math.PI * i) / 256)));
 const LEVELS = ['|', '^', '&', '<< >>', '+ -', '* / %'].map((l) => l.split(' '));
 
 export function parse(src: string): Node {
 	if (src.length > MAX_LENGTH)
 		throw new PatternError(`Expression is longer than ${MAX_LENGTH} characters`, MAX_LENGTH + 1);
-	type Tok = { k: 'n' | 'id' | 'op' | '(' | ')' | 'end'; text: string; v?: number; s: number; e: number };
+	type Tok = { k: 'n' | 'id' | 'op' | '(' | ')' | ',' | 'end'; text: string; v?: number; s: number; e: number };
 	const toks: Tok[] = [];
 	for (let i = 0; i < src.length; ) {
 		const c = src[i];
@@ -62,10 +69,13 @@ export function parse(src: string): Node {
 			i += m.length;
 		} else if (/[a-zA-Z_]/.test(c)) {
 			const m = /^[a-zA-Z_][a-zA-Z0-9_]*/.exec(src.slice(i))?.[0] ?? '';
-			if (!['x', 'y', 't'].includes(m))
-				throw new PatternError(`Unknown name ${m} at position ${i + 1}: use x, y or t`, i + 1);
-			toks.push({ k: 'id', text: m, s: i, e: i + 1 });
-			i++;
+			if (!['x', 'y', 't'].includes(m) && !(m in FUNCS))
+				throw new PatternError(
+					`Unknown name ${m} at position ${i + 1}: use x, y, t or a function (${Object.keys(FUNCS).join(', ')})`,
+					i + 1
+				);
+			toks.push({ k: 'id', text: m, s: i, e: i + m.length });
+			i += m.length;
 		} else if (c === '<' || c === '>') {
 			if (src[i + 1] !== c)
 				throw new PatternError(
@@ -77,7 +87,7 @@ export function parse(src: string): Node {
 		} else if ('~+-*/%&^|'.includes(c)) {
 			toks.push({ k: 'op', text: c, s: i, e: i + 1 });
 			i++;
-		} else if (c === '(' || c === ')') {
+		} else if (c === '(' || c === ')' || c === ',') {
 			toks.push({ k: c, text: c, s: i, e: i + 1 });
 			i++;
 		} else {
@@ -107,6 +117,26 @@ export function parse(src: string): Node {
 		}
 		p++;
 		if (tok.k === 'n') return { op: 'num', v: tok.v, s: tok.s, e: tok.e };
+		if (tok.k === 'id' && tok.text in FUNCS) {
+			if (toks[p].k !== '(')
+				throw new PatternError(`${tok.text} needs ( and its argument after it, at position ${tok.e + 1}`, tok.e + 1);
+			p++;
+			const a = binary(0, depth + 1);
+			let b: Node | undefined;
+			if (FUNCS[tok.text] === 2) {
+				if (toks[p].k !== ',')
+					throw new PatternError(`${tok.text} needs two arguments, separated by a comma`, toks[p].s + 1);
+				p++;
+				b = binary(0, depth + 1);
+			}
+			const close = toks[p];
+			if (close.k !== ')')
+				throw close.k === 'end'
+					? new PatternError(`The ( at position ${tok.e + 1} is never closed`, tok.e + 1)
+					: unexpected(close);
+			p++;
+			return { op: 'f:' + tok.text, a, b, s: tok.s, e: close.e };
+		}
 		if (tok.k === 'id') return { op: tok.text, s: tok.s, e: tok.e };
 		if (tok.k === '(') {
 			const inner = binary(0, depth + 1);
@@ -175,6 +205,24 @@ export function build(n: Node): Fn {
 				const d = b(x, y, t);
 				return d === 0 ? 0 : a(x, y, t) % d | 0;
 			};
+		case 'f:abs':
+			return (x, y, t) => {
+				const v = a(x, y, t);
+				return v < 0 ? -v | 0 : v;
+			};
+		case 'f:min':
+			return (x, y, t) => Math.min(a(x, y, t), b(x, y, t));
+		case 'f:max':
+			return (x, y, t) => Math.max(a(x, y, t), b(x, y, t));
+		case 'f:sqrt':
+			return (x, y, t) => {
+				const v = a(x, y, t);
+				return v > 0 ? Math.floor(Math.sqrt(v)) : 0;
+			};
+		case 'f:sin':
+			return (x, y, t) => SIN[a(x, y, t) & 255];
+		case 'f:cos':
+			return (x, y, t) => SIN[(a(x, y, t) + 64) & 255];
 		case '<<':
 			return (x, y, t) => a(x, y, t) << b(x, y, t);
 		case '>>':
@@ -356,12 +404,45 @@ export function colourOf(look: Look, v: number, g = v, b = v): number {
 	}
 }
 
-/** The colours of a whole grid: one function normally, three in RGB mode. */
-export function paint(fns: Fn[], look: Look, size: number, t: number, step = 1): Uint32Array {
-	const grids = (look.mode === 'rgb' ? fns.slice(0, 3) : fns.slice(0, 1)).map((f) => evalGrid(f, size, t, step));
-	const out = new Uint32Array(size * size);
-	for (let i = 0; i < out.length; i++) out[i] = colourOf(look, grids[0][i], grids[1]?.[i], grids[2]?.[i]);
+/**
+ * The colours of a whole grid: one function normally, three in RGB mode. Pass
+ * `out` to reuse a buffer between frames. Single-function modes look each
+ * value up in a 256-entry table instead of working the colour out per pixel.
+ */
+export function paint(
+	fns: Fn[],
+	look: Look,
+	size: number,
+	t: number,
+	step = 1,
+	out = new Uint32Array(size * size)
+): Uint32Array {
+	const [f, g, h] = fns;
+	if (look.mode === 'rgb' && g && h) {
+		for (let y = 0, i = 0; y < size; y++)
+			for (let x = 0; x < size; x++, i++) {
+				const X = x * step;
+				const Y = y * step;
+				out[i] = ((f(X, Y, t) & 255) << 16) | ((g(X, Y, t) & 255) << 8) | (h(X, Y, t) & 255);
+			}
+		return out;
+	}
+	const lut = Uint32Array.from({ length: 256 }, (_, v) => colourOf(look, v));
+	for (let y = 0, i = 0; y < size; y++)
+		for (let x = 0; x < size; x++, i++) out[i] = lut[f(x * step, y * step, t) & 255];
 	return out;
+}
+
+/** Copies packed 0xRRGGBB colours into canvas pixel data (RGBA bytes). */
+export function toRgba(colours: ArrayLike<number>, data: Uint8ClampedArray) {
+	for (let i = 0, j = 0; i < colours.length; i++, j += 4) {
+		const c = colours[i];
+		// Masked, because a clamped array saturates at 255 instead of keeping the low byte.
+		data[j] = (c >> 16) & 255;
+		data[j + 1] = (c >> 8) & 255;
+		data[j + 2] = c & 255;
+		data[j + 3] = 255;
+	}
 }
 
 const hex6 = (c: number) => '#' + c.toString(16).padStart(6, '0');
@@ -443,6 +524,8 @@ export interface Preset {
 	bit?: number;
 	pal?: string;
 	t?: number;
+	/** Starts animating when loaded: the expression uses t. */
+	play?: boolean;
 	note: string;
 }
 
@@ -523,7 +606,79 @@ export const PRESETS: Preset[] = [
 		size: 128,
 		mode: 'palette',
 		pal: 'ocean',
+		play: true,
 		note: 'Adds the frame number, so the colours cycle as t moves.'
+	},
+	{
+		label: 'Plasma',
+		e: [
+			'128 + sin(x * 3 + t * 2) / 2 + sin(y * 4 - t * 3) / 2',
+			'128 + sin((x + y) * 2 + t * 4) / 2 + sin(x * 5) / 2',
+			'128 + sin(sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64)) * 6 - t * 4) / 2 + sin(y * 3 + t) / 2'
+		],
+		size: 128,
+		mode: 'rgb',
+		t: 30,
+		play: true,
+		note: 'Each channel adds two sines with different speeds and directions, so the colours drift against each other.'
+	},
+	{
+		label: 'Ripples',
+		e: 'sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64)) * 6 - t * 4',
+		size: 128,
+		mode: 'palette',
+		pal: 'spectrum',
+		t: 30,
+		play: true,
+		note: 'Distance from the middle, times 6, minus 4t. A ring is one value, so as t grows the rings move outwards.'
+	},
+	{
+		label: 'Pond',
+		e: 'sin(sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64)) * 8 - t * 6) + 128',
+		size: 128,
+		mode: 'grey',
+		t: 30,
+		play: true,
+		note: 'The sine of the distance, moved up by 128 so that it runs from 1 to 255 and not from -127 to 127.'
+	},
+	{
+		label: 'Waves',
+		e: 'y * 2 + sin(x * 4 + t * 4) / 2',
+		size: 128,
+		mode: 'palette',
+		pal: 'ocean',
+		t: 30,
+		play: true,
+		note: 'The sine bends the bands that y * 2 would draw, and t slides it sideways.'
+	},
+	{
+		label: 'Two centres',
+		e: 'sqrt((x - 32 - (t >> 1)) * (x - 32 - (t >> 1)) + (y - 64) * (y - 64)) ^ sqrt((x - 96) * (x - 96) + (y - 64) * (y - 64))',
+		size: 128,
+		mode: 'palette',
+		pal: 'spectrum',
+		t: 30,
+		play: true,
+		note: 'The distance to two points, XORed. The left point slides right as t grows, and the fringes between them change.'
+	},
+	{
+		label: 'Sierpinski sweep',
+		e: '((x & y) - t) >> 31',
+		size: 128,
+		mode: 'grey',
+		t: 40,
+		play: true,
+		note: 'White wherever x & y is below t. Cells with a small x & y fill in first; from t = 128 on, every cell is white.'
+	},
+	{
+		label: 'Tunnel',
+		e: 'sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64)) ^ (t + x + y)',
+		size: 128,
+		mode: 'palette',
+		pal: 'spectrum',
+		t: 30,
+		play: true,
+		note: 'Distance from the middle XOR a diagonal that slides with t.'
 	},
 	{
 		label: 'Bit 5 of XOR',

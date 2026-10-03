@@ -15,6 +15,7 @@
 		compile,
 		paint,
 		evalGrid,
+		toRgba,
 		toSvg,
 		exportCell,
 		rootWorking,
@@ -37,7 +38,18 @@
 
 	const SIZES = [16, 32, 64, 128, 256];
 	const NAMES = ['Expression', 'Red', 'Green', 'Blue'];
-	const DEFAULTS = { e: 'x ^ y', r: 'x ^ y', g: 'x | y', b: 'x & y', s: 128, m: 'palette', k: 6, p: 'spectrum', t: 0 };
+	const DEFAULTS = {
+		e: 'x ^ y',
+		r: 'x ^ y',
+		g: 'x | y',
+		b: 'x & y',
+		s: 128,
+		m: 'palette',
+		k: 6,
+		p: 'spectrum',
+		t: 0,
+		v: 15
+	};
 
 	// Index 0 is the single expression, 1 to 3 are red, green and blue.
 	let ex = [DEFAULTS.e, DEFAULTS.r, DEFAULTS.g, DEFAULTS.b];
@@ -46,6 +58,7 @@
 	let bit = DEFAULTS.k;
 	let pal = DEFAULTS.p;
 	let t = DEFAULTS.t;
+	let speed = DEFAULTS.v;
 	let sel = { x: 45, y: 22 };
 
 	onMount(() => {
@@ -64,6 +77,8 @@
 				PALETTES.map((q) => q.id)
 			) ?? pal;
 		t = safeInt(p.t, 0, 255) ?? t;
+		speed = safeInt(p.v, 1, 120) ?? speed;
+		mounted = true;
 		thumbs = drawThumbs();
 		reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 		// Written back once settled, so a value the page refused does not stay in the link.
@@ -81,10 +96,17 @@
 		}
 	});
 
-	// While any expression is invalid the last good picture stays up.
+	// While any expression is invalid the last good picture stays up. The server
+	// sends an SVG; once the page is running, a canvas takes over, because
+	// rebuilding an SVG 30 times a second is far slower than filling pixels.
 	let svg = '';
+	let mounted = false;
+	let canvas: HTMLCanvasElement | undefined;
+	let frame: ImageData | undefined;
+	let buffer = new Uint32Array(0);
 	$: look = { mode, bit, pal };
-	$: if (tries.every((r) => r.fn))
+	$: ok = tries.every((r) => r.fn);
+	$: if (ok && !mounted)
 		svg = toSvg(
 			paint(
 				tries.map((r) => r.fn as Fn),
@@ -96,6 +118,23 @@
 			1,
 			'The picture the expression draws'
 		);
+	$: if (canvas && ok)
+		draw(
+			canvas,
+			tries.map((r) => r.fn as Fn),
+			look,
+			size,
+			t
+		);
+	function draw(c: HTMLCanvasElement, fns: Fn[], lk: typeof look, n: number, time: number) {
+		if (buffer.length !== n * n) buffer = new Uint32Array(n * n);
+		if (frame?.width !== n) {
+			c.width = c.height = n;
+			frame = c.getContext('2d')!.createImageData(n, n);
+		}
+		toRgba(paint(fns, lk, n, time, 1, buffer), frame.data);
+		c.getContext('2d')!.putImageData(frame, 0, 0);
+	}
 	$: if (sel.x >= size || sel.y >= size) sel = { x: Math.min(sel.x, size - 1), y: Math.min(sel.y, size - 1) };
 
 	// What the chosen pixel is, per expression.
@@ -138,23 +177,36 @@
 	}
 
 	// Animation: off until asked for, and not offered when the system asks for less motion.
+	// t advances by `speed` steps a second, however fast frames are drawn.
 	let reduced = false;
 	let playing = false;
-	let timer: ReturnType<typeof setInterval>;
+	let last = 0;
+	let owed = 0;
+	function step(now: number) {
+		if (!playing) return;
+		owed += (Math.min(now - last, 250) * speed) / 1000;
+		last = now;
+		const n = Math.floor(owed);
+		owed -= n;
+		if (n) t = (t + n) % 256;
+		requestAnimationFrame(step);
+	}
 	function play() {
 		playing = !playing;
-		clearInterval(timer);
-		if (playing) timer = setInterval(() => (t = (t + 1) % 256), 70);
+		last = performance.now();
+		owed = 0;
+		if (playing) requestAnimationFrame(step);
 	}
-	onDestroy(() => clearInterval(timer));
+	onDestroy(() => (playing = false));
 
-	$: urlState = { e: ex[0], r: ex[1], g: ex[2], b: ex[3], s: size, m: mode, k: bit, p: pal, t };
+	$: urlState = { e: ex[0], r: ex[1], g: ex[2], b: ex[3], s: size, m: mode, k: bit, p: pal, t, v: speed };
 	$: playing || syncUrl(urlState, DEFAULTS);
 
 	function usePreset(p: Preset) {
 		const e = typeof p.e === 'string' ? [p.e, ex[1], ex[2], ex[3]] : [ex[0], ...p.e];
 		ex = e;
 		[size, mode, bit, pal, t] = [p.size, p.mode, p.bit ?? bit, p.pal ?? pal, p.t ?? 0];
+		if (!!p.play !== playing && !(p.play && reduced)) play();
 	}
 
 	let status = '';
@@ -234,7 +286,19 @@
 		['<<  >>', 'Shift left, right', 'The right shift keeps the sign. The count uses its low 5 bits.'],
 		['&', 'AND', 'A bit is 1 only where both inputs have a 1.'],
 		['^', 'XOR', 'A bit is 1 where the inputs differ.'],
-		['|', 'OR', 'A bit is 1 where either input has a 1. Binds loosest.']
+		['|', 'OR', 'A bit is 1 where either input has a 1. Binds loosest.'],
+		['abs(a)', 'Absolute value', 'The most negative 32-bit number has no positive twin, so it stays negative.'],
+		['min(a, b)  max(a, b)', 'Smaller, larger', 'Of two values.'],
+		[
+			'sqrt(a)',
+			'Square root',
+			'Rounded down to a whole number; 0 for zero or less. sqrt(x * x + y * y) is distance from the corner.'
+		],
+		[
+			'sin(a)  cos(a)',
+			'Sine, cosine',
+			'a counts a whole turn as 256, so only its low 8 bits matter. Results are whole numbers from -127 to 127: sin(64) is 127, sin(192) is -127, and cos(a) is sin(a + 64).'
+		]
 	];
 
 	const faqs = [
@@ -253,6 +317,10 @@
 		{
 			q: 'Why are the pictures limited to 256 shades?',
 			a: 'A pixel is the low 8 bits of the result, so any value wraps: 256 draws the same shade as 0, and -1 the same as 255. Wrapping is what makes x * y curve into bands. To see higher bits, shift them down first, as in (x * y) >> 8.'
+		},
+		{
+			q: 'Why do sin and cos give whole numbers from -127 to 127?',
+			a: 'Everything in the expression is a 32-bit whole number, so sin takes a whole turn as 256 (only its low 8 bits count) and returns 127 times the sine, rounded: sin(64) is 127, sin(0) is 0 and sin(192) is -127. Add 128 to centre it on mid grey, as the Pond starting point does, or halve it before adding several together, as Plasma does.'
 		},
 		{
 			q: 'What happens when I divide by zero?',
@@ -322,7 +390,8 @@
 				{/if}
 			{/each}
 			<p class="field-help">
-				Use x, y and t, whole numbers (decimal, 0x1F, 0b101) and ~ - * / % + &lt;&lt; &gt;&gt; &amp; ^ | with brackets.
+				Use x, y and t, whole numbers (decimal, 0x1F, 0b101), ~ - * / % + &lt;&lt; &gt;&gt; &amp; ^ | with brackets, and
+				the functions abs, min, max, sqrt, sin and cos.
 			</p>
 
 			<div class="chips">
@@ -382,10 +451,15 @@
 						>Animate</button
 					>
 				</div>
+				<div class="opt">
+					<label class="opt-label" for="speed">Speed</label>
+					<input id="speed" type="range" min="1" max="120" bind:value={speed} />
+					<output class="mono" for="speed">{speed} steps/s</output>
+				</div>
 				<p class="field-help" id="t-help">
 					{reduced
 						? 'Animation is off because your system asks for reduced motion. Drag t instead.'
-						: 't is a frame number from 0 to 255 you can use in the expression.'}
+						: 't is a frame number from 0 to 255 you can use in the expression. Animate steps it at the speed set here.'}
 				</p>
 			</div>
 
@@ -401,7 +475,11 @@
 					on:click={(e) => pointer(e, true)}
 					on:keydown={key}
 				>
-					{@html svg}
+					{#if mounted}
+						<canvas bind:this={canvas} aria-hidden="true" />
+					{:else}
+						{@html svg}
+					{/if}
 					<span
 						class="marker"
 						style="left: {(sel.x / size) * 100}%; top: {(sel.y / size) * 100}%; width: {100 / size}%; height: {100 /
@@ -468,9 +546,11 @@
 			so adding past 2,147,483,647 wraps round to negative, and the picture shows the low 8 bits of the result: in greyscale,
 			0 is black and 255 is white.
 		</p>
-		<div class="table-wrap scroll-box" use:scrollRegion data-label="Operators">
+		<div class="table-wrap scroll-box" use:scrollRegion data-label="Operators and functions">
 			<table class="data-table">
-				<thead><tr><th scope="col">Operator</th><th scope="col">Name</th><th scope="col">Notes</th></tr></thead>
+				<thead
+					><tr><th scope="col">Operator or function</th><th scope="col">Name</th><th scope="col">Notes</th></tr></thead
+				>
 				<tbody>
 					{#each OPS as [op, name, note]}
 						<tr><th scope="row" class="mono nowrap">{op}</th><td>{name}</td><td>{note}</td></tr>
@@ -575,10 +655,11 @@
 	<section>
 		<h2>Animating t</h2>
 		<p>
-			The slider sets <span class="mono">t</span> to a value from 0 to 255 and the Animate button steps it once every 70
-			milliseconds, wrapping from 255 to 0. Try <span class="mono">(x ^ y) + t</span> in a palette, or
-			<span class="mono">(x ^ t) &amp; y</span> in One bit. Animation never starts by itself, and it is switched off if your
-			system asks for reduced motion.
+			The slider sets <span class="mono">t</span> to a value from 0 to 255 and the Animate button steps it, wrapping
+			from 255 to 0, at the number of steps a second set by the Speed slider. Try <span class="mono">(x ^ y) + t</span>
+			in a palette, or <span class="mono">(x ^ t) &amp; y</span> in One bit. The starting points marked as moving, such as
+			Plasma and Ripples, begin animating when you load them. Animation never starts by itself otherwise, and it is switched
+			off if your system asks for reduced motion.
 		</p>
 	</section>
 
@@ -739,10 +820,15 @@
 		cursor: crosshair;
 		aspect-ratio: 1;
 	}
-	.picture :global(svg) {
+	.picture :global(svg),
+	.picture canvas {
 		display: block;
 		width: 100%;
 		height: auto;
+		aspect-ratio: 1;
+	}
+	.picture canvas {
+		image-rendering: pixelated;
 	}
 	.marker {
 		position: absolute;
