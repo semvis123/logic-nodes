@@ -200,6 +200,7 @@
 <PageHead {page} {faqs} crumb="Snowflake ID decoder" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/uuid-decoder', label: 'UUID decoder and generator' },
 		{ href: '/integer-limits', label: 'Integer limits' },
@@ -479,10 +480,6 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
@@ -510,14 +507,6 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 		border-color: #5db65d;
 		color: #fff;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.value-input {
 		width: 100%;
 		box-sizing: border-box;
@@ -737,11 +726,6 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 		text-align: left;
 		white-space: nowrap;
 	}
-
-	.nowrap {
-		white-space: nowrap;
-	}
-
 	#how-it-works .section-intro {
 		margin-top: 1rem;
 	}
@@ -758,21 +742,9 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 	.years {
 		width: auto;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	.visually-hidden {
 		position: absolute;
 		width: 1px;

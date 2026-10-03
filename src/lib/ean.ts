@@ -19,18 +19,8 @@ export class BarcodeError extends Error {}
  * Every code is seven modules wide, two bars and two spaces, and starts with a
  * space. These ten strings are the only hand-written table; G and R follow.
  */
-export const L_CODES: readonly string[] = [
-	'0001101',
-	'0011001',
-	'0010011',
-	'0111101',
-	'0100011',
-	'0110001',
-	'0101111',
-	'0111011',
-	'0110111',
-	'0001011'
-];
+export const L_CODES: readonly string[] =
+	'0001101 0011001 0010011 0111101 0100011 0110001 0101111 0111011 0110111 0001011'.split(' ');
 
 const invert = (bits: string) => bits.replace(/[01]/g, (b) => (b === '0' ? '1' : '0'));
 const reverse = (bits: string) => [...bits].reverse().join('');
@@ -48,18 +38,8 @@ export const CODE_SETS: Record<CodeSet, readonly string[]> = { L: L_CODES, G: G_
  * the first digit. The first digit has no bars of its own: this pattern is how
  * it gets into the symbol. 0 is all L, which is exactly a UPC-A.
  */
-export const PARITY_PATTERNS: readonly string[] = [
-	'LLLLLL',
-	'LLGLGG',
-	'LLGGLG',
-	'LLGGGL',
-	'LGLLGG',
-	'LGGLLG',
-	'LGGGLL',
-	'LGLGLG',
-	'LGLGGL',
-	'LGGLGL'
-];
+export const PARITY_PATTERNS: readonly string[] =
+	'LLLLLL LLGLGG LLGGLG LLGGGL LGLLGG LGGLLG LGGGLL LGLGLG LGLGGL LGGLGL'.split(' ');
 
 export const GUARDS = { start: '101', centre: '01010', end: '101' } as const;
 

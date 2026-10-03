@@ -807,105 +807,14 @@ function readFtyp(v: ByteView) {
 // --- Text ------------------------------------------------------------------
 
 /** Extensions for text, which has no signature, so none of them can be called wrong for plain text. */
-export const TEXT_EXTS = [
-	'txt',
-	'text',
-	'md',
-	'markdown',
-	'csv',
-	'tsv',
-	'json',
-	'jsonl',
-	'ndjson',
-	'log',
-	'ini',
-	'cfg',
-	'conf',
-	'yaml',
-	'yml',
-	'toml',
-	'js',
-	'mjs',
-	'cjs',
-	'ts',
-	'jsx',
-	'tsx',
-	'css',
-	'scss',
-	'less',
-	'py',
-	'sh',
-	'bash',
-	'zsh',
-	'c',
-	'h',
-	'cpp',
-	'hpp',
-	'cc',
-	'java',
-	'kt',
-	'cs',
-	'rs',
-	'go',
-	'rb',
-	'pl',
-	'php',
-	'lua',
-	'r',
-	'sql',
-	'tex',
-	'srt',
-	'vtt',
-	'svg',
-	'html',
-	'htm',
-	'xml',
-	'xhtml',
-	'bat',
-	'ps1',
-	'asm',
-	's',
-	'vhd',
-	'v',
-	'sv',
-	'swift',
-	'hs',
-	'ml',
-	'ex',
-	'exs',
-	'el',
-	'lisp',
-	'clj',
-	'scala',
-	'dart',
-	'vue',
-	'svelte',
-	'rtf',
-	'ps',
-	'eps',
-	'env',
-	'gitignore'
-];
+export const TEXT_EXTS = (
+	'txt text md markdown csv tsv json jsonl ndjson log ini cfg conf yaml yml toml js mjs cjs ts jsx tsx ' +
+	'css scss less py sh bash zsh c h cpp hpp cc java kt cs rs go rb pl php lua r sql tex srt vtt svg ' +
+	'html htm xml xhtml bat ps1 asm s vhd v sv swift hs ml ex exs el lisp clj scala dart vue svelte rtf ' +
+	'ps eps env gitignore'
+).split(' ');
 
-const XML_EXTS = [
-	'svg',
-	'xhtml',
-	'rss',
-	'atom',
-	'plist',
-	'xsd',
-	'xsl',
-	'xslt',
-	'kml',
-	'gpx',
-	'config',
-	'resx',
-	'xaml',
-	'opf',
-	'ncx',
-	'musicxml',
-	'drawio'
-];
+const XML_EXTS = 'svg xhtml rss atom plist xsd xsl xslt kml gpx config resx xaml opf ncx musicxml drawio'.split(' ');
 
 const SCRIPT_KINDS: { match: RegExp; name: string; exts: string[] }[] = [
 	{ match: /^python/, name: 'Python script', exts: ['py'] },
@@ -1181,33 +1090,10 @@ const frameFacts = (f: MpegFrame) => [
 
 // --- The formats -------------------------------------------------------------
 
-const ZIP_FAMILY = [
-	'zip',
-	'docx',
-	'xlsx',
-	'pptx',
-	'docm',
-	'xlsm',
-	'pptm',
-	'odt',
-	'ods',
-	'odp',
-	'odg',
-	'epub',
-	'jar',
-	'apk',
-	'xpi',
-	'aar',
-	'whl',
-	'nupkg',
-	'ipa',
-	'kmz',
-	'cbz',
-	'3mf',
-	'vsdx',
-	'war',
-	'ear'
-];
+const ZIP_FAMILY =
+	'zip docx xlsx pptx docm xlsm pptm odt ods odp odg epub jar apk xpi aar whl nupkg ipa kmz cbz 3mf vsdx war ear'.split(
+		' '
+	);
 
 const TYPES: TypeDef[] = [
 	{

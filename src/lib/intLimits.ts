@@ -384,7 +384,6 @@ export const ops: { id: Op; label: string; name: string }[] = [
 	{ id: 'cast', label: 'cast to', name: 'cast' }
 ];
 
-export type WrapStep = { text: string };
 
 export type OpResult = {
 	from: IntType;

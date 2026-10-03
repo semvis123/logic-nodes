@@ -8,6 +8,8 @@
 	// Shared chrome and design system for the content pages (the editor itself
 	// is a separate world). Everything is scoped under .content so the styles
 	// can never reach the canvas route after a client side navigation.
+	/** A tool page: also gets the small shared pieces of tool-page styling below. */
+	export let tool = false;
 	export let related: { href: string; label: string }[] = [];
 
 	// The tools would swamp the bar, so they live behind a hub page.
@@ -97,7 +99,7 @@
 
 <svelte:window on:beforeprint={openAll} />
 
-<div class="content">
+<div class="content" class:tool-page={tool}>
 	<!-- The first thing a keyboard user reaches, so the nav can be stepped over
 	     on every page rather than tabbed through each time. -->
 	<a class="skip" href="#main">Skip to content</a>
@@ -376,6 +378,39 @@
 	}
 
 	/* --- shared layout and components for the slotted page content --- */
+
+	/* --- pieces every tool page repeats: the intro gap, input labels, bullet lists --- */
+
+	.content.tool-page :global(.intro) {
+		padding-top: 64px;
+	}
+
+	.content.tool-page :global(.field) {
+		display: block;
+		font-size: 0.85rem;
+		color: #ddd;
+		margin-bottom: 0.35rem;
+	}
+
+	.content.tool-page :global(.points) {
+		color: #ddd;
+		max-width: 720px;
+		padding-left: 1.25rem;
+	}
+
+	.content.tool-page :global(.points strong) {
+		color: #fff;
+	}
+
+	.content.tool-page :global(.nowrap) {
+		white-space: nowrap;
+	}
+
+	.content.tool-page :global(.opt button.active) {
+		background-color: #372;
+		border-color: #5db65d;
+		color: #fff;
+	}
 
 	.content :global(section) {
 		max-width: 940px;

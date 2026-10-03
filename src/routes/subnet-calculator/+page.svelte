@@ -259,6 +259,7 @@
 <PageHead {page} {faqs} crumb="Subnet calculator" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/vlsm-calculator', label: 'VLSM calculator' },
 		{ href: '/ipv6-expand-compress', label: 'IPv6 expand and compress' },
@@ -684,22 +685,10 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.field.inline {
 		margin: 0;
 	}
@@ -971,21 +960,9 @@
 		gap: 0.6rem;
 		margin: 1rem 0 0;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	.worked-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -1034,11 +1011,6 @@
 	.num {
 		text-align: right !important;
 	}
-
-	.nowrap {
-		white-space: nowrap;
-	}
-
 	.special-table td:first-child {
 		white-space: nowrap;
 	}

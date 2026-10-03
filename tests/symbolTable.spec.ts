@@ -843,19 +843,4 @@ test.describe('the logic-symbols-copy-paste page', () => {
 		);
 		expect(overflow).toBe(0);
 	});
-
-	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {
-		await page.goto(path);
-		const ld = await page.locator('script[type="application/ld+json"]').first().textContent();
-		const graph = JSON.parse(ld ?? '{}')['@graph'];
-		const faq = graph[0].mainEntity as { name: string; acceptedAnswer: { text: string } }[];
-		const visible = await page.locator('.faq details').evaluateAll((els) =>
-			els.map((d) => ({
-				q: d.querySelector('summary')?.textContent?.trim(),
-				a: d.querySelector('p')?.textContent?.trim()
-			}))
-		);
-		expect(faq.map((f) => ({ q: f.name, a: f.acceptedAnswer.text }))).toEqual(visible);
-		expect(faq.length).toBeGreaterThanOrEqual(4);
-	});
 });

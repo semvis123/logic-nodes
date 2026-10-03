@@ -283,6 +283,7 @@
 <PageHead {page} {faqs} crumb="QR code generator" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/ean-13-barcode-generator', label: 'EAN-13 barcode generator' },
 		{ href: '/binary-translator', label: 'Binary translator' },
@@ -734,22 +735,10 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.text-input {
 		width: 100%;
 		box-sizing: border-box;
@@ -819,13 +808,6 @@
 		font-weight: normal;
 		font-size: 0.75rem;
 	}
-
-	.opt button.active {
-		background-color: #372;
-		border-color: #5db65d;
-		color: #fff;
-	}
-
 	.opt button.active .pct {
 		color: #e6f5e6;
 	}
@@ -1207,21 +1189,9 @@
 	.formula {
 		font-size: 0.75rem;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	.scroll-box {
 		overflow: auto;
 	}

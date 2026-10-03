@@ -314,6 +314,7 @@
 <PageHead {page} {faqs} crumb="UUID decoder and generator" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/snowflake-id-decoder', label: 'Snowflake ID decoder' },
 		{ href: '/hex-to-binary', label: 'Hex to binary converter' },
@@ -785,22 +786,10 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.value-input {
 		width: 100%;
 		box-sizing: border-box;
@@ -1218,11 +1207,6 @@
 	.worked h3 {
 		color: #fff;
 	}
-
-	.nowrap {
-		white-space: nowrap;
-	}
-
 	.variant-title {
 		margin-top: 1.6rem;
 	}
@@ -1290,21 +1274,9 @@
 	.worked strong {
 		color: #8ede8e;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	@media (max-width: 720px) {
 		.quick-row {
 			grid-template-columns: 4.2rem minmax(0, 1fr);

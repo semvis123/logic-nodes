@@ -332,6 +332,7 @@ struct samples {
 <PageHead {page} {faqs} crumb="Struct padding calculator" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/integer-limits', label: 'Integer limits' },
 		{ href: '/bit-manipulation-tricks', label: 'Bit manipulation tricks' },
@@ -847,22 +848,10 @@ struct samples {
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.field.inline {
 		margin: 0;
 	}
@@ -1354,21 +1343,9 @@ struct samples {
 		gap: 0.6rem;
 		margin: 1rem 0 0;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	section > .code {
 		max-width: 720px;
 	}

@@ -328,6 +328,7 @@
 <PageHead {page} {faqs} crumb="Logic symbols to copy and paste" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/logic', label: 'Propositional logic' },
 		{ href: '/set-notation', label: 'Set notation' },
@@ -618,10 +619,6 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
@@ -638,14 +635,6 @@
 		flex: 1 1 280px;
 		min-width: 0;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	#filter {
 		width: 100%;
 		box-sizing: border-box;

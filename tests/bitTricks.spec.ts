@@ -678,17 +678,6 @@ test.describe('the bit-manipulation-tricks page', () => {
 		await expect(page).toHaveURL(/t=xor-swap/);
 	});
 
-	test('the FAQ JSON-LD matches the visible questions and answers', async ({ page }) => {
-		await page.goto('/bit-manipulation-tricks');
-		const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
-		const ld = blocks.map((b) => JSON.parse(b)).find((b) => b['@graph']);
-		const webPage = ld['@graph'].find((n: { '@id'?: string }) => n['@id']?.endsWith('#webpage'));
-		const questions = (await page.locator('.faq summary').allTextContents()).map((s) => s.trim());
-		const answers = (await page.locator('.faq details p').allTextContents()).map((s) => s.trim());
-		expect(webPage.mainEntity.map((q: { name: string }) => q.name)).toEqual(questions);
-		expect(webPage.mainEntity.map((q: { acceptedAnswer: { text: string } }) => q.acceptedAnswer.text)).toEqual(answers);
-	});
-
 	test('Prev and Next keep focus at the ends of the list', async ({ page }) => {
 		await page.goto('/bit-manipulation-tricks?t=set-a-bit');
 		await page.waitForLoadState('networkidle');

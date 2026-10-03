@@ -292,6 +292,7 @@
 <PageHead {page} {faqs} crumb="Base32 encode and decode" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/base64', label: 'Base64 encode and decode' },
 		{ href: '/base58', label: 'Base58 encode and decode' },
@@ -735,10 +736,6 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
@@ -774,14 +771,6 @@
 		gap: 0.6rem 1.1rem;
 		margin-bottom: 0.9rem;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.expression-input,
 	.output {
 		width: 100%;
@@ -931,13 +920,6 @@
 		cursor: pointer;
 		white-space: nowrap;
 	}
-
-	.opt button.active {
-		background-color: #372;
-		border-color: #5db65d;
-		color: #fff;
-	}
-
 	.uses {
 		color: #ddd;
 		padding-left: 1.25rem;

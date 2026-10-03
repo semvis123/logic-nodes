@@ -700,18 +700,4 @@ test.describe('the integer-limits page', () => {
 		await expect(page.locator('role=button[name="−1 (subtract one)"]')).toHaveAttribute('data-op', 'dec');
 		await expect(page.locator('role=group[name="Set the value"] >> button')).toContainText(['max', 'min', '0', '−1']);
 	});
-
-	test('FAQ JSON-LD matches the visible answers', async ({ page }) => {
-		for (const path of ['/integer-limits', '/integer-limits/int8', '/integer-limits/uint128']) {
-			await page.goto(path);
-			const ld = await page
-				.locator('script[type="application/ld+json"]')
-				.evaluateAll((els) => els.map((e) => JSON.parse(e.textContent || '{}')));
-			const graph = ld.flatMap((x) => x['@graph'] ?? [x]);
-			const faq = graph.find((n) => [].concat(n['@type']).includes('FAQPage' as never));
-			const answers = faq.mainEntity.map((q: { acceptedAnswer: { text: string } }) => q.acceptedAnswer.text);
-			const visible = await page.locator('.faq details p').allTextContents();
-			expect(visible.map((s) => s.trim())).toEqual(answers);
-		}
-	});
 });

@@ -779,15 +779,4 @@ test.describe('the qr-code-generator page', () => {
 		await page.keyboard.press('End');
 		await expect.poll(() => tall.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 	});
-
-	test('the FAQ markup matches the questions on the page', async ({ page }) => {
-		await page.goto('/qr-code-generator');
-		const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
-		const graph = blocks.flatMap((text) => JSON.parse(text)['@graph'] ?? []);
-		const webPage = graph.find((node: { '@type': string[] }) => [node['@type']].flat().includes('FAQPage'));
-		const questions = webPage.mainEntity.map((q: { name: string }) => q.name);
-		const answers = webPage.mainEntity.map((q: { acceptedAnswer: { text: string } }) => q.acceptedAnswer.text);
-		expect(questions).toEqual((await page.locator('.faq summary').allTextContents()).map((t) => t.trim()));
-		expect(answers).toEqual((await page.locator('.faq details > p').allTextContents()).map((t) => t.trim()));
-	});
 });

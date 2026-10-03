@@ -404,6 +404,7 @@
 <PageHead {page} {faqs} crumb="FP16, BF16, FP8 and FP4 converter" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/ieee-754-converter', label: 'IEEE 754 converter' },
 		{ href: '/binary-converter', label: 'Binary converter' },
@@ -1103,10 +1104,6 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
@@ -1145,13 +1142,6 @@
 		cursor: pointer;
 		white-space: nowrap;
 	}
-
-	.opt button.active {
-		background-color: #372;
-		border-color: #5db65d;
-		color: #fff;
-	}
-
 	.overflow-row {
 		display: flex;
 		flex-wrap: wrap;
@@ -1159,14 +1149,6 @@
 		gap: 4px;
 		margin-bottom: 0.8rem;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.value-input {
 		width: 100%;
 		box-sizing: border-box;
@@ -1765,22 +1747,10 @@
 	.lo {
 		color: #888;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.7rem;
 		overflow-wrap: anywhere;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	.code-list summary {
 		color: #8ede8e;
 		cursor: pointer;

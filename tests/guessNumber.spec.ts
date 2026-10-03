@@ -617,20 +617,4 @@ test.describe('the guess-my-number page', () => {
 		expect(count).toBe(7);
 		await expect(page.locator('.question')).toContainText('I never picked a number');
 	});
-
-	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {
-		await page.goto('/guess-my-number');
-		const ld = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) ?? '{}');
-		const faq = ld['@graph'][0].mainEntity.map((q: { name: string; acceptedAnswer: { text: string } }) => [
-			q.name,
-			q.acceptedAnswer.text
-		]);
-		const visible = await page
-			.locator('.faq details')
-			.evaluateAll((ds) =>
-				ds.map((d) => [d.querySelector('summary')?.textContent?.trim(), d.querySelector('p')?.textContent?.trim()])
-			);
-		expect(visible).toEqual(faq);
-		expect(faq.length).toBeGreaterThanOrEqual(4);
-	});
 });

@@ -257,6 +257,7 @@
 <PageHead {page} {faqs} crumb="IPv6 expand and compress" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/subnet-calculator', label: 'Subnet calculator' },
 		{ href: '/vlsm-calculator', label: 'VLSM calculator' },
@@ -788,10 +789,6 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
@@ -802,14 +799,6 @@
 	.faq p {
 		overflow-wrap: anywhere;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.value-input {
 		width: 100%;
 		box-sizing: border-box;
@@ -1250,29 +1239,12 @@
 		gap: 6px;
 		margin-top: 0.4rem;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	.examples td {
 		overflow-wrap: break-word;
 	}
-
-	.nowrap {
-		white-space: nowrap;
-	}
-
 	.num {
 		text-align: right !important;
 	}

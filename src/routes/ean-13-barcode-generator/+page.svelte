@@ -269,6 +269,7 @@
 <PageHead {page} {faqs} crumb="EAN-13 barcode generator" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/qr-code-generator', label: 'QR code generator' },
 		{ href: '/binary-converter', label: 'Binary converter' },
@@ -961,10 +962,6 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
@@ -992,14 +989,6 @@
 		border-color: #5db65d;
 		color: #fff;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.value-input {
 		width: 100%;
 		box-sizing: border-box;
@@ -1562,21 +1551,9 @@
 	.prefix-table tr.special td {
 		color: #c7e6c7;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	.worked-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

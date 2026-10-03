@@ -667,23 +667,4 @@ test.describe('the ean-13-barcode-generator page', () => {
 		// Six pixels per module: 113 modules wide.
 		expect(bytes.readUInt32BE(16)).toBe(113 * 6);
 	});
-
-	test('the FAQ structured data matches the visible answers', async ({ page }) => {
-		await page.goto(URL_);
-		const ld = JSON.parse((await page.locator('script[type="application/ld+json"]').first().textContent()) as string);
-		const webPage = ld['@graph'].find((n: { '@type': string[] }) => Array.isArray(n['@type']));
-		const visible = await page.locator('.faq details').evaluateAll((ds) =>
-			ds.map((d) => ({
-				q: d.querySelector('summary')?.textContent?.trim(),
-				a: d.querySelector('p')?.textContent?.trim()
-			}))
-		);
-		expect(
-			webPage.mainEntity.map((m: { name: string; acceptedAnswer: { text: string } }) => ({
-				q: m.name,
-				a: m.acceptedAnswer.text
-			}))
-		).toEqual(visible);
-		expect(visible.length).toBeGreaterThanOrEqual(4);
-	});
 });

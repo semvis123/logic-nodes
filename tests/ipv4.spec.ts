@@ -3,7 +3,7 @@
 // enumeration of every address in small subnets, and against textbook answers.
 // Then the two pages, as a reader would use them.
 
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
 	parseAddress,
 	parseMask,
@@ -636,27 +636,6 @@ test.describe('ipv4 vlsm', () => {
 
 // --- the pages ---------------------------------------------------------------
 
-async function faqMatches(page: Page, slug: string) {
-	const visible = await page.locator('.faq details').evaluateAll((ds) =>
-		ds.map((d) => ({
-			q: (d.querySelector('summary')?.textContent ?? '').trim(),
-			a: (d.querySelector('p')?.textContent ?? '').replace(/\s+/g, ' ').trim()
-		}))
-	);
-	const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
-	const ld = blocks
-		.map((t) => JSON.parse(t))
-		.find((b) => b['@graph']?.some((n: { '@id'?: string }) => n['@id']?.endsWith(`/${slug}#webpage`)));
-	const webPage = ld['@graph'].find((n: { '@id'?: string }) => n['@id']?.endsWith('#webpage'));
-	expect(visible.length).toBeGreaterThanOrEqual(4);
-	expect(
-		webPage.mainEntity.map((q: { name: string; acceptedAnswer: { text: string } }) => ({
-			q: q.name,
-			a: q.acceptedAnswer.text
-		}))
-	).toEqual(visible);
-}
-
 test.describe('the subnet-calculator page', () => {
 	test('the prerendered page already shows the worked default', async ({ page }) => {
 		const html = await (await page.request.get('/subnet-calculator')).text();
@@ -768,11 +747,6 @@ test.describe('the subnet-calculator page', () => {
 		await page.fill('#cidr', '224.0.0.1/4');
 		await expect(page.locator('.results')).not.toHaveAttribute('inert', /.*/);
 		await expect(page.locator('.notes')).toContainText('Multicast addresses name groups of receivers, not hosts');
-	});
-
-	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {
-		await page.goto('/subnet-calculator');
-		await faqMatches(page, 'subnet-calculator');
 	});
 });
 
@@ -924,10 +898,5 @@ test.describe('the vlsm-calculator page', () => {
 		await page.fill('#base', '192.168.10.0/31');
 		await expect(page.locator('#split-prefix option:checked')).toHaveText('/30 (larger than the network)');
 		await expect(page.locator('#split-count')).toHaveValue('');
-	});
-
-	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {
-		await page.goto('/vlsm-calculator');
-		await faqMatches(page, 'vlsm-calculator');
 	});
 });

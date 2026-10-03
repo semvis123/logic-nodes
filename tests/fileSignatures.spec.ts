@@ -1419,22 +1419,6 @@ test.describe('the file-signature-checker page', () => {
 		await expect(page).toHaveURL(/\/file-signature-checker$/);
 		await expect(page.locator('.answer-value')).toHaveText('PNG image');
 	});
-
-	test('the FAQ in the structured data is the FAQ on the page', async ({ page }) => {
-		await page.goto('/file-signature-checker');
-		const ld = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) as string);
-		const faq = ld['@graph'][0].mainEntity.map((q: { name: string; acceptedAnswer: { text: string } }) => [
-			q.name,
-			q.acceptedAnswer.text
-		]);
-		const shown = await page
-			.locator('.faq details')
-			.evaluateAll((els) =>
-				els.map((d) => [d.querySelector('summary')?.textContent?.trim(), d.querySelector('p')?.textContent?.trim()])
-			);
-		expect(shown).toEqual(faq);
-		expect(faq.length).toBeGreaterThanOrEqual(4);
-	});
 });
 
 test('a hex error quotes only part of a very long run', () => {

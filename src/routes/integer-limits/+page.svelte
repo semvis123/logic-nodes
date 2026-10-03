@@ -197,6 +197,7 @@
 <PageHead {page} {faqs} crumb="Integer limits" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/twos-complement', label: "Two's complement" },
 		{ href: '/binary-converter', label: 'Binary converter' },
@@ -472,22 +473,10 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.value-input {
 		width: 100%;
 		box-sizing: border-box;
@@ -663,11 +652,6 @@
 		font-size: 0.8rem;
 		white-space: nowrap;
 	}
-
-	.nowrap {
-		white-space: nowrap;
-	}
-
 	.num {
 		text-align: right !important;
 	}

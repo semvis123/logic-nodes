@@ -386,6 +386,7 @@
 <PageHead {page} {faqs} crumb="Bit manipulation tricks" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/binary-calculator', label: 'Binary calculator' },
 		{ href: '/binary-converter', label: 'Binary converter' },
@@ -719,10 +720,6 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
@@ -815,14 +812,6 @@
 		border-color: #5db65d;
 		color: #fff;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.field.inline {
 		margin: 0;
 	}
@@ -1206,21 +1195,9 @@
 		text-transform: uppercase;
 		margin: 0 0 0.2rem;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	.visually-hidden {
 		position: absolute;
 		width: 1px;

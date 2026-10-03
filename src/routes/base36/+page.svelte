@@ -295,6 +295,7 @@
 <PageHead {page} {faqs} crumb="Base 36 converter" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/hex-to-decimal', label: 'Hex to decimal converter' },
 		{ href: '/binary-converter', label: 'Binary converter' },
@@ -738,10 +739,6 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
@@ -802,14 +799,6 @@
 	.text-dir {
 		margin-bottom: 0.9rem;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.field.inline {
 		margin: 0;
 	}
@@ -1015,13 +1004,6 @@
 		cursor: pointer;
 		white-space: nowrap;
 	}
-
-	.opt button.active {
-		background-color: #372;
-		border-color: #5db65d;
-		color: #fff;
-	}
-
 	.digit-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(3.4rem, 1fr));
@@ -1110,18 +1092,7 @@
 			padding-right: 0.5rem;
 		}
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
-	}
-
-	.points strong {
-		color: #fff;
 	}
 </style>

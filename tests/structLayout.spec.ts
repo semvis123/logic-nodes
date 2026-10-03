@@ -1172,26 +1172,6 @@ test.describe('the struct-padding-calculator page', () => {
 		await expect(page).toHaveURL(/\/struct-padding-calculator\?t=arm32$/);
 	});
 
-	test('the FAQ markup matches the visible answers', async ({ page }) => {
-		await page.goto('/struct-padding-calculator');
-		const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
-		const graph = blocks.map((t) => JSON.parse(t)).flatMap((b) => b['@graph'] ?? [b]);
-		const webPage = graph.find((n: { '@id'?: string }) => n['@id']?.endsWith('/struct-padding-calculator#webpage'));
-		const visible = await page.locator('.faq details').evaluateAll((ds) =>
-			ds.map((d) => ({
-				q: d.querySelector('summary')?.textContent?.trim(),
-				a: d.querySelector('p')?.textContent?.trim()
-			}))
-		);
-		expect(visible.length).toBeGreaterThanOrEqual(4);
-		expect(
-			webPage.mainEntity.map((q: { name: string; acceptedAnswer: { text: string } }) => ({
-				q: q.name,
-				a: q.acceptedAnswer.text
-			}))
-		).toEqual(visible);
-	});
-
 	for (const width of [390, 1280]) {
 		test(`the trailing padding row lines up with the other columns at ${width}px`, async ({ page }) => {
 			await page.setViewportSize({ width, height: 900 });

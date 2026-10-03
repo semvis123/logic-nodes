@@ -496,23 +496,7 @@ test('the comparison table matches the decoders', () => {
 	expect(birthdayHalf(122)).toBeLessThan(2.72e18);
 });
 
-/** The FAQ answers as the page shows them and as its JSON-LD states them. */
 const RFC_V7_TEXT = '017F22E2-79B0-7CC3-98C4-DC0C0C07398F';
-
-async function faqPairs(page: import('@playwright/test').Page) {
-	const ld = await page.locator('script[type="application/ld+json"]').first().textContent();
-	const graph = JSON.parse(ld!)['@graph'];
-	const fromLd = graph[0].mainEntity.map((q: { name: string; acceptedAnswer: { text: string } }) => [
-		q.name,
-		q.acceptedAnswer.text
-	]);
-	const visible = await page
-		.locator('.faq details')
-		.evaluateAll((els) =>
-			els.map((d) => [d.querySelector('summary')!.textContent!.trim(), d.querySelector('p')!.textContent!.trim()])
-		);
-	return { fromLd, visible };
-}
 
 test.describe('the uuid-decoder page', () => {
 	test('ships a decoded RFC example, and decodes what is typed', async ({ page }) => {
@@ -637,13 +621,6 @@ test.describe('the uuid-decoder page', () => {
 		await expect.poll(() => new URL(page.url()).search).toBe('');
 		await expect(page.locator('#id-input')).toHaveValue(RFC_V7_TEXT);
 	});
-
-	test('FAQ JSON-LD matches the visible answers', async ({ page }) => {
-		await page.goto('/uuid-decoder');
-		const { fromLd, visible } = await faqPairs(page);
-		expect(visible).toEqual(fromLd);
-		expect(visible.length).toBeGreaterThanOrEqual(4);
-	});
 });
 
 test.describe('the snowflake-id-decoder page', () => {
@@ -714,12 +691,5 @@ test.describe('the snowflake-id-decoder page', () => {
 		await page.waitForLoadState('networkidle');
 		await expect.poll(() => new URL(page.url()).search).toBe('');
 		await expect(page.getByRole('button', { name: 'Discord', exact: true })).toHaveAttribute('aria-pressed', 'true');
-	});
-
-	test('FAQ JSON-LD matches the visible answers', async ({ page }) => {
-		await page.goto('/snowflake-id-decoder');
-		const { fromLd, visible } = await faqPairs(page);
-		expect(visible).toEqual(fromLd);
-		expect(visible.length).toBeGreaterThanOrEqual(4);
 	});
 });

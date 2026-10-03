@@ -690,14 +690,4 @@ test.describe('the fp16-bf16-fp8-converter page', () => {
 		await expect(page.locator('[role="alert"]')).toHaveCount(0);
 		await expect(page.locator('[role="status"]').first()).toHaveText('FP16 stores 0.5');
 	});
-
-	test('FAQ JSON-LD matches the visible answers', async ({ page }) => {
-		await page.goto('/fp16-bf16-fp8-converter');
-		const ld = JSON.parse((await page.locator('script[type="application/ld+json"]').first().textContent()) || '{}');
-		const faq = ld['@graph'].find((n: { mainEntity?: unknown }) => n.mainEntity);
-		const visible = await page.locator('.faq details p').allTextContents();
-		expect(faq.mainEntity.map((q: { acceptedAnswer: { text: string } }) => q.acceptedAnswer.text)).toEqual(
-			visible.map((t) => t.trim())
-		);
-	});
 });

@@ -445,6 +445,7 @@
 <PageHead {page} {faqs} crumb="VLSM calculator" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/subnet-calculator', label: 'Subnet calculator' },
 		{ href: '/ipv6-expand-compress', label: 'IPv6 expand and compress' },
@@ -997,10 +998,6 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
@@ -1028,14 +1025,6 @@
 		border-color: #5db65d;
 		color: #fff;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.value-input,
 	.req-text {
 		width: 100%;
@@ -1401,21 +1390,9 @@
 		gap: 0.6rem;
 		margin: 1rem 0 0;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	.demo th[scope='row'] {
 		color: #fff;
 	}

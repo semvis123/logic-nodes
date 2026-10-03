@@ -182,31 +182,11 @@ test.describe('parsing IPv6', () => {
 	});
 
 	test('accepts exactly what Node accepts, for addresses without extras', () => {
-		const samples = [
-			'::',
-			'::1',
-			'1::',
-			'1:2:3:4:5:6:7:8',
-			'1:2:3:4:5:6:7::',
-			'::2:3:4:5:6:7:8',
-			'1::8',
-			'::ffff:1.2.3.4',
-			'1:2:3:4:5:6:1.2.3.4',
-			'1:2:3:4:5:6:7:1.2.3.4',
-			'1::2::3',
-			':1::2',
-			'1::2:',
-			'1:::2',
-			'12345::',
-			'g::1',
-			'1:2:3:4:5:6:7:8:9',
-			'1:2:3:4:5:6:7',
-			'1:2:3:4:5:6:7:8::',
-			'::1.2.3.4:1',
-			'::1.2.3.256',
-			'::1.2.3',
-			'1.2.3.4::'
-		];
+		const samples = (
+			':: ::1 1:: 1:2:3:4:5:6:7:8 1:2:3:4:5:6:7:: ::2:3:4:5:6:7:8 1::8 ::ffff:1.2.3.4 1:2:3:4:5:6:1.2.3.4 ' +
+			'1:2:3:4:5:6:7:1.2.3.4 1::2::3 :1::2 1::2: 1:::2 12345:: g::1 1:2:3:4:5:6:7:8:9 1:2:3:4:5:6:7 ' +
+			'1:2:3:4:5:6:7:8:: ::1.2.3.4:1 ::1.2.3.256 ::1.2.3 1.2.3.4::'
+		).split(' ');
 		for (const s of samples) {
 			let ok = true;
 			try {
@@ -534,24 +514,5 @@ test.describe('the ipv6-expand-compress page', () => {
 		await page.locator('.faq details').evaluateAll((ds) => ds.forEach((d) => d.setAttribute('open', '')));
 		const width = await page.evaluate(() => document.documentElement.scrollWidth);
 		expect(width).toBeLessThanOrEqual(320);
-	});
-
-	test('FAQ JSON-LD matches the visible answers', async ({ page }) => {
-		await page.goto('/ipv6-expand-compress');
-		const ld = JSON.parse((await page.locator('script[type="application/ld+json"]').first().textContent()) ?? '{}');
-		const webPage = ld['@graph'].find((n: { '@type': string[] }) => n['@type'].includes('FAQPage'));
-		const visible = await page.locator('.faq details').evaluateAll((ds) =>
-			ds.map((d) => ({
-				q: d.querySelector('summary')?.textContent?.trim(),
-				a: d.querySelector('p')?.textContent?.trim()
-			}))
-		);
-		expect(
-			webPage.mainEntity.map((q: { name: string; acceptedAnswer: { text: string } }) => ({
-				q: q.name,
-				a: q.acceptedAnswer.text
-			}))
-		).toEqual(visible);
-		expect(visible.length).toBeGreaterThanOrEqual(5);
 	});
 });

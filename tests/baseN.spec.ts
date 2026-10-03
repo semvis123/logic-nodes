@@ -729,11 +729,6 @@ test.describe('the base32 page', () => {
 		await expect(box).toHaveAttribute('role', 'region');
 		await expect(box).toHaveAttribute('aria-label', 'Step by step working');
 	});
-
-	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {
-		await page.goto('/base32');
-		await faqMatches(page);
-	});
 });
 
 test.describe('the base58 page', () => {

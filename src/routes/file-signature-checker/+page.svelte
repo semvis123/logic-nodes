@@ -373,6 +373,7 @@
 <svelte:window on:dragover={onDragOver} on:drop={onDrop} on:dragend={() => (dragging = false)} />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/hex-to-binary', label: 'Hex to binary converter' },
 		{ href: '/hex-to-decimal', label: 'Hex to decimal converter' },
@@ -931,10 +932,6 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
@@ -962,14 +959,6 @@
 		border-color: #5db65d;
 		color: #fff;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.hex-input,
 	.name-input,
 	.filter-input {
@@ -1425,21 +1414,9 @@
 		gap: 0.6rem;
 		margin: 0.6rem 0 0;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	.strong,
 	.data-table td.strong {
 		color: #8ede8e;
@@ -1453,11 +1430,6 @@
 	.rule {
 		overflow-wrap: anywhere;
 	}
-
-	.nowrap {
-		white-space: nowrap;
-	}
-
 	.as-text,
 	.exts {
 		display: block;

@@ -429,6 +429,7 @@
 <PageHead {page} {faqs} crumb="Guess my number" />
 
 <ContentPage
+	tool
 	related={[
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/bit-manipulation-tricks', label: 'Bit manipulation tricks' },
@@ -1216,10 +1217,6 @@
 </ContentPage>
 
 <style>
-	.intro {
-		padding-top: 64px;
-	}
-
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
@@ -1289,14 +1286,6 @@
 		height: 1.05rem;
 		accent-color: #5db65d;
 	}
-
-	.field {
-		display: block;
-		font-size: 0.85rem;
-		color: #ddd;
-		margin-bottom: 0.35rem;
-	}
-
 	.field.inline {
 		margin: 0;
 	}
@@ -1756,21 +1745,9 @@
 		color: #ddd;
 		padding-left: 1.2rem;
 	}
-
-	.points {
-		color: #ddd;
-		max-width: 720px;
-		padding-left: 1.25rem;
-	}
-
 	.points li {
 		margin-bottom: 0.6rem;
 	}
-
-	.points strong {
-		color: #fff;
-	}
-
 	.visually-hidden {
 		position: absolute;
 		width: 1px;
