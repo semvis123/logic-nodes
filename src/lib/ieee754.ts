@@ -71,8 +71,8 @@ export type Encoding = FloatFields & {
 	underflowed: boolean;
 };
 
-const pow2 = (n: number) => 1n << BigInt(n);
-const bitLength = (n: bigint) => (n === 0n ? 0 : n.toString(2).length);
+export const pow2 = (n: number) => 1n << BigInt(n);
+export const bitLength = (n: bigint) => (n === 0n ? 0 : n.toString(2).length);
 
 // --- Exact rationals --------------------------------------------------------
 

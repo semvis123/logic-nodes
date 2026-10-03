@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
@@ -23,7 +24,6 @@
 	import { readUrl, syncUrl, safeText, safeOption, safeInt, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import ErrorAt from '$lib/ErrorAt.svelte';
-	import { scrollFocus } from '$lib/baseNScrollFocus';
 	import Num from '$lib/WorkingNumber.svelte';
 	import { onMount, tick } from 'svelte';
 
@@ -529,7 +529,7 @@
 						</h2>
 						<div
 							class="table-wrap"
-							use:scrollFocus={'Working: place values'}
+							use:scrollRegion={'Working: place values'}
 							class:scroll-box={terms.length > LONG_TABLE}
 						>
 							<table class="data-table steps">
@@ -577,7 +577,7 @@
 						<h2 class="working-title">Working: divide by {toBaseN}, keep the remainders</h2>
 						<div
 							class="table-wrap"
-							use:scrollFocus={'Working: repeated division'}
+							use:scrollRegion={'Working: repeated division'}
 							class:scroll-box={divisions.length > LONG_TABLE}
 						>
 							<table class="data-table steps">
@@ -690,7 +690,7 @@
 		<p class="section-intro">
 			Each place is worth 36 times the one to its right. A digit's value times its place, added up, gives the number.
 		</p>
-		<div class="table-wrap" use:scrollFocus={'Powers of 36'}>
+		<div class="table-wrap" use:scrollRegion={'Powers of 36'}>
 			<table class="data-table powers">
 				<thead>
 					<tr>
@@ -719,7 +719,7 @@
 			<a href="/base32">Base32</a> character, so base 36 is the shortest way to write a number with digits and one case of
 			letters. For each common width, the digits its largest unsigned value needs, and that value in base 36:
 		</p>
-		<div class="table-wrap" use:scrollFocus={'Digits per width'}>
+		<div class="table-wrap" use:scrollRegion={'Digits per width'}>
 			<table class="data-table widths">
 				<thead>
 					<tr>

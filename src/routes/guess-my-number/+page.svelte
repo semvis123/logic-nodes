@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
@@ -141,35 +142,6 @@
 		// Every restart button is removed or disabled by the restart itself.
 		await tick();
 		focusId('answer-yes');
-	}
-
-	/**
-	 * Lets keyboard users scroll a table that is wider or taller than its box, and only then: a
-	 * box that fits is not made a focus stop. Re-checked when the box resizes or its rows change.
-	 */
-	function scrollFocus(node: HTMLElement) {
-		const update = () => {
-			if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
-				node.tabIndex = 0;
-				node.setAttribute('role', 'region');
-				node.setAttribute('aria-label', node.dataset.label ?? 'Table');
-			} else {
-				node.removeAttribute('tabindex');
-				node.removeAttribute('role');
-				node.removeAttribute('aria-label');
-			}
-		};
-		const ro = new ResizeObserver(update);
-		ro.observe(node);
-		const mo = new MutationObserver(update);
-		mo.observe(node, { subtree: true, childList: true, characterData: true });
-		update();
-		return {
-			destroy: () => {
-				ro.disconnect();
-				mo.disconnect();
-			}
-		};
 	}
 
 	const isDisabled = (el: Element) => el instanceof HTMLButtonElement && el.disabled;
@@ -668,7 +640,7 @@
 
 				{#if find.steps.length}
 					<h2 class="working-title">The trail</h2>
-					<div class="table-wrap scroll-box" use:scrollFocus data-label="The trail">
+					<div class="table-wrap scroll-box" use:scrollRegion data-label="The trail">
 						<table class="data-table trail">
 							<thead>
 								<tr>
@@ -774,7 +746,7 @@
 					</p>
 
 					<h2 class="working-title">The checks</h2>
-					<div class="table-wrap" use:scrollFocus data-label="The checks">
+					<div class="table-wrap" use:scrollRegion data-label="The checks">
 						<table class="data-table checks">
 							<thead>
 								<tr>
@@ -810,7 +782,7 @@
 					</div>
 
 					<h2 class="working-title">Your answers</h2>
-					<div class="table-wrap" use:scrollFocus data-label="Your answers">
+					<div class="table-wrap" use:scrollRegion data-label="Your answers">
 						<table class="data-table answers">
 							<thead>
 								<tr>
@@ -984,7 +956,7 @@
 			of six yes/no questions can work for every number. Seven can tell apart 2{sup(7)} = 128, enough with room to spare.
 			In general n numbers need ⌈log₂ n⌉ questions, the number of bits it takes to write n − 1 in binary.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="Finding 42 in 1 to 100">
+		<div class="table-wrap" use:scrollRegion data-label="Finding 42 in 1 to 100">
 			<table class="data-table trail">
 				<caption>Finding 42 in 1 to 100</caption>
 				<thead>
@@ -1034,7 +1006,7 @@
 			one bit of information: exactly one when yes and no are equally likely, as here, and less when the split is
 			uneven.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="Finding 42 in 0 to 127">
+		<div class="table-wrap" use:scrollRegion data-label="Finding 42 in 0 to 127">
 			<table class="data-table bits">
 				<caption>Finding 42 in 0 to 127</caption>
 				<thead>
@@ -1084,7 +1056,7 @@
 			{CHECK_POSITIONS.join(', ')} are checks: check c asks whether an odd number of the bit questions whose own number contains
 			c in binary would be answered yes, so that across its whole group the honest yes answers always come to an even count.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="The eleven questions">
+		<div class="table-wrap" use:scrollRegion data-label="The eleven questions">
 			<table class="data-table liar-table">
 				<caption>The eleven questions</caption>
 				<thead>
@@ -1116,7 +1088,7 @@
 		</p>
 		<div class="card worked">
 			<h3>42, with a lie on question 6</h3>
-			<div class="table-wrap" use:scrollFocus data-label="The answers, with the lie">
+			<div class="table-wrap" use:scrollRegion data-label="The answers, with the lie">
 				<table class="data-table liar-answers">
 					<caption>The lie, on question {LIAR_EXAMPLE_LIE}, is in bold.</caption>
 					<thead>
@@ -1196,7 +1168,7 @@
 			for 0 to 127. Otherwise the two counts are equal, both {f100.guesses} for 1 to 100, because a guess has three outcomes
 			and can carry more than one bit. Here is a halving player against it on 1 to 100:
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="A halving player against evil mode">
+		<div class="table-wrap" use:scrollRegion data-label="A halving player against evil mode">
 			<table class="data-table">
 				<thead>
 					<tr><th scope="col">Guess</th><th scope="col">Reply</th><th scope="col">Still possible</th></tr>
@@ -1220,7 +1192,7 @@
 
 	<section id="reference">
 		<h2>Questions needed for each range</h2>
-		<div class="table-wrap" use:scrollFocus data-label="Questions needed for each range">
+		<div class="table-wrap" use:scrollRegion data-label="Questions needed for each range">
 			<table class="data-table facts">
 				<thead>
 					<tr>

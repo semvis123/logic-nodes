@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
@@ -26,7 +27,6 @@
 	import ShareLink from '$lib/ShareLink.svelte';
 	import Anatomy, { LAYERS, type Layer } from './Anatomy.svelte';
 	import Steps from './Steps.svelte';
-	import { scrollFocus } from './scrollFocus';
 	import { onMount, tick } from 'svelte';
 
 	const MAX_TEXT = 7089;
@@ -464,7 +464,7 @@
 					on:click={() => (showRules = !showRules)}>{showRules ? 'Hide' : 'Show'} the four rule scores</button
 				>
 				<!-- Positioned, so the hidden column heading cannot escape the scroll box and widen the page. -->
-				<div class="table-wrap pen-wrap" use:scrollFocus data-label="Mask scores">
+				<div class="table-wrap pen-wrap" use:scrollRegion data-label="Mask scores">
 					<table class="data-table penalties" class:show-rules={showRules} id="qr-penalties" bind:this={penTable}>
 						<thead>
 							<tr>
@@ -536,7 +536,7 @@
 			at version 40. Some modules are fixed patterns a scanner uses to find and read the code; the rest carry the data and
 			its error correction.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="The parts of a QR code">
+		<div class="table-wrap" use:scrollRegion data-label="The parts of a QR code">
 			<table class="data-table parts">
 				<thead>
 					<tr><th scope="col">Part</th><th scope="col">Where and what</th><th scope="col">Why it is there</th></tr>
@@ -619,7 +619,7 @@
 			Reed–Solomon codewords are added to every block. A scanner can rebuild damaged codewords from them, up to the
 			share each level is designed for. The cost is room for data.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="Error correction levels">
+		<div class="table-wrap" use:scrollRegion data-label="Error correction levels">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -701,7 +701,7 @@
 			How much fits in each version: bytes at each level (byte mode, such as a link with lower case letters), and digits
 			and alphanumeric characters at level M.
 		</p>
-		<div class="table-wrap scroll-box tall" use:scrollFocus data-label="QR code capacity by version">
+		<div class="table-wrap scroll-box tall" use:scrollRegion data-label="QR code capacity by version">
 			<table class="data-table capacity">
 				<thead>
 					<tr>

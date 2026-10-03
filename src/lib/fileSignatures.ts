@@ -10,6 +10,10 @@
 // by brand; CAFEBABE starts both Java class files and Mach-O universal binaries.
 // Text formats have no signature at all and are only ever a good guess.
 
+import { hex2 } from './textEncoding.js';
+
+export { hex2 };
+
 export class HexError extends Error {}
 
 /** Bytes read from the start of a file: enough to reach ISO 9660's CD001 at 0x8001. */
@@ -107,7 +111,6 @@ export const fromBytes = (bytes: Uint8Array | number[]): ByteView => {
 	return new ByteView(array, array.length);
 };
 
-export const hex2 = (b: number) => b.toString(16).toUpperCase().padStart(2, '0');
 export const hexOffset = (n: number) =>
 	'0x' +
 	n

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import ShareLink from '$lib/ShareLink.svelte';
@@ -36,7 +37,6 @@
 	import OverflowRules from '../OverflowRules.svelte';
 	import CopyButton from '../CopyButton.svelte';
 	import { breakable } from '../breakable';
-	import { scrollFocus } from '../scrollFocus';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
@@ -253,7 +253,7 @@
 
 	<section id="names">
 		<h2>What {t.slug} is called in each language</h2>
-		<div class="table-wrap" use:scrollFocus data-label="What {t.slug} is called in each language">
+		<div class="table-wrap" use:scrollRegion data-label="What {t.slug} is called in each language">
 			<table class="data-table names">
 				<thead>
 					<tr>
@@ -354,7 +354,7 @@
 
 	<section id="all-types">
 		<h2>Every integer type</h2>
-		<div class="table-wrap" use:scrollFocus data-label="Every integer type">
+		<div class="table-wrap" use:scrollRegion data-label="Every integer type">
 			<table class="data-table all">
 				<thead>
 					<tr>

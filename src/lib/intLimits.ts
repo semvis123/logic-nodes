@@ -62,9 +62,6 @@ export const twinOf = (t: IntType): IntType =>
 /** A BigInt in decimal with thousands separators and a typographic minus sign. */
 export const formatDecimal = (n: bigint): string => (n < 0n ? '−' : '') + groupDecimal((n < 0n ? -n : n).toString());
 
-/** A BigInt in decimal with a typographic minus and no separators, for copying. */
-export const plainDecimal = (n: bigint): string => n.toString().replace(/^-/, '−');
-
 /** The width's bit pattern for a value already in range: two's complement for negatives. */
 export const patternOf = (n: bigint, bits: number): bigint => BigInt.asUintN(bits, n);
 
@@ -81,9 +78,6 @@ export const hexOf = (n: bigint, bits: number): string =>
 
 /** Binary digits in groups of four, for reading. */
 export const nibbles = (binary: string): string => binary.replace(/(.{4})(?=.)/g, '$1 ');
-
-/** Hex digits after the 0x in groups of four, the way long constants are usually written. */
-export const groupHex = (hex: string): string => '0x' + hex.slice(2).replace(/(.{4})(?=.)/g, '$1_');
 
 /** The limits as powers of two: −2³¹ and 2³¹ − 1, or 0 and 2³² − 1. */
 export function formulas(t: IntType): { min: string; max: string; count: string } {
@@ -115,12 +109,6 @@ export function scientific(n: bigint): string {
 	}
 	const m = mantissa.toString();
 	return `${m[0]}.${m.slice(1)} × 10${superscript(exponent)}`;
-}
-
-/** The same formulas in plain ASCII, for anywhere superscripts would not survive. */
-export function asciiFormulas(t: IntType): { min: string; max: string } {
-	const top = t.signed ? t.bits - 1 : t.bits;
-	return { min: t.signed ? `-2^${t.bits - 1}` : '0', max: `2^${top} - 1` };
 }
 
 // ---------------------------------------------------------------------------

@@ -10,6 +10,10 @@
 // parser built into JavaScript and a second implementation written with
 // strings.
 
+import { bin8 } from './textEncoding.js';
+
+export { bin8 };
+
 export class IPv6Error extends Error {}
 
 /** Eight 16-bit groups, the first being the most significant. */
@@ -893,6 +897,3 @@ export function eui64(mac: number[]): Eui64 {
 		linkLocal: [0xfe80, 0, 0, 0, ...iid]
 	};
 }
-
-export const formatMac = (mac: number[]) => mac.map((b) => b.toString(16).padStart(2, '0')).join(':');
-export const bin8 = (b: number) => b.toString(2).padStart(8, '0');

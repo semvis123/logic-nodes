@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
@@ -19,7 +20,6 @@
 	import { readUrl, syncUrl, safeText, safeOption, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import ErrorAt from '$lib/ErrorAt.svelte';
-	import { scrollFocus } from '$lib/baseNScrollFocus';
 	import Steps from './Steps.svelte';
 	import { onMount, tick } from 'svelte';
 
@@ -588,7 +588,7 @@
 			All three map the numbers 0 to 31 to characters; only the characters differ. Data encoded with one alphabet must
 			be decoded with the same one.
 		</p>
-		<div class="table-wrap" use:scrollFocus={'The three Base32 alphabets'}>
+		<div class="table-wrap" use:scrollRegion={'The three Base32 alphabets'}>
 			<table class="data-table alphabet">
 				<thead>
 					<tr>
@@ -646,7 +646,7 @@
 			and = signs take the place of the characters with no bits at all, so the output is always a multiple of eight.
 			These are the test vectors from RFC 4648:
 		</p>
-		<div class="table-wrap" use:scrollFocus={'RFC 4648 padding examples'}>
+		<div class="table-wrap" use:scrollRegion={'RFC 4648 padding examples'}>
 			<table class="data-table pad-table">
 				<thead>
 					<tr>
@@ -697,7 +697,7 @@
 		<p class="section-intro">
 			Every 5 bytes become 8 characters, so Base32 is 60% bigger than the data, against a third for Base64.
 		</p>
-		<div class="table-wrap" use:scrollFocus={'Base32 sizes'}>
+		<div class="table-wrap" use:scrollRegion={'Base32 sizes'}>
 			<table class="data-table sizes">
 				<thead>
 					<tr>

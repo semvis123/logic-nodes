@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
+	import { bin8 } from '$lib/textEncoding';
 	import { hexByte, MODE_INDICATOR, charCountBits, type QrCode, type Field } from '$lib/qr';
-	import { scrollFocus } from './scrollFocus';
 
 	// The build of the current code, stage by stage. Long inputs are cut short
 	// in each stage, with a note; every codeword is made the same way.
@@ -61,7 +62,6 @@
 	$: multiByte = groupRows.some((g) => g.total > 1);
 	const shown = (chars: string) => chars.replace(/ /g, '␣');
 
-	$: bin8 = (n: number) => n.toString(2).padStart(8, '0');
 	$: dataTotal = qr.blocks.reduce((n, b) => n + b.data.length, 0);
 	$: padStart = qr.dataCodewords.length - qr.padCount;
 	$: modeName = { numeric: 'Numeric', alphanumeric: 'Alphanumeric', byte: 'Byte' }[qr.mode];
@@ -99,7 +99,7 @@
 		<h3>Data bits</h3>
 		<p>{groupRule}</p>
 		{#if qr.groups.length}
-			<div class="table-wrap scroll-box" use:scrollFocus data-label="Data bits">
+			<div class="table-wrap scroll-box" use:scrollRegion data-label="Data bits">
 				<table class="data-table groups">
 					<thead>
 						<tr>
@@ -190,7 +190,7 @@
 				are quicker to decode. With the interleaving below, damage in one spot is shared between several blocks.
 			{/if}
 		</p>
-		<div class="table-wrap scroll-box" use:scrollFocus data-label="Error correction blocks">
+		<div class="table-wrap scroll-box" use:scrollRegion data-label="Error correction blocks">
 			<table class="data-table blocks">
 				<thead>
 					<tr>

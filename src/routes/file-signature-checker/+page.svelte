@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
@@ -267,37 +268,6 @@
 		copyTimer = setTimeout(() => (copied = ''), 2500);
 	}
 	onDestroy(() => clearTimeout(copyTimer));
-
-	/**
-	 * Lets a keyboard user focus a box that scrolls, to scroll it, and names it
-	 * for a screen reader; a box that fits is left alone, so it is not an empty
-	 * focus stop.
-	 */
-	function scrollFocus(node: HTMLElement) {
-		const update = () => {
-			if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
-				node.tabIndex = 0;
-				node.setAttribute('role', 'region');
-				node.setAttribute('aria-label', node.dataset.label ?? 'Table');
-			} else {
-				node.removeAttribute('tabindex');
-				node.removeAttribute('role');
-				node.removeAttribute('aria-label');
-			}
-		};
-		// Re-checked when the box resizes and when what is in it changes.
-		const resize = new ResizeObserver(update);
-		resize.observe(node);
-		const mutation = new MutationObserver(update);
-		mutation.observe(node, { subtree: true, childList: true, characterData: true });
-		update();
-		return {
-			destroy: () => {
-				resize.disconnect();
-				mutation.disconnect();
-			}
-		};
-	}
 
 	const plural = (n: number, word: string) => `${n.toLocaleString('en-GB')} ${word}${n === 1 ? '' : 's'}`;
 	const kb = (n: number) => `${(n / 1024).toLocaleString('en-GB', { maximumFractionDigits: 0 })} KB`;
@@ -628,7 +598,7 @@
 							<h2 class="working-title" id="dump-title">Hex dump{fields.length ? ', signature highlighted' : ''}</h2>
 							<button type="button" class="copy" on:click={() => copy(dumpText(rows), 'hex dump')}>Copy dump</button>
 						</div>
-						<div class="table-wrap scroll-box dump-wrap" use:scrollFocus data-label="Hex dump">
+						<div class="table-wrap scroll-box dump-wrap" use:scrollRegion data-label="Hex dump">
 							<table class="dump mono" aria-labelledby="dump-title">
 								<thead>
 									<tr>
@@ -685,7 +655,7 @@
 							anything else.
 						</p>
 						{#if shownFields.length}
-							<div class="table-wrap" use:scrollFocus data-label="Signature fields">
+							<div class="table-wrap" use:scrollRegion data-label="Signature fields">
 								<table class="data-table fields">
 									<thead>
 										<tr>
@@ -781,7 +751,7 @@
 			files used to get damaged when they were copied between systems, so a broken PNG is spotted in its first eight
 			bytes instead of half way through decoding.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="PNG signature bytes">
+		<div class="table-wrap" use:scrollRegion data-label="PNG signature bytes">
 			<table class="data-table png">
 				<thead>
 					<tr>
@@ -812,7 +782,7 @@
 			ZIP archives start <span class="mono">50 4B 03 04</span> (PK, after Phil Katz of PKZIP), and these formats are all
 			ZIP archives underneath:
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="Formats inside a ZIP">
+		<div class="table-wrap" use:scrollRegion data-label="Formats inside a ZIP">
 			<table class="data-table zip-kinds">
 				<thead>
 					<tr>
@@ -834,7 +804,7 @@
 			The ISO base media format behind MP4 is a tree of boxes, and the first is <span class="mono">ftyp</span> at byte 4.
 			Its brand, a four-character code at byte 8, names the format:
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="ftyp brands">
+		<div class="table-wrap" use:scrollRegion data-label="ftyp brands">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -934,7 +904,7 @@
 			autocomplete="off"
 		/>
 		<p class="filter-count" aria-live="polite">{needle ? `${shownRows.length} of ${table.length} signatures` : ''}</p>
-		<div class="table-wrap scroll-box tall" use:scrollFocus data-label="File signature table">
+		<div class="table-wrap scroll-box tall" use:scrollRegion data-label="File signature table">
 			<table class="data-table sigs">
 				<thead>
 					<tr>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import ShareLink from '$lib/ShareLink.svelte';
@@ -29,7 +30,6 @@
 	import OverflowPlayground from './OverflowPlayground.svelte';
 	import OverflowRules from './OverflowRules.svelte';
 	import { breakable } from './breakable';
-	import { scrollFocus } from './scrollFocus';
 
 	const opIds = ['inc', 'dec', 'dbl', 'neg', 'cast'] as const;
 	const DEFAULTS = { q: '3000000000', t: 'int8', v: '127', op: 'inc', to: 'uint8' };
@@ -362,7 +362,7 @@
 			Each name links to a page with the limits in hex and binary, the type’s name in each language, and an overflow
 			playground set to that type.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="Minimum and maximum of every integer type">
+		<div class="table-wrap" use:scrollRegion data-label="Minimum and maximum of every integer type">
 			<table class="data-table limits">
 				<thead>
 					<tr>
@@ -422,7 +422,7 @@
 			is 7F followed by Fs ({hexOf(int64.max, 64)} for int64), the signed minimum is 8 followed by zeros, and an unsigned
 			maximum is all Fs.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="Signed and unsigned range of each width">
+		<div class="table-wrap" use:scrollRegion data-label="Signed and unsigned range of each width">
 			<table class="data-table pairs">
 				<caption>Same bits, two readings: the signed and unsigned type of each width</caption>
 				<thead>

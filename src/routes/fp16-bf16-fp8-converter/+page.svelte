@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
@@ -197,28 +198,6 @@
 		{ label: 'E4M3 bits', v: '7E', mode: 'hex', fmt: 'e4m3' },
 		{ label: 'E5M2 bits', v: '7C', mode: 'hex', fmt: 'e5m2' }
 	];
-
-	/** Lets keyboard users focus and scroll a table that overflows its box, and only while it does. */
-	function scrollFocus(node: HTMLElement) {
-		const update = () => {
-			if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
-				node.tabIndex = 0;
-				node.setAttribute('role', 'region');
-				node.setAttribute('aria-label', node.dataset.label ?? 'Table');
-			} else {
-				node.removeAttribute('tabindex');
-				node.removeAttribute('role');
-				node.removeAttribute('aria-label');
-			}
-		};
-		// Re-checked when the box resizes, which includes a closed details being opened.
-		const ro = new ResizeObserver(update);
-		ro.observe(node);
-		const inner = node.firstElementChild;
-		if (inner) ro.observe(inner);
-		update();
-		return { destroy: () => ro.disconnect() };
-	}
 
 	const kindText: Record<string, string> = {
 		zero: 'zero',
@@ -831,7 +810,7 @@
 			<span class="key s" /> sign <span class="key e" /> exponent <span class="key m" /> mantissa, drawn to scale. BF16's
 			exponent is exactly as wide as FP32's.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="The formats side by side">
+		<div class="table-wrap" use:scrollRegion data-label="The formats side by side">
 			<table class="data-table formats">
 				<thead>
 					<tr>
@@ -942,7 +921,7 @@
 			of the two you pick above (saturation unless you change it); and for FP4, which has neither infinity nor NaN, the
 			largest value, ±6.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="What twice the largest value becomes">
+		<div class="table-wrap" use:scrollRegion data-label="What twice the largest value becomes">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -985,7 +964,7 @@
 			)} rather than {pow(fp32.minSubnormal)}. Converting is a matter of rounding off the low 16 bits. FP16 has more
 			precision but a 5 bit exponent, so it runs out at {fp16.max.exact}. The same values in all three:
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="The same values in FP32, BF16 and FP16">
+		<div class="table-wrap" use:scrollRegion data-label="The same values in FP32, BF16 and FP16">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -1030,7 +1009,7 @@
 			Here is a block of {block.elements.length} values (a real block has 32), worked by the engine. The largest magnitude
 			sets the scale to {powerOfTwo(block.scaleExp)}, stored as E8M0 code {block.scaleCode}:
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="A block of values scaled to FP4">
+		<div class="table-wrap" use:scrollRegion data-label="A block of values scaled to FP4">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -1098,7 +1077,7 @@
 		<h2>All 16 FP4 E2M1 values</h2>
 		<details class="code-list">
 			<summary>Show the FP4 table</summary>
-			<div class="table-wrap" use:scrollFocus data-label="All 16 FP4 E2M1 values">
+			<div class="table-wrap" use:scrollRegion data-label="All 16 FP4 E2M1 values">
 				<table class="data-table">
 					<thead>
 						<tr>
@@ -1130,7 +1109,7 @@
 		</p>
 		<details class="code-list">
 			<summary>Show the E4M3 table</summary>
-			<div class="table-wrap scroll-box" use:scrollFocus data-label="All 256 FP8 E4M3 codes">
+			<div class="table-wrap scroll-box" use:scrollRegion data-label="All 256 FP8 E4M3 codes">
 				<table class="data-table e4m3-table">
 					<thead>
 						<tr>

@@ -186,7 +186,6 @@ export function answersFromText(text: string | undefined, max: number): boolean[
 // the broken checks add up to p: the position of the lie.
 
 export const LIAR_QUESTIONS = 11;
-export const LIAR_RANGE: GameRange = RANGES[1];
 export const CHECK_POSITIONS = [1, 2, 4, 8] as const;
 /** Data positions, carrying bits 6 (worth 64) down to 0 (worth 1). */
 export const DATA_POSITIONS = [3, 5, 6, 7, 9, 10, 11] as const;

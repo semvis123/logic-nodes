@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
@@ -207,33 +208,6 @@
 		const ty = cType(tr, width);
 		if (tr.y) return `x and ${tr.y} are ${ty} values.`;
 		return `${tr.id === 'ascii-case-toggle' ? 'c' : 'x'} is ${ty.startsWith('u') ? 'a' : 'an'} ${ty}.`;
-	}
-
-	/** Lets keyboard users scroll a code block that is wider than its box, and only then. */
-	function scrollFocus(node: HTMLElement) {
-		const update = () => {
-			if (node.scrollWidth > node.clientWidth + 1) {
-				node.tabIndex = 0;
-				node.setAttribute('role', 'region');
-				node.setAttribute('aria-label', node.dataset.label ?? 'Code');
-			} else {
-				node.removeAttribute('tabindex');
-				node.removeAttribute('role');
-				node.removeAttribute('aria-label');
-			}
-		};
-		// Re-checked when the box resizes and when the code in it changes.
-		const ro = new ResizeObserver(update);
-		ro.observe(node);
-		const mo = new MutationObserver(update);
-		mo.observe(node, { subtree: true, childList: true, characterData: true });
-		update();
-		return {
-			destroy: () => {
-				ro.disconnect();
-				mo.disconnect();
-			}
-		};
 	}
 
 	/** The cheat sheet's C: the first line of code, with any comment lines left out. */
@@ -601,7 +575,7 @@
 				<h2 class="trick-name">{trick.name}</h2>
 				<p class="trick-what">{trick.what}</p>
 				<div class="code-row">
-					<pre class="code" use:scrollFocus data-label="C code"><code>{trick.code(w)}</code></pre>
+					<pre class="code" use:scrollRegion data-label="C code"><code>{trick.code(w)}</code></pre>
 					<button type="button" class="copy" on:click={copyCode}>
 						{copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Select it' : 'Copy C'}
 					</button>
@@ -650,7 +624,7 @@
 				{#if trace.aside}
 					<h3 class="aside-title">{trace.aside.title}</h3>
 					{#if trace.aside.code}
-						<pre class="code aside-code" use:scrollFocus data-label="The swap function"><code>{trace.aside.code}</code
+						<pre class="code aside-code" use:scrollRegion data-label="The swap function"><code>{trace.aside.code}</code
 							></pre>
 					{/if}
 					<p class="aside-text">{trace.aside.text}</p>
@@ -711,7 +685,7 @@
 				{@const wk = workedById[tr.id]}
 				<article class="card entry" id={tr.id}>
 					<h3><a class="anchor" href="#{tr.id}">{tr.name}</a></h3>
-					<pre class="code" use:scrollFocus data-label="{tr.name} in C"><code>{tr.code(8)}</code></pre>
+					<pre class="code" use:scrollRegion data-label="{tr.name} in C"><code>{tr.code(8)}</code></pre>
 					<p class="code-types">In this C, {typesNote(tr, 8)}</p>
 					<p class="entry-what">{tr.what}</p>
 					{#each tr.why as para}
@@ -741,7 +715,7 @@
 				<article class="card gotcha" id={g.id}>
 					<p class="lang">{g.lang}</p>
 					<h3>{g.title}</h3>
-					<pre class="code" use:scrollFocus data-label="{g.lang} example"><code>{g.code.join('\n')}</code></pre>
+					<pre class="code" use:scrollRegion data-label="{g.lang} example"><code>{g.code.join('\n')}</code></pre>
 					<p>{g.text}</p>
 				</article>
 			{/each}

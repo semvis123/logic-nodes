@@ -12,6 +12,10 @@
 // Coordinates: x is the column and y the row, both from the top left, which is
 // how the standard draws the symbol. Matrices are indexed [y][x].
 
+import { hex2 as hexByte } from './textEncoding.js';
+
+export { hexByte };
+
 export class QrError extends Error {}
 
 export type EcLevel = 'L' | 'M' | 'Q' | 'H';
@@ -822,7 +826,6 @@ export function qrSvg(modules: boolean[][], moduleSize = 10, quiet = QUIET_ZONE)
 }
 
 /** Two hex digits per codeword, upper case. */
-export const hexByte = (n: number) => n.toString(16).toUpperCase().padStart(2, '0');
 
 /**
  * What a module is, in words, for the inspector under the symbol. With

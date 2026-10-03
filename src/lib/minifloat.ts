@@ -9,7 +9,7 @@
 // format. The tests decode every code of every format of 16 bits or fewer
 // with an independent formula and check FP32 against ieee754.ts.
 
-import { exactDecimal, shortDecimal } from './ieee754.js';
+import { exactDecimal, shortDecimal, pow2, bitLength } from './ieee754.js';
 
 export class MiniFloatError extends Error {}
 
@@ -129,9 +129,6 @@ export type Decoded = {
 	/** 1.mmm for normals, 0.mmm for zero and subnormals, '' otherwise. */
 	significand: string;
 };
-
-const pow2 = (n: number) => 1n << BigInt(n);
-const bitLength = (n: bigint) => (n === 0n ? 0 : n.toString(2).length);
 
 /** 2^k as an exact rational. */
 const twoTo = (k: number): Rational => (k >= 0 ? { num: pow2(k), den: 1n } : { num: 1n, den: pow2(-k) });
@@ -449,11 +446,6 @@ export function nanCode(id: FormatId): number | null {
 	if (f.specials === 'none') return null;
 	const top = maxBiasedField(f) * 2 ** f.mantissaBits;
 	return f.specials === 'fn' ? top + 2 ** f.mantissaBits - 1 : top + 2 ** (f.mantissaBits - 1);
-}
-
-export function infinityCode(id: FormatId): number | null {
-	const f = FORMATS[id];
-	return f.specials === 'ieee' ? maxBiasedField(f) * 2 ** f.mantissaBits : null;
 }
 
 /** What an out-of-range magnitude becomes, given the format and the chosen mode. */

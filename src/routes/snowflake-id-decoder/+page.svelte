@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import IdBits from '$lib/IdBits.svelte';
@@ -92,33 +93,6 @@
 		clearTimeout(alertTimer);
 		if (!message) alertText = '';
 		else alertTimer = setTimeout(() => (alertText = message), 500);
-	}
-
-	/** Lets a keyboard user focus a box that scrolls, so it can be scrolled, and only while it does. */
-	function scrollFocus(node: HTMLElement) {
-		const update = () => {
-			if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
-				node.tabIndex = 0;
-				node.setAttribute('role', 'region');
-				node.setAttribute('aria-label', node.dataset.label ?? 'Scrolling box');
-			} else {
-				node.removeAttribute('tabindex');
-				node.removeAttribute('role');
-				node.removeAttribute('aria-label');
-			}
-		};
-		// Re-checked when the box resizes and when what is in it changes.
-		const ro = new ResizeObserver(update);
-		ro.observe(node);
-		const mo = new MutationObserver(update);
-		mo.observe(node, { subtree: true, childList: true, characterData: true });
-		update();
-		return {
-			destroy: () => {
-				ro.disconnect();
-				mo.disconnect();
-			}
-		};
 	}
 
 	function setNow() {
@@ -346,7 +320,7 @@
 					</div>
 
 					<h2 class="working-title">Working: shift right by 22, add the epoch</h2>
-					<div class="table-wrap scroll-box equation-box" use:scrollFocus data-label="Working">
+					<div class="table-wrap scroll-box equation-box" use:scrollRegion data-label="Working">
 						<p class="equation mono">
 							{decoded.canonical} &gt;&gt; 22{#if signDropped}, without the sign bit,{/if} = {shifted}<br />
 							{shifted} + {epoch.ms} = {decoded.time.unixMs}<br />
@@ -446,7 +420,7 @@
 			Because the time is in the top bits, a bigger ID is always a later one (to the millisecond), so sorting IDs sorts
 			by age. The same Discord example, worked through:
 		</p>
-		<div class="table-wrap scroll-box equation-box" use:scrollFocus data-label="The Discord example, worked through">
+		<div class="table-wrap scroll-box equation-box" use:scrollRegion data-label="The Discord example, worked through">
 			<p class="equation mono">
 				{DISCORD_EXAMPLE} &gt;&gt; 22 = {docsShifted}<br />
 				{docsShifted} + {SNOWFLAKE_EPOCHS.discord.ms} = {docsShifted + SNOWFLAKE_EPOCHS.discord.ms}<br />
@@ -454,7 +428,7 @@
 			</p>
 		</div>
 		<p class="section-intro">The same sum in code. BigInt keeps all 64 bits; a plain number would not.</p>
-		<pre class="code" use:scrollFocus data-label="The same sum in JavaScript and Python"><code
+		<pre class="code" use:scrollRegion data-label="The same sum in JavaScript and Python"><code
 				>{`// JavaScript
 const snowflake = '${DISCORD_EXAMPLE}';
 const ms = Number(BigInt(snowflake) >> 22n) + ${SNOWFLAKE_EPOCHS.discord.ms};
@@ -466,7 +440,7 @@ snowflake = ${DISCORD_EXAMPLE}
 datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 1000, tz=timezone.utc)`}</code
 			></pre>
 
-		<div class="table-wrap" use:scrollFocus data-label="Discord and Twitter/X layouts">
+		<div class="table-wrap" use:scrollRegion data-label="Discord and Twitter/X layouts">
 			<table class="data-table">
 				<caption>Discord and Twitter/X layouts</caption>
 				<thead>
@@ -497,7 +471,7 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 			The first possible Discord ID of each year. Any ID smaller than a year's value was made before that year began, so
 			you can date an ID roughly at a glance.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="Discord snowflakes by year">
+		<div class="table-wrap" use:scrollRegion data-label="Discord snowflakes by year">
 			<table class="data-table years">
 				<thead>
 					<tr>

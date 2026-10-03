@@ -1,9 +1,9 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { overflowRules } from '$lib/intLimits';
-	import { scrollFocus } from './scrollFocus';
 </script>
 
-<div class="table-wrap" use:scrollFocus data-label="What each language does on overflow">
+<div class="table-wrap" use:scrollRegion data-label="What each language does on overflow">
 	<table class="data-table rules">
 		<caption class="visually-hidden">What each language does when integer arithmetic overflows</caption>
 		<thead>

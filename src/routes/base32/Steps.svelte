@@ -1,7 +1,7 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { hex2 } from '$lib/textEncoding';
 	import type { Base32Group } from '$lib/baseN';
-	import { scrollFocus } from '$lib/baseNScrollFocus';
 
 	// The regrouping drawn to scale: 40 columns, one per bit, so five 8-bit bytes
 	// and eight 5-bit indexes line up exactly, and each bit keeps its byte's
@@ -30,7 +30,7 @@
 		mode === 'encode' ? ['bytes', 'bits8', 'bits5', 'index', 'char'] : ['char', 'index', 'bits5', 'bits8', 'bytes'];
 </script>
 
-<div class="steps-scroll" use:scrollFocus={label}>
+<div class="steps-scroll" use:scrollRegion={label}>
 	<div class="steps-view">
 		{#each groups as g}
 			{@const cs = cells(g)}

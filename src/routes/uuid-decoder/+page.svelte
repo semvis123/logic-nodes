@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import IdBits from '$lib/IdBits.svelte';
@@ -178,33 +179,6 @@
 		clearTimeout(alertTimer);
 		if (!message) alertText = '';
 		else alertTimer = setTimeout(() => (alertText = message), 500);
-	}
-
-	/** Lets a keyboard user focus a box that scrolls, so it can be scrolled, and only while it does. */
-	function scrollFocus(node: HTMLElement) {
-		const update = () => {
-			if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
-				node.tabIndex = 0;
-				node.setAttribute('role', 'region');
-				node.setAttribute('aria-label', node.dataset.label ?? 'Scrolling box');
-			} else {
-				node.removeAttribute('tabindex');
-				node.removeAttribute('role');
-				node.removeAttribute('aria-label');
-			}
-		};
-		// Re-checked when the box resizes and when what is in it changes.
-		const ro = new ResizeObserver(update);
-		ro.observe(node);
-		const mo = new MutationObserver(update);
-		mo.observe(node, { subtree: true, childList: true, characterData: true });
-		update();
-		return {
-			destroy: () => {
-				ro.disconnect();
-				mo.disconnect();
-			}
-		};
 	}
 
 	// One fresh v4 and v7 beside the decoder, for a reader who came for a new
@@ -680,7 +654,7 @@
 			date; version 2 keeps only part of one. Version 4 is random and versions 3 and 5 are hashes, so the most anyone
 			can read from them is the version itself.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="UUID versions">
+		<div class="table-wrap" use:scrollRegion data-label="UUID versions">
 			<table class="data-table">
 				<caption>UUID versions</caption>
 				<thead>
@@ -709,7 +683,7 @@
 			Only the top one to three bits of the 17th digit are the variant (shown in bold); the rest belong to the next
 			field (shown as x). That is why four different hex digits all mean the standard layout.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="The variant digit">
+		<div class="table-wrap" use:scrollRegion data-label="The variant digit">
 			<table class="data-table variants">
 				<thead>
 					<tr>
@@ -788,7 +762,7 @@
 			<a href="/snowflake-id-decoder">snowflake ID decoder</a> covers them. A <strong>NanoID</strong> is 21 random characters
 			and nothing else, so it has nothing to decode.
 		</p>
-		<div class="table-wrap" use:scrollFocus data-label="ID formats compared">
+		<div class="table-wrap" use:scrollRegion data-label="ID formats compared">
 			<table class="data-table">
 				<caption>ID formats compared</caption>
 				<thead>

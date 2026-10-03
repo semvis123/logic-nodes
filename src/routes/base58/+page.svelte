@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { SITE } from '$lib/site';
 	import ContentPage from '$lib/ContentPage.svelte';
 	import { modifiedFields } from '$lib/lastmod';
@@ -20,7 +21,6 @@
 	import { readUrl, syncUrl, safeText, safeOption, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import ErrorAt from '$lib/ErrorAt.svelte';
-	import { scrollFocus } from '$lib/baseNScrollFocus';
 	import Num from '$lib/WorkingNumber.svelte';
 	import { onMount, tick } from 'svelte';
 	import type { PageData } from './$types';
@@ -527,7 +527,7 @@
 					{#if divisions.length}
 						<div
 							class="table-wrap"
-							use:scrollFocus={'Working: repeated division by 58'}
+							use:scrollRegion={'Working: repeated division by 58'}
 							class:scroll-box={divisions.length > LONG_TABLE}
 						>
 							<table class="data-table steps">
@@ -562,7 +562,7 @@
 					{#if readings.length}
 						<div
 							class="table-wrap"
-							use:scrollFocus={'Working: reading the characters back'}
+							use:scrollRegion={'Working: reading the characters back'}
 							class:scroll-box={readings.length > LONG_TABLE}
 						>
 							<table class="data-table steps">
@@ -664,7 +664,7 @@
 			Because every character depends on the whole number, changing one byte can change characters all through the
 			result. "{ripple[0].t}" and "{ripple[1].t}" differ only in their first byte:
 		</p>
-		<div class="table-wrap" use:scrollFocus={'Base58 and Base64 compared'}>
+		<div class="table-wrap" use:scrollRegion={'Base58 and Base64 compared'}>
 			<table class="data-table ripple">
 				<thead>
 					<tr>
@@ -741,7 +741,7 @@
 			common Bitcoin prefixes, with the first characters worked out by encoding the smallest and largest value of each
 			kind:
 		</p>
-		<div class="table-wrap" use:scrollFocus={'Bitcoin version bytes'}>
+		<div class="table-wrap" use:scrollRegion={'Bitcoin version bytes'}>
 			<table class="data-table kinds">
 				<thead>
 					<tr>
@@ -774,7 +774,7 @@
 			than Base64's 1.33 × n. The exact length depends on the number, so the table gives the most, for bytes that are all
 			FF.
 		</p>
-		<div class="table-wrap" use:scrollFocus={'Base58 sizes'}>
+		<div class="table-wrap" use:scrollRegion={'Base58 sizes'}>
 			<table class="data-table sizes">
 				<thead>
 					<tr>
