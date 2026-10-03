@@ -565,7 +565,10 @@ struct samples {
 									</tr>
 								{/each}
 								<tr class="total">
-									<th scope="row" colspan="5" class="total-label">Trailing padding, to a multiple of {layout.align}</th>
+									<!-- The empty type cell keeps this row the same width as the others: it is hidden with
+										the Type column on a phone, where a colspan of 5 would add a phantom column. -->
+									<th scope="row" colspan="4" class="total-label">Trailing padding, to a multiple of {layout.align}</th>
+									<td class="type-col" aria-hidden="true" />
 									<td class="mono num" class:waste={layout.trailing > 0}>{layout.trailing}</td>
 								</tr>
 							</tbody>

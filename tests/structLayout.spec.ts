@@ -1191,4 +1191,22 @@ test.describe('the struct-padding-calculator page', () => {
 			}))
 		).toEqual(visible);
 	});
+
+	for (const width of [390, 1280]) {
+		test(`the trailing padding row lines up with the other columns at ${width}px`, async ({ page }) => {
+			await page.setViewportSize({ width, height: 900 });
+			await page.goto('/struct-padding-calculator');
+			const box = async (selector: string) => {
+				const b = await page.locator(selector).first().boundingBox();
+				if (!b) throw new Error(`${selector} is not visible`);
+				return b;
+			};
+			const padHead = await box('.members thead th:last-child');
+			const trailing = await box('.members tr.total td:last-child');
+			const firstRow = await box('.members tbody tr:first-child td:last-child');
+			expect(Math.abs(trailing.x + trailing.width - (padHead.x + padHead.width))).toBeLessThan(1);
+			expect(Math.abs(trailing.x - padHead.x)).toBeLessThan(1);
+			expect(Math.abs(firstRow.x + firstRow.width - (padHead.x + padHead.width))).toBeLessThan(1);
+		});
+	}
 });
