@@ -46,6 +46,7 @@
 	let paint: boolean | null = null;
 	let offset = 0;
 	let still = true;
+	let reduced = false;
 	// Nixie
 	let nx = DEFAULTS.nx;
 	let nxCut = false;
@@ -71,7 +72,7 @@
 		mtext = safeText(p.mx, 40) ?? mtext;
 		mlang = safeOption(p.ml, ['c', 'arduino'] as const) ?? mlang;
 		nx = (safeText(p.nx, 8) ?? nx).toUpperCase().replace(/[^0-9A-F]/g, '') || nx;
-		still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		still = reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 		const timer = setInterval(() => !still && (offset += 1), 140);
 		tick().then(() => syncUrl(urlState, DEFAULTS));
 		return () => clearInterval(timer);
@@ -110,8 +111,8 @@
 	$: matrixCode = byteCode(matrixBytes, mlang as Lang, 'glyph', matrixNote);
 	$: strip = textStrip(mtext);
 	$: stripBytes = gridBytes(strip, 'cols', msb);
-	$: stripCode = byteCode(stripBytes, mlang as Lang, 'message', `${strip[0].length} columns, one byte per column, ${msb ? 'top pixel is bit 6' : 'top pixel is bit 0'}`);
-	$: fontCode = byteCode(fontColumns(), mlang as Lang, 'font5x7', `5 column bytes per character, in the order ${FONT_CHARS.replace(/\\/g, '')}, top pixel is bit 0`);
+	$: stripCode = !stripBytes.length ? '// Type some text above to get its bytes.' : byteCode(stripBytes, mlang as Lang, 'message', `${strip[0].length} columns, one byte per column, ${msb ? 'top pixel is bit 6' : 'top pixel is bit 0'}`);
+	$: fontCode = byteCode(fontColumns(msb), mlang as Lang, 'font5x7', `5 column bytes per character, in the order ${FONT_CHARS}, ${msb ? 'top pixel is bit 6' : 'top pixel is bit 0'}`);
 	$: frame = marqueeFrame(strip, still ? 0 : offset, 17);
 	$: missing = missingGlyphs(mtext);
 	function setCell(i: number, on: boolean) {
@@ -172,7 +173,7 @@
 		},
 		{
 			q: 'Which bit order should I use for the segment bits?',
-			a: 'Whichever matches your wiring. The common order puts segment a in bit 0 and the decimal point in bit 7 (dp g f e d c b a, reading from bit 7 down), which suits a port wired a to bit 0. Shift-register boards and some libraries put a in the top bit and the point in bit 0 (a b c d e f g dp). The two are mirror images of each other, and this page shows both so you can copy the one your hardware needs.'
+			a: 'Whichever matches your wiring. The common order puts segment a in bit 0 and the decimal point in bit 7 (dp g f e d c b a, reading from bit 7 down), which suits a port wired a to bit 0. Some wiring layouts and libraries put a in the top bit and the point in bit 0 (a b c d e f g dp). The two are mirror images of each other, and this page shows both so you can copy the one your hardware needs.'
 		},
 		{
 			q: 'Which letters can a seven-segment display show?',
@@ -180,7 +181,7 @@
 		},
 		{
 			q: 'Should I store a dot-matrix font as row bytes or column bytes?',
-			a: 'Match the way the hardware is scanned. Many small 5 by 7 modules are driven one column at a time, so the natural unit is a column of 7 bits and a character is 5 bytes. An 8 by 8 module driven by shift registers or a driver chip is often written one row per byte. The two are the same picture rotated, and this page produces either, with the first pixel as the top bit or as bit 0.'
+			a: 'Match the way the hardware is scanned. Some small 5 by 7 modules are driven one column at a time, so the natural unit is a column of 7 bits and a character is 5 bytes. An 8 by 8 module driven by shift registers or a driver chip may be written one row per byte. The two are the same picture rotated, and this page produces either, with the first pixel as the top bit or as bit 0.'
 		},
 		{
 			q: 'What does a Nixie decoder do with the codes 10 to 15?',
@@ -188,7 +189,7 @@
 		},
 		{
 			q: 'How can a few pins drive many digits?',
-			a: 'By multiplexing. The same-named segment pins of every digit are wired together, and each digit has its own common pin. The microcontroller puts one digit\'s segment byte on the shared lines, enables only that digit, and moves on to the next many times a second. Your eye blends the digits into a steady picture, at the price that each digit is lit only one share of the time, so the segments are driven harder while on.'
+			a: 'By multiplexing. The same-named segment pins of every digit are wired together, and each digit has its own common pin. The microcontroller puts one digit\'s segment byte on the shared lines, enables only that digit, and moves on to the next many times a second. Your eye blends the digits into a steady picture, at the price that each digit is lit only one share of the time, so the segments are often driven harder while on.'
 		}
 	];
 	const page = {
@@ -262,7 +263,7 @@
 				</div>
 				<p class="field-help">{order === 'lsb' ? 'Segment a is bit 0 and the decimal point is bit 7.' : 'Segment a is bit 7 and the decimal point is bit 0.'} {polarity === 'anode' ? 'A common anode display lights a segment on a 0 bit, so every bit is inverted.' : 'A common cathode display lights a segment on a 1 bit.'}</p>
 
-				<div class="table-wrap scroll-box" use:scrollRegion data-label="Bytes for each digit" role="status">
+				<div class="table-wrap scroll-box" use:scrollRegion data-label="Bytes for each digit">
 					<table class="data-table narrow">
 						<thead>
 							<tr><th scope="col">Digit</th><th scope="col">Segments lit</th><th scope="col">Hex</th><th scope="col">Binary</th></tr>
@@ -315,7 +316,7 @@
 					<Choice label="Language" bind:value={mlang} options={[['c', 'C'], ['arduino', 'Arduino']]} />
 				</div>
 				<p class="field-help">{matrixNote}.</p>
-				<div class="scroll-box code" use:scrollRegion data-label="Generated code" role="status"><pre class="mono">{matrixCode}</pre></div>
+				<div class="scroll-box code" use:scrollRegion data-label="Generated code"><pre class="mono">{matrixCode}</pre></div>
 				<p class="copy-row"><CopyButton text={matrixCode} label="Copy code" /> <CopyButton text={matrixBytes.map((b) => '0x' + hex2(b)).join(', ')} label="Copy bytes" /></p>
 
 				<label class="field" for="mat-text">Type text to see it in the built-in 5×7 font</label>
@@ -324,20 +325,23 @@
 					{missing.length ? `No glyph for ${missing.map((c) => `"${c}"`).join(', ')}; drawn as "?".` : `Digits, A to Z (one case) and ${FONT_CHARS.replace(/[0-9A-Z]/g, '').replace(' ', '')} are in the font.`}
 				</p>
 				<div class="strip scroll-box" use:scrollRegion data-label="Text in the dot font"><Dots grid={strip} size={9} label="Text drawn in the 5 by 7 font" /></div>
-				<div class="marquee" aria-label="Scrolling preview">
+				<div class="marquee">
 					<Dots grid={frame} size={12} label="Scrolling preview of the text" />
-					<p class="note">{still ? 'Static preview (reduced motion is on).' : 'Scrolling preview.'}</p>
+					<p class="note">
+						<button type="button" class="chip-btn" on:click={() => (still = !still)}>{still ? 'Play' : 'Pause'}</button>
+						{reduced ? 'Reduced motion is on, so the preview starts paused.' : 'Scrolling preview.'}
+					</p>
 				</div>
 				<p class="copy-row">
 					<CopyButton text={stripCode} label="Copy text as array" />
 					<CopyButton text={fontCode} label="Copy whole font" />
 				</p>
 				<div class="scroll-box code" use:scrollRegion data-label="Text as an array"><pre class="mono">{stripCode}</pre></div>
-				<p class="field-help">The whole font is {FONT_CHARS.length} characters, {FONT_CHARS.length * 5} bytes, always as columns with the top pixel in bit 0.</p>
+				<p class="field-help">The whole font is {FONT_CHARS.length} characters, {FONT_CHARS.length * 5} bytes, as columns, with the top pixel in {msb ? 'bit 6' : 'bit 0'}.</p>
 			{:else}
 				<label class="field" for="nixie-in">Digits to show on the tubes (0 to 9, or A to F for the codes 10 to 15)</label>
 				<input id="nixie-in" class="text mono" value={nx} on:input={typeNixie} maxlength="8" spellcheck="false" autocomplete="off" aria-describedby="nixie-help" />
-				<p class="field-help" id="nixie-help" role={nxCut ? 'alert' : 'status'}>{nxCut ? 'Only 0 to 9 and A to F are used here; other characters were dropped.' : 'A to F are BCD codes 10 to 15, which no tube numeral answers to: the tube stays dark.'}</p>
+				<p class="field-help" id="nixie-help" role={nxCut || !nx ? 'alert' : 'status'}>{nxCut ? 'Only 0 to 9 and A to F are used here; other characters were dropped.' : !nx ? 'Type at least one digit to light a tube.' : 'A to F are BCD codes 10 to 15, which no tube numeral answers to: the tube stays dark.'}</p>
 				<div class="tubes" style={rowStyle(Math.max(tubes.length, 1))} role="status">
 					{#each tubes as t, i}
 						<figure>
@@ -346,7 +350,7 @@
 					</figure>
 					{/each}
 				</div>
-				<p class="copy-row"><CopyButton text={packed} label="Copy as packed BCD" /> <span class="note mono">{packed}</span></p>
+				{#if nx}<p class="copy-row"><CopyButton text={packed} label="Copy as packed BCD" /> <span class="note mono">{packed}</span></p>{/if}
 			{/if}
 			<p class="share-row"><ShareLink what="the display" /></p>
 		</div>
@@ -374,9 +378,9 @@
 	<section id="how">
 		<h2>How a byte becomes lit segments</h2>
 		<ul class="points">
-			<li><strong>The byte is a wiring convention.</strong> Eight port pins go to the segment pins through resistors, and bit 0 of the byte is whichever segment you wired to the lowest pin. Wiring a to bit 0 up to g as bit 6 and the point as bit 7 is the most common choice, and it is what makes a zero {hex2(Z.cathode)}: bits 0 to 5 are a to f and nothing else is lit. If your wiring differs, change the bit order above or renumber the bits.</li>
+			<li><strong>The byte is a wiring convention.</strong> Eight port pins go to the segment pins through resistors, and bit 0 of the byte is whichever segment you wired to the lowest pin. Wiring a to bit 0 up to g as bit 6 and the point as bit 7 is a common choice, and it is what makes a zero {hex2(Z.cathode)}: bits 0 to 5 are a to f and nothing else is lit. If your wiring differs, change the bit order above or renumber the bits.</li>
 			<li><strong>Anode against cathode.</strong> The segments are LEDs. With the cathodes joined, a high pin lights a segment; with the anodes joined, a low pin does. The display's pattern is the same either way, so the byte is just inverted: {hex2(Z.cathode)} becomes {hex2(Z.anode)}.</li>
-			<li><strong>Several digits.</strong> Wiring the segment pins of all digits together and switching each digit's common pin in turn needs only 8 + n pins for n digits. Each digit is on for 1/n of the time, so the refresh must be fast enough to hide the flicker, and the current while a digit is on is usually set higher to make up the brightness.</li>
+			<li><strong>Several digits.</strong> Wiring the segment pins of all digits together and switching each digit's common pin in turn needs only 8 + n pins for n digits. Each digit is on for 1/n of the time, so the refresh must be fast enough to hide the flicker, and the current while a digit is on is often set higher to make up the brightness.</li>
 			<li><strong>The letters are conventions.</strong> No standard says what a seven-segment R or Y looks like. These glyphs are the common ones: {typeable().filter((c) => !/[0-9]/.test(c)).join(' ')}. Anything else, such as {unsupported.join(' ').toUpperCase()}, has no readable shape.</li>
 		</ul>
 	</section>
@@ -384,10 +388,10 @@
 	<section id="matrix">
 		<h2>Dot matrices: rows, columns and scan direction</h2>
 		<p class="section-intro">
-			A 5×7 module has 35 dots. It is usually scanned one column at a time: the controller puts a 7-bit pattern on the row lines, enables column 1, then column 2, up to column 5, over and over. That is why 5×7 fonts are stored as five column bytes per character. An 8×8 module is just as often scanned by row, so its natural unit is a row byte. The tool gives you both and the choice of which pixel is the top bit; rotate and flip convert between them. Transposing swaps the row bytes for the column bytes, and rotating four times returns the original grid.
+			A 5×7 module has 35 dots. It is often scanned one column at a time: the controller puts a 7-bit pattern on the row lines, enables column 1, then column 2, up to column 5, over and over. That is why 5×7 fonts are often stored as five column bytes per character. An 8×8 module is just as often scanned by row, so its natural unit is a row byte. The tool gives you both and the choice of which pixel is the top bit; rotate and flip convert between them. Transposing swaps the row bytes for the column bytes, and rotating four times returns the original grid.
 		</p>
 		<p class="section-intro">The built-in font here, drawn for this site and not copied from any named font, has these glyphs, shown as the tool would use them:</p>
-		<div class="font" aria-label="The built-in font">
+		<div class="font">
 			{#each [...FONT_CHARS].filter((c) => c !== ' ') as ch}
 				<figure><Dots grid={textStrip(ch)} size={6} label="Glyph {ch}" /><figcaption>{ch}</figcaption></figure>
 			{/each}
