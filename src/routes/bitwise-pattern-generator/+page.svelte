@@ -593,7 +593,7 @@
 							<td class="thumb">{@html thumbs[i] ?? ''}</td>
 							<td
 								><button type="button" class="chip-btn" on:click={() => usePreset(p)}>{p.label}</button><br /><span
-									class="mono nowrap">{[p.e].flat().join(' , ')}</span
+									class="mono expr">{[p.e].flat().join(' , ')}</span
 								></td
 							>
 							<td>{p.note}</td>
@@ -727,6 +727,13 @@
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
+	}
+	/* Long expressions wrap inside their cell instead of stretching the table sideways. */
+	.expr {
+		display: inline-block;
+		max-width: 26rem;
+		font-size: 0.85em;
+		overflow-wrap: anywhere;
 	}
 	.expression-input {
 		width: 100%;
@@ -921,6 +928,40 @@
 		width: 4rem;
 		height: 4rem;
 		border: 1px solid rgba(255, 255, 255, 0.3);
+	}
+	/* On a phone each starting point becomes a small card: picture and expression side by side, the note below. */
+	@media (max-width: 640px) {
+		.presets,
+		.presets tbody {
+			display: block;
+		}
+		.presets thead {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip: rect(0 0 0 0);
+		}
+		.presets tr {
+			display: grid;
+			grid-template-columns: 5rem minmax(0, 1fr);
+			gap: 0.3rem 0.8rem;
+			padding: 0.7rem 0;
+			border-top: 1px solid rgba(255, 255, 255, 0.15);
+		}
+		.presets td {
+			display: block;
+			padding: 0;
+			border: 0;
+			min-width: 0;
+		}
+		.presets td:last-child {
+			grid-column: 1 / -1;
+			min-width: 0;
+		}
+		.presets .thumb {
+			padding: 0;
+		}
 	}
 	.pair {
 		display: flex;
