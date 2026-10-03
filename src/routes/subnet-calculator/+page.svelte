@@ -23,6 +23,8 @@
 	} from '$lib/ipv4';
 	import { readUrl, syncUrl, safeText, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
+	import PausedAlert from '$lib/PausedAlert.svelte';
+	import { scrollRegion } from '$lib/scrollRegion';
 	import { onMount } from 'svelte';
 
 	const DEFAULTS = { ip: '192.168.1.10/24', test: '192.168.2.10' };
@@ -163,7 +165,8 @@
 	function tryValue(v: string) {
 		input = v;
 		const field = document.getElementById('cidr');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		field?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
@@ -244,7 +247,7 @@
 	];
 
 	const page = {
-		title: 'Subnet Calculator: Network, Broadcast and Hosts, Bit by Bit',
+		title: 'Subnet Calculator (IPv4 CIDR): Network, Broadcast and Hosts',
 		description:
 			'IPv4 subnet calculator: network and broadcast address, host range, netmask and wildcard from any CIDR, with the AND that finds the network shown bit by bit.',
 		url: `${SITE}/subnet-calculator`,
@@ -319,7 +322,7 @@
 		<h1>Subnet calculator</h1>
 		<p class="lede">
 			Type an IPv4 address with its prefix or mask to get the network and broadcast address, the usable host range and
-			every mask. The network address is the address AND the mask, and the calculator shows that AND bit by bit.
+			every mask, with the AND that finds the network shown bit by bit.
 		</p>
 
 		<div class="card tool">
@@ -333,11 +336,12 @@
 				autocomplete="off"
 				autocapitalize="off"
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="cidr-help"
+				aria-describedby="cidr-help{error ? ' cidr-error' : ''}"
 			/>
 			{#if error}
-				<p class="error" role="alert">{error}</p>
+				<p class="error" id="cidr-error">{error}</p>
 			{/if}
+			<PausedAlert message={error} />
 			<p class="field-help" id="cidr-help">Any of 192.168.1.10/24, 192.168.1.10 255.255.255.0 or 192.168.1.10 24.</p>
 
 			<div class="prefix-row">
@@ -397,7 +401,7 @@
 						>{copyState === 'copied'
 							? 'Copied to the clipboard.'
 							: copyState === 'failed'
-							? 'Copying was blocked; select the values instead.'
+							? 'Copying was blocked; select the values and press ctrl+C.'
 							: ''}</span
 					>
 				</p>
@@ -464,9 +468,11 @@
 					autocomplete="off"
 					autocapitalize="off"
 					aria-invalid={testError ? 'true' : 'false'}
+					aria-describedby={testError ? 'test-error' : undefined}
 				/>
+				<PausedAlert message={testError} />
 				{#if testError}
-					<p class="error" role="alert">{testError}</p>
+					<p class="error" id="test-error">{testError}</p>
 				{:else if error}
 					<p class="field-help">Fix the subnet above, then this address is checked against it.</p>
 				{:else if testAddress !== null}
@@ -596,7 +602,7 @@
 		<p class="section-intro">
 			Every prefix length with its netmask, wildcard mask and size. Each step down the table halves the block.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollRegion data-label="Subnet mask table">
 			<table class="data-table prefix-table">
 				<thead>
 					<tr>
@@ -634,7 +640,7 @@
 			Some ranges are set aside and never appear as ordinary public addresses. The calculator names the range an address
 			falls in.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollRegion data-label="Special-use IPv4 ranges">
 			<table class="data-table special-table">
 				<thead>
 					<tr>
@@ -664,7 +670,7 @@
 			Before 1993 the first bits of an address fixed its network size. Classless routing (CIDR) replaced the scheme, so
 			a class says nothing about a real network today, but the letters still turn up in courses and exams.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollRegion data-label="Address classes">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -784,6 +790,8 @@
 		color: #f66;
 		font-size: 0.9rem;
 		margin: 0.4rem 0 0;
+		/* Messages quote the input, which can be one long unbroken run. */
+		overflow-wrap: anywhere;
 	}
 
 	.prefix-row {
@@ -1126,6 +1134,8 @@
 		}
 	}
 
+	/* Narrower side padding on a phone, so the 32 bit columns of the AND fit
+	   without scrolling inside their box. */
 	@media (max-width: 560px) {
 		.tool {
 			padding: 1rem 0.8rem 1.1rem;

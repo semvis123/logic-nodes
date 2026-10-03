@@ -694,6 +694,48 @@ test.describe('the subnet-calculator page', () => {
 		await expect(page.locator('.error')).toHaveText('Octet 4 is 256, the maximum is 255 (the fourth octet is 8 bits)');
 	});
 
+	test('errors are described on the field, and announced only after typing pauses', async ({ page }) => {
+		await page.goto('/subnet-calculator');
+		await page.waitForLoadState('networkidle');
+		const alerts: string[] = [];
+		await page.exposeFunction('noteAlert', (t: string) => alerts.push(t));
+		await page.evaluate(() => {
+			const seen = new WeakSet<Node>();
+			new MutationObserver(() => {
+				for (const el of document.querySelectorAll('main [role="alert"]')) {
+					if (!seen.has(el) || el.textContent !== (el as HTMLElement).dataset.last) {
+						seen.add(el);
+						(el as HTMLElement).dataset.last = el.textContent ?? '';
+						(window as unknown as { noteAlert: (t: string) => void }).noteAlert(el.textContent ?? '');
+					}
+				}
+			}).observe(document.body, { subtree: true, childList: true, characterData: true });
+		});
+		await page.fill('#cidr', '');
+		await page.type('#cidr', '10.20.30.40/16', { delay: 60 });
+		await page.waitForTimeout(700);
+		expect(alerts.length).toBeLessThanOrEqual(1);
+		await page.fill('#cidr', '10.20.30.400/16');
+		await expect(page.locator('#cidr')).toHaveAttribute('aria-describedby', 'cidr-help cidr-error');
+		await expect(page.locator('#cidr-error')).toContainText('Octet 4 is 400');
+		await expect(page.locator('main [role="alert"]')).toContainText('Octet 4 is 400');
+		await page.fill('#test-address', '1.2.3');
+		await expect(page.locator('#test-address')).toHaveAttribute('aria-describedby', 'test-error');
+	});
+
+	test('a table that scrolls can be reached by keyboard, and one that fits cannot', async ({ page }) => {
+		await page.setViewportSize({ width: 390, height: 800 });
+		await page.goto('/subnet-calculator');
+		await page.waitForLoadState('networkidle');
+		const wrap = page.locator('#table .table-wrap');
+		await expect(wrap).toHaveAttribute('tabindex', '0');
+		await expect(wrap).toHaveAttribute('role', 'region');
+		await expect(wrap).toHaveAttribute('aria-label', 'Subnet mask table');
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await expect(wrap).not.toHaveAttribute('tabindex', '0');
+		await expect(page.locator('.bits-figure').first()).toHaveAttribute('role', 'group');
+	});
+
 	test('the membership check shows the AND', async ({ page }) => {
 		await page.goto('/subnet-calculator?ip=10.0.0.5%2F8&test=11.0.0.1');
 		await expect(page.locator('.verdict')).toContainText('is not in');
@@ -758,6 +800,17 @@ test.describe('the vlsm-calculator page', () => {
 		await expect(page.locator('#req-hosts-0')).toHaveValue('100');
 		await expect(page.locator('#req-name-5')).toHaveValue('Guests');
 		await expect(page).toHaveURL(shared);
+	});
+
+	test('the plan fits its card at 1280 without scrolling sideways', async ({ page }) => {
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await page.goto('/vlsm-calculator');
+		await page.waitForLoadState('networkidle');
+		const wrap = page.locator('.plan').locator('xpath=..');
+		const [scroll, client] = await wrap.evaluate((el) => [el.scrollWidth, el.clientWidth]);
+		expect(scroll).toBeLessThanOrEqual(client);
+		await expect(page.locator('.plan thead')).toContainText('Host range');
+		await expect(page.locator('.plan tbody tr').first()).toContainText('192.168.10.1to 192.168.10.62');
 	});
 
 	test('a plan that does not fit says how much is missing', async ({ page }) => {

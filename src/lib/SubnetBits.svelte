@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { toBits, dottedBits } from '$lib/ipv4';
+	import { scrollRegion } from '$lib/scrollRegion';
 
 	// Rows of 32 bits stacked in exact columns, so an AND or an OR can be read
 	// straight down, the way it is done on paper. The network and host bits are
@@ -22,7 +23,7 @@
 	$: compareBits = compare === null ? '' : toBits(compare);
 </script>
 
-<div class="bits-figure" role="group" aria-label={caption}>
+<div class="bits-figure" role="group" aria-label={caption} use:scrollRegion data-label={caption}>
 	<div class="row scale" aria-hidden="true">
 		<span class="label" />
 		<span class="grid">
