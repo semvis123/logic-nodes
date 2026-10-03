@@ -93,10 +93,12 @@
 
 	// Until the link has been read, the address bar is left alone. On Back or
 	// Forward the reactive syncUrl below runs before afterNavigate, and would
-	// otherwise replace the incoming link with this type's defaults.
+	// otherwise replace the incoming link with this type's defaults. Leaving the
+	// site (willUnload) must not reset it: Back may restore this very page from
+	// the back/forward cache, where afterNavigate does not run again.
 	let linkRead = false;
-	beforeNavigate(({ from, to }) => {
-		if (!to || from?.url.pathname !== to.url.pathname) linkRead = false;
+	beforeNavigate(({ from, to, willUnload }) => {
+		if (!willUnload && to && from?.url.pathname !== to.url.pathname) linkRead = false;
 	});
 
 	// Runs on first load and after every move between type pages, which reuse

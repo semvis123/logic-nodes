@@ -640,6 +640,48 @@ test.describe('the integer-limits page', () => {
 		await expect(page).toHaveURL(/\/integer-limits$/);
 	});
 
+	test('the link keeps following edits after Back from another site', async ({
+		playwright,
+		browserName,
+		launchOptions,
+		channel,
+		baseURL
+	}) => {
+		// Playwright turns the back/forward cache off; real browsers keep it on,
+		// and a page restored from it does not run afterNavigate again.
+		const browser = await playwright[browserName].launch({
+			...launchOptions,
+			channel,
+			ignoreDefaultArgs: ['--disable-back-forward-cache']
+		});
+		try {
+			const page = await browser.newPage({ baseURL });
+			// Same server, other origin: the browser leaves the app entirely.
+			const elsewhere = (baseURL as string).replace('localhost', '127.0.0.1') + '/tools';
+			for (const path of ['/integer-limits/int8', '/integer-limits']) {
+				await page.goto(path);
+				await page.waitForLoadState('networkidle');
+				await page.fill('#pg-value', '5');
+				await expect(page).toHaveURL(/v=5/);
+				await page.evaluate((href) => {
+					const a = document.createElement('a');
+					a.href = href;
+					a.id = 'elsewhere';
+					a.textContent = 'elsewhere';
+					document.querySelector('main')?.prepend(a);
+				}, elsewhere);
+				await page.click('#elsewhere');
+				await expect(page).toHaveURL(elsewhere);
+				await page.goBack({ waitUntil: 'commit' });
+				await expect(page.locator('#pg-value')).toHaveValue('5');
+				await page.fill('#pg-value', '6');
+				await expect(page).toHaveURL(new RegExp(`${path}\\?.*v=6`));
+			}
+		} finally {
+			await browser.close();
+		}
+	});
+
 	test('errors are described on the field and announced once typing pauses', async ({ page }) => {
 		await page.goto('/integer-limits');
 		await page.waitForLoadState('networkidle');
