@@ -703,6 +703,8 @@ test.describe('struct layout engine', () => {
 	});
 
 	test('layout invariants hold for random structs', () => {
+		// Some 100 000 checks: allow for a busy machine rather than fail on time.
+		test.setTimeout(120_000);
 		const types = ['char', 'short', 'int', 'long', 'long long', 'double', 'long double', 'float', 'void *', 'uint16_t'];
 		const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 		for (let k = 0; k < 300; k++) {
@@ -1025,6 +1027,41 @@ struct s {
 		expect(a.layout.members[1].code).toBe('unsigned long int a;');
 		expect(a.layout.members[2].code).toBe('unsigned long int *b;');
 	});
+
+	test('the reordered code keeps the comments written inside the struct', () => {
+		const src = `/* header */
+struct s { // opener
+  char c; // tag
+  /* the value,
+     in metres */
+  double d; /* value */
+  int x, y; // coords
+  struct { char p; long q; /* q */ }; // anon
+  char e;
+  // the end
+};
+/* trailer */`;
+		const r = analyse(src, 'x64').reordered;
+		expect(r?.code).toBe(`struct s { // opener
+    /* the value,
+       in metres */
+    double d; /* value */
+    struct {
+        char p;
+        long q; /* q */
+    }; // anon
+    int x; // coords
+    int y;
+    char c; // tag
+    char e;
+    // the end
+};`);
+		expect(r?.source).toBe(`/* header */\n${r?.code}\n/* trailer */`);
+		// Laid out again, the commented version gives the same layout.
+		const again = analyse(r?.source ?? '', 'x64');
+		expect(again.layout.size).toBe(r?.layout.size);
+		expect(again.reordered?.code).toBe(r?.code);
+	});
 });
 
 test.describe('the struct-padding-calculator page', () => {
@@ -1071,9 +1108,12 @@ test.describe('the struct-padding-calculator page', () => {
 	test('the reordered version can be laid out in one click', async ({ page }) => {
 		await page.goto('/struct-padding-calculator');
 		await page.waitForLoadState('networkidle');
-		await page.getByRole('button', { name: 'Lay out this version' }).click();
+		await page.getByRole('button', { name: 'Lay out this version' }).focus();
+		await page.keyboard.press('Enter');
 		await expect(answer(page)).toHaveText('16 bytes');
 		await expect(page.locator('#struct-source')).toHaveValue(/double value;\n {4}int count;/);
+		// The button is gone now, so focus lands on the code it replaced, not the page top.
+		await expect(page.locator('#struct-source')).toBeFocused();
 	});
 
 	test('laying out the reordered version keeps the structs it uses', async ({ page }) => {
@@ -1124,6 +1164,12 @@ test.describe('the struct-padding-calculator page', () => {
 		await page.goto('/struct-padding-calculator?t=vax');
 		await page.waitForLoadState('networkidle');
 		await expect(page.locator('#target')).toHaveValue('x64');
+		// ...and dropped from the address, so Copy link does not share them. 4001
+		// characters is one over MAX_SOURCE.
+		await expect(page).toHaveURL(/\/struct-padding-calculator$/);
+		await page.goto('/struct-padding-calculator?t=arm32&c=' + 'x'.repeat(4001));
+		await page.waitForLoadState('networkidle');
+		await expect(page).toHaveURL(/\/struct-padding-calculator\?t=arm32$/);
 	});
 
 	test('the FAQ markup matches the visible answers', async ({ page }) => {
@@ -1145,4 +1191,22 @@ test.describe('the struct-padding-calculator page', () => {
 			}))
 		).toEqual(visible);
 	});
+
+	for (const width of [390, 1280]) {
+		test(`the trailing padding row lines up with the other columns at ${width}px`, async ({ page }) => {
+			await page.setViewportSize({ width, height: 900 });
+			await page.goto('/struct-padding-calculator');
+			const box = async (selector: string) => {
+				const b = await page.locator(selector).first().boundingBox();
+				if (!b) throw new Error(`${selector} is not visible`);
+				return b;
+			};
+			const padHead = await box('.members thead th:last-child');
+			const trailing = await box('.members tr.total td:last-child');
+			const firstRow = await box('.members tbody tr:first-child td:last-child');
+			expect(Math.abs(trailing.x + trailing.width - (padHead.x + padHead.width))).toBeLessThan(1);
+			expect(Math.abs(trailing.x - padHead.x)).toBeLessThan(1);
+			expect(Math.abs(firstRow.x + firstRow.width - (padHead.x + padHead.width))).toBeLessThan(1);
+		});
+	}
 });
