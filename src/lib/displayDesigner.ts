@@ -120,12 +120,14 @@ export function byteCode(bytes: number[], lang: Lang, name: string, note: string
 	if (lang === 'verilog') {
 		const width = Math.max(1, Math.ceil(Math.log2(bytes.length)));
 		const rows = bytes.map((b, i) => `    ${width}'d${i}: seg = 8'h${hex2(b)};`);
-		return `// ${note}\nalways @(*) begin\n  case (idx)\n${rows.join('\n')}\n    default: seg = 8'h${hex2(
-			off
-		)};\n  endcase\nend`;
+		return `// ${note}\n// idx: wire [${width - 1}:0], seg: reg [7:0]\nalways @(*) begin\n  case (idx)\n${rows.join(
+			'\n'
+		)}\n    default: seg = 8'h${hex2(off)};\n  endcase\nend`;
 	}
 	const type = lang === 'c' ? 'const uint8_t' : 'const byte';
-	return `// ${note}\n${type} ${name}[${bytes.length}] = {\n  ${body.join(', ')}\n};`;
+	return `${lang === 'c' ? '#include <stdint.h>\n\n' : ''}// ${note}\n${type} ${name}[${
+		bytes.length
+	}] = {\n  ${body.join(', ')}\n};`;
 }
 
 // ---- Nixie ----
@@ -167,7 +169,7 @@ export function gridFromBytes(bytes: number[], w: number, h: number, lines: Line
 const FONT_SOURCE =
 	'0:0e 11 13 15 19 11 0e|1:04 0c 04 04 04 04 0e|2:0e 11 01 02 04 08 1f|3:1f 02 04 02 01 11 0e|4:02 06 0a 12 1f 02 02|5:1f 10 1e 01 01 11 0e|6:06 08 10 1e 11 11 0e|7:1f 01 02 04 08 08 08|8:0e 11 11 0e 11 11 0e|9:0e 11 11 0f 01 02 0c|' +
 	'A:0e 11 11 1f 11 11 11|B:1e 11 11 1e 11 11 1e|C:0e 11 10 10 10 11 0e|D:1c 12 11 11 11 12 1c|E:1f 10 10 1e 10 10 1f|F:1f 10 10 1e 10 10 10|G:0e 11 10 17 11 11 0f|H:11 11 11 1f 11 11 11|I:0e 04 04 04 04 04 0e|J:07 02 02 02 02 12 0c|K:11 12 14 18 14 12 11|L:10 10 10 10 10 10 1f|M:11 1b 15 15 11 11 11|' +
-	'N:11 11 19 15 13 11 11|O:0e 11 11 11 11 11 0e|P:1e 11 11 1e 10 10 10|Q:0e 11 11 11 15 12 0d|R:1e 11 11 1e 14 12 11|S:0f 10 10 0e 01 01 1e|T:1f 04 04 04 04 04 04|U:11 11 11 11 11 11 0e|V:11 11 11 11 11 0a 04|W:11 11 11 15 15 15 0a|X:11 11 0a 04 0a 11 11|Y:11 11 0a 04 04 04 04|Z:1f 01 02 04 08 10 1f|' +
+	'N:11 11 19 15 13 11 11|O:0e 11 11 11 11 11 0e|P:1e 11 11 1e 10 10 10|Q:0e 11 11 11 15 12 0d|R:1e 11 11 1e 14 12 11|S:0e 11 10 0e 01 11 0e|T:1f 04 04 04 04 04 04|U:11 11 11 11 11 11 0e|V:11 11 11 11 11 0a 04|W:11 11 11 15 15 15 0a|X:11 11 0a 04 0a 11 11|Y:11 11 0a 04 04 04 04|Z:1f 01 02 04 08 10 1f|' +
 	' :00 00 00 00 00 00 00|.:00 00 00 00 00 0c 0c|,:00 00 00 00 0c 04 08|!:04 04 04 04 04 00 04|?:0e 11 01 02 04 00 04|-:00 00 00 1f 00 00 00|+:00 04 04 1f 04 04 00|=:00 00 1f 00 1f 00 00|::00 0c 0c 00 0c 0c 00|/:01 01 02 04 08 10 10|*:00 15 0e 1f 0e 15 00|<:02 04 08 10 08 04 02|>:10 08 04 02 04 08 10|(:02 04 08 08 08 04 02|):08 04 02 02 02 04 08';
 export const FONT: Record<string, number[]> = Object.fromEntries(
 	FONT_SOURCE.split('|').map((g) => [
@@ -205,8 +207,9 @@ export function marqueeFrame(strip: Grid, offset: number, width: number): Grid {
 	);
 }
 
-/** Every glyph in the font as column bytes (top pixel in bit 0), five per character. */
-export const fontColumns = (): number[] => [...FONT_CHARS].flatMap((ch) => gridBytes(glyphGrid(ch), 'cols', false));
+/** Every glyph in the font as column bytes, five per character. */
+export const fontColumns = (msb = false): number[] =>
+	[...FONT_CHARS].flatMap((ch) => gridBytes(glyphGrid(ch), 'cols', msb));
 
 /** Rows as a short hex string for the link: first row first, each row's first pixel on the top bit. */
 export const gridToHex = (g: Grid) => gridBytes(g, 'rows', true).map(hex2).join('');
