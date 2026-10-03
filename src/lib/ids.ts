@@ -211,7 +211,7 @@ export function parseUuid(input: string): string {
 }
 
 const VERSION_TITLES: Record<number, string> = {
-	1: 'time and node (MAC address)',
+	1: 'time and node',
 	2: 'DCE security',
 	3: 'name-based, MD5 hash',
 	4: 'random',
@@ -617,11 +617,20 @@ export const SNOWFLAKE_EPOCHS: Record<SnowflakeService, { ms: bigint; iso: strin
 
 const MAX_U64 = (1n << 64n) - 1n;
 
+// A pasted snowflake may carry thousands separators, 175,928,847,299,117,063,
+// but only one kind and only between groups of three, so that stray spaces
+// ('1 2 3') are not silently glued into a number.
+const SNOWFLAKE_GROUPED = /^\d{1,3}([,_ ])\d{3}(\1\d{3})*$/;
+
 export function parseSnowflake(input: string): bigint {
-	const s = input.trim().replace(/[,_\s]/g, '');
-	if (!s) throw new IdError('Type a snowflake ID, a whole number such as 175928847299117063');
+	const t = input.trim();
+	if (!t) throw new IdError('Type a snowflake ID, a whole number such as 175928847299117063');
+	const s = t.replace(/[,_ ]/g, '');
 	if (!/^\d+$/.test(s)) {
 		throw new IdError('A snowflake is a whole number in decimal, digits 0 to 9 only');
+	}
+	if (s !== t && !SNOWFLAKE_GROUPED.test(t)) {
+		throw new IdError('Digit-group separators (commas, underscores or spaces) go between groups of three digits');
 	}
 	const value = BigInt(s);
 	if (value > MAX_U64) throw new IdError('That is more than 64 bits, too large for a snowflake');
@@ -836,9 +845,12 @@ export function detectId(input: string, service: SnowflakeService = 'discord'): 
 		.replace(/^\{(.*)\}$/, '$1')
 		.replace(/-/g, '');
 	if (/^[0-9a-f]{32}$/i.test(bare)) return decodeUuid(s);
-	if (/^[0-9a-f]{24}$/i.test(s) || /^ObjectId\(\s*(["']?)[0-9a-f]{24}\1\s*\)$/i.test(s)) return decodeObjectId(s);
+	// Anything in an ObjectId(...) wrapper goes to the ObjectId decoder, so a
+	// mismatched quote gets the ObjectId message rather than a UUID one.
+	if (/^[0-9a-f]{24}$/i.test(s) || /^ObjectId\(/i.test(s)) return decodeObjectId(s);
 	// Snowflakes are sometimes pasted with digit-group separators: 175,928,847,299,117,063.
-	if (/^\d[\d,_ ]*$/.test(s) && /^\d{1,20}$/.test(s.replace(/[,_ ]/g, ''))) return decodeSnowflake(s, service);
+	if (/^\d{1,20}$/.test(s) || (SNOWFLAKE_GROUPED.test(s) && /^\d{1,20}$/.test(s.replace(/[,_ ]/g, ''))))
+		return decodeSnowflake(s, service);
 	if (s.length === 26 && [...s].every((c) => crockfordValue(c) >= 0)) return decodeUlid(s);
 	if (s.length === 21 && /^[A-Za-z0-9_-]+$/.test(s)) return decodeNanoId(s);
 

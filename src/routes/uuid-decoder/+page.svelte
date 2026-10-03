@@ -65,14 +65,24 @@
 		gAt = safeText(p.at, 40) ?? gAt;
 		now = Date.now();
 		generator = new IdGenerator((n) => crypto.getRandomValues(new Uint8Array(n)));
+		quick = {
+			v4: generator.make('v4', now, { upper: false, dashes: true }),
+			v7: generator.make('v7', now, { upper: false, dashes: true })
+		};
+		// Rewrites the address at once, so a value the page rejected (an unknown
+		// option, an overlong ID) is not left in the link that Copy link shares.
+		syncState(input, gKind, gCount, gCase, gDash, gAt);
 		const tick = setInterval(() => (now = Date.now()), 1000);
-		return () => clearInterval(tick);
+		return () => {
+			clearInterval(tick);
+			clearTimeout(alertTimer);
+		};
 	});
 	// The time only applies to the kinds that hold one, so it is left out of the link otherwise.
-	$: syncUrl(
-		{ id: input, g: gKind, n: gCount, case: gCase, dash: gDash, at: TIMED.includes(gKind) ? gAt : '' },
-		DEFAULTS
-	);
+	function syncState(id: string, g: GenKind, n: number, c: string, dash: string, at: string) {
+		syncUrl({ id, g, n, case: c, dash, at: TIMED.includes(g) ? at : '' }, DEFAULTS);
+	}
+	$: syncState(input, gKind, gCount, gCase, gDash, gAt);
 
 	// Runs during prerendering too, so the served page shows a decoded UUID.
 	let decoded: DecodedId | null = null;
@@ -97,7 +107,8 @@
 	function tryId(value: string) {
 		input = value;
 		const field = document.getElementById('id-input');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		field?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
@@ -154,6 +165,72 @@
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const regenerate = (..._options: unknown[]) => generate();
 	$: if (generator) regenerate(gKind, gCount, gCase, gDash, gAt);
+
+	$: genMessage = countOk ? genError : 'Choose between 1 and 100 IDs.';
+
+	// The visible errors update on every keystroke, but the alert a screen reader
+	// announces waits for a pause in typing, so a half typed UUID is not read out
+	// as an error after every character.
+	let alertText = '';
+	let alertTimer: ReturnType<typeof setTimeout>;
+	$: scheduleAlert(error || genMessage);
+	function scheduleAlert(message: string) {
+		clearTimeout(alertTimer);
+		if (!message) alertText = '';
+		else alertTimer = setTimeout(() => (alertText = message), 500);
+	}
+
+	/** Lets a keyboard user focus a box that scrolls, so it can be scrolled, and only while it does. */
+	function scrollFocus(node: HTMLElement) {
+		const update = () => {
+			if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
+				node.tabIndex = 0;
+				node.setAttribute('role', 'region');
+				node.setAttribute('aria-label', node.dataset.label ?? 'Scrolling box');
+			} else {
+				node.removeAttribute('tabindex');
+				node.removeAttribute('role');
+				node.removeAttribute('aria-label');
+			}
+		};
+		// Re-checked when the box resizes and when what is in it changes.
+		const ro = new ResizeObserver(update);
+		ro.observe(node);
+		const mo = new MutationObserver(update);
+		mo.observe(node, { subtree: true, childList: true, characterData: true });
+		update();
+		return {
+			destroy: () => {
+				ro.disconnect();
+				mo.disconnect();
+			}
+		};
+	}
+
+	// One fresh v4 and v7 beside the decoder, for a reader who came for a new
+	// UUID. Made on mount like the generator below; until then each shows its
+	// pattern, which has the same length, so nothing moves when they arrive.
+	let quick: { v4: string; v7: string } | null = null;
+	const QUICK = [
+		{ kind: 'v4', name: 'version 4', pattern: 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx' },
+		{ kind: 'v7', name: 'version 7', pattern: 'tttttttt-tttt-7xxx-yxxx-xxxxxxxxxxxx' }
+	] as const;
+	let quickCopied: '' | 'v4' | 'v7' = '';
+	let quickFailed = false;
+	let quickTimer: ReturnType<typeof setTimeout>;
+	async function copyQuick(kind: 'v4' | 'v7') {
+		if (!quick) return;
+		try {
+			await navigator.clipboard.writeText(quick[kind]);
+			quickCopied = kind;
+			quickFailed = false;
+		} catch {
+			quickCopied = '';
+			quickFailed = true;
+		}
+		clearTimeout(quickTimer);
+		quickTimer = setTimeout(() => ((quickCopied = ''), (quickFailed = false)), 2500);
+	}
 
 	let copyState: 'idle' | 'copied' | 'failed' = 'idle';
 	let copyTimer: ReturnType<typeof setTimeout>;
@@ -316,7 +393,7 @@
 	related={[
 		{ href: '/snowflake-id-decoder', label: 'Snowflake ID decoder' },
 		{ href: '/hex-to-binary', label: 'Hex to binary converter' },
-		{ href: '/base32', label: 'Base32 encoder' },
+		{ href: '/base32', label: 'Base32 encode and decode' },
 		{ href: '/binary-translator', label: 'Binary translator' },
 		{ href: '/integer-limits', label: 'Integer limits' },
 		{ href: '/tools', label: 'All tools' }
@@ -340,10 +417,10 @@
 				autocomplete="off"
 				autocapitalize="off"
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="id-help"
+				aria-describedby="id-help{error ? ' id-error' : ''}"
 			/>
 			{#if error}
-				<p class="error" role="alert">{error}</p>
+				<p class="error" id="id-error">{error}</p>
 			{/if}
 			<p class="field-help" id="id-help">
 				Any case, with or without dashes, braces or urn:uuid:. The kind of ID is worked out from its length and
@@ -355,8 +432,32 @@
 				{/each}
 			</div>
 
+			<div class="quick-gen" role="group" aria-label="New UUIDs">
+				{#each QUICK as q}
+					<div class="quick-row">
+						<span class="quick-label">New {q.kind}</span>
+						<span class="mono quick-id" class:pending={!quick}>{quick ? quick[q.kind] : q.pattern}</span>
+						<button type="button" class="mini copy" disabled={!quick} on:click={() => copyQuick(q.kind)}
+							>{quickCopied === q.kind ? 'Copied' : 'Copy'}<span class="visually-hidden">
+								new {q.name} UUID</span
+							></button
+						>
+					</div>
+				{/each}
+				<p class="quick-more">
+					<a href="#generator">More kinds and options</a>: up to 100 at a time, ULIDs, ObjectIds and NanoIDs.
+					<span class="copy-status" aria-live="polite"
+						>{quickCopied
+							? `Copied the new ${quickCopied} UUID.`
+							: quickFailed
+							? 'Copying was blocked: select the UUID and press ctrl+C.'
+							: ''}</span
+					>
+				</p>
+			</div>
+
 			{#if decoded}
-				<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
+				<div class="results" class:stale={!!error} inert={error ? true : undefined}>
 					<div class="answer">
 						<!-- Only the part that changes when the ID does is live: the age
 						     below ticks every second and must not be read out each time. -->
@@ -451,6 +552,9 @@
 			{/if}
 			<p class="share-row"><ShareLink what="this ID and the generator settings" /></p>
 		</div>
+		{#if alertText}
+			<p class="visually-hidden" role="alert">{alertText}</p>
+		{/if}
 	</section>
 
 	<section id="generator">
@@ -470,7 +574,16 @@
 				</div>
 				<div>
 					<label class="field" for="gen-count">How many</label>
-					<input id="gen-count" class="count" type="number" min="1" max="100" bind:value={gCount} />
+					<input
+						id="gen-count"
+						class="count"
+						type="number"
+						min="1"
+						max="100"
+						bind:value={gCount}
+						aria-invalid={countOk ? 'false' : 'true'}
+						aria-describedby={countOk ? undefined : 'gen-error'}
+					/>
 				</div>
 				<div>
 					<label class="field" for="gen-case">Letters</label>
@@ -498,7 +611,8 @@
 							placeholder="now"
 							spellcheck="false"
 							autocomplete="off"
-							aria-describedby="gen-at-help"
+							aria-invalid={genError ? 'true' : 'false'}
+							aria-describedby="gen-at-help{genError ? ' gen-error' : ''}"
 						/>
 					</div>
 				{/if}
@@ -512,11 +626,8 @@
 					Version 4 has no time in it: all 122 bits that are not version or variant are random.
 				{/if}
 			</p>
-			{#if !countOk}
-				<p class="error" role="alert">Choose between 1 and 100 IDs.</p>
-			{/if}
-			{#if genError}
-				<p class="error" role="alert">{genError}</p>
+			{#if genMessage}
+				<p class="error" id="gen-error">{genMessage}</p>
 			{/if}
 			<ol class="generated scroll-box" aria-label="Generated IDs">
 				{#each generated as id}
@@ -525,9 +636,17 @@
 						<button type="button" class="mini" on:click={() => tryId(id)} aria-label="Decode {id}">Decode</button>
 					</li>
 				{:else}
-					<li class="empty">
-						{generator ? 'Nothing generated.' : 'IDs are generated in your browser once the page has loaded.'}
-					</li>
+					{#if generator}
+						<li class="empty">Nothing generated.</li>
+					{:else}
+						<!-- As many blank rows as will be made, so the list does not grow when they arrive. -->
+						<li class="visually-hidden">IDs are generated in your browser once the page has loaded.</li>
+						{#each Array(gCount) as _}
+							<li aria-hidden="true">
+								<span class="mono gen-id">&nbsp;</span><span class="mini placeholder">Decode</span>
+							</li>
+						{/each}
+					{/if}
 				{/each}
 			</ol>
 			<div class="gen-actions">
@@ -561,7 +680,7 @@
 			date; version 2 keeps only part of one. Version 4 is random and versions 3 and 5 are hashes, so the most anyone
 			can read from them is the version itself.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="UUID versions">
 			<table class="data-table">
 				<caption>UUID versions</caption>
 				<thead>
@@ -590,7 +709,7 @@
 			Only the top one to three bits of the 17th digit are the variant (shown in bold); the rest belong to the next
 			field (shown as x). That is why four different hex digits all mean the standard layout.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="The variant digit">
 			<table class="data-table variants">
 				<thead>
 					<tr>
@@ -654,21 +773,22 @@
 		<p>
 			UUIDs are not the only IDs with a time inside. A <strong>ULID</strong> is 128 bits like a UUID, 48 bits of
 			milliseconds and 80 random bits, written as 26 characters of Crockford Base32 instead of hex. The alphabet,
-			<span class="mono">{CROCKFORD}</span>, leaves out I, L and O, which are easily confused with 1 and 0, and U, which
-			Crockford dropped to avoid accidental obscenities; a decoder reads I and L as 1 and O as 0. The ULID
+			<span class="mono alphabet">{CROCKFORD}</span>, leaves out I, L and O, which are easily confused with 1 and 0, and
+			U, which Crockford dropped to avoid accidental obscenities; a decoder reads I and L as 1 and O as 0. The ULID
 			<span class="mono">{ulidExample.canonical}</span> starts with
 			<span class="mono">{ulidExample.canonical.slice(0, 10)}</span>, which is {ulidExample.fields[0].value} ms,
-			{ulidExample.time?.iso}.
+			<span class="mono nowrap">{ulidExample.time?.iso}</span>.
 		</p>
 		<p>
 			A <strong>MongoDB ObjectId</strong> is 12 bytes: 4 bytes of Unix seconds, 5 random bytes chosen once per process,
 			and a 3-byte counter. In <span class="mono">{oid.canonical}</span> the first 8 hex digits,
-			<span class="mono">{oid.canonical.slice(0, 8)}</span>, are {oid.fields[0].value} seconds, {oid.time?.iso}.
+			<span class="mono">{oid.canonical.slice(0, 8)}</span>, are {oid.fields[0].value} seconds,
+			<span class="mono nowrap">{oid.time?.iso}</span>.
 			<strong>Snowflakes</strong> are 64-bit numbers used by Discord and Twitter/X, with their own epoch; the
 			<a href="/snowflake-id-decoder">snowflake ID decoder</a> covers them. A <strong>NanoID</strong> is 21 random characters
 			and nothing else, so it has nothing to decode.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="ID formats compared">
 			<table class="data-table">
 				<caption>ID formats compared</caption>
 				<thead>
@@ -803,7 +923,7 @@
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.8rem;
 		padding: 0.25rem 0.6rem;
 		cursor: pointer;
 	}
@@ -846,7 +966,7 @@
 		font-size: 1.3rem;
 	}
 
-	.canonical {
+	.answer .canonical {
 		display: block;
 		color: #fff;
 		font-size: 1rem;
@@ -1028,6 +1148,88 @@
 		padding: 0.1rem 0.45rem;
 	}
 
+	/* Sized like the Decode button it stands in for, and as tall. */
+	.mini.placeholder {
+		display: inline-block;
+		line-height: normal;
+		visibility: hidden;
+	}
+
+	/* The same size and look as the site's Copy link button. */
+	.mini.copy {
+		font-size: 0.8rem;
+		line-height: 1.2;
+		min-width: 4.6rem;
+		padding: 0.3rem 0.7rem;
+	}
+
+	.mini:disabled {
+		color: #999;
+		cursor: default;
+	}
+
+	.quick-gen {
+		margin: 0 0 1rem;
+	}
+
+	/* Label, ID and Copy in a row; on a phone the ID gets a line of its own
+	   under its label and button, so it never has to break. */
+	.quick-row {
+		display: grid;
+		grid-template-columns: 4.2rem max-content max-content;
+		grid-template-areas: 'label id copy';
+		align-items: center;
+		gap: 0.3rem 0.7rem;
+		margin-top: 0.35rem;
+	}
+
+	.quick-label {
+		grid-area: label;
+		color: #999;
+		font-size: 0.85rem;
+	}
+
+	.quick-row .quick-id {
+		grid-area: id;
+		color: #eee;
+		font-size: 0.9rem;
+		overflow-wrap: anywhere;
+		user-select: all;
+	}
+
+	.quick-row .copy {
+		grid-area: copy;
+		justify-self: start;
+	}
+
+	.quick-row .quick-id.pending {
+		color: #999;
+	}
+
+	.quick-more {
+		color: #bbb;
+		font-size: 0.85rem;
+		margin: 0.5rem 0 0;
+	}
+
+	.quick-more .copy-status {
+		display: block;
+		min-height: 1.2em;
+	}
+
+	.alphabet {
+		word-break: break-all;
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+
 	.action {
 		font-size: 0.85rem;
 		padding: 0.35rem 0.8rem;
@@ -1179,9 +1381,17 @@
 		color: #fff;
 	}
 
+	@media (max-width: 720px) {
+		.quick-row {
+			grid-template-columns: 4.2rem minmax(0, 1fr);
+			grid-template-areas: 'label copy' 'id id';
+			margin-top: 0.6rem;
+		}
+	}
+
 	@media (max-width: 560px) {
-		.tool {
-			padding: 0.9rem 0.75rem 1rem;
+		.quick-row .quick-id {
+			font-size: 0.8rem;
 		}
 
 		.gen-id {

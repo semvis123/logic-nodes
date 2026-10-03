@@ -34,8 +34,14 @@
 		service = safeOption(p.s, services) ?? service;
 		moment = safeText(p.t, 40) ?? moment;
 		now = Date.now();
+		// Rewrites the address at once, so a value the page rejected (an unknown
+		// service, an overlong ID) is not left in the link that Copy link shares.
+		syncUrl({ id: input, s: service, t: moment }, DEFAULTS);
 		const tick = setInterval(() => (now = Date.now()), 1000);
-		return () => clearInterval(tick);
+		return () => {
+			clearInterval(tick);
+			clearTimeout(alertTimer);
+		};
 	});
 	$: syncUrl({ id: input, s: service, t: moment }, DEFAULTS);
 
@@ -76,6 +82,45 @@
 		}
 	}
 
+	// The visible errors update on every keystroke, but the alert a screen reader
+	// announces waits for a pause in typing, so a half typed ID is not read out
+	// as an error after every digit.
+	let alertText = '';
+	let alertTimer: ReturnType<typeof setTimeout>;
+	$: scheduleAlert(error || rangeError);
+	function scheduleAlert(message: string) {
+		clearTimeout(alertTimer);
+		if (!message) alertText = '';
+		else alertTimer = setTimeout(() => (alertText = message), 500);
+	}
+
+	/** Lets a keyboard user focus a box that scrolls, so it can be scrolled, and only while it does. */
+	function scrollFocus(node: HTMLElement) {
+		const update = () => {
+			if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
+				node.tabIndex = 0;
+				node.setAttribute('role', 'region');
+				node.setAttribute('aria-label', node.dataset.label ?? 'Scrolling box');
+			} else {
+				node.removeAttribute('tabindex');
+				node.removeAttribute('role');
+				node.removeAttribute('aria-label');
+			}
+		};
+		// Re-checked when the box resizes and when what is in it changes.
+		const ro = new ResizeObserver(update);
+		ro.observe(node);
+		const mo = new MutationObserver(update);
+		mo.observe(node, { subtree: true, childList: true, characterData: true });
+		update();
+		return {
+			destroy: () => {
+				ro.disconnect();
+				mo.disconnect();
+			}
+		};
+	}
+
 	function setNow() {
 		moment = new Date().toISOString();
 	}
@@ -84,7 +129,8 @@
 		service = s;
 		input = value;
 		const field = document.getElementById('sf-id');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		field?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
@@ -265,10 +311,10 @@
 				spellcheck="false"
 				autocomplete="off"
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="sf-help"
+				aria-describedby="sf-help{error ? ' sf-error' : ''}"
 			/>
 			{#if error}
-				<p class="error" role="alert">{error}</p>
+				<p class="error" id="sf-error">{error}</p>
 			{/if}
 			<p class="field-help" id="sf-help">
 				A user, message, server or channel ID: in Discord, turn on Developer Mode and choose Copy ID. Up to 20 digits.
@@ -282,7 +328,7 @@
 			</div>
 
 			{#if decoded && decoded.time}
-				<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
+				<div class="results" class:stale={!!error} inert={error ? true : undefined}>
 					<div class="answer">
 						<!-- The age below ticks every second, so only the time itself is live. -->
 						<div role={error ? undefined : 'status'}>
@@ -299,12 +345,14 @@
 						</dl>
 					</div>
 
-					<h2 class="working-title">Working</h2>
-					<p class="equation mono">
-						{decoded.canonical} &gt;&gt; 22{#if signDropped}, without the sign bit,{/if} = {shifted}<br />
-						{shifted} + {epoch.ms} = {decoded.time.unixMs}<br />
-						= {decoded.time.iso}
-					</p>
+					<h2 class="working-title">Working: shift right by 22, add the epoch</h2>
+					<div class="table-wrap scroll-box equation-box" use:scrollFocus data-label="Working">
+						<p class="equation mono">
+							{decoded.canonical} &gt;&gt; 22{#if signDropped}, without the sign bit,{/if} = {shifted}<br />
+							{shifted} + {epoch.ms} = {decoded.time.unixMs}<br />
+							= {decoded.time.iso}
+						</p>
+					</div>
 					<p class="note">
 						Shifting right by 22 drops the low 22 bits, leaving the milliseconds since the {epoch.name} epoch,
 						<span class="nowrap">{epoch.iso}</span>. Adding the epoch gives Unix milliseconds.
@@ -319,6 +367,9 @@
 			{/if}
 			<p class="share-row"><ShareLink what="this ID, the service and the date" /></p>
 		</div>
+		{#if alertText}
+			<p class="visually-hidden" role="alert">{alertText}</p>
+		{/if}
 	</section>
 
 	<section id="date-to-snowflake">
@@ -334,39 +385,39 @@
 					spellcheck="false"
 					autocomplete="off"
 					aria-invalid={rangeError ? 'true' : 'false'}
-					aria-describedby="sf-time-help"
+					aria-describedby="sf-time-help{rangeError ? ' sf-time-error' : ''}"
 				/>
 				<button type="button" class="action" on:click={setNow}>Now</button>
 			</div>
 			{#if rangeError}
-				<p class="error" role="alert">{rangeError}</p>
+				<p class="error" id="sf-time-error">{rangeError}</p>
 			{/if}
 			<p class="field-help" id="sf-time-help">
 				For example 2024-03-01, 2024-03-01 18:30 or 2024-03-01T18:30:00+01:00. Uses the {epoch.name} layout chosen above.
 			</p>
 			{#if range}
-				<div class="results" class:stale={!!rangeError} aria-hidden={rangeError ? 'true' : 'false'}>
+				<div class="results" class:stale={!!rangeError} inert={rangeError ? true : undefined}>
 					<div class="answer" role={rangeError ? undefined : 'status'}>
 						<span class="answer-label">Snowflakes made at {new Date(momentMs).toISOString()}</span>
 						<div class="range-row">
 							<span class="range-label">First</span>
 							<span class="mono range-value">{range.min}</span>
 							<button type="button" class="mini" on:click={() => range && copy('first', range.min.toString())}
-								>{copied === 'first' ? 'Copied' : 'Copy'}</button
+								>{copied === 'first' ? 'Copied' : 'Copy'}<span class="visually-hidden"> first snowflake</span></button
 							>
 						</div>
 						<div class="range-row">
 							<span class="range-label">Last</span>
 							<span class="mono range-value">{range.max}</span>
 							<button type="button" class="mini" on:click={() => range && copy('last', range.max.toString())}
-								>{copied === 'last' ? 'Copied' : 'Copy'}</button
+								>{copied === 'last' ? 'Copied' : 'Copy'}<span class="visually-hidden"> last snowflake</span></button
 							>
 						</div>
 						<span class="copy-status" aria-live="polite"
 							>{copied
 								? `Copied the ${copied} snowflake.`
 								: copyFailed
-								? 'Copying was blocked; select the number and copy it by hand.'
+								? 'Copying was blocked: select the number and press ctrl+C.'
 								: ''}</span
 						>
 					</div>
@@ -395,13 +446,15 @@
 			Because the time is in the top bits, a bigger ID is always a later one (to the millisecond), so sorting IDs sorts
 			by age. The same Discord example, worked through:
 		</p>
-		<p class="equation mono">
-			{DISCORD_EXAMPLE} &gt;&gt; 22 = {docsShifted}<br />
-			{docsShifted} + {SNOWFLAKE_EPOCHS.discord.ms} = {docsShifted + SNOWFLAKE_EPOCHS.discord.ms}<br />
-			= {docs.time?.iso}
-		</p>
+		<div class="table-wrap scroll-box equation-box" use:scrollFocus data-label="The Discord example, worked through">
+			<p class="equation mono">
+				{DISCORD_EXAMPLE} &gt;&gt; 22 = {docsShifted}<br />
+				{docsShifted} + {SNOWFLAKE_EPOCHS.discord.ms} = {docsShifted + SNOWFLAKE_EPOCHS.discord.ms}<br />
+				= {docs.time?.iso}
+			</p>
+		</div>
 		<p class="section-intro">The same sum in code. BigInt keeps all 64 bits; a plain number would not.</p>
-		<pre class="code"><code
+		<pre class="code" use:scrollFocus data-label="The same sum in JavaScript and Python"><code
 				>{`// JavaScript
 const snowflake = '${DISCORD_EXAMPLE}';
 const ms = Number(BigInt(snowflake) >> 22n) + ${SNOWFLAKE_EPOCHS.discord.ms};
@@ -413,7 +466,7 @@ snowflake = ${DISCORD_EXAMPLE}
 datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 1000, tz=timezone.utc)`}</code
 			></pre>
 
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Discord and Twitter/X layouts">
 			<table class="data-table">
 				<caption>Discord and Twitter/X layouts</caption>
 				<thead>
@@ -444,7 +497,7 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 			The first possible Discord ID of each year. Any ID smaller than a year's value was made before that year began, so
 			you can date an ID roughly at a glance.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Discord snowflakes by year">
 			<table class="data-table years">
 				<thead>
 					<tr>
@@ -585,7 +638,7 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.8rem;
 		padding: 0.25rem 0.6rem;
 		cursor: pointer;
 	}
@@ -622,7 +675,7 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 		text-transform: uppercase;
 	}
 
-	.answer-value {
+	.answer .answer-value {
 		color: #8ede8e;
 		display: block;
 		font-size: 1.35rem;
@@ -653,11 +706,16 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 		margin-top: 1.1rem !important;
 	}
 
+	/* Each line of a sum stays whole; on a phone the box scrolls instead. */
+	.equation-box {
+		margin: 0.5rem 0 0;
+	}
+
 	.equation {
 		color: #ddd;
 		font-size: 0.92rem;
-		margin: 0.5rem 0 0;
-		overflow-wrap: anywhere;
+		margin: 0;
+		white-space: nowrap;
 	}
 
 	.note {
@@ -690,9 +748,12 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 		white-space: nowrap;
 	}
 
+	/* The same size and look as the site's Copy link button. */
 	.mini {
-		font-size: 0.75rem;
-		padding: 0.15rem 0.5rem;
+		font-size: 0.8rem;
+		line-height: 1.2;
+		min-width: 4.6rem;
+		padding: 0.3rem 0.7rem;
 	}
 
 	.action {
@@ -714,7 +775,7 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 		width: 2.6rem;
 	}
 
-	.range-value {
+	.range-row .range-value {
 		color: #8ede8e;
 		font-size: 1.1rem;
 		overflow-wrap: anywhere;
@@ -788,16 +849,21 @@ datetime.fromtimestamp(((snowflake >> 22) + ${SNOWFLAKE_EPOCHS.discord.ms}) / 10
 		color: #fff;
 	}
 
-	@media (max-width: 560px) {
-		.tool {
-			padding: 0.9rem 0.75rem 1rem;
-		}
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
 
-		.answer-value {
+	@media (max-width: 560px) {
+		.answer .answer-value {
 			font-size: 1.05rem;
 		}
 
-		.range-value {
+		.range-row .range-value {
 			font-size: 0.95rem;
 		}
 

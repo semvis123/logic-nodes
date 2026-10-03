@@ -321,6 +321,16 @@ test('detection names each kind of ID and explains near misses', () => {
 	// Digit-group separators are accepted here as on the snowflake page.
 	expect(detectId('175,928,847,299,117,063').canonical).toBe('175928847299117063');
 	expect(detectId('175_928_847_299_117_063').kind).toBe('snowflake');
+	expect(detectId('175 928 847 299 117 063').kind).toBe('snowflake');
+	// Separators only between groups of three, and only one kind of them.
+	expect(errorOf(() => detectId('1 2 3'))).toContain('Not a recognised ID');
+	expect(errorOf(() => decodeSnowflake('1 2 3'))).toContain('groups of three');
+	expect(errorOf(() => decodeSnowflake('175,928_847'))).toContain('groups of three');
+	// A broken ObjectId(...) wrapper gets the ObjectId message.
+	expect(errorOf(() => detectId(`ObjectId('507f1f77bcf86cd799439011")`))).toContain('An ObjectId is 24 hex digits');
+	expect(detectId(`ObjectId("507f1f77bcf86cd799439011")`).kind).toBe('objectid');
+	// The RFC 9562 v1 example has a random (multicast) node, so the title does not promise a MAC address.
+	expect(decodeUuid('C232AB00-9414-11EC-B3C8-9F6BDECED846').title).toBe('UUID version 1: time and node');
 });
 
 test('generated v4 and v7 UUIDs always have the right version and variant', () => {
@@ -487,6 +497,8 @@ test('the comparison table matches the decoders', () => {
 });
 
 /** The FAQ answers as the page shows them and as its JSON-LD states them. */
+const RFC_V7_TEXT = '017F22E2-79B0-7CC3-98C4-DC0C0C07398F';
+
 async function faqPairs(page: import('@playwright/test').Page) {
 	const ld = await page.locator('script[type="application/ld+json"]').first().textContent();
 	const graph = JSON.parse(ld!)['@graph'];
@@ -592,6 +604,40 @@ test.describe('the uuid-decoder page', () => {
 		await expect(page.locator('.generated .gen-id')).toHaveCount(3);
 	});
 
+	test('shows a fresh v4 and v7 on the first screen, made in the browser', async ({ page }) => {
+		const html = await (await page.request.get('/uuid-decoder')).text();
+		expect(html).toContain('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx');
+		await page.goto('/uuid-decoder');
+		await page.waitForLoadState('networkidle');
+		const quick = page.locator('.quick-id');
+		await expect(quick.first()).toHaveText(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+		await expect(quick.nth(1)).toHaveText(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+		const v7 = (await quick.nth(1).textContent())!;
+		expect(Math.abs(detectId(v7).time!.unixMs - Date.now())).toBeLessThan(60_000);
+		await expect(page.getByRole('button', { name: 'Copy new version 4 UUID' })).toBeEnabled();
+	});
+
+	test('an invalid ID dims the result out of reach, and the alert waits for a pause', async ({ page }) => {
+		await page.goto('/uuid-decoder');
+		await page.waitForLoadState('networkidle');
+		await page.locator('#id-input').fill('abc');
+		await expect(page.locator('#id-error')).toContainText('Not a recognised ID');
+		await expect(page.locator('#id-input')).toHaveAttribute('aria-describedby', 'id-help id-error');
+		await expect.poll(() => page.locator('.intro .results').evaluate((el) => el.hasAttribute('inert'))).toBe(true);
+		await expect(page.locator('[role="alert"]')).toHaveCount(0);
+		await expect(page.locator('[role="alert"]')).toContainText('Not a recognised ID');
+		await page.locator('#id-input').fill(RFC_V7_TEXT);
+		await expect(page.locator('[role="alert"]')).toHaveCount(0);
+		await expect.poll(() => page.locator('.intro .results').evaluate((el) => el.hasAttribute('inert'))).toBe(false);
+	});
+
+	test('values the page rejects are taken out of the address', async ({ page }) => {
+		await page.goto(`/uuid-decoder?g=bogus&case=zzz&dash=maybe&n=500&id=${'a'.repeat(200)}`);
+		await page.waitForLoadState('networkidle');
+		await expect.poll(() => new URL(page.url()).search).toBe('');
+		await expect(page.locator('#id-input')).toHaveValue(RFC_V7_TEXT);
+	});
+
 	test('FAQ JSON-LD matches the visible answers', async ({ page }) => {
 		await page.goto('/uuid-decoder');
 		const { fromLd, visible } = await faqPairs(page);
@@ -644,6 +690,30 @@ test.describe('the snowflake-id-decoder page', () => {
 		await expect(page.locator('.answer').first()).toContainText(
 			decodeSnowflake('1234567890123456789', 'twitter').time!.iso
 		);
+	});
+
+	test('a stale range cannot be copied, and the copy buttons say what they copy', async ({ page }) => {
+		await page.goto('/snowflake-id-decoder');
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByRole('button', { name: 'Copy first snowflake' })).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Copy last snowflake' })).toBeVisible();
+		await page.locator('#sf-time').fill('2014-12-31');
+		await expect
+			.poll(() => page.locator('#date-to-snowflake .results').evaluate((el) => el.hasAttribute('inert')))
+			.toBe(true);
+		await expect(page.locator('#sf-time')).toHaveAttribute('aria-describedby', 'sf-time-help sf-time-error');
+		// Tab goes from the Now button past the dimmed range, not into its Copy buttons.
+		await page.getByRole('button', { name: 'Now', exact: true }).focus();
+		await page.keyboard.press('Tab');
+		expect(await page.evaluate(() => !!document.activeElement?.closest('#date-to-snowflake .results'))).toBe(false);
+		await expect(page.locator('[role="alert"]')).toContainText('before the Discord epoch');
+	});
+
+	test('values the page rejects are taken out of the address', async ({ page }) => {
+		await page.goto(`/snowflake-id-decoder?s=bogus&t=${'1'.repeat(60)}`);
+		await page.waitForLoadState('networkidle');
+		await expect.poll(() => new URL(page.url()).search).toBe('');
+		await expect(page.getByRole('button', { name: 'Discord', exact: true })).toHaveAttribute('aria-pressed', 'true');
 	});
 
 	test('FAQ JSON-LD matches the visible answers', async ({ page }) => {
