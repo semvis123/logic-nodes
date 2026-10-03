@@ -654,6 +654,43 @@ test.describe('the fp16-bf16-fp8-converter page', () => {
 		await expect(page.locator('.fmt-card.current h3')).toHaveText('FP16');
 	});
 
+	test('rejected query values are cleared from the address bar', async ({ page }) => {
+		await page.goto('/fp16-bf16-fp8-converter?fmt=bogus&mode=nope&of=x');
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('.fmt-card.current h3')).toHaveText('FP16');
+		expect(await page.evaluate(() => location.search)).toBe('');
+	});
+
+	test('Back and Forward keep the value in the link', async ({ page }) => {
+		await page.goto('/tools');
+		await page.waitForLoadState('networkidle');
+		await page.locator('a[href="/fp16-bf16-fp8-converter"]').first().click();
+		await page.waitForURL(/\/fp16-bf16-fp8-converter$/);
+		await page.waitForLoadState('networkidle');
+		await page.locator('#value').fill('2.5');
+		await expect(page).toHaveURL(/v=2\.5/);
+		await page.goBack();
+		await page.waitForURL(/\/tools$/);
+		await page.goForward();
+		await page.waitForURL(/fp16-bf16-fp8-converter/);
+		await expect(page.locator('#value')).toHaveValue('2.5');
+		await expect(page).toHaveURL(/v=2\.5/);
+	});
+
+	test('an error is described on the field and announced only once typing pauses', async ({ page }) => {
+		await page.goto('/fp16-bf16-fp8-converter');
+		await page.waitForLoadState('networkidle');
+		const field = page.locator('#value');
+		await expect(field).toHaveAttribute('aria-describedby', 'value-help');
+		await field.fill('0,1');
+		await expect(field).toHaveAttribute('aria-describedby', 'value-help value-error');
+		await expect(page.locator('#value-error')).toContainText('Use a point');
+		await expect(page.locator('[role="alert"]')).toContainText('Use a point');
+		await field.fill('0.5');
+		await expect(page.locator('[role="alert"]')).toHaveCount(0);
+		await expect(page.locator('[role="status"]').first()).toHaveText('FP16 stores 0.5');
+	});
+
 	test('FAQ JSON-LD matches the visible answers', async ({ page }) => {
 		await page.goto('/fp16-bf16-fp8-converter');
 		const ld = JSON.parse((await page.locator('script[type="application/ld+json"]').first().textContent()) || '{}');
