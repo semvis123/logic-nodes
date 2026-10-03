@@ -2252,8 +2252,12 @@ const TYPES: TypeDef[] = [
 			// video may carry a 3GP or QuickTime brand: the brand narrows, the
 			// extension can still be any of the family.
 			// HEIC and AVIF are both HEIF, so .heif fits either, but their codecs differ.
+			// A file whose major brand is the generic mif1 or msf1 only says "HEIF"
+			// up front; the codec brand is a compatible one that writers add, so
+			// any of the three still image extensions fits it.
+			const genericHeif = FTYP_KINDS.find((x) => x.id === 'heif')?.brands.includes(f.major);
 			const family =
-				k.id === 'heif'
+				k.id === 'heif' || genericHeif
 					? HEIF_FAMILY
 					: k.id === 'heic' || k.id === 'avif'
 					? ['heif']
@@ -2591,6 +2595,9 @@ function cafebabe(v: ByteView, wide: boolean): Hit | null {
 
 const certaintyRank: Record<Certainty, number> = { certain: 0, likely: 1, guess: 2 };
 
+/** Formats that are text themselves, so a clean-text body is no reason to doubt their signature. */
+const TEXT_NATIVE: ReadonlySet<string> = new Set(['pdf', 'rtf', 'ps']);
+
 function sigMatches(v: ByteView, sig: Sig): boolean {
 	return sig.bytes.every((b, k) => b === null || v.at(sig.at + k) === b);
 }
@@ -2646,6 +2653,8 @@ const TEXT_DEF: TypeDef = {
 export function detect(v: ByteView): Detection[] {
 	if (v.size === 0) return [];
 	const found: Detection[] = [];
+	// Matches of a binary format whose whole signature is printable letters.
+	const wordy = new Set<Detection>();
 	const run = (fallback: boolean) => {
 		for (const def of TYPES) {
 			if (!!def.fallback !== fallback) continue;
@@ -2660,13 +2669,25 @@ export function detect(v: ByteView): Detection[] {
 				const hit = def.verify ? def.verify(v, i) : {};
 				if (hit === null) continue;
 				const sigFields = variant.sigs.map((s) => ({ ...field(s.at, s.bytes.length, s.label), sig: true }));
-				found.push(build(def, hit, sigFields));
+				const d = build(def, hit, sigFields);
+				found.push(d);
+				if (
+					!TEXT_NATIVE.has(def.id) &&
+					variant.sigs.every((s) => s.bytes.every((b) => b !== null && b >= 0x20 && b < 0x7f))
+				)
+					wordy.add(d);
 				break;
 			}
 		}
 	};
 	run(false);
 	if (!found.length) run(true);
+	// GIF89a, fLaC, wOFF and BZh are words as well as signatures. A real file
+	// of those formats has binary bytes straight after them (sizes, flags,
+	// compressed data), so when every byte is clean text, the signature is
+	// only likely, and the text reading below goes first.
+	if (wordy.size && readUtf8(v, 0) !== null)
+		for (const d of wordy) if (d.certainty === 'certain') d.certainty = 'likely';
 	// Short signatures that could not be confirmed (true, OTTO, BM, MZ, ID3)
 	// are also ordinary words. When nothing matched in full and every byte
 	// is clean text, the text reading goes first and the others are listed
@@ -2683,7 +2704,7 @@ export function detect(v: ByteView): Detection[] {
 }
 
 /** When the bytes stop partway through a signature: "the first 4 of PNG's 8 bytes". */
-export type Partial = { name: string; have: number; need: number; hex: string };
+export type Partial = { name: string; have: number; need: number; hex: string; exts: string[] };
 
 export function partialMatches(v: ByteView): Partial[] {
 	if (v.size === 0 || v.size >= 16) return [];
@@ -2695,7 +2716,7 @@ export function partialMatches(v: ByteView): Partial[] {
 			const cells = p.text.split(' ');
 			if (p.offset !== 0 || p.text.includes(' at ') || cells.length <= v.size) continue;
 			if (cells.slice(0, v.size).every((h, k) => h === '??' || parseInt(h, 16) === v.at(k))) {
-				out.push({ name: def.name, have: v.size, need: cells.length, hex: p.text });
+				out.push({ name: def.name, have: v.size, need: cells.length, hex: p.text, exts: def.exts });
 				break;
 			}
 		}
@@ -2764,7 +2785,16 @@ export function expectedFor(ext: string): { name: string; hex: string }[] {
 		.map((t) => ({ name: t.name, hex: signaturePattern(t.variants[0]).text }));
 }
 
-export function checkExtension(fileName: string, detections: Detection[], size: number): ExtensionVerdict {
+/**
+ * Whether the name fits the bytes. `partials` are signatures the bytes stop
+ * partway through: four bytes of MThd cannot prove a .mid wrong.
+ */
+export function checkExtension(
+	fileName: string,
+	detections: Detection[],
+	size: number,
+	partials: Partial[] = []
+): ExtensionVerdict {
 	const ext = extensionOf(fileName);
 	const dotted = ext ? `.${ext}` : '';
 	const top = detections[0];
@@ -2810,6 +2840,16 @@ export function checkExtension(fileName: string, detections: Detection[], size: 
 			status: 'compatible',
 			ext,
 			message: `${dotted} fits another reading of these bytes: they are most likely ${top.what}, but also match ${other.what}.`,
+			expected: []
+		};
+	const cut = partials.find((p) => p.exts.includes(ext));
+	if (cut)
+		return {
+			status: 'compatible',
+			ext,
+			message: `${dotted} may be right: ${
+				cut.have === 1 ? 'this byte is' : `these ${cut.have} bytes are`
+			} the start of the ${cut.need}-byte ${cut.name} signature, and the data stops before the rest of it.`,
 			expected: []
 		};
 	if (GENERIC_EXTS.has(ext))

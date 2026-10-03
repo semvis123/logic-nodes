@@ -752,6 +752,22 @@ test.describe('detecting formats', () => {
 			expect((v as { status: string }).status, text).toBe('match');
 		}
 		expect((verdict('flag.json', 'true\n')[1] as { status: string }).status).toBe('compatible');
+		// Longer signatures that are words too: a real file has binary bytes
+		// right after them, so all-text bytes read as text, the format second.
+		for (const [text, other] of [
+			['GIF89a is a format\n', 'gif'],
+			['fLaC is flac\n', 'flac'],
+			['wOFF\n', 'woff'],
+			['BZh9 compressed\n', 'bzip2']
+		]) {
+			const [ids, v] = verdict('words.txt', text);
+			expect(ids, text).toEqual(['text', other]);
+			expect((v as { status: string }).status, text).toBe('match');
+		}
+		expect((verdict('words.gif', 'GIF89a is a format\n')[1] as { status: string }).status).toBe('compatible');
+		// A text format's own signature is not in doubt for being text.
+		expect(verdict('a.pdf', '%PDF-1.4\n')[0]).toEqual(['pdf']);
+		expect(top(real('tiny.gif')).certainty).toBe('certain');
 		// A real old QuickTime header still is one.
 		expect(top(HAND['mov-old'].bytes).id).toBe('mov-old');
 	});
@@ -818,7 +834,7 @@ test.describe('detecting formats', () => {
 	test('empty and truncated input', () => {
 		expect(detect(fromBytes([]))).toEqual([]);
 		expect(partialMatches(fromBytes([0x89, 0x50, 0x4e, 0x47]))).toEqual([
-			{ name: 'PNG image', have: 4, need: 8, hex: '89 50 4E 47 0D 0A 1A 0A' }
+			{ name: 'PNG image', have: 4, need: 8, hex: '89 50 4E 47 0D 0A 1A 0A', exts: ['png'] }
 		]);
 		expect(partialMatches(fromBytes([0x89])).map((p) => p.name)).toEqual(['PNG image']);
 		// RIFF is the start of a 12-byte pattern, not a whole 4-byte signature.
@@ -826,6 +842,14 @@ test.describe('detecting formats', () => {
 		expect(riff.map((p) => p.name)).toEqual(['WebP image', 'WAV audio', 'AVI video']);
 		expect(riff[0]).toMatchObject({ have: 4, need: 12, hex: '52 49 46 46 ?? ?? ?? ?? 57 45 42 50' });
 		expect(partialMatches(fromBytes([0x52, 0x49]))[0].need).toBe(12);
+		// A cut-off signature cannot prove the extension wrong.
+		const mthd = fromBytes(build({ t: 'MThd' }));
+		expect(checkExtension('a.mid', detect(mthd), 4, partialMatches(mthd))).toMatchObject({
+			status: 'compatible',
+			message:
+				'.mid may be right: these 4 bytes are the start of the 8-byte MIDI file signature, and the data stops before the rest of it.'
+		});
+		expect(checkExtension('a.png', detect(mthd), 4, partialMatches(mthd)).status).toBe('mismatch');
 		// A truncated ELF still says what it can.
 		expect(top(build('7F 45 4C 46')).certainty).toBe('likely');
 		// Every format with a signature at 0 survives being cut to any length without throwing.
@@ -1002,6 +1026,12 @@ test.describe('extensions', () => {
 		expect(verdict('photo.heif', HAND.heic.bytes).status).toBe('match');
 		// HEVC and AV1 are different codecs: a HEIC is a HEIF, but not an AVIF.
 		expect(verdict('photo.avif', HAND.heic.bytes).status).toBe('mismatch');
+		// A generic mif1 major brand says only "HEIF", so any still image extension fits.
+		const generic = build(u32be(24), { t: 'ftypmif1' }, '00 00 00 00', { t: 'mif1heic' });
+		expect(top(generic).id).toBe('heic');
+		expect(verdict('photo.avif', generic).status).toBe('compatible');
+		expect(verdict('photo.heic', generic).status).toBe('match');
+		expect(verdict('photo.mp4', generic).status).toBe('mismatch');
 		expect(verdict('song.mp4', real('tone.m4a')).status).toBe('compatible');
 	});
 

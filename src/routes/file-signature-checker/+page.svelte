@@ -105,8 +105,8 @@
 	$: checkedName = mode === 'hex' ? name : fileName;
 	$: detections = view ? detect(view) : [];
 	$: primary = detections[0] as Detection | undefined;
-	$: verdict = view ? checkExtension(checkedName, detections, view.size) : null;
 	$: partials = view ? partialMatches(view) : [];
+	$: verdict = view ? checkExtension(checkedName, detections, view.size, partials) : null;
 	// With nothing detected, a cut-off signature is still worth pointing at in the dump.
 	$: fields =
 		primary?.fields ??
@@ -284,7 +284,7 @@
 		},
 		{
 			value: 0xfeedfacf,
-			where: `The 64-bit Mach-O magic number, FEEDFACE plus one, and the one on every current Mac program: Intel and Apple silicon Macs are little-endian, so the file starts ${machoLittle}.`
+			where: `The 64-bit Mach-O magic number, FEEDFACE plus one, and the one on every current Mac program, or on each slice of a universal one: Intel and Apple silicon Macs are little-endian, so the file starts ${machoLittle}.`
 		},
 		{
 			value: 0xdeadbeef,
@@ -1561,6 +1561,16 @@
 
 	.sigs .sig-bytes {
 		white-space: nowrap;
+	}
+
+	/* On a phone, long patterns wrap between bytes (four to a line) rather than
+	   pushing the extensions and text columns out of the box. */
+	@media (max-width: 600px) {
+		.sigs .sig-bytes {
+			white-space: normal;
+			min-width: 11ch;
+			max-width: 12ch;
+		}
 	}
 
 	.sigs .note {
