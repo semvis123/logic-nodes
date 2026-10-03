@@ -88,6 +88,27 @@
 		}
 	}
 
+	// The visible error updates on every key, but the alert that a screen reader
+	// speaks waits until typing pauses: a half-typed value is nearly always an
+	// error, and announcing each one would interrupt every keystroke.
+	let alertText = '';
+	let alertTimer: ReturnType<typeof setTimeout>;
+	$: scheduleAlert(error);
+	function scheduleAlert(message: string) {
+		clearTimeout(alertTimer);
+		if (!message) alertText = '';
+		else alertTimer = setTimeout(() => (alertText = message), 500);
+	}
+
+	// An example label that starts with the value it loads ("160: five 0s
+	// below") shows that value in monospace and the description in the body
+	// font, so a description does not read as something to type.
+	const LITERAL = /^([−-]?(?:0x[0-9A-F]+|0b[01]+|\d+|'.'))(?:: (.+))?$/;
+	function chipParts(label: string): { value: string; text: string } {
+		const m = LITERAL.exec(label);
+		return m ? { value: m[1], text: m[2] ?? '' } : { value: '', text: label };
+	}
+
 	// Tricks that read x as something other than a plain number: a character
 	// code, or a k-bit field. Moving to or from one of them starts from its own
 	// example rather than carrying a value across that means something else.
@@ -456,8 +477,7 @@
 		<h1>Bit manipulation tricks</h1>
 		<p class="lede">
 			The classic bit hacks, each run on a value you choose and traced one row of bits at a time: every intermediate
-			value, the operation that made it, and which bits changed. Pick a trick, type x in decimal, hex or binary, and
-			read why it works.
+			value, the operation that made it, and why it works.
 		</p>
 
 		<div class="card tool" id="tool">
@@ -516,7 +536,7 @@
 						autocomplete="off"
 						autocapitalize="off"
 						aria-invalid={errorField === 'x' ? 'true' : 'false'}
-						aria-describedby="x-help"
+						aria-describedby="x-help{errorField === 'x' ? ' input-error' : ''}"
 					/>
 				</div>
 				{#if trick.y}
@@ -531,6 +551,7 @@
 							autocomplete="off"
 							autocapitalize="off"
 							aria-invalid={errorField === 'y' ? 'true' : 'false'}
+							aria-describedby={errorField === 'y' ? 'input-error' : undefined}
 						/>
 					</div>
 				{/if}
@@ -546,6 +567,7 @@
 							max={nMax}
 							bind:value={n}
 							aria-invalid={errorField === 'n' ? 'true' : 'false'}
+							aria-describedby={errorField === 'n' ? 'input-error' : undefined}
 						/>
 					</div>
 				{/if}
@@ -557,13 +579,21 @@
 					Negative numbers are stored in two's complement.
 				</p>
 				{#if error}
-					<p class="error" role="alert">{error}</p>
+					<p class="error" id="input-error">{error}</p>
+				{/if}
+				{#if alertText}
+					<p class="visually-hidden" role="alert">{alertText}</p>
 				{/if}
 			</div>
 
-			<div class="chips" aria-label="Examples">
+			<div class="chips" role="group" aria-label="Examples">
 				{#each trick.examples as e}
-					<button type="button" class="chip-btn" on:click={() => tryExample(e)}>{e.label}</button>
+					{@const part = chipParts(e.label)}
+					<button type="button" class="chip-btn" on:click={() => tryExample(e)}
+						>{#if part.value}<span class="chip-value">{part.value}</span>{/if}{#if part.value && part.text}<span
+								class="chip-sep">:</span
+							>{/if}{#if part.text}<span class="chip-text">{part.text}</span>{/if}</button
+					>
 				{/each}
 			</div>
 
@@ -573,20 +603,21 @@
 				<div class="code-row">
 					<pre class="code" use:scrollFocus data-label="C code"><code>{trick.code(w)}</code></pre>
 					<button type="button" class="copy" on:click={copyCode}>
-						{copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Copy failed' : 'Copy C'}
+						{copyState === 'copied' ? 'Copied' : copyState === 'failed' ? 'Select it' : 'Copy C'}
 					</button>
 					<span class="visually-hidden" aria-live="polite"
 						>{copyState === 'copied'
-							? 'C code copied'
+							? 'Copied the C code'
 							: copyState === 'failed'
-							? 'Copying failed: select the code instead'
+							? 'Copying failed: select the code and press ctrl+C'
 							: ''}</span
 					>
 				</div>
 				<p class="code-types">In this C, {typesNote(trick, w)}</p>
 			</div>
 
-			<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
+			<!-- inert, not just aria-hidden: the dimmed last trace must not be reachable by keyboard either. -->
+			<div class="results" class:stale={!!error} inert={error ? true : undefined}>
 				<Trace
 					rows={trace.rows}
 					w={inputs.w}
@@ -643,22 +674,29 @@
 			code as the tracer above.
 		</p>
 		<div class="table-wrap">
-			<table class="data-table cheat">
-				<thead>
-					<tr>
-						<th scope="col">Trick</th>
-						<th scope="col">C</th>
-						<th scope="col">Example at 8 bits</th>
-						<th scope="col">Result</th>
+			<!-- The roles are spelled out because the phone layout below sets display: block on the table, which makes
+			     some browsers drop its table semantics. -->
+			<!-- svelte-ignore a11y-no-redundant-roles -->
+			<table class="data-table cheat" role="table">
+				<!-- svelte-ignore a11y-no-redundant-roles -->
+				<thead role="rowgroup">
+					<!-- svelte-ignore a11y-no-redundant-roles -->
+					<tr role="row">
+						<th scope="col" role="columnheader">Trick</th>
+						<th scope="col" role="columnheader">C</th>
+						<th scope="col" role="columnheader">Example at 8 bits</th>
+						<th scope="col" role="columnheader">Result</th>
 					</tr>
 				</thead>
-				<tbody>
+				<!-- svelte-ignore a11y-no-redundant-roles -->
+				<tbody role="rowgroup">
 					{#each worked as wk}
-						<tr>
-							<th scope="row"><a href="#{wk.trick.id}">{wk.trick.name}</a></th>
-							<td class="mono code-cell" data-label="C">{shortCode(wk.trick)}</td>
-							<td class="mono ex-cell" data-label="Example">{shortInput(wk)}</td>
-							<td class="mono ex-cell" data-label="Result">{outputText(wk)}</td>
+						<!-- svelte-ignore a11y-no-redundant-roles -->
+						<tr role="row">
+							<th scope="row" role="rowheader"><a href="#{wk.trick.id}">{wk.trick.name}</a></th>
+							<td class="mono code-cell" role="cell" data-label="C">{shortCode(wk.trick)}</td>
+							<td class="mono ex-cell" role="cell" data-label="Example">{shortInput(wk)}</td>
+							<td class="mono ex-cell" role="cell" data-label="Result">{outputText(wk)}</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -798,8 +836,7 @@
 	}
 
 	.nav-btn,
-	.widths button,
-	.copy {
+	.widths button {
 		background: #0d0d0f;
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
@@ -807,6 +844,20 @@
 		font-size: 0.85rem;
 		padding: 0.45rem 0.8rem;
 		cursor: pointer;
+	}
+
+	/* The same size and look as the site's Copy link button. */
+	.copy {
+		background: #0d0d0f;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		border-radius: 3px;
+		color: #ddd;
+		cursor: pointer;
+		font-size: 0.8rem;
+		line-height: 1.2;
+		min-width: 4.6rem;
+		padding: 0.3rem 0.7rem;
+		white-space: nowrap;
 	}
 
 	.nav-btn:hover:not([aria-disabled='true']),
@@ -926,9 +977,24 @@
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.8rem;
 		padding: 0.25rem 0.6rem;
 		cursor: pointer;
+	}
+
+	/* The value a chip loads, so it reads as something you could type. */
+	.chip-value {
+		color: #8ede8e;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	}
+
+	.chip-text {
+		margin-left: 0.3rem;
+	}
+
+	.chip-value:only-child,
+	.chip-text:only-child {
+		margin-left: 0;
 	}
 
 	.chip-btn:hover {
@@ -962,13 +1028,21 @@
 
 	.code {
 		margin: 0;
-		background: #0d0d0f;
 		border: 1px solid rgba(255, 255, 255, 0.2);
 		border-radius: 3px;
 		padding: 0.5rem 0.75rem;
 		overflow-x: auto;
 		max-width: 100%;
 		box-sizing: border-box;
+		/* A scroll cue for long lines on a phone: a soft light edge shows on whichever side has more code.
+		   The two covers scroll with the text (local) and hide the edges once you reach that end. */
+		background: linear-gradient(to right, #0d0d0f 40%, rgba(13, 13, 15, 0)) left center / 2.5rem 100% no-repeat local,
+			linear-gradient(to left, #0d0d0f 40%, rgba(13, 13, 15, 0)) right center / 2.5rem 100% no-repeat local,
+			radial-gradient(farthest-side at 0 50%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0)) left center / 0.9rem
+				100% no-repeat scroll,
+			radial-gradient(farthest-side at 100% 50%, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0)) right center /
+				0.9rem 100% no-repeat scroll,
+			#0d0d0f;
 	}
 
 	.code code {
