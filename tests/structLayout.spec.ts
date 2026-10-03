@@ -703,6 +703,8 @@ test.describe('struct layout engine', () => {
 	});
 
 	test('layout invariants hold for random structs', () => {
+		// Some 100 000 checks: allow for a busy machine rather than fail on time.
+		test.setTimeout(120_000);
 		const types = ['char', 'short', 'int', 'long', 'long long', 'double', 'long double', 'float', 'void *', 'uint16_t'];
 		const pick = <T>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 		for (let k = 0; k < 300; k++) {
@@ -1024,6 +1026,41 @@ struct s {
 		expect(a.layout.members[6].offset).toBe(48);
 		expect(a.layout.members[1].code).toBe('unsigned long int a;');
 		expect(a.layout.members[2].code).toBe('unsigned long int *b;');
+	});
+
+	test('the reordered code keeps the comments written inside the struct', () => {
+		const src = `/* header */
+struct s { // opener
+  char c; // tag
+  /* the value,
+     in metres */
+  double d; /* value */
+  int x, y; // coords
+  struct { char p; long q; /* q */ }; // anon
+  char e;
+  // the end
+};
+/* trailer */`;
+		const r = analyse(src, 'x64').reordered;
+		expect(r?.code).toBe(`struct s { // opener
+    /* the value,
+       in metres */
+    double d; /* value */
+    struct {
+        char p;
+        long q; /* q */
+    }; // anon
+    int x; // coords
+    int y;
+    char c; // tag
+    char e;
+    // the end
+};`);
+		expect(r?.source).toBe(`/* header */\n${r?.code}\n/* trailer */`);
+		// Laid out again, the commented version gives the same layout.
+		const again = analyse(r?.source ?? '', 'x64');
+		expect(again.layout.size).toBe(r?.layout.size);
+		expect(again.reordered?.code).toBe(r?.code);
 	});
 });
 

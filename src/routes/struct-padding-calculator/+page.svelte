@@ -802,6 +802,7 @@ struct samples {
 				</tbody>
 			</table>
 		</div>
+		<p class="scroll-hint">{TARGETS.length} target columns: scroll the table sideways to see them all.</p>
 		<p class="reducer">
 			The columns are {#each TARGETS as t, i}{t.short}: {t.label} ({t.triple}){i < TARGETS.length - 1
 					? '; '
@@ -1422,6 +1423,20 @@ struct samples {
 	.type-table td.differs {
 		color: #f0c96a;
 		font-weight: 700;
+	}
+
+	/* Below about 688px the type table is wider than its box and its target columns scroll. */
+	.scroll-hint {
+		display: none;
+		color: #999;
+		font-size: 0.78rem;
+		margin: 0.3rem 0 0;
+	}
+
+	@media (max-width: 687px) {
+		.scroll-hint {
+			display: block;
+		}
 	}
 
 	@media (max-width: 560px) {

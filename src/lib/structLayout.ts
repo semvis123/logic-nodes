@@ -265,6 +265,13 @@ export type MemberDef = {
 	after: string;
 	/** The declarator as written: *name[4], or empty for an anonymous member. */
 	decl: string;
+	/**
+	 * Comments written on their own lines just above the member, and the one
+	 * after its ";" on the same line, kept so the reordered code still carries
+	 * them. With several declarators (int x, y;) the first one takes them.
+	 */
+	leading: string[];
+	trailing: string;
 };
 
 export type RecordDef = {
@@ -292,6 +299,8 @@ export type RecordDef = {
 	varName: string | null;
 	/** Position in the order definitions were completed. */
 	seq: number;
+	/** Comments on their own lines after the last member, before the "}". */
+	closing: string[];
 };
 
 export type Program = {
@@ -406,7 +415,10 @@ class Parser {
 	/** Order of completion, so hoisted definitions come out in a valid order. */
 	private seq = 0;
 
+	private readonly raw: string;
+
 	constructor(source: string) {
+		this.raw = source;
 		this.src = stripComments(source);
 		this.tokens = tokenize(source);
 	}
@@ -421,6 +433,49 @@ class Parser {
 
 	private fail(message: string, token: Token = this.tok): never {
 		throw new StructError(message, token.line, token.column);
+	}
+
+	/**
+	 * The comments between two tokens, from the source as written. Between
+	 * tokens the stripped text is only blanks, so whatever the raw text has
+	 * there is comments.
+	 */
+	private comments(from: number, to: number): { text: string; sameLine: boolean }[] {
+		const gap = this.raw.slice(from, to);
+		const found: { text: string; sameLine: boolean }[] = [];
+		for (const m of gap.matchAll(/\/\*[\s\S]*?(\*\/|$)|\/\/[^\n]*/g)) {
+			const at = from + (m.index ?? 0);
+			// Continuation lines of a block comment lose the comment's own
+			// indent, so they can be indented again wherever it is written out.
+			const column = at - this.raw.lastIndexOf('\n', at - 1) - 1;
+			const text = m[0]
+				.trimEnd()
+				.split('\n')
+				.map((l, i) => (i ? l.replace(new RegExp(`^[ \\t]{0,${column}}`), '') : l))
+				.join('\n');
+			found.push({ text, sameLine: !this.raw.slice(from, at).includes('\n') });
+		}
+		return found;
+	}
+
+	/**
+	 * Comments on their own lines between the previous token and the current
+	 * one. One on the line of the previous token belongs to that line: the
+	 * member its ";" ends, or the struct its "{" opens.
+	 */
+	private commentsAbove(): string[] {
+		const prev = this.tokens[this.pos - 1];
+		return this.comments(prev.end, this.tok.start)
+			.filter((c) => !c.sameLine)
+			.map((c) => c.text);
+	}
+
+	/** The comment after a token on the same line, such as a member's "; // note". */
+	private commentAfter(t: Token): string {
+		return this.comments(t.end, this.tok.start)
+			.filter((c) => c.sameLine)
+			.map((c) => c.text)
+			.join(' ');
 	}
 
 	private is(value: string, token = this.tok) {
@@ -739,6 +794,7 @@ class Parser {
 		}
 		const braceTok = this.tok;
 		this.pos++;
+		const opener = this.commentAfter(braceTok);
 		let rec = tag ? tags.get(tag) : undefined;
 		if (rec && rec.complete) this.fail(`${kind} ${tag} is defined twice`, kwTok);
 		if (tag && otherTags.has(tag)) this.fail(`"${tag}" is already a ${kind === 'struct' ? 'union' : 'struct'}`, kwTok);
@@ -754,6 +810,7 @@ class Parser {
 			if (this.tok.type === 'directive') this.fail('Put #pragma lines outside the struct, before it starts', this.tok);
 			this.member(rec);
 		}
+		rec.closing = this.commentsAbove();
 		const closeTok = this.tok;
 		this.pos++;
 		packed = this.attributes() || packed;
@@ -770,9 +827,10 @@ class Parser {
 				throw new StructError('A flexible array member needs at least one other member before it', m.line, m.column);
 		}
 		rec.complete = true;
-		rec.open = tidy(this.src.slice(openStart, braceTok.end));
+		const withOpener = (s: string) => (opener ? `${s} ${opener}` : s);
+		rec.open = withOpener(tidy(this.src.slice(openStart, braceTok.end)));
 		rec.close = '}';
-		rec.head = tidy(this.src.slice(kwTok.start, braceTok.end));
+		rec.head = withOpener(tidy(this.src.slice(kwTok.start, braceTok.end)));
 		rec.tail = tidy(this.src.slice(closeTok.start, this.tokens[this.pos - 1].end));
 		rec.seq = this.seq++;
 		this.records.push(rec);
@@ -796,11 +854,13 @@ class Parser {
 			tail: '',
 			tagDefs: [],
 			varName: null,
-			seq: -1
+			seq: -1,
+			closing: []
 		};
 	}
 
 	private member(rec: RecordDef) {
+		const leading = this.commentsAbove();
 		const startTok = this.tok;
 		const spec = this.specifiers(startTok.start);
 		const specText = tidy(this.src.slice(startTok.start, this.tok.start));
@@ -826,12 +886,16 @@ class Parser {
 					specText,
 					before,
 					after,
-					decl: ''
+					decl: '',
+					leading,
+					trailing: ''
 				});
 			} else rec.tagDefs.push(inline);
-			this.pos++;
+			const semi = this.tokens[this.pos++];
+			if (!inline.tag) rec.members[rec.members.length - 1].trailing = this.commentAfter(semi);
 			return;
 		}
+		let first: MemberDef | null = null;
 		for (;;) {
 			const dStart = this.tok;
 			const d = this.declarator(spec.type);
@@ -866,12 +930,16 @@ class Parser {
 				specText,
 				before,
 				after,
-				decl: declText
+				decl: declText,
+				leading: first ? [] : leading,
+				trailing: ''
 			});
+			if (!first) first = rec.members[rec.members.length - 1];
 			if (!this.is(',')) break;
 			this.pos++;
 		}
-		this.expect(';', 'a ";" after the member');
+		const semi = this.expect(';', 'a ";" after the member');
+		if (first) first.trailing = this.commentAfter(semi);
 	}
 
 	/**
@@ -1378,7 +1446,19 @@ export function recordCode(record: RecordDef, withPack = true): string {
 	collect(record);
 	const pad = (n: number) => ' '.repeat(n);
 	const body = (r: RecordDef, indent: number): string =>
-		r.members.map((m) => pad(indent) + memberCode(m, indent)).join('\n');
+		[
+			...r.members.map((m) => {
+				const above = m.leading.map((c) => note(c, indent) + '\n').join('');
+				return above + pad(indent) + memberCode(m, indent) + (m.trailing ? ' ' + m.trailing : '');
+			}),
+			...r.closing.map((c) => note(c, indent))
+		].join('\n');
+	// A comment on its own lines, every line indented to the members' depth.
+	const note = (c: string, indent: number) =>
+		c
+			.split('\n')
+			.map((l) => pad(indent) + l)
+			.join('\n');
 	const memberCode = (m: MemberDef, indent: number): string => {
 		let spec = m.specText;
 		if (m.inline) {
