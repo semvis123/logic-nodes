@@ -425,6 +425,31 @@ test.describe('the ean-13-barcode-generator page', () => {
 		expect(await drawnModules(page)).toBe(withQuiet('4006381333931', 'ean13'));
 	});
 
+	test('the alert waits for a pause in typing, while the visible error updates at once', async ({ page }) => {
+		await page.goto(URL_);
+		await page.waitForLoadState('networkidle');
+		const alert = page.locator('[role="alert"]');
+		await page.fill('#code', '');
+		await page.locator('#code').type('590123412345', { delay: 120 });
+		// Every half-typed number was an error, but none of them was announced.
+		await expect(alert).toHaveCount(0);
+		await page.fill('#code', '5901');
+		await expect(page.locator('#code-error')).toContainText('this is 4 digits');
+		await expect(alert).toHaveCount(0);
+		await expect(alert).toContainText('this is 4 digits');
+		await page.fill('#code', '5901234123457');
+		await expect(alert).toHaveCount(0);
+	});
+
+	test('the first EAN-13 digit button is named like the others', async ({ page }) => {
+		await page.goto(URL_);
+		await expect(page.getByRole('button', { name: /^Digit 4, position 1, no bars/ })).toHaveAttribute(
+			'aria-label',
+			'Digit 4, position 1, no bars: sets the L and G pattern LGLLGG'
+		);
+		await expect(page.getByRole('button', { name: 'Wrong check digit 5901234123450' })).toBeVisible();
+	});
+
 	test('typing checks the number and redraws the bars', async ({ page }) => {
 		await page.goto(URL_);
 		await page.waitForLoadState('networkidle');
@@ -438,9 +463,12 @@ test.describe('the ean-13-barcode-generator page', () => {
 		await expect(page.locator('.warning')).toContainText('correct check digit, 7');
 		await expect(page.locator('.answer-also')).toContainText('need 7, not 0');
 
+		await expect(page.locator('#code')).toHaveAttribute('aria-describedby', 'code-help');
 		const before = await page.locator('.tool').boundingBox();
 		await page.fill('#code', '59012x');
 		await expect(page.locator('.error')).toContainText('“x” is not a digit');
+		// The help is hidden under the error, so only the error describes the field.
+		await expect(page.locator('#code')).toHaveAttribute('aria-describedby', 'code-error');
 		// The stale barcode and working are inert: out of the tab order, not just dimmed.
 		await expect(page.locator('.barcode-figure')).toHaveAttribute('inert', '');
 		await expect(page.locator('.working')).toHaveAttribute('inert', '');
@@ -491,7 +519,15 @@ test.describe('the ean-13-barcode-generator page', () => {
 		// Back to EAN-13 puts the 0 in front of what was typed.
 		await page.getByRole('button', { name: 'EAN-13', exact: true }).click();
 		await expect(page.locator('#code')).toHaveValue('0036000291452');
+		// A UPC-A with a mistyped check digit is kept as typed, and flagged, rather than shifted along.
+		await page.getByRole('button', { name: 'EAN-13', exact: true }).click();
+		await page.fill('#code', '036000291453');
+		await expect(page.locator('.hint')).toContainText('the first 11 need 2, not 3');
+		await page.getByRole('button', { name: 'UPC-A', exact: true }).click();
+		await expect(page.locator('#code')).toHaveValue('036000291453');
+		await expect(page.locator('.answer-also')).toContainText('need 2, not 3');
 		// A number that cannot be a UPC-A falls back to the UPC-A example.
+		await page.getByRole('button', { name: 'EAN-13', exact: true }).click();
 		await page.fill('#code', '400638133393');
 		await page.getByRole('button', { name: 'UPC-A', exact: true }).click();
 		await expect(page.locator('#code')).toHaveValue('03600029145');
@@ -568,6 +604,25 @@ test.describe('the ean-13-barcode-generator page', () => {
 		await expect(buttons.nth(1)).toHaveClass(/hot/);
 	});
 
+	test('on a phone a copy of the bars stays in view above the digit strip', async ({ page }) => {
+		await page.setViewportSize({ width: 390, height: 800 });
+		await page.goto(URL_);
+		await page.waitForLoadState('networkidle');
+		const mini = page.locator('.mini-paper');
+		await expect(mini).toBeVisible();
+		// The same bars as the full barcode.
+		expect(await mini.locator('rect.mini-bar').count()).toBe(await page.locator('svg.barcode rect.bar').count());
+		const last = page.locator('.digit-btn').last();
+		await last.scrollIntoViewIfNeeded();
+		await last.click();
+		await expect(mini.locator('rect.mini-bar.hot')).toHaveCount(2);
+		const box = await mini.boundingBox();
+		expect(box && box.y >= 0 && box.y + box.height <= 800).toBe(true);
+		// On a wide screen the barcode itself is near enough, so the copy is not shown.
+		await page.setViewportSize({ width: 1280, height: 900 });
+		await expect(mini).toBeHidden();
+	});
+
 	test('hovering a UPC-A digit printed outside the bars lights it up', async ({ page }) => {
 		await page.goto(`${URL_}?v=036000291452&sym=upca`);
 		await page.waitForLoadState('networkidle');
@@ -585,10 +640,10 @@ test.describe('the ean-13-barcode-generator page', () => {
 		await page.goto(URL_);
 		await page.waitForLoadState('networkidle');
 		await page.getByRole('button', { name: 'Copy modules' }).click();
-		await expect(page.locator('.module-line .copy-status')).toHaveText('Modules copied');
+		await expect(page.locator('.module-line .copy-status')).toHaveText('Copied the modules');
 		await expect(page.locator('.barcode-figure .copy-status')).toHaveText('');
 		await page.getByRole('button', { name: 'Copy number' }).click();
-		await expect(page.locator('.barcode-figure .copy-status')).toHaveText('Number copied');
+		await expect(page.locator('.barcode-figure .copy-status')).toHaveText('Copied the number');
 	});
 
 	test('the downloads are the barcode', async ({ page }) => {
