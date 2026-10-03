@@ -381,28 +381,6 @@
 		</p>
 
 		<div class="card tool">
-			{#each fields as i, k}
-				<label class="field" for="expr{i}">{NAMES[i]}{mode === 'rgb' ? ' channel' : ''}</label>
-				<input
-					id="expr{i}"
-					class="expression-input"
-					bind:value={ex[i]}
-					maxlength={MAX_LENGTH}
-					spellcheck="false"
-					autocomplete="off"
-					autocapitalize="off"
-					aria-invalid={tries[k].err ? 'true' : 'false'}
-					aria-describedby={tries[k].err ? `err${i}` : undefined}
-				/>
-				{#if tries[k].err}
-					<ErrorAt id="err{i}" message={tries[k].err} input={ex[i]} position={tries[k].at} />
-				{/if}
-			{/each}
-			<p class="field-help">
-				Use x, y and t, whole numbers (decimal, 0x1F, 0b101), ~ - * / % + &lt;&lt; &gt;&gt; &amp; ^ | with brackets, and
-				the functions abs, min, max, sqrt, sin, cos and atan2.
-			</p>
-
 			{#each [{ name: 'Still', moving: false }, { name: 'Moving', moving: true }] as g}
 				<div class="chips" role="group" aria-label="{g.name} starting points">
 					<span class="chip-label" aria-hidden="true">{g.name}</span>
@@ -474,6 +452,28 @@
 						: 't is a frame number from 0 to 255 you can use in the expression. Animate steps it at the speed set here.'}
 				</p>
 			</div>
+
+			{#each fields as i, k}
+				<label class="field" for="expr{i}">{NAMES[i]}{mode === 'rgb' ? ' channel' : ''}</label>
+				<input
+					id="expr{i}"
+					class="expression-input"
+					bind:value={ex[i]}
+					maxlength={MAX_LENGTH}
+					spellcheck="false"
+					autocomplete="off"
+					autocapitalize="off"
+					aria-invalid={tries[k].err ? 'true' : 'false'}
+					aria-describedby={tries[k].err ? `err${i}` : undefined}
+				/>
+				{#if tries[k].err}
+					<ErrorAt id="err{i}" message={tries[k].err} input={ex[i]} position={tries[k].at} />
+				{/if}
+			{/each}
+			<p class="field-help">
+				Use x, y and t, whole numbers (decimal, 0x1F, 0b101), ~ - * / % + &lt;&lt; &gt;&gt; &amp; ^ | with brackets, and
+				the functions abs, min, max, sqrt, sin, cos and atan2.
+			</p>
 
 			<div class="stage">
 				<!-- svelte-ignore a11y-no-noninteractive-tabindex -->
