@@ -176,6 +176,9 @@ test.describe('parsing IPv6', () => {
 		expect(url.zone).toBe('eth0');
 		expect(url.port).toBe(80);
 		expect(parseIPv6('fe80::1%25').zone).toBe('25'); // outside brackets, %25 is interface 25
+		expect(parseIPv6('[fe80::1%2525]').zone).toBe('25'); // inside them, interface 25 is %2525
+		expect(parseIPv6('[fe80::1%eth0]').zone).toBe('eth0'); // unescaped, as people paste it
+		expect(() => parseIPv6('[fe80::1%25]')).toThrow(/Nothing follows the %/);
 	});
 
 	test('accepts exactly what Node accepts, for addresses without extras', () => {
@@ -239,6 +242,13 @@ test.describe('parsing IPv6', () => {
 		expect(err('g::1')).toMatch(/group 1, "g"/);
 		expect(err('1::x:1.2.3.4')).toMatch(/group 6, "x"/);
 		expect(err('fe80::1/64%eth0')).toMatch(/zone goes before the prefix length: write fe80::1%eth0\/64/);
+		expect(err('fe80::1%eth0/64%x')).toMatch(/more than one %/);
+		expect(err('fe80::1%a%b')).toMatch(/more than one %/);
+		// With too many groups, places in the address mean nothing: count as written.
+		expect(err('1:2::3:4:5:6:7:8:9z')).toMatch(/"z" is not a hex digit .* in the 9th group written, "9z"/);
+		expect(err('1:2:3:4:5:6:7:8:12345')).toMatch(/^The 9th group written, "12345", has 5 hex digits/);
+		expect(err('1:2:3:4:5:6:7:8:9:10:11:2g')).toMatch(/the 12th group written/);
+		expect(err('1:2:3:4:5:6:7:8:9:10:11:12:13:14:15:16:17:18:19:20:2g')).toMatch(/the 21st group written/);
 		expect(err('::1.2.3.4:5')).toMatch(/can only be the very end/);
 		expect(err('1.2.3.4::')).toMatch(/can only be the very end/);
 		expect(err('::1.2.3.999')).toMatch(/not a valid IPv4 tail/);
@@ -260,7 +270,9 @@ test.describe('explaining, prefixes and types', () => {
 		expect(by['Lower case'].changed).toBe(true);
 		expect(by['Drop leading zeros'].detail).toContain('0DB8 → db8');
 		expect(by['Drop leading zeros'].detail).toContain('0000 → 0');
-		expect(by['Replace the longest run of zeros with ::'].detail).toContain('groups 3 to 4');
+		expect(by['Replace the longest run of zeros with ::'].detail).toBe(
+			'The run of zeros, groups 3 to 4, becomes ::, covering the whole run (section 4.2.1).'
+		);
 		const tie = explain(parseIPv6('2001:db8:0:0:1:0:0:1'));
 		expect(tie.map((s) => s.detail).join(' ')).toContain('equally long');
 		const single = explain(parseIPv6('2001:db8:0:1:1:1:1:1'));
@@ -375,7 +387,14 @@ test.describe('explaining, prefixes and types', () => {
 test.describe('EUI-64', () => {
 	test('MAC notations all read the same', () => {
 		const bytes = [0x00, 0x1a, 0x2b, 0x3c, 0x4d, 0x5e];
-		for (const s of ['00:1a:2b:3c:4d:5e', '00-1A-2B-3C-4D-5E', '001a.2b3c.4d5e', '001A2B3C4D5E', '0:1a:2b:3c:4d:5e']) {
+		for (const s of [
+			'00:1a:2b:3c:4d:5e',
+			'00-1A-2B-3C-4D-5E',
+			'00 1a 2b 3c 4d 5e',
+			'001a.2b3c.4d5e',
+			'001A2B3C4D5E',
+			'0:1a:2b:3c:4d:5e'
+		]) {
 			expect(parseMac(s), s).toEqual(bytes);
 		}
 		expect(() => parseMac('00:1a:2b:3c:4d')).toThrow(/12 hex digits/);
@@ -388,6 +407,9 @@ test.describe('EUI-64', () => {
 		expect(() => parseMac('00:1a:2b:3c:4d:5e:')).toThrow(/Two separators in a row/);
 		expect(() => parseMac('0:0:1a2b3c4d5e')).toThrow(/"1a2b3c4d5e" has 10 hex digits/);
 		expect(() => parseMac('001a2b3c4d')).toThrow(/that has 10 digits/);
+		expect(() => parseMac('00 1a 2b 3c 4d')).toThrow(/that has 5 bytes/);
+		expect(() => parseMac('00  1a 2b 3c 4d 5e')).toThrow(/Two separators in a row/);
+		expect(() => parseMac('00 1a 2b 3c 4d 5x')).toThrow(/"x" is not a hex digit/);
 	});
 
 	test('inserts fffe and flips the universal/local bit, checked with BigInt', () => {
@@ -473,6 +495,45 @@ test.describe('the ipv6-expand-compress page', () => {
 		await expect(page.locator('#mac')).toHaveValue('02:00:00:00:00:01');
 		await expect(page.locator('#link-local')).toHaveText('fe80::ff:fe00:1');
 		await expect(page.locator('.type-notes')).toContainText('all nodes');
+	});
+
+	test('errors are announced once typing pauses, and the stale result leaves the tab order', async ({ page }) => {
+		await page.goto('/ipv6-expand-compress');
+		await page.waitForLoadState('networkidle');
+		const address = page.locator('#address');
+		await address.fill('2001:db8::1::1');
+		// The visible error updates at once; the alert waits half a second for typing to pause.
+		await expect(page.locator('#address-error')).toContainText(':: appears twice');
+		expect(await page.locator('[role="alert"]').count()).toBe(0);
+		await expect(address).toHaveAttribute('aria-describedby', 'address-help address-error');
+		await expect(page.locator('#address-error')).not.toHaveAttribute('role', 'alert');
+		await expect(page.locator('[role="alert"]')).toHaveCount(1);
+		await expect(page.locator('[role="alert"]')).toContainText(':: appears twice');
+		await expect(page.locator('.tool').first().locator('.results[inert]')).toHaveCount(1);
+		await address.fill('fe80::1');
+		await expect(page.locator('[role="alert"]')).toHaveCount(0);
+		await expect(address).toHaveAttribute('aria-describedby', 'address-help');
+		await expect(page.locator('.results[inert]')).toHaveCount(0);
+		await page.locator('#mac').fill('00:11:22');
+		await expect(page.locator('#mac')).toHaveAttribute('aria-describedby', 'mac-help mac-error');
+		await expect(page.locator('[role="alert"]')).toContainText('12 hex digits');
+		await expect(page.locator('#eui64 .results[inert]')).toHaveCount(1);
+	});
+
+	test('a rejected query value is dropped from the address bar', async ({ page }) => {
+		await page.goto(`/ipv6-expand-compress?a=${'1'.repeat(5000)}&mac=02:00:00:00:00:01`);
+		await expect(page.locator('#mac')).toHaveValue('02:00:00:00:00:01');
+		await expect(page).toHaveURL(/\/ipv6-expand-compress\?mac=02%3A00%3A00%3A00%3A00%3A01$/);
+		await expect(page.locator('#address')).toHaveValue('2001:0DB8:0000:0000:0008:0800:200C:417A/64');
+	});
+
+	test('the page reflows at 320px without sideways scrolling', async ({ page }) => {
+		await page.setViewportSize({ width: 320, height: 800 });
+		await page.goto('/ipv6-expand-compress');
+		await page.waitForLoadState('networkidle');
+		await page.locator('.faq details').evaluateAll((ds) => ds.forEach((d) => d.setAttribute('open', '')));
+		const width = await page.evaluate(() => document.documentElement.scrollWidth);
+		expect(width).toBeLessThanOrEqual(320);
 	});
 
 	test('FAQ JSON-LD matches the visible answers', async ({ page }) => {

@@ -67,14 +67,27 @@ export const ipv4FromHextets = (high: number, low: number) => [high >> 8, high &
 
 const HEX_GROUP = /^[0-9a-fA-F]{1,4}$/;
 
-/** Checks one group and says precisely what is wrong with it. */
-function checkGroup(group: string, n: number) {
+/** 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th ... 21st. */
+function ordinal(n: number) {
+	const tens = n % 100;
+	const suffix = tens >= 11 && tens <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
+	return `${n}${suffix}`;
+}
+
+/**
+ * Checks one group and says precisely what is wrong with it. `n` is the group's
+ * place in the address; when the address has too many groups for places to mean
+ * anything, `writtenOrder` says so, and the message counts the groups as typed.
+ */
+function checkGroup(group: string, n: number, writtenOrder = false) {
 	if (HEX_GROUP.test(group)) return;
+	const where = writtenOrder ? `the ${ordinal(n)} group written` : `group ${n}`;
 	const bad = [...group].find((ch) => !/[0-9a-fA-F]/.test(ch));
-	if (bad !== undefined)
-		throw new IPv6Error(`"${bad}" is not a hex digit (0 to 9, a to f), in group ${n}, "${group}".`);
+	if (bad !== undefined) throw new IPv6Error(`"${bad}" is not a hex digit (0 to 9, a to f), in ${where}, "${group}".`);
 	throw new IPv6Error(
-		`Group ${n}, "${group}", has ${group.length} hex digits. A group holds at most 4, which is 16 bits.`
+		`${where[0].toUpperCase()}${where.slice(1)}, "${group}", has ${
+			group.length
+		} hex digits. A group holds at most 4, which is 16 bits.`
 	);
 }
 
@@ -92,6 +105,9 @@ export function parseIPv6(input: string): ParsedIPv6 {
 	if (text.length > MAX_INPUT)
 		throw new IPv6Error(`That is longer than ${MAX_INPUT} characters, too long for an address.`);
 	if (/\s/.test(text)) throw new IPv6Error('An address has no spaces in it.');
+	if (text.split('%').length > 2) {
+		throw new IPv6Error('There is more than one %. An address has at most one zone ID, such as %eth0.');
+	}
 
 	let port: number | null = null;
 	let prefixText: string | null = null;
@@ -133,8 +149,10 @@ export function parseIPv6(input: string): ParsedIPv6 {
 		zone = text.slice(percent + 1);
 		text = text.slice(0, percent);
 		// In a URL the % itself has to be escaped, so RFC 6874 writes the zone of
-		// [fe80::1%eth0] as [fe80::1%25eth0]. Inside brackets, read it that way.
-		if (bracketed && zone.startsWith('25') && zone.length > 2) zone = zone.slice(2);
+		// [fe80::1%eth0] as [fe80::1%25eth0]. Inside brackets, read it that way, so
+		// [fe80::1%25] has an empty zone. A bare [fe80::1%eth0] is still accepted,
+		// because people paste it.
+		if (bracketed && zone.startsWith('25')) zone = zone.slice(2);
 		if (!zone) throw new IPv6Error('Nothing follows the %. A zone ID names an interface, such as %eth0 or %3.');
 		if (!/^[\w.~-]+$/.test(zone)) throw new IPv6Error(`"${zone}" is not a zone ID: use letters, digits, ., _, ~ or -.`);
 	}
@@ -187,11 +205,12 @@ export function parseIPv6(input: string): ParsedIPv6 {
 	// the groups belong at the end, so they are counted back from group 8. If
 	// there are too many groups for that to make sense, the order written is all
 	// there is to go on.
-	const tailStart = tail !== null && count < 8 ? 8 - (tailGroups.length + (ipv4Tail ? 1 : 0)) : headGroups.length;
+	const writtenOrder = count > 8 || (tail !== null && count >= 8);
+	const tailStart = writtenOrder ? headGroups.length : 8 - (tailGroups.length + (ipv4Tail ? 1 : 0));
 	written.forEach((g, i) => {
 		if (g === ipv4Tail && i === written.length - 1) return;
 		if (g === '') throw new IPv6Error('Two colons in a row inside the address, where a group was expected.');
-		checkGroup(g, i < headGroups.length ? i + 1 : tailStart + (i - headGroups.length) + 1);
+		checkGroup(g, i < headGroups.length ? i + 1 : tailStart + (i - headGroups.length) + 1, writtenOrder);
 	});
 
 	const tailNote = ipv4Tail ? ' (counting the IPv4 tail as two)' : '';
@@ -434,10 +453,7 @@ export function explain(parsed: ParsedIPv6): Step[] {
 		detail = `The longest run of zeros, ${groupRange(
 			c.chosen
 		)}, becomes ::. Only one run may be shortened (section 4.2.3).`;
-	else
-		detail = `The run of zeros, ${groupRange(
-			c.chosen
-		)}, becomes ::, and it must: shorten as much as possible (section 4.2.1).`;
+	else detail = `The run of zeros, ${groupRange(c.chosen)}, becomes ::, covering the whole run (section 4.2.1).`;
 	if (parsed.gap && gapTooShort(parsed, c.chosen))
 		detail += ` The :: as typed covered only ${groupRange({
 			start: parsed.gap.at,
@@ -807,29 +823,29 @@ export function parseMac(input: string): number[] {
 	let digits: string;
 	if (/^[0-9a-f]{12}$/i.test(text)) digits = text;
 	else if (/^[0-9a-f]{4}\.[0-9a-f]{4}\.[0-9a-f]{4}$/i.test(text)) digits = text.replace(/\./g, '');
-	else if (/^([0-9a-f]{1,2})([:-][0-9a-f]{1,2}){5}$/i.test(text)) {
+	else if (/^([0-9a-f]{1,2})([:\- ][0-9a-f]{1,2}){5}$/i.test(text)) {
 		digits = text
-			.split(/[:-]/)
+			.split(/[:\- ]/)
 			.map((b) => b.padStart(2, '0'))
 			.join('');
 	} else {
 		// Not one of the accepted shapes: say which part is wrong rather than
 		// guessing what was meant from whatever hex digits are there.
-		const bad = [...text].find((ch) => !/[0-9a-f:.-]/i.test(ch));
+		const bad = [...text].find((ch) => !/[0-9a-f:. -]/i.test(ch));
 		if (bad !== undefined) throw new IPv6Error(`"${bad}" is not a hex digit. A MAC address is six bytes in hex.`);
 		const sizeError = (n: number, unit: string) =>
 			new IPv6Error(`A MAC address is 6 bytes, 12 hex digits, such as 00:1a:2b:3c:4d:5e; that has ${n} ${unit}.`);
-		if (!/[:.-]/.test(text)) throw sizeError(text.length, text.length === 1 ? 'digit' : 'digits');
+		if (!/[:. -]/.test(text)) throw sizeError(text.length, text.length === 1 ? 'digit' : 'digits');
 		if (text.includes('.')) {
 			throw new IPv6Error('With dots, a MAC address is three groups of four hex digits, such as 001a.2b3c.4d5e.');
 		}
-		const fields = text.split(/[:-]/);
+		const fields = text.split(/[:\- ]/);
 		if (fields.some((f) => f === '')) {
 			throw new IPv6Error('Two separators in a row, or one at the start or end, where a byte was expected.');
 		}
 		const long = fields.find((f) => f.length > 2);
 		if (long !== undefined) {
-			throw new IPv6Error(`"${long}" has ${long.length} hex digits, but between : or - each byte is two.`);
+			throw new IPv6Error(`"${long}" has ${long.length} hex digits, but between separators each byte is two.`);
 		}
 		throw sizeError(fields.length, fields.length === 1 ? 'byte' : 'bytes');
 	}
