@@ -287,7 +287,8 @@
 		<p class="reducer">
 			These are the textbook shapes: 6 with its top bar and 9 with its bottom bar lit. The 7447 leaves segment
 			<span class="mono">a</span> dark on 6 and <span class="mono">d</span> dark on 9, which changes two rows and nothing
-			else about the method.
+			else about the method. To design what a display shows and get its bytes, use the
+			<a href="/seven-segment-display-designer">display designer</a>.
 		</p>
 	</section>
 
