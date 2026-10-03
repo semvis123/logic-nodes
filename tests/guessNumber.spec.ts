@@ -408,6 +408,58 @@ test.describe('the guess-my-number page', () => {
 		await page.keyboard.press('Enter');
 		await expect(page.locator('.result-text')).toHaveText(`Found 77 in ${truth.length} questions (1 to 100).`);
 		await expect(page.getByRole('button', { name: 'Play again' })).toBeFocused();
+		// Restarting removes that button; focus moves to the next question's Yes, not <body>.
+		await page.keyboard.press('Enter');
+		await expect(page.locator('#answer-yes')).toBeFocused();
+		await expect(page.locator('.question')).toContainText('Is your number greater than 50?');
+	});
+
+	test('Y and N answer only while focus is in the game', async ({ page }) => {
+		await page.goto('/guess-my-number');
+		await page.waitForLoadState('networkidle');
+		// Nothing focused, then a FAQ question focused: a stray key must not answer.
+		await page.keyboard.press('y');
+		await page.locator('details summary').first().focus();
+		await page.keyboard.press('n');
+		await expect(page.locator('.question')).toContainText('Is your number greater than 50?');
+		await expect(page).not.toHaveURL(/a=/);
+		// Inside the game it does.
+		await page.locator('#answer-yes').focus();
+		await page.keyboard.press('y');
+		await expect(page.locator('.question')).not.toContainText('greater than 50?');
+	});
+
+	test('a table becomes a named, focusable scroll region only while it overflows', async ({ page }) => {
+		await page.goto('/guess-my-number');
+		await page.waitForLoadState('networkidle');
+		const wrap = page.locator('#reference .table-wrap');
+		// It fits, so it is not a stray focus stop.
+		await expect(wrap).not.toHaveAttribute('tabindex', /.*/);
+		await expect(wrap).not.toHaveAttribute('role', /.*/);
+		// Squeezed below the table's width, keyboard users must be able to reach and scroll it.
+		await wrap.evaluate((el) => (el.style.width = '200px'));
+		await expect(wrap).toHaveAttribute('tabindex', '0');
+		await expect(wrap).toHaveAttribute('role', 'region');
+		await expect(wrap).toHaveAttribute('aria-label', 'Questions needed for each range');
+		await wrap.evaluate((el) => (el.style.width = ''));
+		await expect(wrap).not.toHaveAttribute('tabindex', /.*/);
+	});
+
+	test('undo and start again keep focus in the game', async ({ page }) => {
+		await page.goto(`/guess-my-number?mode=liar&a=${'y'.repeat(11)}`);
+		await page.waitForLoadState('networkidle');
+		// Undoing the last answer brings the question back and removes the result's buttons.
+		await page.getByRole('button', { name: 'Undo last answer' }).click();
+		await expect(page.locator('#answer-yes')).toBeFocused();
+		// The set's members are inside the status region, so they are announced with the question.
+		await expect(page.locator('.question[role="status"] .visually-hidden')).toContainText('The set: ');
+		await page.getByRole('button', { name: 'Start again' }).click();
+		await expect(page.locator('#answer-yes')).toBeFocused();
+		await expect(page.locator('.question')).toContainText('Question 1 of 11');
+		// Undoing the only answer disables the Undo button.
+		await page.keyboard.press('n');
+		await page.getByRole('button', { name: 'Undo last answer' }).click();
+		await expect(page.locator('#answer-yes')).toBeFocused();
 	});
 
 	test('a wrong answer is pointed out once the real number is given', async ({ page }) => {
@@ -467,7 +519,9 @@ test.describe('the guess-my-number page', () => {
 		await expect(page.locator('.question')).toContainText('add up to 12');
 		await expect(page.locator('.result-text')).toHaveCount(0);
 		// The two-lies chip shows the same flag rather than a confident wrong number.
-		await page.getByRole('button', { name: 'Liar: two lies' }).click();
+		// Each chip's accessible name keeps a space between its label and the number it plays.
+		await expect(page.getByRole('button', { name: 'Liar, lie on question 6 42', exact: true })).toHaveCount(1);
+		await page.getByRole('button', { name: 'Liar, two lies 42', exact: true }).click();
 		await expect(page.locator('.question')).toContainText('More than one lie');
 	});
 

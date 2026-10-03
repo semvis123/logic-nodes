@@ -123,17 +123,56 @@
 		document.getElementById(id)?.focus();
 	}
 
-	function undo() {
+	async function undo() {
 		answers = answers.slice(0, -1);
 		verdict = 'ask';
 		actualText = '';
+		// Undoing the last answer of a game swaps the controls out, and undoing the first one
+		// disables this button; either way focus would fall to <body>, so hand it to Yes.
+		await tick();
+		if (!document.activeElement || document.activeElement === document.body || isDisabled(document.activeElement))
+			focusId('answer-yes');
 	}
 
-	function restart() {
+	async function restart() {
 		answers = [];
 		verdict = 'ask';
 		actualText = '';
+		// Every restart button is removed or disabled by the restart itself.
+		await tick();
+		focusId('answer-yes');
 	}
+
+	/**
+	 * Lets keyboard users scroll a table that is wider or taller than its box, and only then: a
+	 * box that fits is not made a focus stop. Re-checked when the box resizes or its rows change.
+	 */
+	function scrollFocus(node: HTMLElement) {
+		const update = () => {
+			if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
+				node.tabIndex = 0;
+				node.setAttribute('role', 'region');
+				node.setAttribute('aria-label', node.dataset.label ?? 'Table');
+			} else {
+				node.removeAttribute('tabindex');
+				node.removeAttribute('role');
+				node.removeAttribute('aria-label');
+			}
+		};
+		const ro = new ResizeObserver(update);
+		ro.observe(node);
+		const mo = new MutationObserver(update);
+		mo.observe(node, { subtree: true, childList: true, characterData: true });
+		update();
+		return {
+			destroy: () => {
+				ro.disconnect();
+				mo.disconnect();
+			}
+		};
+	}
+
+	const isDisabled = (el: Element) => el instanceof HTMLButtonElement && el.disabled;
 
 	// --- mode 3: you guess the page's number --------------------------------
 	let secret: number | null = null;
@@ -240,6 +279,16 @@
 		focusTool();
 	}
 
+	/** The example chips: what each one shows, then the number it plays. */
+	const DEMOS: { label: string; value: string; run: () => void }[] = [
+		{ label: 'Find', value: '42', run: () => demoFind('100', 42) },
+		{ label: 'In binary', value: '42', run: () => demoFind('128', 42) },
+		{ label: 'Find', value: '777,777', run: () => demoFind('1000000', 777777) },
+		{ label: 'Liar, lie on question 6', value: '42', run: () => demoLiar(42, [6]) },
+		{ label: 'Liar, no lie', value: '100', run: () => demoLiar(100, []) },
+		{ label: 'Liar, two lies', value: '42', run: () => demoLiar(42, TWO_LIES) }
+	];
+
 	function focusTool() {
 		const el = document.getElementById('game');
 		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -253,7 +302,10 @@
 		return a;
 	}
 
-	/** Y and N answer the question, unless someone is typing somewhere. */
+	/**
+	 * Y and N answer the question while focus is in the game (it listens on the game's card, not
+	 * the window, so a stray key elsewhere on the page never answers), unless someone is typing.
+	 */
 	function onKey(e: KeyboardEvent) {
 		if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
 		const t = e.target as HTMLElement | null;
@@ -454,8 +506,6 @@
 	{@html jsonLd}
 </svelte:head>
 
-<svelte:window on:keydown={onKey} />
-
 <ContentPage
 	related={[
 		{ href: '/binary-converter', label: 'Binary converter' },
@@ -473,7 +523,7 @@
 			every answer is worth up to one bit. Then try lying once, or guessing the page's number while it plays dirty.
 		</p>
 
-		<div class="card tool" id="game" tabindex="-1">
+		<div class="card tool" id="game" tabindex="-1" on:keydown={onKey}>
 			<div class="modes" role="group" aria-label="Game">
 				{#each MODES as m}
 					<button type="button" class:active={mode === m} aria-pressed={mode === m} on:click={() => setMode(m)}
@@ -538,7 +588,7 @@
 
 					{#if !find.done}
 						<div class="yes-no">
-							<button type="button" class="big yes" aria-keyshortcuts="y" on:click={() => answer(true)}
+							<button type="button" class="big yes" id="answer-yes" aria-keyshortcuts="y" on:click={() => answer(true)}
 								>Yes <kbd aria-hidden="true">Y</kbd></button
 							>
 							<button type="button" class="big no" aria-keyshortcuts="n" on:click={() => answer(false)}
@@ -593,6 +643,13 @@
 							<span class="bar-in" style="left: {pct(find.lo)}%; width: {(findLeft / rangeSize) * 100}%" />
 						</div>
 						<div class="bar-ends"><span>{fmt(range.lo)}</span><span>{fmt(range.hi)}</span></div>
+						<!-- On 1 to 1,000,000 the bar is a sliver after a few answers; this row keeps showing progress. -->
+						<div class="bits-row">
+							{#each Array.from({ length: findLimit }, (_, i) => i) as i}
+								<span class="cell" class:got={i < find.steps.length} />
+							{/each}
+							<span class="bits-label">{find.steps.length} of at most {findLimit} answers</span>
+						</div>
 					</div>
 					<p class="left-text">
 						{#if find.done}
@@ -611,7 +668,7 @@
 
 				{#if find.steps.length}
 					<h2 class="working-title">The trail</h2>
-					<div class="table-wrap scroll-box">
+					<div class="table-wrap scroll-box" use:scrollFocus data-label="The trail">
 						<table class="data-table trail">
 							<thead>
 								<tr>
@@ -637,7 +694,7 @@
 											><span class="wide">{yn(s.answer)}</span><span class="narrow">{s.answer ? 'Y' : 'N'}</span
 											>{slips.includes(i + 1) ? ' (wrong)' : ''}</td
 										>
-										<td class="mono">{fmt(after.lo)}{after.lo === after.hi ? '' : ` to ${fmt(after.hi)}`}</td>
+										<td class="mono left">{fmt(after.lo)}{after.lo === after.hi ? '' : ` to ${fmt(after.hi)}`}</td>
 										{#if rangeKey === '128'}<td class="mono">{bitsSoFar.slice(0, i + 1)}{'·'.repeat(6 - i)}</td>{/if}
 									</tr>
 								{/each}
@@ -661,15 +718,15 @@
 						<span class="q-count">Question {liarQuestion.position} of {LIAR_QUESTIONS}</span>
 						<span class="q-text">Is your number in this set?</span>
 						<span class="q-also">The {liarQuestion.members.length} numbers in the set are boxed and bold.</span>
+						<span class="visually-hidden">The set: {liarQuestion.members.join(', ')}.</span>
 					</div>
-					<p class="visually-hidden">The set: {liarQuestion.members.join(', ')}.</p>
 					<div class="num-grid" aria-hidden="true">
 						{#each Array.from({ length: 128 }, (_, n) => n) as n}
 							<span class:in={liarQuestion.members.includes(n)}>{n}</span>
 						{/each}
 					</div>
 					<div class="yes-no">
-						<button type="button" class="big yes" aria-keyshortcuts="y" on:click={() => answer(true)}
+						<button type="button" class="big yes" id="answer-yes" aria-keyshortcuts="y" on:click={() => answer(true)}
 							>Yes <kbd aria-hidden="true">Y</kbd></button
 						>
 						<button type="button" class="big no" aria-keyshortcuts="n" on:click={() => answer(false)}
@@ -717,7 +774,7 @@
 					</p>
 
 					<h2 class="working-title">The checks</h2>
-					<div class="table-wrap">
+					<div class="table-wrap" use:scrollFocus data-label="The checks">
 						<table class="data-table checks">
 							<thead>
 								<tr>
@@ -753,7 +810,7 @@
 					</div>
 
 					<h2 class="working-title">Your answers</h2>
-					<div class="table-wrap">
+					<div class="table-wrap" use:scrollFocus data-label="Your answers">
 						<table class="data-table answers">
 							<thead>
 								<tr>
@@ -905,12 +962,11 @@
 
 			<div class="chips">
 				<span class="chips-label">Watch a game (replaces the one in progress):</span>
-				<button type="button" class="chip-btn" on:click={() => demoFind('100', 42)}>Find 42</button>
-				<button type="button" class="chip-btn" on:click={() => demoFind('128', 42)}>42 in binary</button>
-				<button type="button" class="chip-btn" on:click={() => demoFind('1000000', 777777)}>Find 777,777</button>
-				<button type="button" class="chip-btn" on:click={() => demoLiar(42, [6])}>Liar: 42, lie on 6</button>
-				<button type="button" class="chip-btn" on:click={() => demoLiar(100, [])}>Liar: 100, no lie</button>
-				<button type="button" class="chip-btn" on:click={() => demoLiar(42, TWO_LIES)}>Liar: two lies</button>
+				{#each DEMOS as d}
+					<button type="button" class="chip-btn" on:click={d.run}
+						>{d.label}{' '}<span class="chip-value">{d.value}</span></button
+					>
+				{/each}
 			</div>
 			<p class="share-row"><ShareLink what="this game" /></p>
 		</div>
@@ -928,16 +984,16 @@
 			of six yes/no questions can work for every number. Seven can tell apart 2{sup(7)} = 128, enough with room to spare.
 			In general n numbers need ⌈log₂ n⌉ questions, the number of bits it takes to write n − 1 in binary.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Finding 42 in 1 to 100">
 			<table class="data-table trail">
 				<caption>Finding 42 in 1 to 100</caption>
 				<thead>
 					<tr>
 						<th scope="col">#</th>
-						<th scope="col">Possible before</th>
+						<th scope="col"><span class="wide">Possible before</span><span class="narrow">Before</span></th>
 						<th scope="col">Question</th>
-						<th scope="col">Answer</th>
-						<th scope="col">Possible after</th>
+						<th scope="col"><span class="wide">Answer</span><span class="narrow">Ans.</span></th>
+						<th scope="col"><span class="wide">Possible after</span><span class="narrow">After</span></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -945,11 +1001,15 @@
 						{@const after = i + 1 < worked.steps.length ? worked.steps[i + 1] : worked}
 						<tr>
 							<td class="mono">{i + 1}</td>
-							<td class="mono">{s.lo} to {s.hi} ({sizeOf(s.lo, s.hi)})</td>
-							<td>Greater than {s.threshold}?</td>
-							<td class="mono strong">{yn(s.answer)}</td>
+							<td class="mono">{s.lo} to {s.hi}<span class="wide">{` (${sizeOf(s.lo, s.hi)})`}</span></td>
+							<td><span class="wide">Greater than</span><span class="narrow">&gt;</span> {s.threshold}?</td>
+							<td class="mono strong"
+								><span class="wide">{yn(s.answer)}</span><span class="narrow">{s.answer ? 'Y' : 'N'}</span></td
+							>
 							<td class="mono"
-								>{after.lo}{after.lo === after.hi ? '' : ` to ${after.hi} (${sizeOf(after.lo, after.hi)})`}</td
+								>{after.lo}{#if after.lo !== after.hi}{` to ${after.hi}`}<span class="wide"
+										>{` (${sizeOf(after.lo, after.hi)})`}</span
+									>{/if}</td
 							>
 						</tr>
 					{/each}
@@ -974,7 +1034,7 @@
 			one bit of information: exactly one when yes and no are equally likely, as here, and less when the split is
 			uneven.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Finding 42 in 0 to 127">
 			<table class="data-table bits">
 				<caption>Finding 42 in 0 to 127</caption>
 				<thead>
@@ -1024,7 +1084,7 @@
 			{CHECK_POSITIONS.join(', ')} are checks: check c asks whether an odd number of the bit questions whose own number contains
 			c in binary would be answered yes, so that across its whole group the honest yes answers always come to an even count.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="The eleven questions">
 			<table class="data-table liar-table">
 				<caption>The eleven questions</caption>
 				<thead>
@@ -1056,7 +1116,7 @@
 		</p>
 		<div class="card worked">
 			<h3>42, with a lie on question 6</h3>
-			<div class="table-wrap">
+			<div class="table-wrap" use:scrollFocus data-label="The answers, with the lie">
 				<table class="data-table liar-answers">
 					<caption>The lie, on question {LIAR_EXAMPLE_LIE}, is in bold.</caption>
 					<thead>
@@ -1136,7 +1196,7 @@
 			for 0 to 127. Otherwise the two counts are equal, both {f100.guesses} for 1 to 100, because a guess has three outcomes
 			and can carry more than one bit. Here is a halving player against it on 1 to 100:
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="A halving player against evil mode">
 			<table class="data-table">
 				<thead>
 					<tr><th scope="col">Guess</th><th scope="col">Reply</th><th scope="col">Still possible</th></tr>
@@ -1160,12 +1220,12 @@
 
 	<section id="reference">
 		<h2>Questions needed for each range</h2>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Questions needed for each range">
 			<table class="data-table facts">
 				<thead>
 					<tr>
 						<th scope="col">Range</th>
-						<th scope="col" class="num">Numbers</th>
+						<th scope="col" class="num wide-col">Numbers</th>
 						<th scope="col" class="num">Bits<span class="wide">{' '}(log₂ n)</span></th>
 						<th scope="col" class="num">Yes/no<span class="wide">{' '}questions</span></th>
 						<th scope="col" class="num"
@@ -1180,7 +1240,7 @@
 					{#each facts as f}
 						<tr>
 							<td>{f.range.label}</td>
-							<td class="mono num">{fmt(f.size)}</td>
+							<td class="mono num wide-col">{fmt(f.size)}</td>
 							<td class="mono num">{f.bits}</td>
 							<td class="mono num strong">{f.questions}</td>
 							<td class="mono num">{f.guesses}</td>
@@ -1466,6 +1526,34 @@
 		transition: left 0.25s ease, width 0.25s ease;
 	}
 
+	.bits-row {
+		display: flex;
+		align-items: center;
+		gap: 3px;
+		margin-top: 0.4rem;
+	}
+
+	.bits-row .cell {
+		flex: 1 1 0;
+		max-width: 1.6rem;
+		height: 8px;
+		border: 1px solid rgba(255, 255, 255, 0.35);
+		border-radius: 2px;
+	}
+
+	/* Filled, not just recoloured, so an answered question reads without colour. */
+	.bits-row .cell.got {
+		background: #5db65d;
+		border-color: #5db65d;
+	}
+
+	.bits-label {
+		color: #999;
+		font: 0.72rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		margin-left: 0.4rem;
+		white-space: nowrap;
+	}
+
 	.bar-ends {
 		display: flex;
 		justify-content: space-between;
@@ -1627,9 +1715,17 @@
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
-		padding: 0.25rem 0.6rem;
+		font-size: 0.8rem;
+		padding: 0.35rem 0.7rem;
 		cursor: pointer;
+	}
+
+	/* The number the chip plays, so a chip is not a guess. */
+	.chip-value {
+		color: #8ede8e;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		/* Adds to the real space before it (kept for screen readers) to make the old 0.45rem gap. */
+		margin-left: 0.2rem;
 	}
 
 	.chip-btn:hover {
@@ -1777,6 +1873,16 @@
 			white-space: nowrap;
 		}
 
+		/* "500,001 to 1,000,000" is the widest cell; it may break after "to". */
+		.trail td.left {
+			white-space: normal;
+		}
+
+		/* The count is the range written another way, and the table needs the room. */
+		.wide-col {
+			display: none;
+		}
+
 		.liar-answers :is(th, td) {
 			padding-left: 0.3rem !important;
 			padding-right: 0.3rem !important;
@@ -1802,10 +1908,6 @@
 
 		.q-text {
 			font-size: 1.2rem;
-		}
-
-		.tool {
-			padding: 0.9rem 0.8rem 1.1rem;
 		}
 	}
 
