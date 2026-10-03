@@ -237,6 +237,27 @@ export const tools: Tool[] = [
 			'Make an EAN-13, UPC-A or EAN-8 barcode with the check digit worked out, and see which L, G or R code draws every digit.'
 	},
 	{
+		href: '/punch-card-generator',
+		name: 'Punch card generator and reader',
+		short: 'Punch cards',
+		group: 'text',
+		blurb: 'Punch text onto an 80-column card or a paper tape, or click holes and read what they say.'
+	},
+	{
+		href: '/bitwise-pattern-generator',
+		name: 'Bitwise pattern generator',
+		short: 'Bit art',
+		group: 'numbers',
+		blurb: 'Draw x ^ y, x & y and your own expressions as images, and see the bits behind any pixel.'
+	},
+	{
+		href: '/seven-segment-display-designer',
+		name: 'Seven-segment and dot-matrix display designer',
+		short: 'Displays',
+		group: 'circuits',
+		blurb: 'Design seven-segment, dot-matrix and Nixie displays and copy the bytes as C, Arduino or Verilog.'
+	},
+	{
 		href: '/subnet-calculator',
 		name: 'Subnet calculator',
 		short: 'Subnets',

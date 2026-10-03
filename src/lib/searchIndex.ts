@@ -217,6 +217,12 @@ const toolKeywords: Record<string, string> = {
 		'qr code generator maker create barcode 2d anatomy reed solomon error correction mask version finder pattern alignment quiet zone svg png',
 	'/ean-13-barcode-generator':
 		'ean ean13 ean-13 ean8 ean-8 upc upc-a barcode bar code generator check digit gtin isbn isbn-13 isbn-10 bookland gs1 prefix scanner modules',
+	'/punch-card-generator':
+		'punch card punched hollerith ibm 029 keypunch 80 column paper tape baudot ita2 ebcdic ascii parity teletype reader generator',
+	'/bitwise-pattern-generator':
+		'bitwise pattern generator xor art and or texture sierpinski triangle fractal pixel expression x y bit plane pascal mod 2 image',
+	'/seven-segment-display-designer':
+		'seven segment display designer 7 segment dot matrix 5x7 8x8 led matrix nixie tube bcd font generator common anode cathode arduino c array verilog',
 	'/subnet-calculator':
 		'subnet subnetting ipv4 ip cidr netmask mask wildcard network broadcast hosts prefix calculator ip address classful private',
 	'/vlsm-calculator': 'vlsm flsm subnetting subnet plan allocate split equal ipv4 cidr hosts network calculator',

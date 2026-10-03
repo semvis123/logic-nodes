@@ -271,6 +271,7 @@
 		{ href: '/base64', label: 'Base64 encode and decode' },
 		{ href: '/binary-converter', label: 'Binary converter (numbers)' },
 		{ href: '/learn/bits-with-meaning', label: 'Lesson: how bits become letters' },
+		{ href: '/punch-card-generator', label: 'Punch card generator' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >

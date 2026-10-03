@@ -160,6 +160,7 @@
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/learn', label: 'Learn digital logic' },
+		{ href: '/bitwise-pattern-generator', label: 'Bitwise pattern generator' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >

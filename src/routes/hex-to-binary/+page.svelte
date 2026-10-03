@@ -207,6 +207,7 @@
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/twos-complement', label: "Two's complement" },
 		{ href: '/ascii-table', label: 'ASCII table' },
+		{ href: '/seven-segment-display-designer', label: 'Display designer' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >

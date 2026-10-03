@@ -395,6 +395,7 @@
 		{ href: '/hex-to-binary', label: 'Hex to binary converter' },
 		{ href: '/guess-my-number', label: 'Guess my number' },
 		{ href: '/struct-padding-calculator', label: 'Struct padding calculator' },
+		{ href: '/bitwise-pattern-generator', label: 'Bitwise pattern generator' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
