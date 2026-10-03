@@ -23,8 +23,9 @@
 	import { readUrl, syncUrl, safeText, safeOption, safeInt, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import ErrorAt from '$lib/ErrorAt.svelte';
+	import { scrollFocus } from '$lib/baseNScrollFocus';
 	import Num from '$lib/WorkingNumber.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 
 	type Mode = 'to36' | 'from36' | 'any' | 'text';
 	const MODES = ['to36', 'from36', 'any', 'text'] as const;
@@ -44,6 +45,9 @@
 		anyTo = safeInt(p.to, 2, 36) ?? anyTo;
 		direction = safeOption(p.d, ['encode', 'decode'] as const) ?? direction;
 		letterCase = safeOption(p.c, ['upper', 'lower'] as const) ?? letterCase;
+		// Rewrite the link once the page has settled, even if nothing changed, so a
+		// value the page refused (a base of 99, say) does not stay in it.
+		tick().then(() => syncUrl(urlState, urlDefaults));
 	});
 
 	let mode: Mode = 'to36';
@@ -52,18 +56,17 @@
 	let anyTo = DEFAULTS.to;
 	let direction: 'encode' | 'decode' = 'encode';
 	let letterCase: 'upper' | 'lower' = 'upper';
-	$: syncUrl(
-		{
-			m: mode,
-			v: input,
-			from: mode === 'any' ? anyFrom : undefined,
-			to: mode === 'any' ? anyTo : undefined,
-			d: mode === 'text' ? direction : undefined,
-			c: letterCase
-		},
-		// Text mode starts from its own example, so that is what a link may leave out.
-		mode === 'text' ? { ...DEFAULTS, v: 'Hi' } : DEFAULTS
-	);
+	$: urlState = {
+		m: mode,
+		v: input,
+		from: mode === 'any' ? anyFrom : undefined,
+		to: mode === 'any' ? anyTo : undefined,
+		d: mode === 'text' ? direction : undefined,
+		c: letterCase
+	};
+	// Text mode starts from its own example, so that is what a link may leave out.
+	$: urlDefaults = mode === 'text' ? { ...DEFAULTS, v: 'Hi' } : DEFAULTS;
+	$: syncUrl(urlState, urlDefaults);
 
 	$: fromBase =
 		mode === 'to36' ? 10 : mode === 'from36' ? 36 : mode === 'any' ? anyFrom : direction === 'encode' ? 0 : 36;
@@ -346,7 +349,7 @@
 		{ href: '/hex-to-decimal', label: 'Hex to decimal converter' },
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/base32', label: 'Base32 encode and decode' },
-		{ href: '/base58', label: 'Base58 and Base58Check' },
+		{ href: '/base58', label: 'Base58 encode and decode' },
 		{ href: '/base64', label: 'Base64 encode and decode' },
 		{ href: '/tools', label: 'All tools' }
 	]}
@@ -440,7 +443,7 @@
 				autocapitalize="off"
 				inputmode={fromBase === 10 ? 'numeric' : 'text'}
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="value-help"
+				aria-describedby="value-help{error ? ' value-error' : ''}"
 			/>
 			<p class="field-help" id="value-help">
 				{#if mode === 'text' && direction === 'encode'}
@@ -462,7 +465,7 @@
 			</div>
 
 			{#if error}
-				<ErrorAt message={error} {input} position={errorAt} />
+				<ErrorAt id="value-error" message={error} {input} position={errorAt} />
 			{:else}
 				<div class="results">
 					<div class="answer" role="status">
@@ -524,7 +527,11 @@
 						<h2 class="working-title">
 							Working: each digit times its place value in {baseName(mode === 'text' ? 36 : fromBase)}
 						</h2>
-						<div class="table-wrap" class:scroll-box={terms.length > LONG_TABLE}>
+						<div
+							class="table-wrap"
+							use:scrollFocus={'Working: place values'}
+							class:scroll-box={terms.length > LONG_TABLE}
+						>
 							<table class="data-table steps">
 								<thead>
 									<tr>
@@ -568,7 +575,11 @@
 
 					{#if divisions.length}
 						<h2 class="working-title">Working: divide by {toBaseN}, keep the remainders</h2>
-						<div class="table-wrap" class:scroll-box={divisions.length > LONG_TABLE}>
+						<div
+							class="table-wrap"
+							use:scrollFocus={'Working: repeated division'}
+							class:scroll-box={divisions.length > LONG_TABLE}
+						>
 							<table class="data-table steps">
 								<thead>
 									<tr>
@@ -679,7 +690,7 @@
 		<p class="section-intro">
 			Each place is worth 36 times the one to its right. A digit's value times its place, added up, gives the number.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus={'Powers of 36'}>
 			<table class="data-table powers">
 				<thead>
 					<tr>
@@ -708,7 +719,7 @@
 			<a href="/base32">Base32</a> character, so base 36 is the shortest way to write a number with digits and one case of
 			letters. For each common width, the digits its largest unsigned value needs, and that value in base 36:
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus={'Digits per width'}>
 			<table class="data-table widths">
 				<thead>
 					<tr>

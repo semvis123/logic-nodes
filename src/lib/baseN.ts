@@ -392,6 +392,15 @@ export function base32Decode(input: string, variant: Base32Variant = 'rfc4648'):
 /** Bitcoin's alphabet: the digits and letters without 0, O, I and l. */
 export const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
+/**
+ * The most bytes Base58 is worked through for. Repeated division of an n-byte
+ * number takes n² time and the kept steps n² memory, so a pasted file would
+ * freeze the page; 2,000 bytes is far beyond any address or key and still quick.
+ */
+export const MAX_BASE58_BYTES = 2000;
+/** The longest Base58 string of MAX_BASE58_BYTES bytes, each character carrying log2 58 bits. */
+export const MAX_BASE58_CHARS = Math.ceil((MAX_BASE58_BYTES * 8) / Math.log2(58));
+
 /** One step of repeated division: n = 58 × quotient + remainder. */
 export type DivisionStep = {
 	dividend: bigint;
@@ -429,6 +438,12 @@ export type Base58Encoded = {
  * 0 starts with 1.
  */
 export function base58Encode(bytes: number[]): Base58Encoded {
+	if (bytes.length > MAX_BASE58_BYTES)
+		throw new BaseNError(
+			`That is ${bytes.length.toLocaleString(
+				'en-GB'
+			)} bytes; Base58 is worked through here for up to ${MAX_BASE58_BYTES.toLocaleString('en-GB')} bytes.`
+		);
 	let leadingZeros = 0;
 	while (leadingZeros < bytes.length && bytes[leadingZeros] === 0) leadingZeros++;
 	const value = bytesToBigInt(bytes.slice(leadingZeros));
@@ -458,6 +473,14 @@ export type Base58Decoded = {
  */
 export function base58Decode(input: string): Base58Decoded {
 	const text = input.trim();
+	if (text.length > MAX_BASE58_CHARS)
+		throw new BaseNError(
+			`That is ${text.length.toLocaleString(
+				'en-GB'
+			)} characters; Base58 is decoded here for up to ${MAX_BASE58_CHARS.toLocaleString(
+				'en-GB'
+			)}, the length of ${MAX_BASE58_BYTES.toLocaleString('en-GB')} bytes.`
+		);
 	const offset = input.length - input.trimStart().length;
 	let at = offset;
 	const values: number[] = [];

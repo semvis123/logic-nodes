@@ -22,6 +22,8 @@ import {
 	leadingCharacters,
 	VERSION_KINDS,
 	BASE58_ALPHABET,
+	MAX_BASE58_BYTES,
+	MAX_BASE58_CHARS,
 	parseInBase,
 	toBase,
 	divisionSteps,
@@ -410,6 +412,15 @@ test.describe('Base58', () => {
 		expect(errorOf(() => base58Decode('2NE po'))).toMatch(/A space or line break \(character 4\)/);
 		expect(errorOf(() => base58Decode('ab+c'))).toMatch(/Base64 character/);
 	});
+
+	test('works up to its byte limit and refuses more, rather than freezing a page', () => {
+		// The longest string of the limit is all FF bytes, and it decodes again.
+		const most = base58Encode(Array(MAX_BASE58_BYTES).fill(0xff)).text;
+		expect(most.length).toBe(MAX_BASE58_CHARS);
+		expect(base58Decode(most).bytes).toEqual(Array(MAX_BASE58_BYTES).fill(0xff));
+		expect(errorOf(() => base58Encode(Array(MAX_BASE58_BYTES + 1).fill(1)))).toMatch(/2,001 bytes.*up to 2,000/);
+		expect(errorOf(() => base58Decode('2'.repeat(MAX_BASE58_CHARS + 1)))).toMatch(/up to 2,732/);
+	});
 });
 
 test.describe('Base58Check', () => {
@@ -645,8 +656,10 @@ test.describe('the base32 page', () => {
 		await page.getByRole('button', { name: 'Encode', exact: true }).click();
 		await expect(page.locator('#input')).toHaveValue(cut);
 		await expect(page.locator('#output')).toHaveValue('01ARZ3NDEKTSV4RRFFQ69G5FAR');
+		// The note says where the bytes came from, not a different-looking ULID for them.
 		const cutAsUlid = crockfordNumber(base32Decode(ulid, 'crockford').bytes);
-		await expect(page.locator('.tool')).toContainText(`the 2 zero bits at the front: ${cutAsUlid}`);
+		await expect(page.locator('.tool')).toContainText("These are the ULID's bytes cut from the left");
+		await expect(page.locator('.tool')).not.toContainText(cutAsUlid);
 		await expect(page.locator('#output')).not.toHaveValue(/^05B3/);
 		await page.getByRole('button', { name: 'Decode', exact: true }).click();
 		await expect(page.locator('#output')).toHaveValue(cut);
@@ -663,6 +676,58 @@ test.describe('the base32 page', () => {
 		await page.locator('#input').fill(ulid);
 		await expect(page.locator('#output')).toHaveValue(asNumber);
 		await expect(page).not.toHaveURL(/r=/);
+		// Nor does it survive an edit that briefly fails to decode.
+		await page.goto(`/base32?m=decode&a=crockford&t=${ulid}&r=bytes`);
+		await page.waitForLoadState('networkidle');
+		await page.locator('#input').fill(ulid.slice(0, 25));
+		await expect(page.locator('.error')).toBeVisible();
+		await page.locator('#input').fill(ulid);
+		await expect(page.locator('#output')).toHaveValue(asNumber);
+		await expect(page).not.toHaveURL(/r=/);
+	});
+
+	test('16 bytes encoded in Crockford decode back to the same bytes', async ({ page }) => {
+		// The 26 characters look like a ULID, but Decode must give back what was encoded.
+		await page.goto('/base32?a=crockford&t=0123456789abcdef');
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#output')).toHaveValue(
+			base32Encode(textToBytes('0123456789abcdef'), { variant: 'crockford' }).text
+		);
+		await page.getByRole('button', { name: 'Decode', exact: true }).click();
+		await expect(page.locator('#output')).toHaveValue('0123456789abcdef');
+		const bytes = '01 56 3E 3A B5 D3 D6 76 4C 61 EF B9 93 02 BD 5B';
+		await page.goto(`/base32?a=crockford&in=hex&t=${encodeURIComponent(bytes)}`);
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'Decode', exact: true }).click();
+		await expect(page.locator('#output')).toHaveValue(bytes);
+	});
+
+	test('the error is tied to the field, and the alert waits for a pause in typing', async ({ page }) => {
+		await page.goto('/base32?m=decode&t=JBSWY3DP');
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#input')).toHaveAttribute('aria-describedby', 'input-help');
+		await page.locator('#input').fill('');
+		await page.locator('#input').type('JBSW1', { delay: 50 });
+		await expect(page.locator('#input-error')).toContainText('character 5');
+		await expect(page.locator('#input')).toHaveAttribute('aria-describedby', 'input-help input-error');
+		// The visible box changes at once; the alert only once typing stops.
+		await expect(page.locator('#input-error')).not.toHaveAttribute('role', 'alert');
+		await expect(page.locator('[role="alert"]')).toContainText('character 5');
+	});
+
+	test('a link with values the page refuses is cleaned up, and wide working can be scrolled by keyboard', async ({
+		page
+	}) => {
+		await page.goto('/base32?m=bogus&a=bogus&pad=x&in=zz');
+		await page.waitForLoadState('networkidle');
+		await expect.poll(() => page.evaluate(() => location.search)).toBe('');
+		await page.setViewportSize({ width: 390, height: 800 });
+		await page.goto('/base32');
+		await page.waitForLoadState('networkidle');
+		const box = page.locator('.tool .steps-scroll');
+		await expect(box).toHaveAttribute('tabindex', '0');
+		await expect(box).toHaveAttribute('role', 'region');
+		await expect(box).toHaveAttribute('aria-label', 'Step by step working');
 	});
 
 	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {
@@ -693,6 +758,12 @@ test.describe('the base58 page', () => {
 		await expect(page.locator('#output')).toHaveValue('Hello World!');
 		await page.locator('#input').fill('2NEp0');
 		await expect(page.locator('.error')).toContainText('leaves out 0, O, I and l');
+		await expect(page.locator('#input')).toHaveAttribute('aria-describedby', 'input-help input-error');
+		// Long input gets a clear limit rather than a frozen tab.
+		await page.getByRole('button', { name: 'Encode', exact: true }).click();
+		await page.getByRole('button', { name: 'Text', exact: true }).click();
+		await page.locator('#input').fill('é'.repeat(1001));
+		await expect(page.locator('.error')).toContainText('2,002 bytes');
 	});
 
 	test('checks an address and catches a typo', async ({ page }) => {
@@ -728,6 +799,9 @@ test.describe('the base58 page', () => {
 		await expect(page.locator('#input')).toHaveValue(base58Encode(textToBytes('Hi')).text);
 		await expect(page.locator('#output')).toHaveValue('Hi');
 		await faqMatches(page);
+		await page.goto('/base58?m=bogus&in=zz');
+		await page.waitForLoadState('networkidle');
+		await expect.poll(() => page.evaluate(() => location.search)).toBe('');
 	});
 });
 
@@ -748,6 +822,10 @@ test.describe('the base36 page', () => {
 		await expect(page.locator('.answer-value')).toHaveText('1,295');
 		await page.locator('#value').fill('Z!Z');
 		await expect(page.locator('.error')).toContainText('character 2');
+		await expect(page.locator('#value')).toHaveAttribute('aria-describedby', 'value-help value-error');
+		await page.goto('/base36?m=bogus&from=99&d=x&c=q');
+		await page.waitForLoadState('networkidle');
+		await expect.poll(() => page.evaluate(() => location.search)).toBe('');
 	});
 
 	test('any base, text, and a shared link', async ({ page }) => {

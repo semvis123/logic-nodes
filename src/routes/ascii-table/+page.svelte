@@ -462,6 +462,8 @@
 			<span class="mono">{eAcute.bytes.map((b) => b.binary).join(' ')}</span>. The
 			<a href="/binary-translator">binary translator</a> shows this breakdown for any text, and
 			<a href="/base64">Base64</a> is how those bytes are written when only ASCII characters can be sent.
+			<a href="/base32">Base32</a> and <a href="/base58">Base58</a> do the same job with alphabets chosen to be read and
+			typed by people.
 		</p>
 	</section>
 

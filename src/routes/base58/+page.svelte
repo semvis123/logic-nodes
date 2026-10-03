@@ -20,8 +20,9 @@
 	import { readUrl, syncUrl, safeText, safeOption, toolLink } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
 	import ErrorAt from '$lib/ErrorAt.svelte';
+	import { scrollFocus } from '$lib/baseNScrollFocus';
 	import Num from '$lib/WorkingNumber.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
@@ -40,13 +41,18 @@
 		// Check mode starts from the example address when a link names the mode but not the string.
 		input = safeText(p.t, URL_MAX) ?? (mode === 'check' ? data.example.address : input);
 		source = safeOption(p.in, ['text', 'hex'] as const) ?? source;
+		// Rewrite the link once the page has settled, even if nothing changed, so a
+		// value the page refused (an unknown mode, say) does not stay in it.
+		tick().then(() => syncUrl(urlState, urlDefaults));
 	});
 
 	let mode: Mode = 'encode';
 	let input = DEFAULTS.t;
 	let source: Source = 'text';
 	// Check mode's default string is the example address, so that is what its link may leave out.
-	$: syncUrl({ m: mode, t: input, in: source }, mode === 'check' ? { ...DEFAULTS, t: example.address } : DEFAULTS);
+	$: urlState = { m: mode, t: input, in: source };
+	$: urlDefaults = mode === 'check' ? { ...DEFAULTS, t: example.address } : DEFAULTS;
+	$: syncUrl(urlState, urlDefaults);
 
 	/** Rows of working shown before the table says the rest go the same way. */
 	const MAX_ROWS = 120;
@@ -221,6 +227,17 @@
 		base64: 4 * Math.ceil(n / 3)
 	}));
 	const addressLength = kinds[0].longest;
+	// Common mistakes, worked by the engine: encoding in pieces, and what a bad character gets.
+	const halves = ['Hello ', 'World!'].map((t) => base58Encode(textToBytes(t)).text);
+	const whole = base58Encode(textToBytes('Hello World!')).text;
+	const lookAlike = (() => {
+		try {
+			base58Decode('2NEpo7TZRRrLZSi2O');
+			return '';
+		} catch (e) {
+			return e instanceof BaseNError ? e.message : '';
+		}
+	})();
 	const anyLength = base58Encode(Array(25).fill(0xff)).text.length;
 
 	const faqs = [
@@ -388,7 +405,7 @@
 				autocomplete="off"
 				autocapitalize="off"
 				aria-invalid={(mode === 'check' ? checkError : error) ? 'true' : 'false'}
-				aria-describedby="input-help"
+				aria-describedby="input-help{(mode === 'check' ? checkError : error) ? ' input-error' : ''}"
 			/>
 			<p class="field-help" id="input-help">
 				{#if mode === 'check'}
@@ -410,7 +427,7 @@
 
 			{#if mode === 'check'}
 				{#if checkError}
-					<ErrorAt message={checkError} {input} position={checkAt} />
+					<ErrorAt id="input-error" message={checkError} {input} position={checkAt} />
 				{:else if check}
 					<div class="verdict" class:bad={!check.valid} role="status">
 						<strong>{check.valid ? 'Checksum is valid' : 'Checksum does not match'}</strong>
@@ -447,7 +464,7 @@
 					<p class="note" role="status">Checking…</p>
 				{/if}
 			{:else if error}
-				<ErrorAt message={error} {input} position={errorAt} />
+				<ErrorAt id="input-error" message={error} {input} position={errorAt} />
 			{:else}
 				<div class="out-head">
 					<span class="field"
@@ -508,7 +525,11 @@
 						{/if}
 					</ol>
 					{#if divisions.length}
-						<div class="table-wrap" class:scroll-box={divisions.length > LONG_TABLE}>
+						<div
+							class="table-wrap"
+							use:scrollFocus={'Working: repeated division by 58'}
+							class:scroll-box={divisions.length > LONG_TABLE}
+						>
 							<table class="data-table steps">
 								<thead>
 									<tr>
@@ -539,7 +560,11 @@
 						</p>
 					{/if}
 					{#if readings.length}
-						<div class="table-wrap" class:scroll-box={readings.length > LONG_TABLE}>
+						<div
+							class="table-wrap"
+							use:scrollFocus={'Working: reading the characters back'}
+							class:scroll-box={readings.length > LONG_TABLE}
+						>
 							<table class="data-table steps">
 								<thead>
 									<tr>
@@ -639,7 +664,7 @@
 			Because every character depends on the whole number, changing one byte can change characters all through the
 			result. "{ripple[0].t}" and "{ripple[1].t}" differ only in their first byte:
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus={'Base58 and Base64 compared'}>
 			<table class="data-table ripple">
 				<thead>
 					<tr>
@@ -716,7 +741,7 @@
 			common Bitcoin prefixes, with the first characters worked out by encoding the smallest and largest value of each
 			kind:
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus={'Bitcoin version bytes'}>
 			<table class="data-table kinds">
 				<thead>
 					<tr>
@@ -749,7 +774,7 @@
 			than Base64's 1.33 × n. The exact length depends on the number, so the table gives the most, for bytes that are all
 			FF.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus={'Base58 sizes'}>
 			<table class="data-table sizes">
 				<thead>
 					<tr>
@@ -769,6 +794,36 @@
 				</tbody>
 			</table>
 		</div>
+	</section>
+
+	<section id="mistakes">
+		<h2>Common mistakes</h2>
+		<ul class="points">
+			<li>
+				<strong>Encoding in pieces, as if it were Base64.</strong> Base64 can be cut into groups of 3 bytes and the
+				pieces joined; Base58 cannot, because it is one number. "Hello " and "World!" are
+				<span class="mono">{halves[0]}</span> and <span class="mono">{halves[1]}</span>, but "Hello World!" is
+				<span class="mono">{whole}</span>. The same reason means one changed byte can change the whole string.
+			</li>
+			<li>
+				<strong>Dropping the leading zero bytes.</strong> The bytes {hexBytes([0, 0, ...textToBytes('Hi')])} and
+				{hexBytes(textToBytes('Hi'))} are the same number. Only the leading 1s, <span class="mono">{hiZeros.text}</span>
+				against <span class="mono">{hi.text}</span>, tell them apart, so an encoder or decoder that skips them changes
+				the data, and a Bitcoin address loses its version byte.
+			</li>
+			<li>
+				<strong>Typing 0, O, I or l.</strong> They are not in the alphabet, so a string that seems to contain one has
+				been misread. Change the last character of <span class="mono">{whole}</span> to a capital O and this decoder
+				says:
+				<em>{lookAlike}</em>
+			</li>
+			<li>
+				<strong>Confusing Base58 with Base58Check.</strong> Plain Base58 has no checksum: a mistyped character still
+				decodes, to different bytes. Only Base58Check, as used for addresses, catches it. Decoding an address with plain
+				Base58 also gives {example.payload.length + 5} bytes, not the {example.payload.length}-byte payload: the version
+				byte comes first and the 4 checksum bytes last.
+			</li>
+		</ul>
 	</section>
 
 	<section class="faq">
@@ -1177,6 +1232,20 @@
 	.lnum {
 		color: #bbb;
 		font-size: 0.8rem;
+	}
+
+	.points {
+		color: #ddd;
+		max-width: 720px;
+		padding-left: 1.25rem;
+	}
+
+	.points li {
+		margin-bottom: 0.6rem;
+	}
+
+	.points strong {
+		color: #fff;
 	}
 
 	.worked-grid {
