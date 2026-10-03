@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { hexByte, MODE_INDICATOR, charCountBits, type QrCode, type Field } from '$lib/qr';
+	import { scrollFocus } from './scrollFocus';
 
 	// The build of the current code, stage by stage. Long inputs are cut short
 	// in each stage, with a note; every codeword is made the same way.
@@ -64,6 +65,10 @@
 	$: dataTotal = qr.blocks.reduce((n, b) => n + b.data.length, 0);
 	$: padStart = qr.dataCodewords.length - qr.padCount;
 	$: modeName = { numeric: 'Numeric', alphanumeric: 'Alphanumeric', byte: 'Byte' }[qr.mode];
+	// Its own sentence, with the space built in: whitespace at the start of an {#if} block is trimmed.
+	$: remainderNote = qr.remainderBits
+		? ` ${qr.remainderBits} remainder bit${qr.remainderBits === 1 ? ' fills' : 's fill'} the modules left over.`
+		: '';
 	$: unitWord = qr.mode === 'byte' ? 'byte' : 'character';
 	$: groupRule =
 		qr.mode === 'numeric'
@@ -94,7 +99,7 @@
 		<h3>Data bits</h3>
 		<p>{groupRule}</p>
 		{#if qr.groups.length}
-			<div class="table-wrap scroll-box">
+			<div class="table-wrap scroll-box" use:scrollFocus data-label="Data bits">
 				<table class="data-table groups">
 					<thead>
 						<tr>
@@ -185,7 +190,7 @@
 				are quicker to decode. With the interleaving below, damage in one spot is shared between several blocks.
 			{/if}
 		</p>
-		<div class="table-wrap scroll-box">
+		<div class="table-wrap scroll-box" use:scrollFocus data-label="Error correction blocks">
 			<table class="data-table blocks">
 				<thead>
 					<tr>
@@ -220,8 +225,7 @@
 				codewords the same way. A scratch across the symbol then hits several blocks a little rather than one a lot.
 			{/if}
 			That makes {qr.sequence.length} codewords, placed two columns at a time from the bottom right, zigzagging up and down
-			and stepping round the patterns.{#if qr.remainderBits}
-				{qr.remainderBits} remainder bit{qr.remainderBits === 1 ? '' : 's'} fill the modules left over.{/if}
+			and stepping round the patterns.{remainderNote}
 		</p>
 		<div class="cells">
 			{#each qr.sequence.slice(0, SEQUENCE_SHOWN) as c, i}

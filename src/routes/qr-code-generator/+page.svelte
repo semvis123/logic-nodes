@@ -26,6 +26,7 @@
 	import ShareLink from '$lib/ShareLink.svelte';
 	import Anatomy, { LAYERS, type Layer } from './Anatomy.svelte';
 	import Steps from './Steps.svelte';
+	import { scrollFocus } from './scrollFocus';
 	import { onMount, tick } from 'svelte';
 
 	const MAX_TEXT = 7089;
@@ -114,7 +115,8 @@
 		version = v;
 		mask = 'auto';
 		const field = document.getElementById('qr-text');
-		field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+		field?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
 		field?.focus({ preventScroll: true });
 	}
 
@@ -359,7 +361,7 @@
 				autocapitalize="off"
 				maxlength={MAX_TEXT}
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="qr-text-help"
+				aria-describedby="qr-text-help{error ? ' qr-text-error' : ''}"
 			/>
 			<p class="field-help" id="qr-text-help">
 				Digits alone use numeric mode; capitals, digits, space and $ % * + - . / : use alphanumeric mode; anything else
@@ -413,7 +415,7 @@
 
 			{#if error}
 				<div class="error" role="alert">
-					<p>{error}</p>
+					<p id="qr-text-error">{error}</p>
 					{#if fixVersion}
 						<button type="button" class="fix-btn" on:click={() => (version = 'auto')}
 							>Use the smallest version, {minVersion}</button
@@ -426,7 +428,8 @@
 				</div>
 			{/if}
 
-			<div class="results" class:stale={!!error} class:gone={hideStale} aria-hidden={error ? 'true' : 'false'}>
+			<!-- inert, not just aria-hidden: the dimmed last code must not be reachable by keyboard either. -->
+			<div class="results" class:stale={!!error} class:gone={hideStale} inert={error ? true : undefined}>
 				<div class="answer" role={error ? undefined : 'status'}>
 					<span class="answer-label">Symbol</span>
 					<span class="answer-value"
@@ -461,7 +464,7 @@
 					on:click={() => (showRules = !showRules)}>{showRules ? 'Hide' : 'Show'} the four rule scores</button
 				>
 				<!-- Positioned, so the hidden column heading cannot escape the scroll box and widen the page. -->
-				<div class="table-wrap pen-wrap">
+				<div class="table-wrap pen-wrap" use:scrollFocus data-label="Mask scores">
 					<table class="data-table penalties" class:show-rules={showRules} id="qr-penalties" bind:this={penTable}>
 						<thead>
 							<tr>
@@ -503,12 +506,13 @@
 					</table>
 				</div>
 				<p class="note after-table">
-					The three real finder patterns score {finderBaseline(qr.size)} of the finder-like column in every mask, against
+					The three real finder patterns add {finderBaseline(qr.size)} to the finder-like penalty of every mask, against
 					the quiet zone, so only the differences between the masks matter there.
 				</p>
 				<p class="visually-hidden" aria-live="polite">{maskMessage}</p>
 			</div>
-			<p class="share-row"><ShareLink what="this code" /></p>
+			<!-- Hidden, not removed, while the input cannot be encoded: a link to that state is no use, and keeping the space stops the page jumping. -->
+			<p class="share-row" class:unshareable={!!error}><ShareLink what="this code" /></p>
 		</div>
 	</section>
 
@@ -520,7 +524,7 @@
 		{#if hideStale}
 			<p class="note">The steps appear once the text above can be encoded.</p>
 		{/if}
-		<div class:stale={!!error} class:gone={hideStale}>
+		<div class:stale={!!error} class:gone={hideStale} inert={error ? true : undefined}>
 			<Steps {qr} />
 		</div>
 	</section>
@@ -532,7 +536,7 @@
 			at version 40. Some modules are fixed patterns a scanner uses to find and read the code; the rest carry the data and
 			its error correction.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="The parts of a QR code">
 			<table class="data-table parts">
 				<thead>
 					<tr><th scope="col">Part</th><th scope="col">Where and what</th><th scope="col">Why it is there</th></tr>
@@ -615,7 +619,7 @@
 			Reed–Solomon codewords are added to every block. A scanner can rebuild damaged codewords from them, up to the
 			share each level is designed for. The cost is room for data.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Error correction levels">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -697,7 +701,7 @@
 			How much fits in each version: bytes at each level (byte mode, such as a link with lower case letters), and digits
 			and alphanumeric characters at level M.
 		</p>
-		<div class="table-wrap scroll-box tall">
+		<div class="table-wrap scroll-box tall" use:scrollFocus data-label="QR code capacity by version">
 			<table class="data-table capacity">
 				<thead>
 					<tr>
@@ -1020,6 +1024,10 @@
 	.penalties td {
 		white-space: nowrap;
 		padding: 0.3rem 0.7rem;
+	}
+
+	.share-row.unshareable {
+		visibility: hidden;
 	}
 
 	.rules-toggle {

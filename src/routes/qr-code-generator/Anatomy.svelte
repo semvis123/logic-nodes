@@ -44,6 +44,9 @@
 	$: counts = countRoles(qr);
 	$: q = QUIET_ZONE;
 	$: full = qr.size + 2 * q;
+	// The same drawing the downloads use, so what is shown here is what scans.
+	$: plain = qrSvg(qr.modules, 4);
+	$: plainName = `QR code for ${qr.text.length > 80 ? `${qr.text.slice(0, 80)}…` : qr.text}`;
 
 	function countRoles(code: QrCode): Record<Layer, number> {
 		const out = Object.fromEntries(LAYERS.map((l) => [l.id, 0])) as Record<Layer, number>;
@@ -125,8 +128,9 @@
 			bind:this={svgEl}
 			viewBox="{-q} {-q} {full} {full}"
 			class="symbol"
-			role="img"
-			aria-label="QR code, version {qr.version}, {qr.size} by {qr.size} modules, with its parts highlighted"
+			role="application"
+			aria-roledescription="QR code inspector"
+			aria-label="QR code, version {qr.version}, {qr.size} by {qr.size} modules, with its parts highlighted. Use the arrow keys to inspect modules, Shift for steps of 5."
 			aria-describedby="qr-readout"
 			tabindex="0"
 			shape-rendering="crispEdges"
@@ -185,6 +189,19 @@
 	</div>
 
 	<div class="controls">
+		<div class="plain">
+			<div class="plain-code" role="img" aria-label={plainName}>{@html plain}</div>
+			<div class="plain-side">
+				<p class="plain-head">Scannable code</p>
+				<div class="downloads">
+					<button type="button" class="small-btn" on:click={saveSvg}>Download SVG</button>
+					<button type="button" class="small-btn" on:click={savePng}>Download PNG</button>
+				</div>
+				<p class="note">Plain black on white with the four-module quiet zone, ready to print or scan.</p>
+			</div>
+		</div>
+		{#if saveError}<p class="note warn" role="alert">{saveError}</p>{/if}
+
 		<fieldset class="layers">
 			<legend>Highlight</legend>
 			<p class="layer-head" aria-hidden="true">Modules</p>
@@ -232,13 +249,6 @@
 				scan; it is here to show what the mask changes.
 			</p>
 		{/if}
-
-		<div class="downloads">
-			<button type="button" class="small-btn" on:click={saveSvg}>Download SVG</button>
-			<button type="button" class="small-btn" on:click={savePng}>Download PNG</button>
-		</div>
-		<p class="note">Downloads are plain black on white with the four-module quiet zone, ready to print or scan.</p>
-		{#if saveError}<p class="note warn" role="alert">{saveError}</p>{/if}
 	</div>
 </div>
 
@@ -302,6 +312,41 @@
 
 	.controls {
 		min-width: 0;
+	}
+
+	.plain {
+		align-items: flex-start;
+		display: flex;
+		gap: 0.7rem;
+		margin-bottom: 0.8rem;
+	}
+
+	.plain-code {
+		flex: none;
+		width: 7.5rem;
+	}
+
+	.plain-code :global(svg) {
+		display: block;
+		width: 100%;
+		height: auto;
+		border-radius: 3px;
+	}
+
+	.plain-side {
+		min-width: 0;
+	}
+
+	.plain-head {
+		color: #bbb;
+		font-size: 0.75rem;
+		letter-spacing: 0.04em;
+		margin: 0;
+		text-transform: uppercase;
+	}
+
+	.plain .downloads {
+		margin-top: 0.3rem;
 	}
 
 	.layers {

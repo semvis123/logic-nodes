@@ -556,6 +556,25 @@ test.describe('masks and penalties', () => {
 		}
 	});
 
+	// The standard only says to pick the lowest score; on a tie we keep the
+	// lowest-numbered mask, so the choice is stable. These inputs tie for real.
+	test('a tie for the lowest total goes to the lowest-numbered mask', () => {
+		const ties: [string, EcLevel, number[]][] = [
+			['32', 'L', [2, 5]],
+			['51', 'Q', [0, 7]],
+			['193', 'L', [3, 7]]
+		];
+		for (const [text, ec, tied] of ties) {
+			const qr = encodeQr(text, { ec });
+			const lowest = Math.min(...qr.penalties.map((p) => p.total));
+			expect(
+				qr.penalties.filter((p) => p.total === lowest).map((p) => p.mask),
+				text
+			).toEqual(tied);
+			expect(qr.mask, text).toBe(tied[0]);
+		}
+	});
+
 	test('the four rules on hand-made patterns', () => {
 		const blank = Array.from({ length: 21 }, () => new Array(21).fill(false));
 		// 42 lines of 21: 3 + 16 each; 20×20 boxes of 3; no finder lookalikes; 0% dark is 10 steps of 5%.
@@ -727,6 +746,38 @@ test.describe('the qr-code-generator page', () => {
 		await expect(page).toHaveURL(/t=Hello%2C\+world/);
 		await page.locator('.chips button', { hasText: 'HELLO WORLD' }).click();
 		await expect(page).toHaveURL(/\/qr-code-generator$/);
+	});
+
+	test('a stale code is out of reach and the field names its error', async ({ page }) => {
+		await page.goto('/qr-code-generator');
+		await page.waitForLoadState('networkidle');
+		const field = page.locator('#qr-text');
+		await expect(field).toHaveAttribute('aria-describedby', 'qr-text-help');
+		await field.fill('x'.repeat(3000));
+		await expect(page.locator('#qr-text-error')).toContainText('the largest QR code holds');
+		await expect(field).toHaveAttribute('aria-describedby', 'qr-text-help qr-text-error');
+		// Dimmed, and inert: no focus stop inside the last good code or its steps.
+		await expect(page.locator('.results')).toHaveJSProperty('inert', true);
+		await expect(page.locator('#steps > div.stale')).toHaveJSProperty('inert', true);
+		await expect(page.locator('svg.symbol')).toBeVisible();
+		await page.locator('svg.symbol').focus();
+		await expect(page.locator('svg.symbol')).not.toBeFocused();
+		await field.fill('OK');
+		await expect(page.locator('.results')).toHaveJSProperty('inert', false);
+	});
+
+	test('a plain code to scan sits by the downloads, and tall tables can be scrolled by keyboard', async ({ page }) => {
+		await page.goto('/qr-code-generator');
+		await page.waitForLoadState('networkidle');
+		const plain = page.getByRole('img', { name: 'QR code for HELLO WORLD' });
+		await expect(plain).toBeVisible();
+		await expect(plain.locator('path[fill="#000"]')).toHaveCount(1);
+		await expect(page.getByRole('application', { name: /Use the arrow keys/ })).toBeVisible();
+		const tall = page.getByRole('region', { name: 'QR code capacity by version' });
+		await expect(tall).toHaveAttribute('tabindex', '0');
+		await tall.focus();
+		await page.keyboard.press('End');
+		await expect.poll(() => tall.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 	});
 
 	test('the FAQ markup matches the questions on the page', async ({ page }) => {
