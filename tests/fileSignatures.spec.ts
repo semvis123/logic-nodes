@@ -14,6 +14,7 @@ import {
 	fromBytes,
 	detect,
 	parseHex,
+	MAX_PASTE_BYTES,
 	HexError,
 	checkExtension,
 	extensionOf,
@@ -405,7 +406,10 @@ test.describe('reading pasted hex', () => {
 			'\\x89\\x50\\x4e\\x47',
 			'89:50:4e:47',
 			'  89 50\n4E 47\n',
-			'8950 4E47'
+			'8950 4E47',
+			'\\x89\\x50 0x4e\\x47',
+			// No-break, ideographic and line separator spaces count as white space, as in /\s/.
+			'89\u00a050\u30004e 47\u2028'
 		]) {
 			expect(Array.from(parseHex(text)), text).toEqual(want);
 		}
@@ -427,6 +431,10 @@ test.describe('reading pasted hex', () => {
 		expect(message('00000000: 8950 4e47 zz')).toContain('without the offset and text columns');
 		expect(message('0D A')).toContain('“A” has an odd number of digits');
 		expect(message('895')).toContain('odd number');
+		// The 0x and \x prefixes are not digits, so the advice leaves them out.
+		expect(message('0x8\\x9\\x1')).toContain(
+			'“0x8\\x9\\x1” has an odd number of digits; every byte needs two, so write 0891'
+		);
 	});
 
 	test('hex dumps from od, hexdump -C and xxd paste as their bytes, not their offsets', () => {
@@ -458,6 +466,47 @@ test.describe('reading pasted hex', () => {
 			expect(Buffer.from(parseHex(formatHexLines(bytes))).equals(Buffer.from(bytes))).toBe(true);
 			expect(Buffer.from(parseHex(Buffer.from(bytes).toString('hex'))).equals(Buffer.from(bytes))).toBe(true);
 		}
+	});
+
+	test('mixed separators, prefixes and case read the same as Buffer, and bad pastes still fail', () => {
+		const random = rng(11);
+		const seps = [' ', '  ', ',', ', ', ';', ':', '\n', '\r\n', '\t', ' '];
+		for (let n = 0; n < 300; n++) {
+			const bytes = Uint8Array.from({ length: 1 + Math.floor(random() * 40) }, () => Math.floor(random() * 256));
+			const prefix = random() < 0.2 ? (random() < 0.5 ? '0x' : '\\x') : '';
+			const text = Array.from(bytes, (b) => {
+				const h = prefix + b.toString(16).padStart(2, '0');
+				return random() < 0.5 ? h.toUpperCase().replace('0X', '0x').replace('\\X', '\\x') : h;
+			})
+				.map((h, i) => (i ? seps[Math.floor(random() * seps.length)] : '') + h)
+				.join('');
+			expect(Buffer.from(parseHex(text)).equals(Buffer.from(bytes)), text).toBe(true);
+			// Splitting one byte across a separator is refused, never read as two bytes or merged.
+			const cut = text.replace(/([0-9a-f])([0-9a-f])/i, '$1 $2');
+			expect(() => parseHex(cut), cut).toThrow(HexError);
+		}
+	});
+
+	test('a megabyte of pasted hex parses quickly, and more than that is refused', () => {
+		const bytes = Uint8Array.from({ length: MAX_PASTE_BYTES }, (_, i) => (i * 7) & 255);
+		const timed = (text: string) => {
+			const started = performance.now();
+			try {
+				return parseHex(text);
+			} finally {
+				// The page parses on every keystroke; the old split-and-test loop took 500 to 900 ms here.
+				expect(performance.now() - started).toBeLessThan(200);
+			}
+		};
+		const prefixed = Array.from(bytes, (b) => '0x' + b.toString(16).padStart(2, '0')).join(', ');
+		for (const text of [formatHexLines(bytes), Buffer.from(bytes).toString('hex'), prefixed]) {
+			expect(Buffer.from(timed(text)).equals(Buffer.from(bytes))).toBe(true);
+		}
+		// Half of all keystrokes leave a byte half typed; saying so must be just as quick.
+		expect(() => timed(formatHexLines(bytes) + ' 4')).toThrow(/“4” has an odd number of digits/);
+		expect(() => timed(formatHexLines(bytes) + ' 4g')).toThrow(/“4g” contains “g”/);
+		expect(() => parseHex('00 '.repeat(MAX_PASTE_BYTES + 1))).toThrow(/paste at most 1,048,576/);
+		expect(() => parseHex('0x00 '.repeat(MAX_PASTE_BYTES + 1))).toThrow(/paste at most 1,048,576/);
 	});
 });
 
@@ -752,6 +801,43 @@ test.describe('detecting formats', () => {
 			expect((v as { status: string }).status, text).toBe('match');
 		}
 		expect((verdict('flag.json', 'true\n')[1] as { status: string }).status).toBe('compatible');
+		// Longer signatures that are words too: a real file has binary bytes
+		// right after them, so all-text bytes read as text, the format second.
+		for (const [text, other] of [
+			['GIF89a is a format\n', 'gif'],
+			['fLaC is flac\n', 'flac'],
+			['wOFF\n', 'woff'],
+			['BZh9 compressed\n', 'bzip2']
+		]) {
+			const [ids, v] = verdict('words.txt', text);
+			expect(ids, text).toEqual(['text', other]);
+			expect((v as { status: string }).status, text).toBe('match');
+		}
+		expect((verdict('words.gif', 'GIF89a is a format\n')[1] as { status: string }).status).toBe('compatible');
+		// A text format's own signature is not in doubt for being text.
+		expect(verdict('a.pdf', '%PDF-1.4\n')[0]).toEqual(['pdf']);
+		expect(top(real('tiny.gif')).certainty).toBe('certain');
+		// With no text after it, a signature is the signature: the reference
+		// table's own bytes, and a bzip2 start whose block magic is confirmed.
+		for (const [text, id] of [
+			['GIF89a', 'gif'],
+			['GIF87a', 'gif'],
+			['wOFF', 'woff'],
+			['wOF2', 'woff2'],
+			['fLaC', 'flac'],
+			['ttcf', 'ttc'],
+			['BZh9', 'bzip2'],
+			['BZh91AY&SY', 'bzip2']
+		]) {
+			const [ids, v] = verdict(`a.${id === 'bzip2' ? 'bz2' : id}`, text);
+			expect(ids[0], text).toBe(id);
+			expect(top(build({ t: text })).certainty, text).toBe('certain');
+			expect((v as { status: string }).status, text).toBe('match');
+		}
+		// Text listed ahead of a format does not claim that nothing matched.
+		const words = detect(fromBytes(build({ t: 'GIF89a is a format\n' })));
+		expect(words[0].explain).toMatch(/^The bytes start with the GIF image signature/);
+		expect(words[0].explain).not.toMatch(/No signature matched/);
 		// A real old QuickTime header still is one.
 		expect(top(HAND['mov-old'].bytes).id).toBe('mov-old');
 	});
@@ -818,7 +904,7 @@ test.describe('detecting formats', () => {
 	test('empty and truncated input', () => {
 		expect(detect(fromBytes([]))).toEqual([]);
 		expect(partialMatches(fromBytes([0x89, 0x50, 0x4e, 0x47]))).toEqual([
-			{ name: 'PNG image', have: 4, need: 8, hex: '89 50 4E 47 0D 0A 1A 0A' }
+			{ name: 'PNG image', have: 4, need: 8, hex: '89 50 4E 47 0D 0A 1A 0A', exts: ['png'] }
 		]);
 		expect(partialMatches(fromBytes([0x89])).map((p) => p.name)).toEqual(['PNG image']);
 		// RIFF is the start of a 12-byte pattern, not a whole 4-byte signature.
@@ -826,6 +912,14 @@ test.describe('detecting formats', () => {
 		expect(riff.map((p) => p.name)).toEqual(['WebP image', 'WAV audio', 'AVI video']);
 		expect(riff[0]).toMatchObject({ have: 4, need: 12, hex: '52 49 46 46 ?? ?? ?? ?? 57 45 42 50' });
 		expect(partialMatches(fromBytes([0x52, 0x49]))[0].need).toBe(12);
+		// A cut-off signature cannot prove the extension wrong.
+		const mthd = fromBytes(build({ t: 'MThd' }));
+		expect(checkExtension('a.mid', detect(mthd), 4, partialMatches(mthd))).toMatchObject({
+			status: 'compatible',
+			message:
+				'.mid may be right: these 4 bytes are the start of the 8-byte MIDI file signature, and the data stops before the rest of it.'
+		});
+		expect(checkExtension('a.png', detect(mthd), 4, partialMatches(mthd)).status).toBe('mismatch');
 		// A truncated ELF still says what it can.
 		expect(top(build('7F 45 4C 46')).certainty).toBe('likely');
 		// Every format with a signature at 0 survives being cut to any length without throwing.
@@ -1002,6 +1096,22 @@ test.describe('extensions', () => {
 		expect(verdict('photo.heif', HAND.heic.bytes).status).toBe('match');
 		// HEVC and AV1 are different codecs: a HEIC is a HEIF, but not an AVIF.
 		expect(verdict('photo.avif', HAND.heic.bytes).status).toBe('mismatch');
+		// A generic mif1 major brand says only "HEIF"; the codec brand decides
+		// .heic or .avif, the same as when it is the major brand.
+		const generic = build(u32be(24), { t: 'ftypmif1' }, '00 00 00 00', { t: 'mif1heic' });
+		expect(top(generic).id).toBe('heic');
+		expect(verdict('photo.avif', generic).status).toBe('mismatch');
+		expect(verdict('photo.heic', generic).status).toBe('match');
+		expect(verdict('photo.heif', generic).status).toBe('match');
+		expect(verdict('photo.mp4', generic).status).toBe('mismatch');
+		const genericAv1 = build(u32be(24), { t: 'ftypmif1' }, '00 00 00 00', { t: 'mif1avif' });
+		expect(top(genericAv1).id).toBe('avif');
+		expect(verdict('photo.heic', genericAv1).status).toBe('mismatch');
+		expect(verdict('photo.heif', genericAv1).status).not.toBe('mismatch');
+		// Both codec brands listed: either extension fits.
+		const both = build(u32be(28), { t: 'ftypmif1' }, '00 00 00 00', { t: 'mif1heicavif' });
+		expect(verdict('photo.avif', both).status).not.toBe('mismatch');
+		expect(verdict('photo.heic', both).status).not.toBe('mismatch');
 		expect(verdict('song.mp4', real('tone.m4a')).status).toBe('compatible');
 	});
 
@@ -1233,6 +1343,83 @@ test.describe('the file-signature-checker page', () => {
 		expect(page.url()).toBe(shared);
 	});
 
+	test('typing bytes does not fire an alert per keystroke, and a stale result is out of reach', async ({ page }) => {
+		await page.goto('/file-signature-checker');
+		await page.waitForLoadState('networkidle');
+		const hex = page.locator('#hex');
+		await hex.fill('');
+		// Counts every alert that appears while typing, however briefly.
+		await page.evaluate(() => {
+			const w = window as unknown as { alerts: number };
+			w.alerts = 0;
+			new MutationObserver(() => (w.alerts += document.querySelectorAll('[role=alert]').length)).observe(
+				document.body,
+				{
+					subtree: true,
+					childList: true,
+					characterData: true
+				}
+			);
+		});
+		await hex.type('25 50 44 46 2D', { delay: 60 });
+		await expect(page.locator('.answer-value')).toHaveText('PDF document');
+		expect(await page.evaluate(() => (window as unknown as { alerts: number }).alerts)).toBe(0);
+		// A half-written byte shows its error at once, but announces it only after a pause.
+		await hex.press('5');
+		await expect(page.locator('#hex-error')).toContainText('odd number of digits');
+		await expect(hex).toHaveAttribute('aria-describedby', 'hex-help hex-error');
+		const inert = () => page.locator('.results').evaluate((el) => el.hasAttribute('inert'));
+		await expect.poll(inert).toBe(true);
+		await expect(page.locator('[role=alert]')).toContainText('odd number of digits');
+		await hex.press('Backspace');
+		await expect(page.locator('[role=alert]')).toHaveCount(0);
+		await expect(hex).toHaveAttribute('aria-describedby', 'hex-help');
+		await expect.poll(inert).toBe(false);
+	});
+
+	test('a long unbroken paste does not widen the page on a phone', async ({ page }) => {
+		await page.setViewportSize({ width: 390, height: 900 });
+		await page.goto('/file-signature-checker');
+		await page.waitForLoadState('networkidle');
+		await page.locator('#hex').fill('Z'.repeat(300));
+		await expect(page.locator('#hex-error')).toBeVisible();
+		const overflow = await page.evaluate(
+			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+		);
+		expect(overflow).toBe(0);
+	});
+
+	test('a file picked while another is still being read wins', async ({ page }) => {
+		await page.goto('/file-signature-checker');
+		await page.waitForLoadState('networkidle');
+		await page.getByRole('button', { name: 'Check a file' }).click();
+		// The first read is held back until after the second has finished.
+		await page.evaluate(() => {
+			const original = Blob.prototype.arrayBuffer;
+			Blob.prototype.arrayBuffer = function (this: Blob) {
+				const delay = (window as unknown as { slowNext?: boolean }).slowNext ? 800 : 0;
+				return new Promise((resolve) => setTimeout(() => resolve(original.call(this)), delay));
+			};
+			(window as unknown as { slowNext?: boolean }).slowNext = true;
+		});
+		await page.locator('#file').setInputFiles({ name: 'first.pdf', mimeType: '', buffer: Buffer.from('%PDF-1.7\n') });
+		await page.evaluate(() => ((window as unknown as { slowNext?: boolean }).slowNext = false));
+		await page
+			.locator('#file')
+			.setInputFiles({ name: 'second.elf', mimeType: '', buffer: Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1, 0]) });
+		await expect(page.locator('.answer-value')).toHaveText('ELF executable');
+		await page.waitForTimeout(1200);
+		await expect(page.locator('.answer-value')).toHaveText('ELF executable');
+		await expect(page.locator('.read-note')).toContainText('second.elf: 8 bytes');
+	});
+
+	test('query values the page does not use are dropped from the address bar', async ({ page }) => {
+		await page.goto('/file-signature-checker?e=bogus&x=1');
+		await page.waitForLoadState('networkidle');
+		await expect(page).toHaveURL(/\/file-signature-checker$/);
+		await expect(page.locator('.answer-value')).toHaveText('PNG image');
+	});
+
 	test('the FAQ in the structured data is the FAQ on the page', async ({ page }) => {
 		await page.goto('/file-signature-checker');
 		const ld = JSON.parse((await page.locator('script[type="application/ld+json"]').textContent()) as string);
@@ -1248,4 +1435,20 @@ test.describe('the file-signature-checker page', () => {
 		expect(shown).toEqual(faq);
 		expect(faq.length).toBeGreaterThanOrEqual(4);
 	});
+});
+
+test('a hex error quotes only part of a very long run', () => {
+	const long = 'ab'.repeat(5000);
+	for (const text of [long + '1', long + 'g' + long]) {
+		let message = '';
+		try {
+			parseHex(text);
+		} catch (e) {
+			message = (e as Error).message;
+		}
+		expect(message).not.toBe('');
+		expect(message.length).toBeLessThan(300);
+	}
+	// Short groups are still quoted whole, with the fix spelled out.
+	expect(() => parseHex('abc')).toThrow('write 0abc');
 });

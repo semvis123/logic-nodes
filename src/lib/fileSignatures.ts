@@ -134,13 +134,19 @@ export function formatHexLines(bytes: ArrayLike<number>, perLine = 16): string {
  * (plain hexdump, od -x) are left alone, because their byte order is the
  * machine's, not the file's.
  */
+const DUMP_LINE = /^\s*([0-9a-f]{6,16})(:?)(?:\s+(.*))?$/i;
+
 export function stripDumpColumns(input: string): string {
+	// Most pastes are not dumps, and the first line says so: checking it before
+	// splitting keeps a megabyte of plain hex from being cut into lines for nothing.
+	const firstLine = /^\s*([^\r\n]*)/.exec(input)?.[1] ?? '';
+	if (!DUMP_LINE.test(firstLine)) return input;
 	const lines = input.split(/\r?\n/).filter((l) => l.trim());
 	if (!lines.length) return input;
 	const out: string[] = [];
 	let last = -1;
 	for (let i = 0; i < lines.length; i++) {
-		const m = lines[i].match(/^\s*([0-9a-f]{6,16})(:?)(?:\s+(.*))?$/i);
+		const m = lines[i].match(DUMP_LINE);
 		if (!m) return input;
 		const offset = parseInt(m[1], 16);
 		if (offset <= last) return input;
@@ -166,42 +172,136 @@ export const MAX_PASTE_BYTES = 1 << 20;
  * lines, may carry 0x or \x in front, or may be run together; a separated
  * group with an odd number of digits is refused rather than silently merged
  * with its neighbour, because "D A" could mean 0D 0A or DA.
+ *
+ * It reads in a single pass, character by character. Splitting into groups and
+ * testing each with regular expressions costs about half a second for a
+ * megabyte, and the page parses again on every keystroke, including the half
+ * of them that leave a byte half typed.
  */
 export function parseHex(input: string): Uint8Array {
-	const groups = stripDumpColumns(input)
-		.trim()
-		.split(/[\s,;:]+/)
-		.filter(Boolean);
-	let digits = '';
-	for (const raw of groups) {
-		const group = raw.replace(/^(0x|\\x)/i, '').replace(/\\x/gi, '');
-		const bad = group.match(/[^0-9a-f]/i);
-		if (bad) {
+	const text = stripDumpColumns(input);
+	const out = new Uint8Array(text.length >> 1);
+	let count = 0;
+	let firstGroup = '';
+	let i = 0;
+	while (i < text.length) {
+		if (isSeparator(text.charCodeAt(i))) {
+			i++;
+			continue;
+		}
+		const start = i;
+		while (i < text.length && !isSeparator(text.charCodeAt(i))) i++;
+		if (!firstGroup) firstGroup = text.slice(start, i);
+		count = readGroup(text, start, i, out, count, firstGroup);
+	}
+	checkPasteSize(count);
+	return out.slice(0, count);
+}
+
+/**
+ * Writes one separated group's bytes into out from count and returns the new
+ * count. A leading 0x or \x is dropped, and so is any \x inside (\x41\x42).
+ */
+/** Groups longer than this are quoted in part in an error message. */
+const QUOTE_MAX = 24;
+
+function readGroup(
+	text: string,
+	start: number,
+	end: number,
+	out: Uint8Array,
+	count: number,
+	firstGroup: string
+): number {
+	let p = start;
+	const c0 = text.charCodeAt(p);
+	const x1 = (text.charCodeAt(p + 1) | 0x20) === 120;
+	if (p + 1 < end && x1 && (c0 === 48 || c0 === 92)) p += 2;
+	const from = p;
+	let digits = 0;
+	let high = -1;
+	let n = count;
+	for (; p < end; p++) {
+		const code = text.charCodeAt(p);
+		if (code === 92 && p + 1 < end && (text.charCodeAt(p + 1) | 0x20) === 120) {
+			p++;
+			continue;
+		}
+		const value = hexDigit(code);
+		if (value < 0) {
+			// Quote only the neighbourhood of the bad character: a pasted run can be
+			// megabytes long, and the message is shown and announced in full.
+			const raw =
+				end - start <= QUOTE_MAX
+					? text.slice(start, end)
+					: `${p - start > 8 ? '…' : ''}${text.slice(Math.max(start, p - 8), p + 9)}${end - p > 9 ? '…' : ''}`;
 			throw new HexError(
-				`“${raw}” contains “${bad[0]}”, which is not a hex digit (0 to 9, A to F)${
-					/^[0-9a-f]{6,}:?$/i.test(groups[0] ?? '')
+				`“${raw}” contains “${text[p]}”, which is not a hex digit (0 to 9, A to F)${
+					/^[0-9a-f]{6,}$/i.test(firstGroup)
 						? '. If this is a hex dump, paste only the bytes, without the offset and text columns'
 						: ''
 				}`
 			);
 		}
-		if (group.length % 2) {
+		digits++;
+		if (high < 0) high = value;
+		else {
+			out[n++] = (high << 4) | value;
+			high = -1;
+		}
+	}
+	if (digits % 2) {
+		const raw = text.slice(start, end);
+		if (raw.length > QUOTE_MAX) {
 			throw new HexError(
-				`“${raw}” has an odd number of digits; every byte needs two, so write 0${group} or join it to its neighbour`
+				`“${raw.slice(0, 10)}…${raw.slice(-10)}” (${raw.length.toLocaleString(
+					'en-GB'
+				)} characters) has an odd number of digits; every byte needs two, so a digit is missing or one too many`
 			);
 		}
-		digits += group;
-	}
-	if (digits.length / 2 > MAX_PASTE_BYTES) {
+		const group = text.slice(from, end).replace(/\\x/gi, '');
 		throw new HexError(
-			`That is ${(digits.length / 2).toLocaleString('en-GB')} bytes; paste at most ${MAX_PASTE_BYTES.toLocaleString(
+			`“${raw}” has an odd number of digits; every byte needs two, so write 0${group} or join it to its neighbour`
+		);
+	}
+	return n;
+}
+
+function checkPasteSize(bytes: number) {
+	if (bytes > MAX_PASTE_BYTES) {
+		throw new HexError(
+			`That is ${bytes.toLocaleString('en-GB')} bytes; paste at most ${MAX_PASTE_BYTES.toLocaleString(
 				'en-GB'
 			)}, or choose the file instead`
 		);
 	}
-	const out = new Uint8Array(digits.length / 2);
-	for (let i = 0; i < out.length; i++) out[i] = parseInt(digits.slice(2 * i, 2 * i + 2), 16);
-	return out;
+}
+
+/** A hex digit's value, or -1. */
+function hexDigit(code: number): number {
+	if (code >= 48 && code <= 57) return code - 48; // 0-9
+	const lower = code | 0x20;
+	return lower >= 97 && lower <= 102 ? lower - 87 : -1; // a-f, A-F
+}
+
+/**
+ * What separates groups: a comma, semicolon, colon or any white space,
+ * the same set as the regular expression class [\s,;:].
+ */
+function isSeparator(code: number): boolean {
+	if (code === 32 || (code >= 9 && code <= 13) || code === 44 || code === 59 || code === 58) return true;
+	if (code < 0xa0) return false;
+	return (
+		code === 0xa0 ||
+		code === 0x1680 ||
+		(code >= 0x2000 && code <= 0x200a) ||
+		code === 0x2028 ||
+		code === 0x2029 ||
+		code === 0x202f ||
+		code === 0x205f ||
+		code === 0x3000 ||
+		code === 0xfeff
+	);
 }
 
 // --- The data model --------------------------------------------------------
@@ -2252,9 +2352,16 @@ const TYPES: TypeDef[] = [
 			// video may carry a 3GP or QuickTime brand: the brand narrows, the
 			// extension can still be any of the family.
 			// HEIC and AVIF are both HEIF, so .heif fits either, but their codecs differ.
+			// A generic mif1 or msf1 major brand only says "HEIF"; the codec
+			// brands among the compatible ones say which readers can open it,
+			// so .heic fits only with a HEVC brand and .avif only with an AV1 one.
+			const has = (id: string) => f.compatible.some((b) => FTYP_KINDS.find((x) => x.id === id)?.brands.includes(b));
+			const genericHeif = FTYP_KINDS.find((x) => x.id === 'heif')?.brands.includes(f.major);
 			const family =
 				k.id === 'heif'
 					? HEIF_FAMILY
+					: genericHeif
+					? ['heif', ...(has('heic') ? ['heic'] : []), ...(has('avif') ? ['avif'] : [])]
 					: k.id === 'heic' || k.id === 'avif'
 					? ['heif']
 					: k.id === 'cr3'
@@ -2591,6 +2698,9 @@ function cafebabe(v: ByteView, wide: boolean): Hit | null {
 
 const certaintyRank: Record<Certainty, number> = { certain: 0, likely: 1, guess: 2 };
 
+/** Formats that are text themselves, so a clean-text body is no reason to doubt their signature. */
+const TEXT_NATIVE: ReadonlySet<string> = new Set(['pdf', 'rtf', 'ps']);
+
 function sigMatches(v: ByteView, sig: Sig): boolean {
 	return sig.bytes.every((b, k) => b === null || v.at(sig.at + k) === b);
 }
@@ -2646,6 +2756,8 @@ const TEXT_DEF: TypeDef = {
 export function detect(v: ByteView): Detection[] {
 	if (v.size === 0) return [];
 	const found: Detection[] = [];
+	// Matches of a binary format whose whole signature is printable letters.
+	const wordy = new Set<Detection>();
 	const run = (fallback: boolean) => {
 		for (const def of TYPES) {
 			if (!!def.fallback !== fallback) continue;
@@ -2660,13 +2772,30 @@ export function detect(v: ByteView): Detection[] {
 				const hit = def.verify ? def.verify(v, i) : {};
 				if (hit === null) continue;
 				const sigFields = variant.sigs.map((s) => ({ ...field(s.at, s.bytes.length, s.label), sig: true }));
-				found.push(build(def, hit, sigFields));
+				const d = build(def, hit, sigFields);
+				found.push(d);
+				if (
+					!TEXT_NATIVE.has(def.id) &&
+					variant.sigs.every((s) => s.bytes.every((b) => b !== null && b >= 0x20 && b < 0x7f))
+				)
+					wordy.add(d);
 				break;
 			}
 		}
 	};
 	run(false);
 	if (!found.length) run(true);
+	// GIF89a, fLaC, wOFF and BZh are words as well as signatures. A real file
+	// of those formats has binary bytes straight after them (sizes, flags,
+	// compressed data), so when clean text carries on past everything the
+	// format accounts for, the signature is only likely, and the text reading
+	// below goes first. The bare signature, or a header whose structure the
+	// checker confirmed (bzip2's BZh91AY&SY is all printable), stays certain.
+	if (wordy.size && readUtf8(v, 0) !== null)
+		for (const d of wordy) {
+			const end = Math.max(...d.fields.map((f) => f.start + f.length));
+			if (d.certainty === 'certain' && v.size > end) d.certainty = 'likely';
+		}
 	// Short signatures that could not be confirmed (true, OTTO, BM, MZ, ID3)
 	// are also ordinary words. When nothing matched in full and every byte
 	// is clean text, the text reading goes first and the others are listed
@@ -2676,14 +2805,19 @@ export function detect(v: ByteView): Detection[] {
 		const text = readUtf8(v, 0);
 		if (text !== null && text.length) {
 			const hit = classifyText(text, { toByte: (i) => utf8Length(text.slice(0, i)), unit: 1 }, wholeHead(v));
-			found.unshift(build(TEXT_DEF, hit, []));
+			const t = build(TEXT_DEF, hit, []);
+			// Plain text's own explanation says no signature matched, which is
+			// not so when a format is listed after it.
+			if (t.id === 'text' && found.length)
+				t.explain = `The bytes start with the ${found[0].name} signature, but every byte read is printable text in valid UTF-8 (or ASCII), including where that format's binary data should be, so this is most likely text that happens to begin with the same letters. Text has no magic number of its own; the extension is the only label it has.`;
+			found.unshift(t);
 		}
 	}
 	return found;
 }
 
 /** When the bytes stop partway through a signature: "the first 4 of PNG's 8 bytes". */
-export type Partial = { name: string; have: number; need: number; hex: string };
+export type Partial = { name: string; have: number; need: number; hex: string; exts: string[] };
 
 export function partialMatches(v: ByteView): Partial[] {
 	if (v.size === 0 || v.size >= 16) return [];
@@ -2695,7 +2829,7 @@ export function partialMatches(v: ByteView): Partial[] {
 			const cells = p.text.split(' ');
 			if (p.offset !== 0 || p.text.includes(' at ') || cells.length <= v.size) continue;
 			if (cells.slice(0, v.size).every((h, k) => h === '??' || parseInt(h, 16) === v.at(k))) {
-				out.push({ name: def.name, have: v.size, need: cells.length, hex: p.text });
+				out.push({ name: def.name, have: v.size, need: cells.length, hex: p.text, exts: def.exts });
 				break;
 			}
 		}
@@ -2764,7 +2898,16 @@ export function expectedFor(ext: string): { name: string; hex: string }[] {
 		.map((t) => ({ name: t.name, hex: signaturePattern(t.variants[0]).text }));
 }
 
-export function checkExtension(fileName: string, detections: Detection[], size: number): ExtensionVerdict {
+/**
+ * Whether the name fits the bytes. `partials` are signatures the bytes stop
+ * partway through: four bytes of MThd cannot prove a .mid wrong.
+ */
+export function checkExtension(
+	fileName: string,
+	detections: Detection[],
+	size: number,
+	partials: Partial[] = []
+): ExtensionVerdict {
 	const ext = extensionOf(fileName);
 	const dotted = ext ? `.${ext}` : '';
 	const top = detections[0];
@@ -2810,6 +2953,16 @@ export function checkExtension(fileName: string, detections: Detection[], size: 
 			status: 'compatible',
 			ext,
 			message: `${dotted} fits another reading of these bytes: they are most likely ${top.what}, but also match ${other.what}.`,
+			expected: []
+		};
+	const cut = partials.find((p) => p.exts.includes(ext));
+	if (cut)
+		return {
+			status: 'compatible',
+			ext,
+			message: `${dotted} may be right: ${
+				cut.have === 1 ? 'this byte is' : `these ${cut.have} bytes are`
+			} the start of the ${cut.need}-byte ${cut.name} signature, and the data stops before the rest of it.`,
 			expected: []
 		};
 	if (GENERIC_EXTS.has(ext))

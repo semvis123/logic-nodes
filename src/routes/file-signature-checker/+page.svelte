@@ -32,7 +32,7 @@
 	import type { Detection, ExtensionStatus, Category, Field } from '$lib/fileSignatures';
 	import { readUrl, syncUrl, safeText } from '$lib/urlState';
 	import ShareLink from '$lib/ShareLink.svelte';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 
 	const exampleText = (hex: string) => formatHexLines(parseHex(hex));
 	const DEFAULT = EXAMPLES[0];
@@ -62,6 +62,8 @@
 			hexText = safeText(p.h, MAX_LINK_HEX) ?? '';
 			name = safeText(p.n, 255) ?? '';
 		}
+		// Drops anything in the query the page did not use, so a copied link holds only what is on screen.
+		syncUrl(linkState(mode, hexText, name), {});
 		const narrowQuery = window.matchMedia('(max-width: 600px)');
 		narrow = narrowQuery.matches;
 		const onChange = (e: MediaQueryListEvent) => (narrow = e.matches);
@@ -70,15 +72,13 @@
 	});
 	// The link holds pasted bytes and the name; a chosen file never goes into it.
 	// An emptied box is written as e=1, so that it reopens empty rather than as the example.
+	function linkState(mode: 'hex' | 'file', hexText: string, name: string) {
+		if (mode !== 'hex' || hexText.length > MAX_LINK_HEX || (hexText === DEFAULT_HEX && name === DEFAULT.name))
+			return {};
+		return hexText === '' && name === '' ? { e: 1 } : { h: hexText, n: name };
+	}
 	$: tooLongForLink = hexText.length > MAX_LINK_HEX;
-	$: syncUrl(
-		mode !== 'hex' || tooLongForLink || (hexText === DEFAULT_HEX && name === DEFAULT.name)
-			? {}
-			: hexText === '' && name === ''
-			? { e: 1 }
-			: { h: hexText, n: name },
-		{}
-	);
+	$: syncUrl(linkState(mode, hexText, name), {});
 
 	/** Eight bytes a row on a phone, sixteen elsewhere; the prerendered page uses sixteen. */
 	let narrow = false;
@@ -102,11 +102,23 @@
 			pasteError = '';
 		}
 	}
+	// The alert waits for a pause in typing, so a screen reader is not interrupted
+	// on every keystroke while a byte is half written. The visible error is immediate.
+	let alertText = '';
+	let alertTimer: ReturnType<typeof setTimeout>;
+	$: scheduleAlert(pasteError);
+	function scheduleAlert(message: string) {
+		clearTimeout(alertTimer);
+		if (!message) alertText = '';
+		else alertTimer = setTimeout(() => (alertText = message), 500);
+	}
+	onDestroy(() => clearTimeout(alertTimer));
+
 	$: checkedName = mode === 'hex' ? name : fileName;
 	$: detections = view ? detect(view) : [];
 	$: primary = detections[0] as Detection | undefined;
-	$: verdict = view ? checkExtension(checkedName, detections, view.size) : null;
 	$: partials = view ? partialMatches(view) : [];
+	$: verdict = view ? checkExtension(checkedName, detections, view.size, partials) : null;
 	// With nothing detected, a cut-off signature is still worth pointing at in the dump.
 	$: fields =
 		primary?.fields ??
@@ -146,7 +158,11 @@
 	/** A ZIP's central directory is read in full up to this size; past it, the first entries have to do. */
 	const MAX_DIRECTORY = 16 << 20;
 
+	/** Counts reads, so a slow file that finishes after a newer pick cannot replace it. */
+	let readId = 0;
+
 	async function readFile(file: File) {
+		const id = ++readId;
 		reading = true;
 		fileError = '';
 		handoff = null;
@@ -160,11 +176,15 @@
 			const dirAt = zipDirectoryStart(read);
 			if (dirAt !== null && file.size - dirAt <= MAX_DIRECTORY) {
 				const from = Math.max(head.length, dirAt);
-				read = new ByteView(head, file.size, new Uint8Array(await file.slice(from).arrayBuffer()));
+				const directory = new Uint8Array(await file.slice(from).arrayBuffer());
+				if (id !== readId) return;
+				read = new ByteView(head, file.size, directory);
 			}
+			if (id !== readId) return;
 			fileView = read;
 			fileName = file.name;
 		} catch {
+			if (id !== readId) return;
 			fileView = null;
 			fileError = 'The browser could not read that file. Try choosing it again.';
 		}
@@ -235,14 +255,48 @@
 	}
 
 	let copied = '';
+	let copyTimer: ReturnType<typeof setTimeout>;
 	async function copy(text: string, what: string) {
 		try {
 			await navigator.clipboard.writeText(text);
-			copied = `${what} copied`;
+			copied = `Copied the ${what}`;
 		} catch {
 			copied = 'Copying was blocked; select the text and copy it instead';
 		}
-		setTimeout(() => (copied = ''), 2500);
+		clearTimeout(copyTimer);
+		copyTimer = setTimeout(() => (copied = ''), 2500);
+	}
+	onDestroy(() => clearTimeout(copyTimer));
+
+	/**
+	 * Lets a keyboard user focus a box that scrolls, to scroll it, and names it
+	 * for a screen reader; a box that fits is left alone, so it is not an empty
+	 * focus stop.
+	 */
+	function scrollFocus(node: HTMLElement) {
+		const update = () => {
+			if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
+				node.tabIndex = 0;
+				node.setAttribute('role', 'region');
+				node.setAttribute('aria-label', node.dataset.label ?? 'Table');
+			} else {
+				node.removeAttribute('tabindex');
+				node.removeAttribute('role');
+				node.removeAttribute('aria-label');
+			}
+		};
+		// Re-checked when the box resizes and when what is in it changes.
+		const resize = new ResizeObserver(update);
+		resize.observe(node);
+		const mutation = new MutationObserver(update);
+		mutation.observe(node, { subtree: true, childList: true, characterData: true });
+		update();
+		return {
+			destroy: () => {
+				resize.disconnect();
+				mutation.disconnect();
+			}
+		};
 	}
 
 	const plural = (n: number, word: string) => `${n.toLocaleString('en-GB')} ${word}${n === 1 ? '' : 's'}`;
@@ -284,7 +338,7 @@
 		},
 		{
 			value: 0xfeedfacf,
-			where: `The 64-bit Mach-O magic number, FEEDFACE plus one, and the one on every current Mac program: Intel and Apple silicon Macs are little-endian, so the file starts ${machoLittle}.`
+			where: `The 64-bit Mach-O magic number, FEEDFACE plus one, and the one on every current Mac program: Intel and Apple silicon Macs are little-endian, so a single-architecture file, or each slice of a universal one, starts ${machoLittle}.`
 		},
 		{
 			value: 0xdeadbeef,
@@ -404,7 +458,7 @@
 		{ href: '/hex-to-decimal', label: 'Hex to decimal converter' },
 		{ href: '/ascii-table', label: 'ASCII table' },
 		{ href: '/binary-translator', label: 'Binary translator' },
-		{ href: '/base64', label: 'Base64 encoder and decoder' },
+		{ href: '/base64', label: 'Base64 encode and decode' },
 		{ href: '/struct-padding-calculator', label: 'Struct padding calculator' },
 		{ href: '/tools', label: 'All tools' }
 	]}
@@ -443,17 +497,19 @@
 					id="hex"
 					class="hex-input"
 					rows="5"
-					wrap="off"
 					placeholder="89 50 4E 47 0D 0A 1A 0A …"
 					bind:value={hexText}
 					spellcheck="false"
 					autocomplete="off"
 					autocapitalize="off"
 					aria-invalid={pasteError ? 'true' : 'false'}
-					aria-describedby="hex-help"
+					aria-describedby="hex-help{pasteError ? ' hex-error' : ''}"
 				/>
 				{#if pasteError}
-					<p class="error" role="alert">{pasteError}</p>
+					<p class="error" id="hex-error">{pasteError}</p>
+				{/if}
+				{#if alertText}
+					<p class="visually-hidden" role="alert">{alertText}</p>
 				{/if}
 				<p class="field-help" id="hex-help">
 					The first bytes are enough for most formats. Spaces, commas, colons, new lines and 0x or \x prefixes are all
@@ -490,7 +546,7 @@
 				{/each}
 			</div>
 
-			<div class="results" class:stale={!!pasteError} aria-hidden={pasteError ? 'true' : 'false'}>
+			<div class="results" class:stale={!!pasteError} inert={pasteError ? true : undefined}>
 				{#if mode === 'file' && !fileView}
 					<p class="empty-state" role="status">
 						{reading ? 'Reading the file…' : 'Choose a file to see its signature. Nothing is uploaded.'}
@@ -570,9 +626,9 @@
 					{#if rows.length}
 						<div class="dump-head">
 							<h2 class="working-title" id="dump-title">Hex dump{fields.length ? ', signature highlighted' : ''}</h2>
-							<button type="button" class="copy" on:click={() => copy(dumpText(rows), 'Hex dump')}>Copy dump</button>
+							<button type="button" class="copy" on:click={() => copy(dumpText(rows), 'hex dump')}>Copy dump</button>
 						</div>
-						<div class="table-wrap scroll-box dump-wrap">
+						<div class="table-wrap scroll-box dump-wrap" use:scrollFocus data-label="Hex dump">
 							<table class="dump mono" aria-labelledby="dump-title">
 								<thead>
 									<tr>
@@ -629,7 +685,7 @@
 							anything else.
 						</p>
 						{#if shownFields.length}
-							<div class="table-wrap">
+							<div class="table-wrap" use:scrollFocus data-label="Signature fields">
 								<table class="data-table fields">
 									<thead>
 										<tr>
@@ -725,7 +781,7 @@
 			files used to get damaged when they were copied between systems, so a broken PNG is spotted in its first eight
 			bytes instead of half way through decoding.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="PNG signature bytes">
 			<table class="data-table png">
 				<thead>
 					<tr>
@@ -756,7 +812,7 @@
 			ZIP archives start <span class="mono">50 4B 03 04</span> (PK, after Phil Katz of PKZIP), and these formats are all
 			ZIP archives underneath:
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Formats inside a ZIP">
 			<table class="data-table zip-kinds">
 				<thead>
 					<tr>
@@ -778,7 +834,7 @@
 			The ISO base media format behind MP4 is a tree of boxes, and the first is <span class="mono">ftyp</span> at byte 4.
 			Its brand, a four-character code at byte 8, names the format:
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="ftyp brands">
 			<table class="data-table">
 				<thead>
 					<tr>
@@ -878,7 +934,7 @@
 			autocomplete="off"
 		/>
 		<p class="filter-count" aria-live="polite">{needle ? `${shownRows.length} of ${table.length} signatures` : ''}</p>
-		<div class="table-wrap scroll-box tall">
+		<div class="table-wrap scroll-box tall" use:scrollFocus data-label="File signature table">
 			<table class="data-table sigs">
 				<thead>
 					<tr>
@@ -1010,8 +1066,8 @@
 	.hex-input {
 		resize: vertical;
 		line-height: 1.45;
-		overflow-x: auto;
-		white-space: pre;
+		/* Soft wrapping breaks between bytes, so a narrow box never cuts one in half. */
+		white-space: pre-wrap;
 	}
 
 	.name-input {
@@ -1044,6 +1100,17 @@
 		color: #f66;
 		font-size: 0.9rem;
 		margin: 0.4rem 0 0;
+		/* The message quotes the paste, which can be one long run with no spaces. */
+		overflow-wrap: anywhere;
+	}
+
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
 	}
 
 	.drop {
@@ -1105,7 +1172,7 @@
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.8rem;
 		padding: 0.25rem 0.6rem;
 		cursor: pointer;
 	}
@@ -1563,6 +1630,16 @@
 		white-space: nowrap;
 	}
 
+	/* On a phone, long patterns wrap between bytes (four to a line) rather than
+	   pushing the extensions and text columns out of the box. */
+	@media (max-width: 600px) {
+		.sigs .sig-bytes {
+			white-space: normal;
+			min-width: 11ch;
+			max-width: 12ch;
+		}
+	}
+
 	.sigs .note {
 		display: block;
 		color: #999;
@@ -1599,10 +1676,6 @@
 	}
 
 	@media (max-width: 600px) {
-		.tool {
-			padding: 0.9rem 0.8rem 1rem;
-		}
-
 		.dump {
 			font-size: 0.78rem;
 		}
