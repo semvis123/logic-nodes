@@ -143,6 +143,35 @@
 		focusId('answer-yes');
 	}
 
+	/**
+	 * Lets keyboard users scroll a table that is wider or taller than its box, and only then: a
+	 * box that fits is not made a focus stop. Re-checked when the box resizes or its rows change.
+	 */
+	function scrollFocus(node: HTMLElement) {
+		const update = () => {
+			if (node.scrollWidth > node.clientWidth + 1 || node.scrollHeight > node.clientHeight + 1) {
+				node.tabIndex = 0;
+				node.setAttribute('role', 'region');
+				node.setAttribute('aria-label', node.dataset.label ?? 'Table');
+			} else {
+				node.removeAttribute('tabindex');
+				node.removeAttribute('role');
+				node.removeAttribute('aria-label');
+			}
+		};
+		const ro = new ResizeObserver(update);
+		ro.observe(node);
+		const mo = new MutationObserver(update);
+		mo.observe(node, { subtree: true, childList: true, characterData: true });
+		update();
+		return {
+			destroy: () => {
+				ro.disconnect();
+				mo.disconnect();
+			}
+		};
+	}
+
 	const isDisabled = (el: Element) => el instanceof HTMLButtonElement && el.disabled;
 
 	// --- mode 3: you guess the page's number --------------------------------
@@ -250,6 +279,16 @@
 		focusTool();
 	}
 
+	/** The example chips: what each one shows, then the number it plays. */
+	const DEMOS: { label: string; value: string; run: () => void }[] = [
+		{ label: 'Find', value: '42', run: () => demoFind('100', 42) },
+		{ label: 'In binary', value: '42', run: () => demoFind('128', 42) },
+		{ label: 'Find', value: '777,777', run: () => demoFind('1000000', 777777) },
+		{ label: 'Liar, lie on question 6', value: '42', run: () => demoLiar(42, [6]) },
+		{ label: 'Liar, no lie', value: '100', run: () => demoLiar(100, []) },
+		{ label: 'Liar, two lies', value: '42', run: () => demoLiar(42, TWO_LIES) }
+	];
+
 	function focusTool() {
 		const el = document.getElementById('game');
 		const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -263,7 +302,10 @@
 		return a;
 	}
 
-	/** Y and N answer the question, unless someone is typing somewhere. */
+	/**
+	 * Y and N answer the question while focus is in the game (it listens on the game's card, not
+	 * the window, so a stray key elsewhere on the page never answers), unless someone is typing.
+	 */
 	function onKey(e: KeyboardEvent) {
 		if (e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
 		const t = e.target as HTMLElement | null;
@@ -464,8 +506,6 @@
 	{@html jsonLd}
 </svelte:head>
 
-<svelte:window on:keydown={onKey} />
-
 <ContentPage
 	related={[
 		{ href: '/binary-converter', label: 'Binary converter' },
@@ -483,7 +523,7 @@
 			every answer is worth up to one bit. Then try lying once, or guessing the page's number while it plays dirty.
 		</p>
 
-		<div class="card tool" id="game" tabindex="-1">
+		<div class="card tool" id="game" tabindex="-1" on:keydown={onKey}>
 			<div class="modes" role="group" aria-label="Game">
 				{#each MODES as m}
 					<button type="button" class:active={mode === m} aria-pressed={mode === m} on:click={() => setMode(m)}
@@ -628,7 +668,7 @@
 
 				{#if find.steps.length}
 					<h2 class="working-title">The trail</h2>
-					<div class="table-wrap scroll-box">
+					<div class="table-wrap scroll-box" use:scrollFocus data-label="The trail">
 						<table class="data-table trail">
 							<thead>
 								<tr>
@@ -734,7 +774,7 @@
 					</p>
 
 					<h2 class="working-title">The checks</h2>
-					<div class="table-wrap">
+					<div class="table-wrap" use:scrollFocus data-label="The checks">
 						<table class="data-table checks">
 							<thead>
 								<tr>
@@ -770,7 +810,7 @@
 					</div>
 
 					<h2 class="working-title">Your answers</h2>
-					<div class="table-wrap">
+					<div class="table-wrap" use:scrollFocus data-label="Your answers">
 						<table class="data-table answers">
 							<thead>
 								<tr>
@@ -922,12 +962,11 @@
 
 			<div class="chips">
 				<span class="chips-label">Watch a game (replaces the one in progress):</span>
-				<button type="button" class="chip-btn" on:click={() => demoFind('100', 42)}>Find 42</button>
-				<button type="button" class="chip-btn" on:click={() => demoFind('128', 42)}>42 in binary</button>
-				<button type="button" class="chip-btn" on:click={() => demoFind('1000000', 777777)}>Find 777,777</button>
-				<button type="button" class="chip-btn" on:click={() => demoLiar(42, [6])}>Liar: 42, lie on 6</button>
-				<button type="button" class="chip-btn" on:click={() => demoLiar(100, [])}>Liar: 100, no lie</button>
-				<button type="button" class="chip-btn" on:click={() => demoLiar(42, TWO_LIES)}>Liar: two lies</button>
+				{#each DEMOS as d}
+					<button type="button" class="chip-btn" on:click={d.run}
+						>{d.label}<span class="chip-value">{d.value}</span></button
+					>
+				{/each}
 			</div>
 			<p class="share-row"><ShareLink what="this game" /></p>
 		</div>
@@ -945,7 +984,7 @@
 			of six yes/no questions can work for every number. Seven can tell apart 2{sup(7)} = 128, enough with room to spare.
 			In general n numbers need ⌈log₂ n⌉ questions, the number of bits it takes to write n − 1 in binary.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Finding 42 in 1 to 100">
 			<table class="data-table trail">
 				<caption>Finding 42 in 1 to 100</caption>
 				<thead>
@@ -995,7 +1034,7 @@
 			one bit of information: exactly one when yes and no are equally likely, as here, and less when the split is
 			uneven.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Finding 42 in 0 to 127">
 			<table class="data-table bits">
 				<caption>Finding 42 in 0 to 127</caption>
 				<thead>
@@ -1045,7 +1084,7 @@
 			{CHECK_POSITIONS.join(', ')} are checks: check c asks whether an odd number of the bit questions whose own number contains
 			c in binary would be answered yes, so that across its whole group the honest yes answers always come to an even count.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="The eleven questions">
 			<table class="data-table liar-table">
 				<caption>The eleven questions</caption>
 				<thead>
@@ -1077,7 +1116,7 @@
 		</p>
 		<div class="card worked">
 			<h3>42, with a lie on question 6</h3>
-			<div class="table-wrap">
+			<div class="table-wrap" use:scrollFocus data-label="The answers, with the lie">
 				<table class="data-table liar-answers">
 					<caption>The lie, on question {LIAR_EXAMPLE_LIE}, is in bold.</caption>
 					<thead>
@@ -1157,7 +1196,7 @@
 			for 0 to 127. Otherwise the two counts are equal, both {f100.guesses} for 1 to 100, because a guess has three outcomes
 			and can carry more than one bit. Here is a halving player against it on 1 to 100:
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="A halving player against evil mode">
 			<table class="data-table">
 				<thead>
 					<tr><th scope="col">Guess</th><th scope="col">Reply</th><th scope="col">Still possible</th></tr>
@@ -1181,7 +1220,7 @@
 
 	<section id="reference">
 		<h2>Questions needed for each range</h2>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Questions needed for each range">
 			<table class="data-table facts">
 				<thead>
 					<tr>
@@ -1676,9 +1715,16 @@
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font: 0.8rem ui-monospace, SFMono-Regular, Menlo, monospace;
-		padding: 0.25rem 0.6rem;
+		font-size: 0.8rem;
+		padding: 0.35rem 0.7rem;
 		cursor: pointer;
+	}
+
+	/* The number the chip plays, so a chip is not a guess. */
+	.chip-value {
+		color: #8ede8e;
+		font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+		margin-left: 0.45rem;
 	}
 
 	.chip-btn:hover {
@@ -1861,10 +1907,6 @@
 
 		.q-text {
 			font-size: 1.2rem;
-		}
-
-		.tool {
-			padding: 0.9rem 0.8rem 1.1rem;
 		}
 	}
 

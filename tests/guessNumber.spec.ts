@@ -414,6 +414,37 @@ test.describe('the guess-my-number page', () => {
 		await expect(page.locator('.question')).toContainText('Is your number greater than 50?');
 	});
 
+	test('Y and N answer only while focus is in the game', async ({ page }) => {
+		await page.goto('/guess-my-number');
+		await page.waitForLoadState('networkidle');
+		// Nothing focused, then a FAQ question focused: a stray key must not answer.
+		await page.keyboard.press('y');
+		await page.locator('details summary').first().focus();
+		await page.keyboard.press('n');
+		await expect(page.locator('.question')).toContainText('Is your number greater than 50?');
+		await expect(page).not.toHaveURL(/a=/);
+		// Inside the game it does.
+		await page.locator('#answer-yes').focus();
+		await page.keyboard.press('y');
+		await expect(page.locator('.question')).not.toContainText('greater than 50?');
+	});
+
+	test('a table becomes a named, focusable scroll region only while it overflows', async ({ page }) => {
+		await page.goto('/guess-my-number');
+		await page.waitForLoadState('networkidle');
+		const wrap = page.locator('#reference .table-wrap');
+		// It fits, so it is not a stray focus stop.
+		await expect(wrap).not.toHaveAttribute('tabindex', /.*/);
+		await expect(wrap).not.toHaveAttribute('role', /.*/);
+		// Squeezed below the table's width, keyboard users must be able to reach and scroll it.
+		await wrap.evaluate((el) => (el.style.width = '200px'));
+		await expect(wrap).toHaveAttribute('tabindex', '0');
+		await expect(wrap).toHaveAttribute('role', 'region');
+		await expect(wrap).toHaveAttribute('aria-label', 'Questions needed for each range');
+		await wrap.evaluate((el) => (el.style.width = ''));
+		await expect(wrap).not.toHaveAttribute('tabindex', /.*/);
+	});
+
 	test('undo and start again keep focus in the game', async ({ page }) => {
 		await page.goto(`/guess-my-number?mode=liar&a=${'y'.repeat(11)}`);
 		await page.waitForLoadState('networkidle');
@@ -488,7 +519,7 @@ test.describe('the guess-my-number page', () => {
 		await expect(page.locator('.question')).toContainText('add up to 12');
 		await expect(page.locator('.result-text')).toHaveCount(0);
 		// The two-lies chip shows the same flag rather than a confident wrong number.
-		await page.getByRole('button', { name: 'Liar: two lies' }).click();
+		await page.getByRole('button', { name: /^Liar, two lies/ }).click();
 		await expect(page.locator('.question')).toContainText('More than one lie');
 	});
 
