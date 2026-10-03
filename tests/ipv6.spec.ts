@@ -497,6 +497,45 @@ test.describe('the ipv6-expand-compress page', () => {
 		await expect(page.locator('.type-notes')).toContainText('all nodes');
 	});
 
+	test('errors are announced once typing pauses, and the stale result leaves the tab order', async ({ page }) => {
+		await page.goto('/ipv6-expand-compress');
+		await page.waitForLoadState('networkidle');
+		const address = page.locator('#address');
+		await address.fill('2001:db8::1::1');
+		// The visible error updates at once; the alert waits half a second for typing to pause.
+		await expect(page.locator('#address-error')).toContainText(':: appears twice');
+		expect(await page.locator('[role="alert"]').count()).toBe(0);
+		await expect(address).toHaveAttribute('aria-describedby', 'address-help address-error');
+		await expect(page.locator('#address-error')).not.toHaveAttribute('role', 'alert');
+		await expect(page.locator('[role="alert"]')).toHaveCount(1);
+		await expect(page.locator('[role="alert"]')).toContainText(':: appears twice');
+		await expect(page.locator('.tool').first().locator('.results[inert]')).toHaveCount(1);
+		await address.fill('fe80::1');
+		await expect(page.locator('[role="alert"]')).toHaveCount(0);
+		await expect(address).toHaveAttribute('aria-describedby', 'address-help');
+		await expect(page.locator('.results[inert]')).toHaveCount(0);
+		await page.locator('#mac').fill('00:11:22');
+		await expect(page.locator('#mac')).toHaveAttribute('aria-describedby', 'mac-help mac-error');
+		await expect(page.locator('[role="alert"]')).toContainText('12 hex digits');
+		await expect(page.locator('#eui64 .results[inert]')).toHaveCount(1);
+	});
+
+	test('a rejected query value is dropped from the address bar', async ({ page }) => {
+		await page.goto(`/ipv6-expand-compress?a=${'1'.repeat(5000)}&mac=02:00:00:00:00:01`);
+		await expect(page.locator('#mac')).toHaveValue('02:00:00:00:00:01');
+		await expect(page).toHaveURL(/\/ipv6-expand-compress\?mac=02%3A00%3A00%3A00%3A00%3A01$/);
+		await expect(page.locator('#address')).toHaveValue('2001:0DB8:0000:0000:0008:0800:200C:417A/64');
+	});
+
+	test('the page reflows at 320px without sideways scrolling', async ({ page }) => {
+		await page.setViewportSize({ width: 320, height: 800 });
+		await page.goto('/ipv6-expand-compress');
+		await page.waitForLoadState('networkidle');
+		await page.locator('.faq details').evaluateAll((ds) => ds.forEach((d) => d.setAttribute('open', '')));
+		const width = await page.evaluate(() => document.documentElement.scrollWidth);
+		expect(width).toBeLessThanOrEqual(320);
+	});
+
 	test('FAQ JSON-LD matches the visible answers', async ({ page }) => {
 		await page.goto('/ipv6-expand-compress');
 		const ld = JSON.parse((await page.locator('script[type="application/ld+json"]').first().textContent()) ?? '{}');

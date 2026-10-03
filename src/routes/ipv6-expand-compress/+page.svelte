@@ -33,6 +33,8 @@
 		const p = readUrl();
 		input = safeText(p.a, MAX_INPUT + 10) ?? input;
 		macInput = safeText(p.mac, 40) ?? macInput;
+		// Drops any query value that was not taken, so the address shows the state on screen.
+		syncUrl({ a: input, mac: macInput }, DEFAULTS);
 	});
 
 	let input = DEFAULTS.a;
@@ -89,6 +91,30 @@
 	$: e64 = eui64(mac);
 	$: linkLocal = compressText(e64.linkLocal);
 	$: globalExample = compressText([0x2001, 0xdb8, 1, 2, ...e64.iid]);
+
+	// The alerts wait for a pause in typing: almost every half-typed address is
+	// invalid, and a screen reader should not be interrupted on each keystroke.
+	// The visible error still updates at once.
+	let alertText = '';
+	let macAlertText = '';
+	let alertTimer: ReturnType<typeof setTimeout>;
+	let macAlertTimer: ReturnType<typeof setTimeout>;
+	$: {
+		clearTimeout(alertTimer);
+		if (!error) alertText = '';
+		else {
+			const message = error;
+			alertTimer = setTimeout(() => (alertText = message), 500);
+		}
+	}
+	$: {
+		clearTimeout(macAlertTimer);
+		if (!macError) macAlertText = '';
+		else {
+			const message = macError;
+			macAlertTimer = setTimeout(() => (macAlertText = message), 500);
+		}
+	}
 
 	// --- copying ---
 	let copyMessage = '';
@@ -309,10 +335,13 @@
 				autocomplete="off"
 				autocapitalize="off"
 				aria-invalid={error ? 'true' : 'false'}
-				aria-describedby="address-help"
+				aria-describedby="address-help{error ? ' address-error' : ''}"
 			/>
 			{#if error}
-				<p class="error" role="alert">{error}</p>
+				<p class="error" id="address-error">{error}</p>
+			{/if}
+			{#if alertText}
+				<p class="visually-hidden" role="alert">{alertText}</p>
 			{/if}
 			<p class="field-help" id="address-help">
 				Any case, with or without leading zeros and ::. A /prefix, a %zone, an IPv4 tail such as ::ffff:192.0.2.1 and
@@ -327,7 +356,8 @@
 				{/each}
 			</div>
 
-			<div class="results" class:stale={!!error} aria-hidden={error ? 'true' : 'false'}>
+			<!-- inert, not just aria-hidden: the dimmed last result must not be reachable by keyboard either. -->
+			<div class="results" class:stale={!!error} inert={error ? true : undefined}>
 				<div class="answer" role={error ? undefined : 'status'}>
 					<div class="answer-row">
 						<span class="answer-label">Compressed (RFC 5952)</span>
@@ -528,17 +558,20 @@
 				autocomplete="off"
 				autocapitalize="off"
 				aria-invalid={macError ? 'true' : 'false'}
-				aria-describedby="mac-help"
+				aria-describedby="mac-help{macError ? ' mac-error' : ''}"
 			/>
 			{#if macError}
-				<p class="error" role="alert">{macError}</p>
+				<p class="error" id="mac-error">{macError}</p>
+			{/if}
+			{#if macAlertText}
+				<p class="visually-hidden" role="alert">{macAlertText}</p>
 			{/if}
 			<p class="field-help" id="mac-help">
 				Six bytes in hex, written 00:1a:2b:3c:4d:5e, 00-1A-2B-3C-4D-5E, 00 1a 2b 3c 4d 5e, 001a.2b3c.4d5e or with no
 				separators.
 			</p>
 
-			<div class="results" class:stale={!!macError} aria-hidden={macError ? 'true' : 'false'}>
+			<div class="results" class:stale={!!macError} inert={macError ? true : undefined}>
 				<ol class="eui-steps">
 					<li>
 						<span class="step-title">Split the MAC in half</span>
@@ -812,6 +845,12 @@
 	.tool {
 		padding: 1.1rem 1.2rem 1.3rem;
 		margin-bottom: 1rem;
+	}
+
+	/* Full-length addresses in the answers are one unbreakable run; at 320px
+	   (400% zoom) they would otherwise push the page sideways. */
+	.faq p {
+		overflow-wrap: anywhere;
 	}
 
 	.field {
@@ -1412,10 +1451,6 @@
 			min-width: 0;
 			padding-top: 0;
 			font-size: 0.88rem;
-		}
-
-		.tool {
-			padding: 0.9rem 0.8rem 1.1rem;
 		}
 
 		.answer-value {
