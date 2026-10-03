@@ -824,6 +824,24 @@ test.describe('the logic-symbols-copy-paste page', () => {
 		await page.waitForLoadState('networkidle');
 		await expect(page.getByRole('button', { name: 'Symbol', exact: true })).toHaveAttribute('aria-pressed', 'true');
 		await expect(page.locator('#detail')).toContainText('U+2227');
+		// and dropped from the address, so Copy link does not pass it on.
+		await expect.poll(() => page.evaluate(() => location.search)).toBe('');
+		await page.goto(`${path}?q=${'x'.repeat(200)}&as=latex&s=bogus`);
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#filter')).toHaveValue('');
+		await expect.poll(() => page.evaluate(() => location.search)).toBe('?as=latex');
+	});
+
+	test('a long search with no match wraps instead of widening the page', async ({ page }) => {
+		await page.setViewportSize({ width: 390, height: 900 });
+		await page.goto(path);
+		await page.waitForLoadState('networkidle');
+		await page.locator('#filter').fill('q'.repeat(60));
+		await expect(page.locator('.empty')).toBeVisible();
+		const overflow = await page.evaluate(
+			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+		);
+		expect(overflow).toBe(0);
 	});
 
 	test('the FAQ JSON-LD matches the visible answers', async ({ page }) => {

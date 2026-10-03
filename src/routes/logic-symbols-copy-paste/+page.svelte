@@ -48,6 +48,8 @@
 		query = safeText(p.q, MAX_QUERY) ?? query;
 		format = safeOption(p.as, COPY_FORMATS) ?? format;
 		selectedId = safeOption(p.s, ids) ?? selectedId;
+		// Drops any query value that was not valid, so the address shows the state on screen.
+		syncUrl({ q: query, as: format, s: selectedId }, DEFAULTS);
 		const mq = window.matchMedia('(max-width: 859px)');
 		narrow = mq.matches;
 		const onChange = () => (narrow = mq.matches);
@@ -381,7 +383,7 @@
 		{ href: '/set-notation', label: 'Set notation' },
 		{ href: '/logic-gate-symbols', label: 'Logic gate symbols' },
 		{ href: '/boolean-algebra-laws', label: 'Boolean algebra laws' },
-		{ href: '/propositional-logic-truth-table', label: 'Propositional logic calculator' },
+		{ href: '/propositional-logic-truth-table', label: 'Logic statement truth tables' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
@@ -881,6 +883,8 @@
 
 	.empty p {
 		margin: 0 0 0.6rem;
+		/* The message repeats the search, which may be one long unbroken run. */
+		overflow-wrap: anywhere;
 	}
 
 	.chip-btn {
@@ -955,7 +959,7 @@
 
 	.toast-close {
 		flex: none;
-		background: #161618;
+		background: #0d0d0f;
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
@@ -1105,15 +1109,16 @@
 		min-width: 0;
 	}
 
+	/* The same size and look as the site's Copy link button. */
 	.copy-small {
 		flex: 0 0 auto;
-		background: #161618;
+		background: #0d0d0f;
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font-size: 0.75rem;
-		min-height: 28px;
-		padding: 0.2rem 0.6rem;
+		font-size: 0.8rem;
+		line-height: 1.2;
+		padding: 0.3rem 0.7rem;
 		cursor: pointer;
 	}
 
@@ -1156,10 +1161,6 @@
 	}
 
 	@media (max-width: 480px) {
-		.tool {
-			padding: 0.9rem 0.8rem 1rem;
-		}
-
 		.tile {
 			height: 68px;
 		}

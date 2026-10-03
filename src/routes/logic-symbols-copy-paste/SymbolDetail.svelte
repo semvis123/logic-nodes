@@ -210,14 +210,15 @@
 		margin-bottom: 0.2rem;
 	}
 
+	/* The same size and look as the site's Copy link button. */
 	.copy {
-		background: #161618;
+		background: #0d0d0f;
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		border-radius: 3px;
 		color: #ddd;
-		font-size: 0.78rem;
-		min-height: 28px;
-		padding: 0.25rem 0.7rem;
+		font-size: 0.8rem;
+		line-height: 1.2;
+		padding: 0.3rem 0.7rem;
 		cursor: pointer;
 	}
 
