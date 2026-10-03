@@ -32,6 +32,9 @@ import {
 	int64UnixBillionYears,
 	daysToOverflow,
 	IntLimitsError,
+	scientific,
+	digitCount,
+	usesOf,
 	type IntType,
 	type Op
 } from '../src/lib/intLimits.js';
@@ -455,6 +458,39 @@ test.describe('integer limits', () => {
 		expect(overflowAnswer(T('uint128'))).toContain('C# (outside a checked context) does exactly that');
 	});
 
+	test('scientific notation rounds from the exact digits', () => {
+		// Independent reference: Number's own toExponential, exact enough at three figures for these.
+		const reference = (n: bigint) => {
+			const [m, e] = Number(n).toExponential(2).split('e');
+			return `${m} × 10^${Number(e)}`;
+		};
+		const plain = (s: string) =>
+			s.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹]+/, (sup) => '^' + Array.from(sup, (c) => '⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c)).join(''));
+		for (const t of intTypes.filter((x) => x.bits >= 16)) {
+			expect(plain(scientific(t.max)), t.slug).toBe(reference(t.max));
+			expect(digitCount(t.min), t.slug).toBe(t.min.toString().replace('-', '').length);
+		}
+		expect(scientific(T('int128').max)).toBe('1.70 × 10³⁸');
+		expect(scientific(T('uint128').max)).toBe('3.40 × 10³⁸');
+		expect(digitCount(T('uint128').max)).toBe(39);
+		expect(scientific(9995n)).toBe('1.00 × 10⁴');
+		expect(scientific(9994n)).toBe('9.99 × 10³');
+		expect(scientific(999n)).toBe('999');
+	});
+
+	test('linked uses point at pages that exist', () => {
+		const links = Object.values(usesOf)
+			.flat()
+			.flatMap((u) => (typeof u === 'string' ? [] : [u.href]));
+		expect(links.sort()).toEqual([
+			'/ipv6-expand-compress',
+			'/snowflake-id-decoder',
+			'/subnet-calculator',
+			'/subnet-calculator',
+			'/uuid-decoder'
+		]);
+	});
+
 	test('common mistakes carry computed numbers', () => {
 		for (const t of intTypes) expect(mistakesFor(t).length, t.slug).toBeGreaterThanOrEqual(1);
 		const text = (slug: string) =>
@@ -576,6 +612,51 @@ test.describe('the integer-limits page', () => {
 		await expect(page.locator('#pg-value')).toHaveValue('32767');
 		await expect(page.locator('[data-testid="pg-result"]')).toHaveText('−32,768');
 		await expect(page.locator('h1')).toHaveText('int16: the 16-bit signed integer');
+	});
+
+	test('the link survives Back and Forward, and rejected values leave the address bar', async ({ page }) => {
+		for (const path of ['/integer-limits', '/integer-limits/int8']) {
+			await page.goto(path);
+			await page.waitForLoadState('networkidle');
+			await page.fill('#pg-value', '5');
+			await expect(page).toHaveURL(/v=5/);
+			await page.locator('a[href="/tools"]').first().click();
+			await expect(page).toHaveURL(/\/tools$/);
+			await page.goBack();
+			await expect(page).toHaveURL(new RegExp(`${path}\\?.*v=5`));
+			await expect(page.locator('#pg-value')).toHaveValue('5');
+			await page.goForward();
+			await page.goBack();
+			await expect(page.locator('#pg-value')).toHaveValue('5');
+			await expect(page).toHaveURL(/v=5/);
+		}
+		// An unknown type and an over-long value are ignored, and dropped from the link.
+		await page.goto(`/integer-limits/uint8?t=int7&to=bogus&op=x&v=${'9'.repeat(500)}`);
+		await page.waitForLoadState('networkidle');
+		await expect(page).toHaveURL(/\/integer-limits\/uint8$/);
+		await expect(page.locator('#pg-value')).toHaveValue('255');
+		await page.goto(`/integer-limits?q=${'1'.repeat(500)}&t=nope`);
+		await page.waitForLoadState('networkidle');
+		await expect(page).toHaveURL(/\/integer-limits$/);
+	});
+
+	test('errors are described on the field and announced once typing pauses', async ({ page }) => {
+		await page.goto('/integer-limits');
+		await page.waitForLoadState('networkidle');
+		await expect(page.locator('#lookup')).toHaveAttribute('aria-describedby', 'lookup-help');
+		await page.fill('#lookup', '1.5');
+		await expect(page.locator('#lookup')).toHaveAttribute('aria-describedby', 'lookup-help lookup-error');
+		// The visible error is not itself an alert; a hidden copy is, after a pause.
+		await expect(page.locator('#lookup-error:not([role])')).toBeVisible();
+		await expect(page.locator('.intro [role="alert"]')).toHaveText(/Whole numbers only/);
+		await page.fill('#lookup', '300');
+		await expect(page.locator('.intro [role="alert"]')).toHaveCount(0);
+		await expect(page.locator('.intro [role="status"]').first()).toHaveText(/smallest signed type int16/);
+		await page.fill('#pg-value', 'x');
+		await expect(page.locator('#pg-value')).toHaveAttribute('aria-describedby', 'pg-help pg-error');
+		// The value chip −1 and the operation −1 have different names.
+		await expect(page.locator('role=button[name="−1 (subtract one)"]')).toHaveAttribute('data-op', 'dec');
+		await expect(page.locator('role=group[name="Set the value"] >> button')).toContainText(['max', 'min', '0', '−1']);
 	});
 
 	test('FAQ JSON-LD matches the visible answers', async ({ page }) => {

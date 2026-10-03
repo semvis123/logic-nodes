@@ -4,7 +4,7 @@
 	import ShareLink from '$lib/ShareLink.svelte';
 	import { modifiedFields } from '$lib/lastmod';
 	import { readUrl, syncUrl, safeText, safeOption } from '$lib/urlState';
-	import { afterNavigate } from '$app/navigation';
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import {
 		intTypes,
 		intSlugs,
@@ -17,6 +17,8 @@
 		namesFor,
 		storiesFor,
 		usesOf,
+		scientific,
+		digitCount,
 		describeType,
 		twinOf,
 		wrap,
@@ -34,6 +36,7 @@
 	import OverflowRules from '../OverflowRules.svelte';
 	import CopyButton from '../CopyButton.svelte';
 	import { breakable } from '../breakable';
+	import { scrollFocus } from '../scrollFocus';
 	import type { PageData } from './$types';
 
 	export let data: PageData;
@@ -48,11 +51,22 @@
 	$: stories = storiesFor(t);
 	$: faqs = typeFaqs(t);
 	$: mistakes = mistakesFor(t);
-	$: lede = `${t.slug} holds every whole number from ${formatDecimal(t.min)} to ${formatDecimal(t.max)}, which is ${
-		f.min
-	} to ${f.max}. That is ${f.count} = ${formatDecimal(t.count)} values in ${t.bits} bits${
-		t.signed ? ', stored in two’s complement' : ', none of them negative'
-	}.`;
+	// A 128-bit limit is 39 digits, too long for a lede (and the social card
+	// that quotes it), so those two give the size and leave the digits to the card below.
+	$: lede =
+		t.bits === 128
+			? t.signed
+				? `${t.slug} holds every whole number from ${f.min} to ${f.max}, about ±${scientific(
+						t.max
+				  )}, stored in two’s complement. The exact limits, all ${digitCount(t.max)} digits, are below.`
+				: `${t.slug} holds every whole number from 0 to ${f.max}, about ${scientific(
+						t.max
+				  )}, none of them negative. The exact maximum, all ${digitCount(t.max)} digits, is below.`
+			: `${t.slug} holds every whole number from ${formatDecimal(t.min)} to ${formatDecimal(t.max)}, which is ${
+					f.min
+			  } to ${f.max}. That is ${f.count} = ${formatDecimal(t.count)} values in ${t.bits} bits${
+					t.signed ? ', stored in two’s complement' : ', none of them negative'
+			  }.`;
 	// Types whose width depends on the platform are noted on the rows they can match.
 	$: platformNote =
 		t.bits === 64
@@ -70,11 +84,20 @@
 
 	// The playground starts at this type's maximum, one step from wrapping.
 	const opIds = ['inc', 'dec', 'dbl', 'neg', 'cast'] as const;
-	$: DEFAULTS = { t: t.slug, v: t.max.toString(), op: 'inc', to: twin.slug };
+	const defaultsFor = (x: IntType) => ({ t: x.slug, v: x.max.toString(), op: 'inc', to: twinOf(x).slug });
+	$: DEFAULTS = defaultsFor(t);
 	let pgType: IntSlug = data.slug as IntSlug;
 	let pgValue = (intTypeBySlug(data.slug) as IntType).max.toString();
 	let pgOp: Op = 'inc';
 	let pgTo: IntSlug = twinOf(intTypeBySlug(data.slug) as IntType).slug;
+
+	// Until the link has been read, the address bar is left alone. On Back or
+	// Forward the reactive syncUrl below runs before afterNavigate, and would
+	// otherwise replace the incoming link with this type's defaults.
+	let linkRead = false;
+	beforeNavigate(({ from, to }) => {
+		if (!to || from?.url.pathname !== to.url.pathname) linkRead = false;
+	});
 
 	// Runs on first load and after every move between type pages, which reuse
 	// this component: start from the new type's defaults, then apply the link.
@@ -85,8 +108,12 @@
 		pgValue = safeText(p.v, MAX_INPUT) ?? base.max.toString();
 		pgOp = safeOption(p.op, opIds) ?? 'inc';
 		pgTo = safeOption(p.to, intSlugs) ?? twinOf(base).slug;
+		linkRead = true;
+		// Rewrites the address even when nothing changed, so a value the page
+		// rejected (an unknown type, a 100 KB string) is not kept and shared.
+		syncUrl({ t: pgType, v: pgValue, op: pgOp, to: pgTo }, defaultsFor(base));
 	});
-	$: syncUrl({ t: pgType, v: pgValue, op: pgOp, to: pgTo }, DEFAULTS);
+	$: if (linkRead) syncUrl({ t: pgType, v: pgValue, op: pgOp, to: pgTo }, DEFAULTS);
 
 	$: url = `${SITE}/integer-limits/${t.slug}`;
 	$: title = typeTitle(t);
@@ -224,7 +251,7 @@
 
 	<section id="names">
 		<h2>What {t.slug} is called in each language</h2>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="What {t.slug} is called in each language">
 			<table class="data-table names">
 				<thead>
 					<tr>
@@ -310,7 +337,9 @@
 		<h2>Where you meet {t.slug}</h2>
 		<ul class="points">
 			{#each usesOf[t.slug] as use}
-				<li>{use}</li>
+				<li>
+					{#if typeof use === 'string'}{use}{:else}<a href={use.href}>{use.text}</a>{/if}
+				</li>
 			{/each}
 		</ul>
 		<p class="reducer">
@@ -323,7 +352,7 @@
 
 	<section id="all-types">
 		<h2>Every integer type</h2>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Every integer type">
 			<table class="data-table all">
 				<thead>
 					<tr>

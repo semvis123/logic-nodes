@@ -29,6 +29,7 @@
 	import OverflowPlayground from './OverflowPlayground.svelte';
 	import OverflowRules from './OverflowRules.svelte';
 	import { breakable } from './breakable';
+	import { scrollFocus } from './scrollFocus';
 
 	const opIds = ['inc', 'dec', 'dbl', 'neg', 'cast'] as const;
 	const DEFAULTS = { q: '3000000000', t: 'int8', v: '127', op: 'inc', to: 'uint8' };
@@ -39,6 +40,10 @@
 	let pgOp: Op = 'inc';
 	let pgTo: IntSlug = 'uint8';
 
+	// The address bar is left alone until the link has been read. Coming back
+	// with Back or Forward remounts this page, and the reactive syncUrl below
+	// runs before onMount: unguarded, it would replace the link with the defaults.
+	let linkRead = false;
 	onMount(() => {
 		const p = readUrl();
 		query = safeText(p.q, MAX_INPUT) ?? query;
@@ -46,8 +51,13 @@
 		pgValue = safeText(p.v, MAX_INPUT) ?? pgValue;
 		pgOp = safeOption(p.op, opIds) ?? pgOp;
 		pgTo = safeOption(p.to, intSlugs) ?? pgTo;
+		linkRead = true;
+		// Rewrites the address even when nothing changed, so a value the page
+		// rejected (an unknown type, a 100 KB string) is not kept and shared.
+		syncUrl({ q: query, t: pgType, v: pgValue, op: pgOp, to: pgTo }, DEFAULTS);
+		return () => clearTimeout(alertTimer);
 	});
-	$: syncUrl({ q: query, t: pgType, v: pgValue, op: pgOp, to: pgTo }, DEFAULTS);
+	$: if (linkRead) syncUrl({ q: query, t: pgType, v: pgValue, op: pgOp, to: pgTo }, DEFAULTS);
 
 	let found: Lookup = lookup(parseInteger(DEFAULTS.q));
 	let lookupError = '';
@@ -60,6 +70,29 @@
 		}
 	}
 
+	// Screen readers hear the error or the answer once typing pauses, not on
+	// every keystroke of a half-typed number; the page itself updates at once.
+	// Nothing is announced until the reader changes the number (`touched`), so
+	// loading the page or a link stays quiet.
+	let touched = false;
+	let alertText = '';
+	let statusText = '';
+	let alertTimer: ReturnType<typeof setTimeout>;
+	$: announce(lookupError, found, touched);
+	function announce(error: string, f: Lookup, live: boolean) {
+		clearTimeout(alertTimer);
+		if (!live) return;
+		if (!error) alertText = '';
+		alertTimer = setTimeout(() => {
+			alertText = error;
+			statusText = error ? '' : summary(f);
+		}, 500);
+	}
+	const summary = (f: Lookup) =>
+		`${formatDecimal(f.value)}: smallest signed type ${f.smallestSigned?.slug ?? 'none'}, smallest unsigned type ${
+			f.smallestUnsigned?.slug ?? 'none'
+		}.`;
+
 	const examples = [
 		{ label: '255', v: '255' },
 		{ label: '-129', v: '-129' },
@@ -71,6 +104,7 @@
 	];
 
 	function tryLookup(v: string) {
+		touched = true;
 		query = v;
 		document.getElementById('lookup')?.focus();
 	}
@@ -237,15 +271,20 @@
 				class="value-input"
 				type="text"
 				bind:value={query}
+				on:input={() => (touched = true)}
 				spellcheck="false"
 				autocomplete="off"
 				autocapitalize="off"
 				aria-invalid={lookupError ? 'true' : 'false'}
-				aria-describedby="lookup-help"
+				aria-describedby="lookup-help{lookupError ? ' lookup-error' : ''}"
 			/>
 			{#if lookupError}
-				<p class="error" role="alert" id="lookup-error">{lookupError}</p>
+				<p class="error" id="lookup-error">{lookupError}</p>
 			{/if}
+			{#if alertText}
+				<p class="visually-hidden" role="alert">{alertText}</p>
+			{/if}
+			<p class="visually-hidden" role="status">{statusText}</p>
 			<p class="field-help" id="lookup-help">
 				A whole number in decimal, 0x hex or 0b binary, negative if you like. Commas are fine, and so are
 				<span class="nowrap">2^31 − 1</span> and <span class="nowrap">2³¹ − 1</span>.
@@ -262,8 +301,8 @@
 				aria-hidden={lookupError ? 'true' : 'false'}
 				use:inertWhen={!!lookupError}
 			>
-				<div class="answer" role={lookupError ? undefined : 'status'}>
-					<span class="answer-label">{@html breakable(formatDecimal(found.value))}</span>
+				<div class="answer">
+					<span class="answer-label">Smallest types for {@html breakable(formatDecimal(found.value))}</span>
 					<div class="smallest">
 						<span
 							>Smallest signed type:
@@ -323,7 +362,7 @@
 			Each name links to a page with the limits in hex and binary, the type’s name in each language, and an overflow
 			playground set to that type.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Minimum and maximum of every integer type">
 			<table class="data-table limits">
 				<thead>
 					<tr>
@@ -383,7 +422,7 @@
 			is 7F followed by Fs ({hexOf(int64.max, 64)} for int64), the signed minimum is 8 followed by zeros, and an unsigned
 			maximum is all Fs.
 		</p>
-		<div class="table-wrap">
+		<div class="table-wrap" use:scrollFocus data-label="Signed and unsigned range of each width">
 			<table class="data-table pairs">
 				<caption>Same bits, two readings: the signed and unsigned type of each width</caption>
 				<thead>
@@ -553,6 +592,15 @@
 		color: #fff;
 	}
 
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip: rect(0 0 0 0);
+		white-space: nowrap;
+	}
+
 	.results {
 		border-top: 1px solid rgba(255, 255, 255, 0.12);
 		padding-top: 1rem;
@@ -571,10 +619,12 @@
 	}
 
 	.answer-label {
-		color: #aaa;
+		color: #999;
 		display: block;
-		font: 0.85rem ui-monospace, SFMono-Regular, Menlo, monospace;
+		font-size: 0.72rem;
+		letter-spacing: 0.05em;
 		overflow-wrap: break-word;
+		text-transform: uppercase;
 	}
 
 	.smallest {
