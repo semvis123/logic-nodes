@@ -202,6 +202,9 @@ export function parseHex(input: string): Uint8Array {
  * Writes one separated group's bytes into out from count and returns the new
  * count. A leading 0x or \x is dropped, and so is any \x inside (\x41\x42).
  */
+/** Groups longer than this are quoted in part in an error message. */
+const QUOTE_MAX = 24;
+
 function readGroup(
 	text: string,
 	start: number,
@@ -226,7 +229,12 @@ function readGroup(
 		}
 		const value = hexDigit(code);
 		if (value < 0) {
-			const raw = text.slice(start, end);
+			// Quote only the neighbourhood of the bad character: a pasted run can be
+			// megabytes long, and the message is shown and announced in full.
+			const raw =
+				end - start <= QUOTE_MAX
+					? text.slice(start, end)
+					: `${p - start > 8 ? '…' : ''}${text.slice(Math.max(start, p - 8), p + 9)}${end - p > 9 ? '…' : ''}`;
 			throw new HexError(
 				`“${raw}” contains “${text[p]}”, which is not a hex digit (0 to 9, A to F)${
 					/^[0-9a-f]{6,}$/i.test(firstGroup)
@@ -244,6 +252,13 @@ function readGroup(
 	}
 	if (digits % 2) {
 		const raw = text.slice(start, end);
+		if (raw.length > QUOTE_MAX) {
+			throw new HexError(
+				`“${raw.slice(0, 10)}…${raw.slice(-10)}” (${raw.length.toLocaleString(
+					'en-GB'
+				)} characters) has an odd number of digits; every byte needs two, so a digit is missing or one too many`
+			);
+		}
 		const group = text.slice(from, end).replace(/\\x/gi, '');
 		throw new HexError(
 			`“${raw}” has an odd number of digits; every byte needs two, so write 0${group} or join it to its neighbour`

@@ -1436,3 +1436,19 @@ test.describe('the file-signature-checker page', () => {
 		expect(faq.length).toBeGreaterThanOrEqual(4);
 	});
 });
+
+test('a hex error quotes only part of a very long run', () => {
+	const long = 'ab'.repeat(5000);
+	for (const text of [long + '1', long + 'g' + long]) {
+		let message = '';
+		try {
+			parseHex(text);
+		} catch (e) {
+			message = (e as Error).message;
+		}
+		expect(message).not.toBe('');
+		expect(message.length).toBeLessThan(300);
+	}
+	// Short groups are still quoted whole, with the fix spelled out.
+	expect(() => parseHex('abc')).toThrow('write 0abc');
+});
