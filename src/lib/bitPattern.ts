@@ -10,8 +10,10 @@
 // stopping half way through an image (row 0 of `x % y` is not an error).
 // Shift counts use their low 5 bits, as JavaScript and most CPUs do.
 //
-// Six functions are there for moving pictures: abs, min, max, sqrt (the integer
-// part), and sin and cos, which take a whole turn as 256 and give -127 to 127.
+// Seven functions are there for moving pictures: abs, min, max, sqrt (the integer
+// part), sin and cos, which take a whole turn as 256 and give -127 to 127, and
+// atan2(y, x), which goes the other way: the direction of the point (x, y) as a
+// whole turn of 256, so spirals and sweeps need no table.
 
 import type { Layout, Tone } from '$lib/arithmetic';
 
@@ -41,9 +43,15 @@ export const MAX_LENGTH = 400;
 const MAX_DEPTH = 64;
 // Lowest precedence first, as in C: | ^ & shifts, then + -, then * / %.
 /** Function names and how many arguments each takes. */
-export const FUNCS: Record<string, number> = { abs: 1, min: 2, max: 2, sqrt: 1, sin: 1, cos: 1 };
+export const FUNCS: Record<string, number> = { abs: 1, min: 2, max: 2, sqrt: 1, sin: 1, cos: 1, atan2: 2 };
 /** sin of a whole turn split into 256 steps, scaled to 127 and rounded. */
 export const SIN = Int8Array.from({ length: 256 }, (_, i) => Math.round(127 * Math.sin((2 * Math.PI * i) / 256)));
+/**
+ * The direction of (x, y) as a whole turn of 256, 0 to 255, counted from the
+ * positive x axis towards positive y (which is down the screen). Rounded to the
+ * nearest step. atan2(0, 0) is 0.
+ */
+export const angleOf = (y: number, x: number) => Math.round((Math.atan2(y, x) * 256) / (2 * Math.PI)) & 255;
 const LEVELS = ['|', '^', '&', '<< >>', '+ -', '* / %'].map((l) => l.split(' '));
 
 export function parse(src: string): Node {
@@ -223,6 +231,8 @@ export function build(n: Node): Fn {
 			return (x, y, t) => SIN[a(x, y, t) & 255];
 		case 'f:cos':
 			return (x, y, t) => SIN[(a(x, y, t) + 64) & 255];
+		case 'f:atan2':
+			return (x, y, t) => angleOf(a(x, y, t), b(x, y, t));
 		case '<<':
 			return (x, y, t) => a(x, y, t) << b(x, y, t);
 		case '>>':
@@ -601,6 +611,21 @@ export const PRESETS: Preset[] = [
 		note: 'Row 0 divides by zero, which is defined here as 0.'
 	},
 	{
+		label: 'Bit 5 of XOR',
+		e: 'x ^ y',
+		size: 128,
+		mode: 'bit',
+		bit: 5,
+		note: 'One bit plane of the XOR texture: on or off, nothing between.'
+	},
+	{
+		label: 'Three channels',
+		e: ['x ^ y', 'x | y', 'x & y'],
+		size: 128,
+		mode: 'rgb',
+		note: 'XOR for red, OR for green and AND for blue.'
+	},
+	{
 		label: 'Moving XOR',
 		e: '(x ^ y) + t',
 		size: 128,
@@ -681,18 +706,148 @@ export const PRESETS: Preset[] = [
 		note: 'Distance from the middle XOR a diagonal that slides with t.'
 	},
 	{
-		label: 'Bit 5 of XOR',
-		e: 'x ^ y',
+		label: 'Kaleidoscope',
+		e: '(abs(x - 64) ^ abs(y - 64)) * 4 - t * 2',
 		size: 128,
-		mode: 'bit',
-		bit: 5,
-		note: 'One bit plane of the XOR texture: on or off, nothing between.'
+		mode: 'palette',
+		pal: 'fire',
+		t: 30,
+		play: true,
+		note: 'abs(x - 64) folds the picture about the middle column, and the same for rows, so every quadrant is a mirror of the others. The XOR of the folded coordinates is multiplied by 4 so it wraps, and 2t is subtracted so the colours cycle.'
 	},
 	{
-		label: 'Three channels',
-		e: ['x ^ y', 'x | y', 'x & y'],
+		label: 'Spiral arms',
+		e: 'atan2(y - 64, x - 64) * 3 + sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64)) * 4 - t * 4',
+		size: 128,
+		mode: 'palette',
+		pal: 'spectrum',
+		t: 30,
+		play: true,
+		note: 'The angle round the middle (0 to 255) times 3, plus 4 times the distance, minus 4t. Three colour cycles fit round one turn, so there are three arms, and the distance term shears them into spirals that move outwards as t grows.'
+	},
+	{
+		label: 'Vortex',
+		e: '(atan2(y - 64, x - 64) * 2) ^ (6000 / (sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64)) + 1) - t * 2)',
+		size: 128,
+		mode: 'palette',
+		pal: 'spectrum',
+		t: 30,
+		play: true,
+		note: 'The angle times 2, XOR 6000 divided by the distance. The division is steep near the middle, so the rings crowd together there, like looking down a tunnel. Subtracting 2t makes the ring pattern drift towards the middle.'
+	},
+	{
+		label: 'Rainbow swirl',
+		e: [
+			'128+sin(atan2(y - 64, x - 64)*2+sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64))*2-t*4+0)',
+			'128+sin(atan2(y - 64, x - 64)*2+sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64))*2-t*4+85)',
+			'128+sin(atan2(y - 64, x - 64)*2+sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64))*2-t*4+170)'
+		],
 		size: 128,
 		mode: 'rgb',
-		note: 'XOR for red, OR for green and AND for blue.'
+		t: 30,
+		play: true,
+		note: 'All three channels are 128 plus the sine of 2 times the angle, plus 2 times the distance, minus 4t. They are offset by 0, 85 and 170, a third of a turn apart, so the hues run round the colour wheel.'
+	},
+	{
+		label: 'Spinning XOR',
+		e: '(((x - 64) * cos(t) - (y - 64) * sin(t)) >> 7) ^ (((x - 64) * sin(t) + (y - 64) * cos(t)) >> 7)',
+		size: 128,
+		mode: 'palette',
+		pal: 'spectrum',
+		t: 30,
+		play: true,
+		note: 'Turns x - 64 and y - 64 through the angle t with sin and cos (a whole turn is 256, so t = 0 to 255 is one full rotation), shifts right by 7 to undo the scale of about 128, then XORs the two. The XOR texture rotates about the middle.'
+	},
+	{
+		label: 'Chequered floor',
+		e: '((x - 64) * 64 / (y - 40) ^ 2048 / (y - 40) + t * 4) & ((40 - y) >> 31)',
+		size: 128,
+		mode: 'bit',
+		bit: 6,
+		t: 30,
+		play: true,
+		note: 'Dividing by y - 40 gives a perspective floor with its horizon on row 40: x - 64 and 2048 divided by y - 40 are the position across and the depth. Their XOR has bit 6 set on alternate squares, which is shown as the bit. Adding 4t to the depth slides the squares towards you; the last term blanks the rows above the horizon.'
+	},
+	{
+		label: 'XOR zoom',
+		e: '((x - 64) * (160 + sin(t)) >> 7) ^ ((y - 64) * (160 + sin(t)) >> 7)',
+		size: 128,
+		mode: 'palette',
+		pal: 'ocean',
+		t: 30,
+		play: true,
+		note: 'The XOR texture of x - 64 and y - 64 scaled by (160 + sin(t)) / 128, between about 0.26 and 2.2, so it zooms in and out about the middle. Because sin repeats every 256, the loop is seamless.'
+	},
+	{
+		label: 'Sierpinski zoom',
+		e: '(((x * (100 + sin(t) / 2) >> 7) & (y * (100 + sin(t) / 2) >> 7)) - 1) >> 31',
+		size: 128,
+		mode: 'grey',
+		t: 30,
+		play: true,
+		note: 'The coordinates are scaled by between about 0.3 and 1.3 before the AND, then white where it is 0. With a small scale the triangle is magnified towards the top left corner; with a large one it breaks into finer copies.'
+	},
+	{
+		label: 'Metaballs',
+		e: 'min(255, 40000/((x-64-sin(t)/3)*(x-64-sin(t)/3)+(y-64-cos(t*2)/3)*(y-64-cos(t*2)/3)+1)+40000/((x-64-cos(t*3)/3)*(x-64-cos(t*3)/3)+(y-64-sin(t*2)/3)*(y-64-sin(t*2)/3)+1)+40000/((x-64-sin(t*2+90)/2)*(x-64-sin(t*2+90)/2)+(y-64-sin(t*3)/4)*(y-64-sin(t*3)/4)+1))',
+		size: 128,
+		mode: 'palette',
+		pal: 'fire',
+		t: 30,
+		play: true,
+		note: 'Each of three balls adds 40000 divided by the squared distance plus 1, using integer division, so the field falls off steeply. Where the fields add up, close balls merge into one blob; min caps the total at 255. The centres orbit with sin and cos.'
+	},
+	{
+		label: 'Lava lamp',
+		e: 'min(255,80000/((x-64-sin(t)/4)*(x-64-sin(t)/4)+(y-64-sin(t*2)/2)*(y-64-sin(t*2)/2)+1)+80000/((x-64-cos(t)/4)*(x-64-cos(t)/4)+(y-64-sin(t*2+90)/2)*(y-64-sin(t*2+90)/2)+1)+80000/((x-64-sin(t*3)/3)*(x-64-sin(t*3)/3)+(y-64-cos(t)/2)*(y-64-cos(t)/2)+1))',
+		size: 128,
+		mode: 'palette',
+		pal: 'sunset',
+		t: 100,
+		play: true,
+		note: 'The same sum of inverse squared distances as Metaballs, with bigger balls (80000) that rise and fall, drawn in the Sunset palette. The blobs stretch and join when they pass close to each other.'
+	},
+	{
+		label: 'Interference',
+		e: 'sin(sqrt((x-64+sin(t)/4)*(x-64+sin(t)/4)+(y-64)*(y-64))*5)+sin(sqrt((x-64)*(x-64)+(y-64+cos(t)/4)*(y-64+cos(t)/4))*5)+sin(sqrt((x-64-sin(t)/4)*(x-64-sin(t)/4)+(y-64-cos(t)/4)*(y-64-cos(t)/4))*5)+384',
+		size: 128,
+		mode: 'palette',
+		pal: 'spectrum',
+		t: 30,
+		play: true,
+		note: 'The sum of the sine of the distance from three centres that circle around the middle. The total runs from 3 to 765, so it wraps about three times, which cuts it into contour bands; the bands bend where the waves from different centres meet.'
+	},
+	{
+		label: 'Radar sweep',
+		e: [
+			'(255-((atan2(y - 64, x - 64)-t*2)&255))>>3&((sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64))-60)>>31)',
+			'(255-((atan2(y - 64, x - 64)-t*2)&255))&((sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64))-60)>>31)',
+			'(255-((atan2(y - 64, x - 64)-t*2)&255))>>3&((sqrt((x - 64) * (x - 64) + (y - 64) * (y - 64))-60)>>31)'
+		],
+		size: 128,
+		mode: 'rgb',
+		t: 30,
+		play: true,
+		note: 'atan2 gives the bearing of each pixel, so (bearing - 2t) & 255 is how far behind the beam it is. Green is 255 minus that, brightest at the beam and fading behind it; red and blue are an eighth of it. The beam turns once every 128 steps, and the last term blanks everything beyond 60 pixels from the middle.'
+	},
+	{
+		label: 'Flames',
+		e: 'y*3-t*8+sin(x*6)/2+sin(x*13+t*4)/4',
+		size: 128,
+		mode: 'palette',
+		pal: 'fire',
+		t: 30,
+		play: true,
+		note: 'y * 3 - 8t makes bands that move upwards, as t grows; the two sines bend them sideways. It is flame-like in the Fire palette, nothing more.'
+	},
+	{
+		label: 'Scrolling maze',
+		e: '255-min(255,abs(((x+t)&7^(((((x+t)>>3)+(y>>3)*57)*((((x+t)>>3)+(y>>3)*57)*(((x+t)>>3)+(y>>3)*57)*15731+789221)>>14)&1)*7)-(y&7))*60)',
+		size: 128,
+		mode: 'palette',
+		pal: 'ocean',
+		t: 30,
+		play: true,
+		note: 'Cells of 8 by 8 pixels. A hash of the cell number picks the direction of one diagonal line in each cell (u or its mirror 7 - u, compared with v), and the lines join into a maze, as in the old one-line 10 PRINT programs. Adding t to x scrolls it sideways.'
 	}
 ];
