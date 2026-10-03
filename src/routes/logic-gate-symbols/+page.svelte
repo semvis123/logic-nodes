@@ -193,6 +193,10 @@
 				output.
 			{/if}
 		</p>
+		<p>
+			Looking for the characters ¬ ∧ ∨ ⊕ to type into a document, not gate drawings? Use
+			<a href="/logic-symbols-copy-paste">logic symbols to copy and paste</a>.
+		</p>
 	</section>
 
 	<section id="chart">

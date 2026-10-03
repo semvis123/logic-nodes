@@ -161,7 +161,7 @@
 		{ href: '/ripple-carry-adder', label: 'The ripple carry adder' },
 		{ href: '/binary-calculator', label: 'Binary calculator' },
 		{ href: '/common-circuits/full-subtractor', label: 'The full subtractor' },
-		{ href: '/gray-code-converter', label: 'Gray code' },
+		{ href: '/integer-limits', label: 'Integer limits' },
 		{ href: '/learn', label: 'Learn digital logic' }
 	]}
 >
@@ -459,6 +459,10 @@
 			There is one more negative than positive number at every width, because zero uses up one of the patterns with a 0
 			on top. The most negative number, −2<sup>n−1</sup>, is the one value whose negation does not fit: invert and add 1
 			and you get the same pattern back, with the overflow flag set.
+		</p>
+		<p>
+			Every fixed-width type from int8 to uint128, what it is called in each language and what happens when it
+			overflows, is on the <a href="/integer-limits">integer limits</a> page.
 		</p>
 	</section>
 

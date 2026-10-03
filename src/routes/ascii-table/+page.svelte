@@ -188,6 +188,7 @@
 		{ href: '/base64', label: 'Base64 encode and decode' },
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/learn/bits-with-meaning', label: 'Lesson: how bits become letters' },
+		{ href: '/file-signature-checker', label: 'File signature checker' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
@@ -315,6 +316,11 @@
 			A code like this is what turns bits into text: the byte <span class="mono">01000001</span> means nothing until a
 			code says it is A. The lesson <a href="/learn/bits-with-meaning">how bits become letters, colours and codes</a> starts
 			from there.
+		</p>
+		<p>
+			Many file formats start with ASCII letters so that they are easy to spot in a hex dump: a PDF begins
+			<span class="mono">%PDF</span> and a ZIP file begins <span class="mono">PK</span>, which is how the
+			<a href="/file-signature-checker">file signature checker</a> recognises them.
 		</p>
 	</section>
 
@@ -462,6 +468,8 @@
 			<span class="mono">{eAcute.bytes.map((b) => b.binary).join(' ')}</span>. The
 			<a href="/binary-translator">binary translator</a> shows this breakdown for any text, and
 			<a href="/base64">Base64</a> is how those bytes are written when only ASCII characters can be sent.
+			<a href="/base32">Base32</a> and <a href="/base58">Base58</a> do the same job with alphabets chosen to be read and
+			typed by people.
 		</p>
 	</section>
 

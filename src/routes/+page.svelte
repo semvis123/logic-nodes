@@ -511,8 +511,9 @@
 	<section id="tools">
 		<h2>Free digital logic tools</h2>
 		<p class="section-intro">
-			Type an expression and get the table, the map, the minimal form or the diagram. Every one of them works on its
-			own, in the browser, with no account. <a href="/tools">The tools page</a> says what each of the {toolCount()} does.
+			Truth tables, K-maps and circuit diagrams from an expression; number bases, floats and text encodings; subnets,
+			IDs, structs and file signatures, each with its working shown. Every one of them works on its own, in the browser,
+			with no account. <a href="/tools">The tools page</a> says what each of the {toolCount()} does.
 		</p>
 		<div class="tool-groups">
 			{#each toolGroups as group}
@@ -803,9 +804,11 @@
 			grid-column: 1 / -1;
 		}
 
+		/* The gap is the grid gap plus the cards' side padding and borders, so
+		   the second column lines up with the right-hand cards above it. */
 		.tool-group:last-child:nth-child(odd) ul {
 			columns: 2;
-			column-gap: 24px;
+			column-gap: calc(12px + 2 * 1.1rem + 2px);
 		}
 
 		.tool-group:last-child:nth-child(odd) li {

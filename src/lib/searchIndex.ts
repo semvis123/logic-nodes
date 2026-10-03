@@ -7,7 +7,8 @@ import { flipFlops } from '$lib/flipflops';
 import { commonCircuits } from '$lib/commonCircuits';
 import { allLessons } from '$lib/course/lessons';
 import { glossary } from '$lib/glossary';
-import { intTypes, describeType, formatDecimal } from '$lib/intLimits';
+import { intTypes, intSlugs, describeType, formatDecimal, namesFor } from '$lib/intLimits';
+import type { IntType } from '$lib/intLimits';
 
 export type SearchKind = 'Tool' | 'Page' | 'Gate' | 'Flip-flop' | 'Circuit' | 'Lesson' | 'Term';
 
@@ -196,14 +197,14 @@ const toolKeywords: Record<string, string> = {
 	'/hex-to-binary': 'hexadecimal hex binary nibble',
 	'/binary-calculator': 'binary addition subtraction multiplication division bitwise',
 	'/hex-calculator': 'hexadecimal addition subtraction',
-	'/ieee-754-converter': 'floating point float double single precision',
+	'/ieee-754-converter': 'floating point float double single precision mantissa significand exponent sign bit',
 	'/binary-translator': 'text to binary binary to text utf-8',
 	'/ascii-table': 'ascii codes characters chart',
 	'/base64': 'base 64 b64 encode decode',
 	'/logic-symbols-copy-paste':
 		'logic symbols copy paste symbol unicode latex html entity alt x word and or not implies iff forall exists turnstile therefore subset union empty set amssymb',
 	'/fp16-bf16-fp8-converter':
-		'fp16 bf16 bfloat16 fp8 e4m3 e5m2 fp4 e2m1 mxfp4 half precision float16 minifloat low precision machine learning quantization floating point',
+		'fp16 bf16 bfloat16 fp8 e4m3 e5m2 fp4 e2m1 mxfp4 half precision float16 minifloat low precision machine learning quantization floating point mantissa significand exponent sign bit',
 	'/base36':
 		'base36 base 36 converter decimal to base 36 radix any base 2 36 number base conversion tostring parseint bigint',
 	'/guess-my-number':
@@ -217,7 +218,7 @@ const toolKeywords: Record<string, string> = {
 	'/ean-13-barcode-generator':
 		'ean ean13 ean-13 ean8 ean-8 upc upc-a barcode bar code generator check digit gtin isbn isbn-13 isbn-10 bookland gs1 prefix scanner modules',
 	'/subnet-calculator':
-		'subnet subnetting ipv4 ip cidr netmask mask wildcard network broadcast hosts prefix calculator classful private',
+		'subnet subnetting ipv4 ip cidr netmask mask wildcard network broadcast hosts prefix calculator ip address classful private',
 	'/vlsm-calculator': 'vlsm flsm subnetting subnet plan allocate split equal ipv4 cidr hosts network calculator',
 	'/ipv6-expand-compress':
 		'ipv6 ip v6 address expand compress shorten canonical rfc 5952 rfc5952 abbreviate full form double colon zero compression prefix cidr link-local fe80 eui-64 eui64 mac slaac ipv4-mapped teredo nat64 6to4 multicast unique local ula',
@@ -228,7 +229,7 @@ const toolKeywords: Record<string, string> = {
 	'/struct-padding-calculator':
 		'struct padding alignment sizeof offsetof c struct layout memory pragma pack packed alignas reorder abi x86-64 arm windows msvc union',
 	'/uuid-decoder':
-		'uuid guid decoder decode parse generator generate v1 v4 v6 v7 v8 version variant timestamp ulid objectid mongodb nanoid rfc 9562 4122 random id',
+		'uuid guid ulid objectid nanoid decoder decode parse generator generate v1 v4 v6 v7 v8 version variant timestamp mongodb rfc 9562 4122 random id',
 	'/snowflake-id-decoder':
 		'snowflake id decoder discord twitter x timestamp date message user id to date epoch worker process increment sequence before after',
 	'/file-signature-checker':
@@ -246,6 +247,38 @@ const circuitKeywords: Record<string, string> = {
 	parity: 'parity bit even odd',
 	majority: 'voter vote'
 };
+
+/**
+ * What people type for one integer type: Rust's u64, the limit constants, the
+ * limits themselves, and its name in each language (long, sbyte, BIGINT). A
+ * language that reuses another type's name (PostgreSQL's int8 is 64 bits)
+ * keeps it off this page, so "int8" still means int8.
+ */
+function intKeywords(type: IntType): string {
+	const own = (word: string) => !(intSlugs as readonly string[]).includes(word) || word === type.slug;
+	const names = namesFor(type).flatMap(({ type: name, limits }) =>
+		`${name ?? ''} ${limits ?? ''}`
+			.toLowerCase()
+			.split(/[^a-z0-9_:.]+/)
+			.filter((word) => word && own(word) && !['alias', 'or', 'element'].includes(word))
+	);
+	const words = [
+		`${type.slug}_t`,
+		`${type.signed ? 'i' : 'u'}${type.bits}`,
+		`${type.slug}_max`,
+		`${type.slug}_min`,
+		`${type.max}`,
+		type.min === 0n ? '' : `${type.min}`,
+		// "max int" is almost always a question about int32.
+		type.slug === 'int32' ? 'max int int_max' : '',
+		`${type.bits} bit ${type.signed ? 'signed' : 'unsigned'} range limit`,
+		...names
+	];
+	// Commas, not spaces, between them: the phrase bonus matches the typed
+	// words in order, and int8_max next to int8_min would otherwise read as
+	// "max int" on every page.
+	return [...new Set(words.filter(Boolean))].join(', ');
+}
 
 const clip = (text: string, max = 90) =>
 	text.length <= max ? text : `${text.slice(0, text.lastIndexOf(' ', max)).replace(/[,;:]$/, '')}…`;
@@ -286,9 +319,7 @@ export function searchIndex(): SearchEntry[] {
 			href: `/integer-limits/${type.slug}`,
 			kind: 'Page' as const,
 			hint: `${describeType(type)}: ${formatDecimal(type.min)} to ${formatDecimal(type.max)}`,
-			keywords: `${type.slug}_t ${type.slug.replace('int', 'i')} ${type.bits} bit ${
-				type.signed ? 'signed' : 'unsigned'
-			} range limit`
+			keywords: intKeywords(type)
 		})),
 		...allLessons.map((lesson) => ({
 			title: lesson.title,

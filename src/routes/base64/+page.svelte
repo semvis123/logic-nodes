@@ -230,6 +230,8 @@
 		{ href: '/ascii-table', label: 'ASCII table' },
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/learn/bytes-hex-and-width', label: 'Lesson: bytes, hex and bit width' },
+		{ href: '/base32', label: 'Base32 encode and decode' },
+		{ href: '/base58', label: 'Base58 encode and decode' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
@@ -392,6 +394,11 @@
 		</ul>
 		<p class="reducer">
 			Base64 is an encoding, not encryption. There is no key: anyone can decode it, so it hides nothing.
+		</p>
+		<p>
+			When people have to read or type the result, <a href="/base32">Base32</a> (one case, the letters and the digits 2
+			to 7, used for 2FA keys) and <a href="/base58">Base58</a> (no 0, O, I or l, used for Bitcoin addresses) give up some
+			length for legibility.
 		</p>
 	</section>
 

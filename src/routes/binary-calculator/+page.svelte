@@ -310,6 +310,10 @@
 				tooNegative.signedResult ?? 0n
 			)} either way. That is a signed overflow: the bits cannot hold the answer at all.
 		</p>
+		<p>
+			The <a href="/integer-limits">integer limits</a> page lists where every type from int8 to uint128 wraps, and what each
+			language does when it does.
+		</p>
 	</section>
 
 	<section id="bitwise">

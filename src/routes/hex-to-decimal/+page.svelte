@@ -195,6 +195,7 @@
 		{ href: '/binary-converter', label: 'Binary converter' },
 		{ href: '/twos-complement', label: "Two's complement" },
 		{ href: '/ascii-table', label: 'ASCII table' },
+		{ href: '/base36', label: 'Base 36 converter' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >
@@ -449,8 +450,10 @@
 				<a href="/hex-to-binary">hex to binary converter</a> shows it.
 			</li>
 			<li>
-				<strong>A byte is two digits.</strong> Eight bits always fit in 00 to FF, so memory dumps, network packets and file
-				formats line up in neat pairs. The same byte in decimal takes one to three digits and does not line up.
+				<strong>A byte is two digits.</strong> Eight bits always fit in 00 to FF, so memory dumps, network packets and
+				file formats line up in neat pairs. The same byte in decimal takes one to three digits and does not line up. A
+				file's first bytes, its magic number, are read the same way: every PNG starts 89 50 4E 47, which the
+				<a href="/file-signature-checker">file signature checker</a> looks for in any file.
 			</li>
 			<li>
 				<strong>Colours.</strong> A CSS colour such as

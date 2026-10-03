@@ -245,6 +245,11 @@
 			<a href="/binary-calculator">binary calculator</a> gives the same bits, and the
 			<a href="/hex-to-binary">hex to binary converter</a> shows how each digit maps to its four bits.
 		</p>
+		<p>
+			With a width set, the sum wraps the way a register does: in 32 bits, 7FFFFFFF + 1 is 80000000, which a signed int
+			reads as its most negative value. The <a href="/integer-limits">integer limits</a> page lists where every type from
+			int8 to uint128 wraps, and what each language does when it does.
+		</p>
 	</section>
 
 	<section class="faq">

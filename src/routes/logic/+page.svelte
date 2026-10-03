@@ -90,7 +90,7 @@
 	];
 
 	const page = {
-		title: 'Propositional Logic: Logic Symbols and How to Read Them',
+		title: 'Propositional Logic: Connectives and How to Read Them',
 		description:
 			'Propositional logic explained: the logic symbols ¬ ∧ ∨ → ↔ and how to read them, what a proposition is, order of operations, and guides to proofs.',
 		url: `${SITE}/logic`,
