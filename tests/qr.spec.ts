@@ -748,6 +748,38 @@ test.describe('the qr-code-generator page', () => {
 		await expect(page).toHaveURL(/\/qr-code-generator$/);
 	});
 
+	test('a stale code is out of reach and the field names its error', async ({ page }) => {
+		await page.goto('/qr-code-generator');
+		await page.waitForLoadState('networkidle');
+		const field = page.locator('#qr-text');
+		await expect(field).toHaveAttribute('aria-describedby', 'qr-text-help');
+		await field.fill('x'.repeat(3000));
+		await expect(page.locator('#qr-text-error')).toContainText('the largest QR code holds');
+		await expect(field).toHaveAttribute('aria-describedby', 'qr-text-help qr-text-error');
+		// Dimmed, and inert: no focus stop inside the last good code or its steps.
+		await expect(page.locator('.results')).toHaveJSProperty('inert', true);
+		await expect(page.locator('#steps > div.stale')).toHaveJSProperty('inert', true);
+		await expect(page.locator('svg.symbol')).toBeVisible();
+		await page.locator('svg.symbol').focus();
+		await expect(page.locator('svg.symbol')).not.toBeFocused();
+		await field.fill('OK');
+		await expect(page.locator('.results')).toHaveJSProperty('inert', false);
+	});
+
+	test('a plain code to scan sits by the downloads, and tall tables can be scrolled by keyboard', async ({ page }) => {
+		await page.goto('/qr-code-generator');
+		await page.waitForLoadState('networkidle');
+		const plain = page.getByRole('img', { name: 'QR code for HELLO WORLD' });
+		await expect(plain).toBeVisible();
+		await expect(plain.locator('path[fill="#000"]')).toHaveCount(1);
+		await expect(page.getByRole('application', { name: /Use the arrow keys/ })).toBeVisible();
+		const tall = page.getByRole('region', { name: 'QR code capacity by version' });
+		await expect(tall).toHaveAttribute('tabindex', '0');
+		await tall.focus();
+		await page.keyboard.press('End');
+		await expect.poll(() => tall.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+	});
+
 	test('the FAQ markup matches the questions on the page', async ({ page }) => {
 		await page.goto('/qr-code-generator');
 		const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();

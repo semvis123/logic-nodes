@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { hexByte, MODE_INDICATOR, charCountBits, type QrCode, type Field } from '$lib/qr';
+	import { scrollFocus } from './scrollFocus';
 
 	// The build of the current code, stage by stage. Long inputs are cut short
 	// in each stage, with a note; every codeword is made the same way.
@@ -98,7 +99,7 @@
 		<h3>Data bits</h3>
 		<p>{groupRule}</p>
 		{#if qr.groups.length}
-			<div class="table-wrap scroll-box">
+			<div class="table-wrap scroll-box" use:scrollFocus data-label="Data bits">
 				<table class="data-table groups">
 					<thead>
 						<tr>
@@ -189,7 +190,7 @@
 				are quicker to decode. With the interleaving below, damage in one spot is shared between several blocks.
 			{/if}
 		</p>
-		<div class="table-wrap scroll-box">
+		<div class="table-wrap scroll-box" use:scrollFocus data-label="Error correction blocks">
 			<table class="data-table blocks">
 				<thead>
 					<tr>
