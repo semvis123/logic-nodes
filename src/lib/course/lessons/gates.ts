@@ -701,7 +701,8 @@ export const gates: StageMeta = {
 			deeper: [
 				{ href: '/logic-gates/and', label: 'The AND gate' },
 				{ href: '/logic-gates/or', label: 'The OR gate' },
-				{ href: '/practice?topic=gates', label: 'Practice: gates' }
+				{ href: '/practice?topic=gates', label: 'Practice: gates' },
+				{ href: '/common-circuits/majority', label: 'Majority reference' }
 			]
 		},
 		{
