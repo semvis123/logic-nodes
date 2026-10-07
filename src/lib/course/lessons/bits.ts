@@ -517,7 +517,8 @@ export const bits: StageMeta = {
 			deeper: [
 				{ href: '/binary-converter#bcd', label: 'BCD in the binary converter' },
 				{ href: '/seven-segment-decoder', label: 'Seven-segment decoder' },
-				{ href: '/twos-complement', label: "Two's complement, for later" }
+				{ href: '/twos-complement', label: "Two's complement, for later" },
+				{ href: '/common-circuits/parity', label: 'Parity reference' }
 			]
 		}
 	]

@@ -811,7 +811,9 @@ export const build: StageMeta = {
 			generators: [signedPatternValue, negateNumber, rangeForBits, doesOverflow],
 			deeper: [
 				{ href: '/twos-complement', label: "Two's complement" },
-				{ href: '/binary-converter', label: 'Binary converter' }
+				{ href: '/binary-converter', label: 'Binary converter' },
+				{ href: '/common-circuits/half-subtractor', label: 'Half subtractor reference' },
+				{ href: '/common-circuits/full-subtractor', label: 'Full subtractor reference' }
 			]
 		},
 		{
@@ -826,7 +828,11 @@ export const build: StageMeta = {
 			deeper: [
 				{ href: '/common-circuits/multiplexer', label: 'Multiplexer reference' },
 				{ href: '/common-circuits/decoder', label: 'Decoder reference' },
-				{ href: '/common-circuits/comparator', label: 'Comparator reference' }
+				{ href: '/common-circuits/comparator', label: 'Comparator reference' },
+				{ href: '/common-circuits/demultiplexer', label: 'Demultiplexer reference' },
+				{ href: '/common-circuits/encoder', label: 'Encoder reference' },
+				{ href: '/common-circuits/decoder-3-to-8', label: 'Three to eight decoder reference' },
+				{ href: '/common-circuits/comparator-2-bit', label: 'Two bit comparator reference' }
 			]
 		},
 		{
