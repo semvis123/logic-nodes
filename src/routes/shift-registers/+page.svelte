@@ -145,6 +145,7 @@
 		{ href: '/counters', label: 'Counters' },
 		{ href: '/flip-flops/d', label: 'D flip-flop' },
 		{ href: '/combinational-vs-sequential', label: 'Combinational vs sequential' },
+		{ href: '/learn/registers-and-shift-registers', label: 'Registers and shift registers lesson' },
 		{ href: '/learn', label: 'Learn digital logic' }
 	]}
 >

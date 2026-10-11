@@ -449,7 +449,9 @@
 		<h2>A worked example: the half adder</h2>
 		<p class="section-intro">
 			A circuit can have more than one output, and then it has one column per output. Adding two single bits gives a sum
-			and a carry — the sum is XOR, the carry is AND. That is the whole half adder.
+			and a carry — the sum is XOR, the carry is AND. That is the whole <a href="/common-circuits/half-adder"
+				>half adder</a
+			>.
 		</p>
 		<table class="data-table">
 			<thead>
@@ -477,8 +479,9 @@
 			Read the last row: 1 + 1 is 0 carry 1, which is binary for 2. The generator above takes both outputs at once:
 			<a href={toolLink('/truth-table-generator', { expr: halfAdderExpression })}>open the half adder as one table</a>
 			or <a href={toolLink('/logic-circuit-generator', { expr: halfAdderExpression })}>draw it as one circuit</a>. Chain
-			two half adders, then OR their two carry outputs together, and you have a full adder; chain four of those and you
-			can <a href="/simulator#example:Calculator">add two four bit numbers</a>.
+			two half adders, then OR their two carry outputs together, and you have a
+			<a href="/common-circuits/full-adder">full adder</a>; chain four of those and you can
+			<a href="/simulator#example:Calculator">add two four bit numbers</a>.
 		</p>
 	</section>
 

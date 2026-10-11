@@ -221,9 +221,10 @@
 				<p class="equation mono">Sum = A ⊻ B ⊻ Cin</p>
 				<p class="equation mono">Cout = AB ∨ Cin(A ⊻ B)</p>
 				<p class="side-note">
-					The sum is 1 when an odd number of inputs are 1, which is XOR. The carry is 1 when at least two are, which is
-					the majority function; writing it with the shared <span class="mono">A ⊻ B</span> is what lets a full adder be
-					built from two <a href="/common-circuits/half-adder">half adders</a> and an OR gate.
+					The sum is 1 when an odd number of inputs are 1, which is <a href="/logic-gates/xor">XOR</a>. The carry is 1
+					when at least two are, which is the majority function; writing it with the shared
+					<span class="mono">A ⊻ B</span>
+					is what lets a full adder be built from two <a href="/common-circuits/half-adder">half adders</a> and an OR gate.
 				</p>
 			</div>
 		</div>

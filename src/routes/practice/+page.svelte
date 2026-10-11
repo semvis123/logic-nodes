@@ -349,6 +349,10 @@
 	related={[
 		{ href: '/worksheet', label: 'Printable worksheets' },
 		{ href: '/logic-gates', label: 'The seven logic gates' },
+		{ href: '/logic-gates/xnor', label: 'The XNOR gate' },
+		{ href: '/logic-gates/and', label: 'The AND gate' },
+		{ href: '/logic-gates/nor', label: 'The NOR gate' },
+		{ href: '/common-circuits/half-adder', label: 'The half adder' },
 		{ href: '/learn', label: 'Learn digital logic' },
 		{ href: '/tools', label: 'All tools' }
 	]}
