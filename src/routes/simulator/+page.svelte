@@ -145,7 +145,12 @@
 		tools like Logic.ly and Logisim. Build circuits from AND, OR, NOT, XOR, NAND and NOR gates, then generate their
 		truth tables and boolean expressions.
 		<a href="/learn">Learn how it works</a>, or look up
-		<a href="/logic-gates">the seven gates</a> and <a href="/flip-flops">flip-flops</a> in the reference.
+		<a href="/logic-gates">the seven gates</a>, including <a href="/logic-gates/and">AND</a>,
+		<a href="/logic-gates/nor">NOR</a>
+		and
+		<a href="/logic-gates/xnor">XNOR</a>, and the <a href="/common-circuits/multiplexer">multiplexer</a>,
+		<a href="/common-circuits/decoder">decoder</a> and <a href="/common-circuits/encoder">encoder</a> circuits, plus
+		<a href="/flip-flops">flip-flops</a>, in the reference.
 	</p>
 	<noscript>
 		<p class="noscript-note">
