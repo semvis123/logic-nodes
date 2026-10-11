@@ -247,6 +247,9 @@
 		{ href: '/truth-table-generator', label: 'Truth table generator' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
 		{ href: '/expression-tree', label: 'Expression tree generator' },
+		{ href: '/common-circuits/multiplexer', label: 'The multiplexer' },
+		{ href: '/common-circuits/decoder', label: 'The decoder' },
+		{ href: '/common-circuits/encoder', label: 'The encoder' },
 		{ href: '/tools', label: 'All tools' }
 	]}
 >

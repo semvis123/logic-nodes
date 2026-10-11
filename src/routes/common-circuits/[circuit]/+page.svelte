@@ -49,7 +49,14 @@
 
 	// Title case for the tab and the search result: "Half Adder", "2-to-1 Multiplexer".
 	$: title = `${circuit.name.replace(/(^|\s)[a-z]/g, (m) => m.toUpperCase())}: Truth Table and Circuit Diagram`;
-	$: description = circuit.definition;
+	// The table leads the description, as it does on the gate pages, so the
+	// search snippet answers "half adder truth table" before the definition.
+	$: tableText = rows
+		.map((row) => `${row.inputs.map((b) => (b ? 1 : 0)).join('')}→${row.outputs.map((b) => (b ? 1 : 0)).join('')}`)
+		.join(', ');
+	$: description = `Truth table (${circuit.inputs.map((pin) => pin.v).join(' ')} → ${circuit.outputs
+		.map((o) => o.name)
+		.join(' ')}): ${tableText}. ${circuit.definition}`;
 
 	$: jsonLd = `<script type="application/ld+json">${JSON.stringify({
 		'@context': 'https://schema.org',
