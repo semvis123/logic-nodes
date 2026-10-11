@@ -184,8 +184,10 @@
 		</div>
 		<p class="reducer">
 			{#if standard === 'ansi'}
-				Note that NAND is simply the AND shape with a bubble, and NOR is OR with a bubble. XOR is OR with one extra line
-				across its back, which is easy to miss on a dense drawing, and XNOR is that shape with a bubble.
+				Note that NAND is simply the AND shape with a bubble, and NOR is OR with a bubble. <a href="/logic-gates/xor"
+					>XOR</a
+				> is OR with one extra line across its back, which is easy to miss on a dense drawing, and XNOR is that shape with
+				a bubble.
 			{:else}
 				In IEC form every gate is the same rectangle and only the label changes: <span class="mono">&amp;</span>
 				for AND, <span class="mono">≥1</span> for OR, <span class="mono">1</span> for a buffer,
