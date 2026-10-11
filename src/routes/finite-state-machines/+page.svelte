@@ -247,7 +247,8 @@
 		{ href: '/flip-flops', label: 'Flip-flops' },
 		{ href: '/counters', label: 'Counters' },
 		{ href: '/karnaugh-map-solver', label: 'Karnaugh map solver' },
-		{ href: '/combinational-vs-sequential', label: 'Combinational vs sequential' }
+		{ href: '/combinational-vs-sequential', label: 'Combinational vs sequential' },
+		{ href: '/learn/state-machines', label: 'State machines lesson' }
 	]}
 >
 	<section class="intro">
@@ -531,8 +532,8 @@
 			with <span class="mono">{built[0].legend}</span>. The simulator has no flip-flop node, so build a D flip-flop from
 			gates, as the <a href="/flip-flops/d">D flip-flop page</a> outlines and
 			<a href="/learn/the-sr-latch">the learning path</a>
-			shows for the latch inside it, and package it as a custom node; two of those, an Interval node as the clock, and
-			the gates above make the whole detector. Feed it 1, 0, 1 on successive clocks and watch
+			shows for the latch inside it, and package it as a custom node; two of those, an Interval node as the clock, and the
+			gates above make the whole detector. Feed it 1, 0, 1 on successive clocks and watch
 			<span class="mono">z</span> rise one cycle later.
 		</p>
 		<p>
@@ -541,7 +542,8 @@
 		<p class="reducer">
 			Counters are the same procedure with no input: the <a href="/counters">counters page</a> shows a decade counter
 			and how to design one that runs through any sequence you choose, and the <a href="/flip-flops">flip-flop pages</a>
-			have the excitation tables you need if you use JK or T flip-flops instead of D.
+			have the excitation tables you need if you use <a href="/flip-flops/jk">JK</a> or <a href="/flip-flops/t">T</a> flip-flops
+			instead of D.
 		</p>
 	</section>
 

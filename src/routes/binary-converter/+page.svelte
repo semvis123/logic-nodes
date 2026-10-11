@@ -361,8 +361,9 @@
 	<section id="width">
 		<h2>Why the width comes first</h2>
 		<p>
-			On paper a number can be as long as it likes. In a circuit it cannot: it lives in a fixed row of flip-flops, and
-			that row has no way to grow. Everything awkward about machine arithmetic follows from that one fact.
+			On paper a number can be as long as it likes. In a circuit it cannot: it lives in a fixed row of <a
+				href="/flip-flops">flip-flops</a
+			>, and that row has no way to grow. Everything awkward about machine arithmetic follows from that one fact.
 		</p>
 		<ul class="points">
 			<li>
